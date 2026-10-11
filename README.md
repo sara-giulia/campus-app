@@ -15,10 +15,7 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 6. [Architecture](#6-architecture)
 7. [AI module: SuggestPrice](#7-ai-module-suggestprice)
 8. [Work packages](#8-work-packages)
-9. [Roadmap](#9-roadmap)
-10. [How we work](#10-how-we-work)
-11. [Testing strategy](#11-testing-strategy)
-12. [Risks and how we handle them](#12-risks-and-how-we-handle-them)
+9. [How we work](#9-how-we-work)
 
 ---
 
@@ -59,6 +56,7 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 - `TimeProvider` for anything that depends on the clock
 - **xUnit** with hand-written fakes
 - **Postman** collections for API tests
+- **SonarQube Cloud** for code quality and coverage, with a quality gate of **100% coverage on new code**
 - **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`) for the AI module
 
 ## 3. Use cases
@@ -190,8 +188,6 @@ classDiagram
     Reservation ..> ReservationStatus
 ```
 
-Aggregates reference each other **by id**, not by navigation properties, so each aggregate can be loaded and saved on its own.
-
 ### Listing lifecycle
 
 ```mermaid
@@ -234,20 +230,6 @@ sequenceDiagram
 
 We will test this with an integration test that runs two reservations in parallel against the same listing and checks that exactly one succeeds.
 
-### Request flow inside one slice
-
-```mermaid
-flowchart LR
-    R[HTTP request] --> E[Endpoint]
-    E --> H[Handler]
-    H --> Repo[Repository]
-    H --> D[Domain: Listing / Reservation]
-    D --> Res["Result&lt;T&gt;"]
-    H --> U[Unit of Work: SaveChanges]
-    U --> DB[(SQLite)]
-    Res --> E
-    E --> Resp[200 / 201 / 400 / 404 / 409]
-```
 
 ## 6. Architecture
 
@@ -290,7 +272,6 @@ Each slice folder contains the request/response records, the handler and the end
 | Decision | Why |
 |---|---|
 | Vertical slices | Each use case lives in one folder, so team members rarely edit the same files. |
-| Hand-written CQRS handlers | Commands change state, queries only read. No MediatR, so the flow stays easy to follow. |
 | Repository + Unit of Work | Handlers do not depend on EF Core directly and can be tested with fakes. |
 | `Result<T>` | Business rule violations are expected outcomes, not exceptions. The endpoint maps them to HTTP codes. |
 | `TimeProvider` | The 48h expiry can be tested by moving a fake clock forward. |
@@ -358,7 +339,7 @@ flowchart LR
 
 ## 8. Work packages
 
-The project is divided into five work packages. **We have not yet decided how to split them**: either each member owns one package, or everyone works on a part of each. The decision will be recorded here.
+The project is divided into five work packages.
 
 | Package | Slices and tasks | Tests |
 |---|---|---|
@@ -368,58 +349,13 @@ The project is divided into five work packages. **We have not yet decided how to
 | **Reservation** | `ReserveListing`, `CancelReservation`, `ConfirmSale`, `GetMyReservations`, 48h expiry, max 3 reservations, concurrency 409 | Rules + fake clock tests, parallel reservation integration test |
 | **AI module** | Synthetic CSV generator, `CampusMarket.Train` (train + evaluate + baseline), `IPriceSuggester`, ML.NET and Fake implementations, `SuggestPrice` endpoint | Fake suggester tests, endpoint test |
 
-Whatever the split, every slice comes with its tests, its Postman requests and a README update, and every pull request is reviewed by another member.
+However the work is split, every slice comes with its tests, its Postman requests and a README update, and every pull request is reviewed by another member.
 
 **Order matters:** the shared infrastructure blocks everything else, so it is done first. The AI module does not depend on the database, so it can be worked on in parallel.
 
 
-## 9. Roadmap
 
-The instructor sets the deliverables week by week, so the roadmap below has **no fixed dates**. It is the order in which we plan to build the project; each week we map the instructor's requests onto it and record them in the [weekly log](#weekly-log).
-
-```mermaid
-flowchart LR
-    P1[1. Setup and plan] --> P2[2. Foundation]
-    P2 --> P3[3. Domain]
-    P3 --> P4[4. Business slices]
-    P4 --> P5[5. Hard rule]
-    P2 --> P6[6. AI module]
-    P5 --> P7[7. Quality]
-    P6 --> P7
-    P7 --> P8[8. Final polish]
-```
-
-| Phase | What we deliver | Done when |
-|---|---|---|
-| **1. Setup and plan** | Team, private repository with the instructor added, this README with the plan and diagrams; everyone installs .NET 10, an IDE and Postman; a small test project confirms ML.NET runs on `net10.0` | README pushed, every member can run a "hello" minimal API |
-| **2. Foundation** | Solution structure, `/api/v1` route group, `Result<T>`, EF Core + SQLite, repositories, Unit of Work, `TimeProvider`; `CreateMember` built end to end as the template for every other slice | `CreateMember` works in Postman and has tests |
-| **3. Domain** | `Member`, `Listing`, `Reservation` with all business rules and the listing state machine | Domain unit tests green, aiming for **100% coverage of the domain** |
-| **4. Business slices** | The remaining slices: listings (create, publish, search with filters and paging, details) and reservations (reserve, cancel, confirm sale, my reservations, 48h expiry) | All 9 slices work in Postman |
-| **5. Hard rule** | `Version` concurrency token, 409 on concurrent reservation | Integration test with two parallel reservations: exactly one succeeds |
-| **6. AI module** | Synthetic CSV, `Train` tool, `IPriceSuggester` with ML.NET and Fake implementations, `SuggestPrice` endpoint, evaluation against the baseline | Metrics table (MAE, RMSE, R², baseline) in this README |
-| **7. Quality** | Integration tests for every endpoint, complete Postman collection, handler tests with hand-written fakes, code coverage report | All tests green on `main`; coverage numbers recorded here |
-| **8. Final polish** | Completeness check against the brief, refactoring, one "wow" improvement, retraining on real `Sold` listings, final README and presentation | Demo runs from a clean clone |
-
-Phase 6 depends only on the foundation, so it can run in parallel with phases 3–5.
-
-### Possible extra requests
-
-Based on how the course worked in previous years, we expect extra requests along the way, and we leave room for them:
-
-- authentication and authorization (for example, only the seller can publish or confirm a sale), with roles or claims;
-- upgrading to the latest .NET / C# version and documenting the new features we use;
-- code coverage targets for the domain and application layers;
-- a minimum number of integration tests for the API;
-- a "challenge" item: anything that makes the project noticeably better.
-
-### Weekly log
-
-| Week | Requested by the instructor | Status | Notes |
-|---|---|---|---|
-| 1 | Team of 4–5, detailed plan until the end, private repository with `@florinolariuip` added, everything documented in the README | Done | This README |
-| 2 | _to be announced_ | | |
-
-## 10. How we work
+## 9. How we work
 
 ### Git workflow
 
@@ -434,6 +370,7 @@ Based on how the course worked in previous years, we expect extra requests along
 - [ ] Business rules return `Result` errors, not exceptions
 - [ ] Unit tests for the rules
 - [ ] Request(s) added to the Postman collection
+- [ ] SonarQube Cloud quality gate passed, with **100% coverage on new code**
 - [ ] Reviewed and merged into `main`
 
 ### Communication
@@ -442,27 +379,6 @@ Based on how the course worked in previous years, we expect extra requests along
 - Tasks tracked as GitHub Issues, one per slice, assigned to whoever picks it up.
 - A team chat group for day-to-day questions.
 
-## 11. Testing strategy
-
-| Level | What | Tool |
-|---|---|---|
-| Unit | Domain rules (own listing, sold listing, max 3, 48h expiry) and handlers with fake repositories | xUnit + hand-written fakes |
-| Integration | Endpoints against a real SQLite database, including the parallel reservation test | xUnit + `WebApplicationFactory` |
-| API | Every endpoint, happy path and error cases | Postman collection |
-| AI evaluation | MAE, RMSE, R² vs baseline (not a unit test) | `CampusMarket.Train` |
-
-The 48h expiry is tested with a fake `TimeProvider` that we move forward in time, so tests never wait or depend on the real clock.
-
-## 12. Risks and how we handle them
-
-| Risk | Impact | What we do |
-|---|---|---|
-| Team is new to .NET | Slow start | Time dedicated to learning at the start; the first slice (`CreateMember`) is built end to end as an example for all the others |
-| ML.NET packages may not work on .NET 10 | AI module blocked | Small test project before any real AI work; fallback: put the training tool on an earlier .NET version |
-| Infrastructure late | Everyone blocked | Infrastructure is the first priority; meanwhile the domain classes are prepared in parallel |
-| Merge conflicts | Lost time | Vertical slices + small pull requests |
-| Concurrency hard to test | Hard rule not proven | Dedicated integration test with two parallel reservations |
-| Synthetic data too "perfect" | Misleading metrics | Add noise; compare to baseline; document clearly |
 
 
 ---
