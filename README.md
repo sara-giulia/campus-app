@@ -1,7 +1,7 @@
 # CampusMarket
 
 A second-hand marketplace for students on campus: textbooks, problem sets, laptops and lab equipment.
-Sellers publish listings, buyers reserve them, and an AI module suggests a fair asking price.
+Sellers publish listings, buyers reserve them, and an AI module suggests a fair asking price.  
 
 ---
 
