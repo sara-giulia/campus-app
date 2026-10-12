@@ -13,8 +13,8 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 4. [Domain model](#4-domain-model)
 5. [Key flows](#5-key-flows)
 6. [Architecture](#6-architecture)
-9. [Work packages](#8-work-packages)
-10. [How we work](#9-how-we-work)
+7. [Work packages](#8-work-packages)
+8. [How we work](#9-how-we-work)
 
 ---
 
@@ -278,7 +278,7 @@ Each slice folder contains the request/response records, the handler and the end
 | API versioning (`/api/v1/`) | All endpoints live in one versioned route group. If a contract ever has to change in a breaking way, we add `/api/v2/` next to it instead of breaking existing clients and Postman tests. |
 
 
-## 9. Work packages
+## 7. Work packages
 
 The project is divided into five work packages.
 
@@ -296,7 +296,7 @@ However the work is split, every slice comes with its tests, its Postman request
 
 
 
-## 10. How we work
+## 8. How we work
 
 ### Git workflow
 
