@@ -26,7 +26,7 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 | 1 | Matasel Sara Giulia | `@sara-giulia` |
 | 2 | Ilenei Ancuta-Bianca | `@Anca110` |
 | 3 | _Coman Carina_ | `@Carinacoman` |
-| 4 | _Name Surname_ | `@username` |
+| 4 | _Preutu-Grigore Diana-Smaranda_ | `@diana_preutu` |
 
 ## 2. Project overview
 
