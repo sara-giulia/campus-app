@@ -24,7 +24,7 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 | # | Name | GitHub |
 |---|------|--------|
 | 1 | Matasel Sara Giulia | `@sara-giulia` |
-| 2 | _Name Surname_ | `@username` |
+| 2 | Ilenei Ancuta-Bianca | `@Anca110` |
 | 3 | _Name Surname_ | `@username` |
 | 4 | _Name Surname_ | `@username` |
 
