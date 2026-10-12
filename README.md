@@ -13,9 +13,8 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 4. [Domain model](#4-domain-model)
 5. [Key flows](#5-key-flows)
 6. [Architecture](#6-architecture)
-7. [AI module: SuggestPrice](#7-ai-module-suggestprice)
-8. [Work packages](#8-work-packages)
-9. [How we work](#9-how-we-work)
+9. [Work packages](#8-work-packages)
+10. [How we work](#9-how-we-work)
 
 ---
 
@@ -278,66 +277,8 @@ Each slice folder contains the request/response records, the handler and the end
 | `Version` concurrency token | Solves the hard rule without locks. |
 | API versioning (`/api/v1/`) | All endpoints live in one versioned route group. If a contract ever has to change in a breaking way, we add `/api/v2/` next to it instead of breaking existing clients and Postman tests. |
 
-## 7. AI module: SuggestPrice
 
-### What it does
-
-The seller enters category, condition, product age and the original list price. The API returns a suggested asking price and a range:
-
-```json
-POST /api/v1/listings/price-suggestion
-{ "category": "Textbook", "condition": "Good", "ageInMonths": 24, "listPrice": 120 }
-
-200 OK
-{ "suggestedPrice": 58.0, "low": 49.5, "high": 66.5, "provider": "MlNet" }
-```
-
-The range is the suggestion ± the RMSE measured on the test set. The price is **never** written into the listing automatically.
-
-### Architecture
-
-```mermaid
-flowchart LR
-    EP[SuggestPrice endpoint] --> I[IPriceSuggester]
-    I -.-> M[MlNetPriceSuggester<br/>loads price-model.zip]
-    I -.-> F[FakePriceSuggester<br/>fixed formula]
-    CFG[appsettings.json<br/>Ai:Provider] --> I
-    T[CampusMarket.Train] --> Z[(price-model.zip)]
-    CSV[(synthetic-sales.csv)] --> T
-    Z --> M
-```
-
-- `IPriceSuggester` is the interface the handler depends on.
-- `MlNetPriceSuggester` loads `price-model.zip` at startup.
-- `FakePriceSuggester` uses a fixed formula, so tests never depend on the model.
-- The implementation is chosen from `appsettings.json` (`Ai:Provider` = `MlNet` or `Fake`).
-
-### Model and data
-
-| | |
-|---|---|
-| **Task** | Regression |
-| **Trainer** | FastTree (`Microsoft.ML.FastTree`) |
-| **Features** | category, condition, age in months, list price |
-| **Label** | the price the item actually sold for |
-| **Data (phase 1)** | Synthetic CSV, clearly marked as synthetic |
-| **Data (phase 2)** | Real sales exported from listings with `Status = Sold` |
-| **Split** | 80% train / 20% held-out test |
-
-### Evaluation
-
-- Metrics on the test set: **MAE**, **RMSE** and **R²**.
-- Baseline: **the average sold price per category**.
-- The `Train` tool prints both the model's metrics and the baseline's, and we record them in this README.
-- If the model does not beat the baseline, we will report that honestly as a result.
-
-### Pitfalls we will discuss
-
-- **Cold start**: a category with no sales yet. Fallback: return the category baseline or no suggestion, and say so in the response.
-- **Synthetic data**: if we generate prices with a formula, the model just learns our formula, so a good score proves little. We will add noise and say this explicitly.
-- **Overfitting**: with a small dataset, the model memorises examples. We check by comparing train and test metrics.
-
-## 8. Work packages
+## 9. Work packages
 
 The project is divided into five work packages.
 
@@ -355,7 +296,7 @@ However the work is split, every slice comes with its tests, its Postman request
 
 
 
-## 9. How we work
+## 10. How we work
 
 ### Git workflow
 
