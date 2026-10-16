@@ -29,19 +29,19 @@ public sealed class Listing
     {
         if (sellerId == Guid.Empty)
             return Result<Listing>.Failure(
-                new Error("Listing.SellerEmpty", "Seller id must not be empty."));
+                Error.Validation("Listing.SellerEmpty", "Seller id must not be empty."));
 
         if (!Enum.IsDefined(category))
             return Result<Listing>.Failure(
-                new Error("Listing.CategoryInvalid", "Unknown category."));
-
+                Error.Validation("Listing.CategoryInvalid", "Unknown category."));
+        
         if (!Enum.IsDefined(condition))
             return Result<Listing>.Failure(
-                new Error("Listing.ConditionInvalid", "Unknown condition."));
+                Error.Validation("Listing.ConditionInvalid", "Unknown condition."));
 
-        var titleCheck = ValidateTitle(title);
-        if (titleCheck.IsFailure)
-            return Result<Listing>.Failure(titleCheck.Error);
+        var titleError = ValidateTitle(title);
+        if (titleError is not null)
+            return Result<Listing>.Failure(titleError);
 
         var money = Money.Create(price);
         if (money.IsFailure)
@@ -64,60 +64,58 @@ public sealed class Listing
     }
 
 
-    public Result UpdateDetails(string title, Category category, Condition condition, decimal price)
+    public Result<Listing> UpdateDetails(string title, Category category, Condition condition, decimal price)
     {
         if (Status == ListingStatus.Sold)
-            return Result.Failure(
-                new Error("Listing.Sold", "A sold listing cannot be updated."));
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.Sold", "A sold listing cannot be updated."));
 
         if (!Enum.IsDefined(category))
-            return Result.Failure(
-                new Error("Listing.CategoryInvalid", "Unknown category."));
-
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.CategoryInvalid", "Unknown category."));
         if (!Enum.IsDefined(condition))
-            return Result.Failure(
-                new Error("Listing.ConditionInvalid", "Unknown condition."));
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.ConditionInvalid", "Unknown condition."));
 
-        var titleCheck = ValidateTitle(title);
-        if (titleCheck.IsFailure)
-            return titleCheck;
+        var titleError = ValidateTitle(title);
+        if (titleError is not null)
+            return Result<Listing>.Failure(titleError);
 
         var money = Money.Create(price);
         if (money.IsFailure)
-            return Result.Failure(money.Error);
+            return Result<Listing>.Failure(money.Error);
 
         Title = title.Trim();
         Category = category;
         Condition = condition;
-        Price = money.Value!;
+        Price = money.Value;
         Version++;
 
-        return Result.Success();
+        return this;
     }
 
-    public Result Publish()
+    public Result<Listing> Publish()
     {
         if (Status != ListingStatus.Draft)
-            return Result.Failure(
-                new Error("Listing.NotDraft", "Only a draft listing can be published."));
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.NotDraft", "Only a draft listing can be published."));
 
         Status = ListingStatus.Active;
         Version++;
 
-        return Result.Success();
+        return this;
     }
 
-    private static Result ValidateTitle(string? title)
+    // Returns null when the title is valid, or the error that explains why it is not.
+    private static Error? ValidateTitle(string? title)
     {
         if (string.IsNullOrWhiteSpace(title))
-            return Result.Failure(
-                new Error("Listing.TitleEmpty", "Title must not be empty."));
+            return Error.Validation("Listing.TitleEmpty", "Title must not be empty.");
 
         if (title.Trim().Length > MaxTitleLength)
-            return Result.Failure(
-                new Error("Listing.TitleTooLong",
-                    $"Title must have at most {MaxTitleLength} characters."));
+            return Error.Validation("Listing.TitleTooLong",
+                $"Title must have at most {MaxTitleLength} characters.");
 
-        return Result.Success();
+        return null;
     }
 }

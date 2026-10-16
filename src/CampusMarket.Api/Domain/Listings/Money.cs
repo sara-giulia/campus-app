@@ -11,9 +11,8 @@ public sealed record Money
     public static Result<Money> Create(decimal amount)
     {
         if (amount <= 0)
-            return Result<Money>.Failure(
-                new Error("Money.Invalid", "Price must be greater than 0."));
+            return Result<Money>.Failure(Error.Validation("Money.Invalid", "Price must be greater than 0."));
 
-        return Result<Money>.Success(new Money(amount));
+        return new Money(amount);
     }
 }
