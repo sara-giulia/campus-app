@@ -5,6 +5,10 @@ namespace CampusMarket.Api.Domain.Listings;
 public sealed class Listing
 {
     public const int MaxTitleLength = 100;
+    
+    private readonly List<Reservation> reservations = new();
+    public IReadOnlyList<Reservation> Reservations =>
+        reservations.AsReadOnly();
 
     public Guid Id { get; private set; }
     public Guid SellerId { get; private set; }
@@ -105,6 +109,31 @@ public sealed class Listing
 
         return this;
     }
+    
+    
+    public Result<Reservation> Reserve(Guid buyerId, DateTimeOffset currentTime)
+    {
+        if (Status != ListingStatus.Active)
+            return Result<Reservation>.Failure(
+                Error.Validation("Listing.NotActive", "Only an active listing can be reserved."));
+
+        if (buyerId == Guid.Empty)
+            return Result<Reservation>.Failure(
+                Error.Validation("Reservation.InvalidBuyer", "Buyer id must not be empty."));
+
+        if (buyerId == SellerId)
+            return Result<Reservation>.Failure(
+                Error.Validation("Reservation.OwnListing", "A seller cannot reserve their own listing."));
+
+        var reservation = Reservation.Create(Id, buyerId, currentTime);
+
+        reservations.Add(reservation);
+        Status = ListingStatus.Reserved;
+        Version++;
+
+        return reservation;
+    }
+
 
     // Returns null when the title is valid, or the error that explains why it is not.
     private static Error? ValidateTitle(string? title)
