@@ -18,6 +18,7 @@ public sealed class Listing
 
     private Listing() { }
 
+    
     public static Result<Listing> Create(
         Guid sellerId,
         string title,
@@ -30,6 +31,14 @@ public sealed class Listing
             return Result<Listing>.Failure(
                 new Error("Listing.SellerEmpty", "Seller id must not be empty."));
 
+        if (!Enum.IsDefined(category))
+            return Result<Listing>.Failure(
+                new Error("Listing.CategoryInvalid", "Unknown category."));
+
+        if (!Enum.IsDefined(condition))
+            return Result<Listing>.Failure(
+                new Error("Listing.ConditionInvalid", "Unknown condition."));
+
         var titleCheck = ValidateTitle(title);
         if (titleCheck.IsFailure)
             return Result<Listing>.Failure(titleCheck.Error);
@@ -37,7 +46,7 @@ public sealed class Listing
         var money = Money.Create(price);
         if (money.IsFailure)
             return Result<Listing>.Failure(money.Error);
-
+        
         var listing = new Listing
         {
             Id = Guid.NewGuid(),
@@ -54,11 +63,20 @@ public sealed class Listing
         return Result<Listing>.Success(listing);
     }
 
+
     public Result UpdateDetails(string title, Category category, Condition condition, decimal price)
     {
         if (Status == ListingStatus.Sold)
             return Result.Failure(
                 new Error("Listing.Sold", "A sold listing cannot be updated."));
+
+        if (!Enum.IsDefined(category))
+            return Result.Failure(
+                new Error("Listing.CategoryInvalid", "Unknown category."));
+
+        if (!Enum.IsDefined(condition))
+            return Result.Failure(
+                new Error("Listing.ConditionInvalid", "Unknown condition."));
 
         var titleCheck = ValidateTitle(title);
         if (titleCheck.IsFailure)
