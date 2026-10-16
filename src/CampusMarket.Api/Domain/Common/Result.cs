@@ -1,31 +1,29 @@
 namespace CampusMarket.Api.Domain.Common;
 
-public class Result
+public sealed class Result<T>
 {
-    protected Result(bool isSuccess, Error error)
+    private readonly T? _value;
+
+    private readonly Error? _error;
+
+    private Result(T? value, Error? error)
     {
-        IsSuccess = isSuccess;
-        Error = error;
+        _value = value;
+        _error = error;
     }
 
-    public bool IsSuccess { get; }
-    public bool IsFailure => !IsSuccess;
-    public Error Error { get; }
+    public bool IsSuccess => _error is null;
 
-    public static Result Success() => new(true, Error.None);
-    public static Result Failure(Error error) => new(false, error);
-}
+    public bool IsFailure => _error is not null;
 
-public sealed class Result<T> : Result
-{
-    private Result(T? value, bool isSuccess, Error error)
-        : base(isSuccess, error)
-    {
-        Value = value;
-    }
+    public T Value => IsSuccess ? _value! : throw new InvalidOperationException("Cannot access the value of a failed result.");
 
-    public T? Value { get; }
+    public Error Error => IsFailure ? _error! : throw new InvalidOperationException("Cannot access the error of a successful result.");
 
-    public static Result<T> Success(T value) => new(value, true, Error.None);
-    public new static Result<T> Failure(Error error) => new(default, false, error);
+    public static Result<T> Success(T value) => new(value, null);
+
+    public static Result<T> Failure(Error error) => new(default, error);
+
+    // Implicit conversion from T to Result<T>
+    public static implicit operator Result<T>(T value) => Success(value);
 }

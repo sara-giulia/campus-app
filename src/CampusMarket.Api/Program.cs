@@ -1,11 +1,15 @@
 using System.Text.Json.Serialization;
 using CampusMarket.Api.Features.Listings;
 using CampusMarket.Api.Features.Members;
+using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Application clock: tests replace it with a fake clock
 builder.Services.AddSingleton(TimeProvider.System);
+
+builder.Services.AddSingleton<IListingRepository, InMemoryListingRepository>();
 
 // Enums are sent as text in JSON ("Active"), not as numbers (1)
 builder.Services.ConfigureHttpJsonOptions(options =>
