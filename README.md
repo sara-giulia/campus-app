@@ -1,7 +1,15 @@
 # CampusMarket
 
 A second-hand marketplace for students on campus: textbooks, problem sets, laptops and lab equipment.
-Sellers publish listings, buyers reserve them, and an AI module suggests a fair asking price.  
+Sellers publish listings, buyers reserve them, and an AI module suggests a fair asking price.
+
+## How to run
+
+1. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
+2. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
+3. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
+
+Unit tests: `dotnet test` from the repository root.
 
 ---
 
@@ -13,8 +21,8 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 4. [Domain model](#4-domain-model)
 5. [Key flows](#5-key-flows)
 6. [Architecture](#6-architecture)
-7. [Work packages](#8-work-packages)
-8. [How we work](#9-how-we-work)
+7. [Work packages](#7-work-packages)
+8. [How we work](#8-how-we-work)
 
 ---
 
@@ -25,7 +33,7 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 | 1 | Matasel Sara Giulia | `@sara-giulia` |
 | 2 | Ilenei Ancuta-Bianca | `@Anca110` |
 | 3 | Coman Carina | `@Carinacoman` |
-| 4 | Preutu-Grigore Diana-Smaranda | `@diana_preutu` |
+| 4 | Preutu-Grigore Diana-Smaranda | `@dianapreutu` |
 
 ## 2. Project overview
 
@@ -113,6 +121,23 @@ flowchart LR
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
+### Implemented so far: CRUD slices
+
+| Resource | Slice | Endpoint | Responses |
+|---|---|---|---|
+| Listing | `CreateListing` | `POST /api/v1/listings` | 201 + `Location`, 400, 409 |
+| Listing | `GetListingById` | `GET /api/v1/listings/{id}` | 200, 404 |
+| Listing | `GetListings` | `GET /api/v1/listings` | 200 |
+| Listing | `UpdateListing` | `PUT /api/v1/listings/{id}` | 204, 400, 404 |
+| Listing | `DeleteListing` | `DELETE /api/v1/listings/{id}` | 204, 404 |
+| Member | `CreateMember` | `POST /api/v1/members` | 201 + `Location`, 400, 409 |
+| Member | `GetMemberById` | `GET /api/v1/members/{id}` | 200, 404 |
+| Member | `GetMembers` | `GET /api/v1/members` | 200 |
+| Member | `UpdateMember` | `PUT /api/v1/members/{id}` | 204, 400, 404 |
+| Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | 204, 404 |
+
+Both resources are stored in memory (`ConcurrentDictionary`) behind `IListingRepository` / `IMemberRepository`, registered as singletons. Endpoints depend only on the interfaces. Errors are returned as `{ "code", "message", "type" }`.
+
 ### Example scenario: reserving a listing
 
 1. Ana publishes "Calculus textbook, Good condition, 40 RON".
@@ -186,6 +211,10 @@ classDiagram
     Listing ..> Condition
     Reservation ..> ReservationStatus
 ```
+
+**Relationships:** a `Member` sells many `Listing`s (**one-to-many**, through `Listing.SellerId`). Members and listings are also connected **many-to-many** through the join entity `Reservation` (`MemberId` + `ListingId`): a member can reserve many listings, and a listing can have many reservations over time. A `Listing` owns its reservations and exposes them only as `IReadOnlyList<Reservation>`.
+
+**Value objects:** `Money` (amount > 0) and `Email` (normalized to lower case, one `@` with text before and after) are immutable records that can only be created through a factory returning `Result<T>`.
 
 ### Listing lifecycle
 
