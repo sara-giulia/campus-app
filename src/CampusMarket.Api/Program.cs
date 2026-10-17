@@ -1,29 +1,13 @@
-using System.Text.Json.Serialization;
-using CampusMarket.Api.Features.Listings;
-using CampusMarket.Api.Features.Members;
-using CampusMarket.Api.Domain.Listings;
-using CampusMarket.Api.Infrastructure;
-using CampusMarket.Api.Domain.Members; 
+using CampusMarket.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Application clock: tests replace it with a fake clock
-builder.Services.AddSingleton(TimeProvider.System);
-
-builder.Services.AddSingleton<IListingRepository, InMemoryListingRepository>();
-builder.Services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
-
-// Enums are sent as text in JSON ("Active"), not as numbers (1)
-builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+// Services and endpoints are set up in CampusMarketSetup, so the tests can reuse them
+builder.Services.AddCampusMarket();
 
 var app = builder.Build();
 
-app.MapGet("/", () => "CampusMarket API is running");
+app.MapCampusMarket();
 
-// All endpoints live under /api/v1; each group is created in its own *Endpoints class
-var api = app.MapGroup("/api/v1");
-api.MapListingsEndpoints();
-api.MapMembersEndpoints();
+await app.RunAsync();
 
-app.Run();

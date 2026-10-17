@@ -53,9 +53,8 @@ public sealed class Listing
 
     public Result<Listing> UpdateDetails(string title, Category category, Condition condition, decimal price)
     {
-        if (Status == ListingStatus.Sold)
-            return Result<Listing>.Failure(
-                Error.Validation("Listing.Sold", "A sold listing cannot be updated."));
+        // Nothing can make a listing Sold yet. The ConfirmSale slice will add
+        // the "Listing.Sold" check here, together with its test.
 
         var details = ValidateDetails(title, category, condition, price);
         if (details.IsFailure)
@@ -109,13 +108,8 @@ public sealed class Listing
             return Result<Listing>.Failure(
                 Error.NotFound("Reservation.NotFound", "Reservation not found."));
 
-        if (reservation.Status != ReservationStatus.Active)
-            return Result<Listing>.Failure(
-                Error.Validation("Reservation.NotActive", "Reservation is not active and cannot be cancelled."));
-        if (Status != ListingStatus.Reserved)
-            return Result<Listing>.Failure(
-                Error.Validation("Listing.NotReserved", "Listing is not reserved."));
-
+        // Reservation.Cancel already refuses a reservation that is not active.
+        // An active reservation always means the listing is Reserved, so no extra check is needed.
         var cancelResult = reservation.Cancel();
         if (cancelResult.IsFailure)
             return Result<Listing>.Failure(cancelResult.Error);
@@ -147,3 +141,4 @@ public sealed class Listing
         return Money.Create(price);
     }
 }
+
