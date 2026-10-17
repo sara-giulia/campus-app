@@ -1,3 +1,9 @@
+using CampusMarket.Api.Features.Members.CreateMember;
+using CampusMarket.Api.Features.Members.DeleteMember;
+using CampusMarket.Api.Features.Members.GetMemberById;
+using CampusMarket.Api.Features.Members.GetMembers;
+using CampusMarket.Api.Features.Members.UpdateMember;
+
 namespace CampusMarket.Api.Features.Members;
 
 public static class MembersEndpoints
@@ -6,8 +12,11 @@ public static class MembersEndpoints
     {
         var group = app.MapGroup("/members");   // => /api/v1/members
 
-        // Fiecare slice isi adauga aici apelul propriu, de exemplu:
-        // CreateMember.Endpoint.Map(group);
+        CreateMemberEndpoint.Map(group);
+        GetMemberByIdEndpoint.Map(group);
+        GetMembersEndpoint.Map(group);
+        UpdateMemberEndpoint.Map(group);
+        DeleteMemberEndpoint.Map(group);
 
         return app;
     }
