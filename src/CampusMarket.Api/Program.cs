@@ -3,6 +3,7 @@ using CampusMarket.Api.Features.Listings;
 using CampusMarket.Api.Features.Members;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Infrastructure;
+using CampusMarket.Api.Domain.Members; 
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddSingleton<IListingRepository, InMemoryListingRepository>();
+builder.Services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
 
 // Enums are sent as text in JSON ("Active"), not as numbers (1)
 builder.Services.ConfigureHttpJsonOptions(options =>

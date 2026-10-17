@@ -707,6 +707,702 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "CreateMember",
+          "item": [
+            {
+              "name": "Create member - valid (201 + Location)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ana Popescu\",\n  \"email\": \"Ana.Popescu@Student.UAIC.ro\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                      "pm.test(\"Location header points to the new member\", () => {",
+                      "  const id = pm.response.json().id;",
+                      "  pm.expect(pm.response.headers.get(\"Location\")).to.include(\"/api/v1/members/\" + id);",
+                      "});",
+                      "pm.test(\"Email is stored in lower case\", () => pm.expect(pm.response.json().email).to.eql(\"ana.popescu@student.uaic.ro\"));",
+                      "pm.collectionVariables.set(\"memberId\", pm.response.json().id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create member - email without @ (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ana Popescu\",\n  \"email\": \"ana.popescu.student.ro\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Email.Invalid\", () => pm.expect(pm.response.json().code).to.eql(\"Email.Invalid\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create member - name of 1 character (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"A\",\n  \"email\": \"Ana.Popescu@Student.UAIC.ro\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Member.InvalidName\", () => pm.expect(pm.response.json().code).to.eql(\"Member.InvalidName\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create member - empty email (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ana Popescu\",\n  \"email\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Email.Empty\", () => pm.expect(pm.response.json().code).to.eql(\"Email.Empty\"));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "GetMemberById",
+          "item": [
+            {
+              "name": "Get member by id - existing (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/{{memberId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "{{memberId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Returns the created member\", () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"memberId\")));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get member by id - random id (404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/00000000-0000-0000-0000-000000000001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "00000000-0000-0000-0000-000000000001"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                      "pm.test(\"Error code is Member.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Member.NotFound\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get member by id - not a Guid (404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/abc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "abc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "GetMembers",
+          "item": [
+            {
+              "name": "Get members - 200 with a list",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Items is a list and Count matches\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items).to.be.an(\"array\");",
+                      "  pm.expect(body.count).to.eql(body.items.length);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get members - contains the created member",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Created member is in the list\", () => {",
+                      "  const ids = pm.response.json().items.map(i => i.id);",
+                      "  pm.expect(ids).to.include(pm.collectionVariables.get(\"memberId\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get members - every email contains @",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Every email is valid text\", () => {",
+                      "  pm.response.json().items.forEach(i => pm.expect(i.email).to.include(\"@\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "UpdateMember",
+          "item": [
+            {
+              "name": "Update member - valid (204)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/{{memberId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "{{memberId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ana Maria Popescu\",\n  \"email\": \"ana.maria@student.uaic.ro\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));",
+                      "pm.test(\"Body is empty\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update member - GET shows the new values",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/{{memberId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "{{memberId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Values were updated\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.name).to.eql(\"Ana Maria Popescu\");",
+                      "  pm.expect(body.email).to.eql(\"ana.maria@student.uaic.ro\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update member - random id (404)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/00000000-0000-0000-0000-000000000001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "00000000-0000-0000-0000-000000000001"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ana Maria Popescu\",\n  \"email\": \"ana.maria@student.uaic.ro\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                      "pm.test(\"Error code is Member.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Member.NotFound\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update member - invalid email (400)",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/{{memberId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "{{memberId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ana Maria Popescu\",\n  \"email\": \"@student.ro\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Email.Invalid\", () => pm.expect(pm.response.json().code).to.eql(\"Email.Invalid\"));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "DeleteMember",
+          "item": [
+            {
+              "name": "Delete member - existing (204)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/{{memberId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "{{memberId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete member - same id again (404)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/{{memberId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "{{memberId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                      "pm.test(\"Error code is Member.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Member.NotFound\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete member - random id (404)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/00000000-0000-0000-0000-000000000001",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "00000000-0000-0000-0000-000000000001"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete member - no longer in Get members",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Deleted member is not in the list\", () => {",
+                      "  const ids = pm.response.json().items.map(i => i.id);",
+                      "  pm.expect(ids).to.not.include(pm.collectionVariables.get(\"memberId\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -720,6 +1416,10 @@
     },
     {
       "key": "listingId",
+      "value": ""
+    },
+    {
+      "key": "memberId",
       "value": ""
     }
   ]
