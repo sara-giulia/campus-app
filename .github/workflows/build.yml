@@ -39,8 +39,8 @@ jobs:
         run: dotnet build --no-incremental
 
       - name: Test with coverage
-        run: dotnet test --no-build --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollection.Configuration.Format=opencover
-
+        run: dotnet test --no-build --collect:"XPlat Code Coverage" --settings coverlet.runsettings
+        
       - name: End analysis
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
         
