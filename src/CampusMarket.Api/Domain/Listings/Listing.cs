@@ -135,6 +135,7 @@ public sealed class Listing
     }
     
     
+    
     public Result<Listing> CancelReservation(Guid reservationId)
     {
         var reservation = reservations
@@ -143,6 +144,10 @@ public sealed class Listing
         if (reservation is null)
             return Result<Listing>.Failure(
                 Error.Validation("Reservation.NotFound", "Reservation not found."));
+
+        if (reservation.Status != ReservationStatus.Active)
+            return Result<Listing>.Failure(
+                Error.Validation("Reservation.NotActive", "Reservation is not active and cannot be cancelled."));
 
         if (Status != ListingStatus.Reserved)
             return Result<Listing>.Failure(
@@ -158,6 +163,7 @@ public sealed class Listing
 
         return this;
     }
+
 
 
 

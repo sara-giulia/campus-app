@@ -11,22 +11,24 @@ public sealed class Member
 
     private Member() { }
 
+    
     private static Result<string> ValidateName(string? name)
     {
+        const string errorMessage = "Name must have between 2 and 100 characters.";
+
         if (string.IsNullOrWhiteSpace(name))
             return Result<string>.Failure(
-                Error.Validation("Member.InvalidName",
-                    "Name must have between 2 and 100 characters."));
+                Error.Validation("Member.InvalidName", errorMessage));
 
         var trimmedName = name.Trim();
 
         if (trimmedName.Length < 2 || trimmedName.Length > 100)
             return Result<string>.Failure(
-                Error.Validation("Member.InvalidName",
-                    "Name must have between 2 and 100 characters."));
+                Error.Validation("Member.InvalidName", errorMessage));
 
         return trimmedName;
     }
+
 
     public static Result<Member> Create(string name, string email, DateTimeOffset createdAt)
     {

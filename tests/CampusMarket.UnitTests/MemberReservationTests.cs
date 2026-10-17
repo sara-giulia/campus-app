@@ -247,10 +247,24 @@ public class MemberReservationTests
 
         Assert.True(firstResult.IsSuccess);
         Assert.True(secondResult.IsFailure);
+        Assert.Equal("Reservation.NotActive", secondResult.Error.Code);
         Assert.Equal(ListingStatus.Active, listing.Status);
         Assert.Equal(ReservationStatus.Cancelled, reservation.Status);
         Assert.Equal(versionAfterCancellation, listing.Version);
     }
+    
+    
+    [Fact]
+    public void Member_CreateWithInvalidEmail_ShouldFail()
+    {
+        var result = Member.Create(
+            "Ana",
+            "invalid-email",
+            DateTimeOffset.UtcNow);
+
+        Assert.True(result.IsFailure);
+    }
+
 
 
 }
