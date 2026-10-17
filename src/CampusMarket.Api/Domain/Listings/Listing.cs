@@ -5,10 +5,9 @@ namespace CampusMarket.Api.Domain.Listings;
 public sealed class Listing
 {
     public const int MaxTitleLength = 100;
-    
+
     private readonly List<Reservation> reservations = new();
-    public IReadOnlyList<Reservation> Reservations =>
-        reservations.AsReadOnly();
+    public IReadOnlyList<Reservation> Reservations => reservations.AsReadOnly();
 
     public Guid Id { get; private set; }
     public Guid SellerId { get; private set; }
@@ -22,7 +21,6 @@ public sealed class Listing
 
     private Listing() { }
 
-    
     public static Result<Listing> Create(
         Guid sellerId,
         string title,
@@ -35,38 +33,23 @@ public sealed class Listing
             return Result<Listing>.Failure(
                 Error.Validation("Listing.SellerEmpty", "Seller id must not be empty."));
 
-        if (!Enum.IsDefined(category))
-            return Result<Listing>.Failure(
-                Error.Validation("Listing.CategoryInvalid", "Unknown category."));
-        
-        if (!Enum.IsDefined(condition))
-            return Result<Listing>.Failure(
-                Error.Validation("Listing.ConditionInvalid", "Unknown condition."));
+        var details = ValidateDetails(title, category, condition, price);
+        if (details.IsFailure)
+            return Result<Listing>.Failure(details.Error);
 
-        var titleError = ValidateTitle(title);
-        if (titleError is not null)
-            return Result<Listing>.Failure(titleError);
-
-        var money = Money.Create(price);
-        if (money.IsFailure)
-            return Result<Listing>.Failure(money.Error);
-        
-        var listing = new Listing
+        return new Listing
         {
             Id = Guid.NewGuid(),
             SellerId = sellerId,
             Title = title.Trim(),
             Category = category,
             Condition = condition,
-            Price = money.Value!,
+            Price = details.Value,
             Status = ListingStatus.Draft,
             Version = 1,
             CreatedAt = createdAt
         };
-
-        return Result<Listing>.Success(listing);
     }
-
 
     public Result<Listing> UpdateDetails(string title, Category category, Condition condition, decimal price)
     {
@@ -74,25 +57,14 @@ public sealed class Listing
             return Result<Listing>.Failure(
                 Error.Validation("Listing.Sold", "A sold listing cannot be updated."));
 
-        if (!Enum.IsDefined(category))
-            return Result<Listing>.Failure(
-                Error.Validation("Listing.CategoryInvalid", "Unknown category."));
-        if (!Enum.IsDefined(condition))
-            return Result<Listing>.Failure(
-                Error.Validation("Listing.ConditionInvalid", "Unknown condition."));
-
-        var titleError = ValidateTitle(title);
-        if (titleError is not null)
-            return Result<Listing>.Failure(titleError);
-
-        var money = Money.Create(price);
-        if (money.IsFailure)
-            return Result<Listing>.Failure(money.Error);
+        var details = ValidateDetails(title, category, condition, price);
+        if (details.IsFailure)
+            return Result<Listing>.Failure(details.Error);
 
         Title = title.Trim();
         Category = category;
         Condition = condition;
-        Price = money.Value;
+        Price = details.Value;
         Version++;
 
         return this;
@@ -109,52 +81,42 @@ public sealed class Listing
 
         return this;
     }
-    
-    
+
     public Result<Reservation> Reserve(Guid buyerId, DateTimeOffset currentTime)
     {
         if (Status != ListingStatus.Active)
             return Result<Reservation>.Failure(
                 Error.Validation("Listing.NotActive", "Only an active listing can be reserved."));
-
         if (buyerId == Guid.Empty)
             return Result<Reservation>.Failure(
                 Error.Validation("Reservation.InvalidBuyer", "Buyer id must not be empty."));
-
         if (buyerId == SellerId)
             return Result<Reservation>.Failure(
                 Error.Validation("Reservation.OwnListing", "A seller cannot reserve their own listing."));
 
         var reservation = Reservation.Create(Id, buyerId, currentTime);
-
         reservations.Add(reservation);
         Status = ListingStatus.Reserved;
         Version++;
 
         return reservation;
     }
-    
-    
-    
+
     public Result<Listing> CancelReservation(Guid reservationId)
     {
-        var reservation = reservations
-            .FirstOrDefault(r => r.Id == reservationId);
-
+        var reservation = reservations.FirstOrDefault(r => r.Id == reservationId);
         if (reservation is null)
             return Result<Listing>.Failure(
-                Error.Validation("Reservation.NotFound", "Reservation not found."));
+                Error.NotFound("Reservation.NotFound", "Reservation not found."));
 
         if (reservation.Status != ReservationStatus.Active)
             return Result<Listing>.Failure(
                 Error.Validation("Reservation.NotActive", "Reservation is not active and cannot be cancelled."));
-
         if (Status != ListingStatus.Reserved)
             return Result<Listing>.Failure(
                 Error.Validation("Listing.NotReserved", "Listing is not reserved."));
 
         var cancelResult = reservation.Cancel();
-
         if (cancelResult.IsFailure)
             return Result<Listing>.Failure(cancelResult.Error);
 
@@ -164,19 +126,24 @@ public sealed class Listing
         return this;
     }
 
-
-
-
-    // Returns null when the title is valid, or the error that explains why it is not.
-    private static Error? ValidateTitle(string? title)
+    // Checks the details shared by Create and UpdateDetails.
+    // On success it returns the validated price, so the caller does not create Money twice.
+    private static Result<Money> ValidateDetails(string? title, Category category, Condition condition, decimal price)
     {
+        if (!Enum.IsDefined(category))
+            return Result<Money>.Failure(
+                Error.Validation("Listing.CategoryInvalid", "Unknown category."));
+        if (!Enum.IsDefined(condition))
+            return Result<Money>.Failure(
+                Error.Validation("Listing.ConditionInvalid", "Unknown condition."));
+
         if (string.IsNullOrWhiteSpace(title))
-            return Error.Validation("Listing.TitleEmpty", "Title must not be empty.");
-
+            return Result<Money>.Failure(
+                Error.Validation("Listing.TitleEmpty", "Title must not be empty."));
         if (title.Trim().Length > MaxTitleLength)
-            return Error.Validation("Listing.TitleTooLong",
-                $"Title must have at most {MaxTitleLength} characters.");
+            return Result<Money>.Failure(
+                Error.Validation("Listing.TitleTooLong", $"Title must have at most {MaxTitleLength} characters."));
 
-        return null;
+        return Money.Create(price);
     }
 }
