@@ -197,4 +197,60 @@ public class MemberReservationTests
         Assert.Empty(listing.Reservations);
     }
 
+    
+    
+    [Fact]
+    public void Listing_CancelReservation_ShouldReactivateListing()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var listing = Listing.Create(
+            Guid.NewGuid(),
+            "Java Book",
+            Category.Textbook,
+            Condition.Good,
+            50,
+            now).Value;
+
+        listing.Publish();
+
+        var reservation = listing.Reserve(Guid.NewGuid(), now).Value;
+        var previousVersion = listing.Version;
+
+        var result = listing.CancelReservation(reservation.Id);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ReservationStatus.Cancelled, reservation.Status);
+        Assert.Equal(ListingStatus.Active, listing.Status);
+        Assert.Equal(previousVersion + 1, listing.Version);
+        Assert.Single(listing.Reservations);
+    }
+    
+    
+    [Fact]
+    public void Listing_CancelReservationTwice_ShouldFail()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        var listing = Listing.Create(
+            Guid.NewGuid(), "Java Book",
+            Category.Textbook, Condition.Good, 50, now).Value;
+
+        listing.Publish();
+
+        var reservation = listing.Reserve(Guid.NewGuid(), now).Value;
+
+        var firstResult = listing.CancelReservation(reservation.Id);
+        var versionAfterCancellation = listing.Version;
+
+        var secondResult = listing.CancelReservation(reservation.Id);
+
+        Assert.True(firstResult.IsSuccess);
+        Assert.True(secondResult.IsFailure);
+        Assert.Equal(ListingStatus.Active, listing.Status);
+        Assert.Equal(ReservationStatus.Cancelled, reservation.Status);
+        Assert.Equal(versionAfterCancellation, listing.Version);
+    }
+
+
 }

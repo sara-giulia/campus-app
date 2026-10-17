@@ -2,7 +2,7 @@ using CampusMarket.Api.Domain.Common;
 
 namespace CampusMarket.Api.Domain.Members;
 
-public class Member
+public sealed class Member
 {
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
@@ -11,10 +11,29 @@ public class Member
 
     private Member() { }
 
+    private static Result<string> ValidateName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return Result<string>.Failure(
+                Error.Validation("Member.InvalidName",
+                    "Name must have between 2 and 100 characters."));
+
+        var trimmedName = name.Trim();
+
+        if (trimmedName.Length < 2 || trimmedName.Length > 100)
+            return Result<string>.Failure(
+                Error.Validation("Member.InvalidName",
+                    "Name must have between 2 and 100 characters."));
+
+        return trimmedName;
+    }
+
     public static Result<Member> Create(string name, string email, DateTimeOffset createdAt)
     {
-        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length < 2 || name.Trim().Length > 100)
-            return Result<Member>.Failure(Error.Validation("Member.InvalidName", "Name must have between 2 and 100 characters."));
+        var nameResult = ValidateName(name);
+
+        if (nameResult.IsFailure)
+            return Result<Member>.Failure(nameResult.Error);
 
         var emailResult = Email.Create(email);
 
@@ -24,7 +43,7 @@ public class Member
         return new Member
         {
             Id = Guid.NewGuid(),
-            Name = name.Trim(),
+            Name = nameResult.Value,
             Email = emailResult.Value,
             CreatedAt = createdAt
         };
@@ -32,18 +51,17 @@ public class Member
 
     public Result<Member> Update(string name, string email)
     {
-        if (string.IsNullOrWhiteSpace(name) ||
-            name.Trim().Length < 2 ||
-            name.Trim().Length > 100)
-            return Result<Member>.Failure(
-                Error.Validation("Member.InvalidName", "Name must have between 2 and 100 characters."));
+        var nameResult = ValidateName(name);
+
+        if (nameResult.IsFailure)
+            return Result<Member>.Failure(nameResult.Error);
 
         var emailResult = Email.Create(email);
 
         if (emailResult.IsFailure)
             return Result<Member>.Failure(emailResult.Error);
 
-        Name = name.Trim();
+        Name = nameResult.Value;
         Email = emailResult.Value;
 
         return this;

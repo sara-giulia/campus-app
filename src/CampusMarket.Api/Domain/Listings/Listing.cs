@@ -133,6 +133,32 @@ public sealed class Listing
 
         return reservation;
     }
+    
+    
+    public Result<Listing> CancelReservation(Guid reservationId)
+    {
+        var reservation = reservations
+            .FirstOrDefault(r => r.Id == reservationId);
+
+        if (reservation is null)
+            return Result<Listing>.Failure(
+                Error.Validation("Reservation.NotFound", "Reservation not found."));
+
+        if (Status != ListingStatus.Reserved)
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.NotReserved", "Listing is not reserved."));
+
+        var cancelResult = reservation.Cancel();
+
+        if (cancelResult.IsFailure)
+            return Result<Listing>.Failure(cancelResult.Error);
+
+        Status = ListingStatus.Active;
+        Version++;
+
+        return this;
+    }
+
 
 
     // Returns null when the title is valid, or the error that explains why it is not.
