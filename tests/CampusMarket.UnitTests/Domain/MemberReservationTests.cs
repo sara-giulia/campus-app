@@ -3,7 +3,7 @@ using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using Xunit;
 
-namespace CampusMarket.UnitTests;
+namespace CampusMarket.UnitTests.Domain;
 
 public class MemberReservationTests
 {
