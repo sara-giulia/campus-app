@@ -40,7 +40,7 @@ services.AddSingleton<IUnitOfWork, InMemoryUnitOfWork>();
 ```
 ### Decision: handler signature
 
-`HandleAsync` returns `Task<Result<TResult>>` and takes `CancellationToken ct` without a default value. The course uses `Task` and `CancellationToken cancellationToken = default`; we do not. Reasons: a handler cannot forget to return a `Result` for an expected failure, and every caller must pass the token on. Both differences are intentional.
+`HandleAsync` returns `Task<Result<TResult>>` and takes `CancellationToken ct` without a default value. The course uses `Task<TResult>` and `CancellationToken cancellationToken = default`; we do not. Reasons: a handler cannot forget to return a `Result` for an expected failure, and every caller must pass the token on. Both differences are intentional.
 
 ## 2. Unit of work
 
