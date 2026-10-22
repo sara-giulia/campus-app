@@ -349,6 +349,15 @@ However the work is split, every slice comes with its tests, its Postman request
 - Tasks tracked as GitHub Issues, one per slice, assigned to whoever picks it up.
 - A team chat group for day-to-day questions.
 
+## Testing
 
+- **Run the unit tests:** `dotnet test tests/CampusMarket.UnitTests`
+- **Run the integration tests:** `dotnet test tests/CampusMarket.IntegrationTests`
+- **Generate the coverage report:** `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --results-directory ./TestResults`, then `reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" -targetdir:coverage-report -reporttypes:Html` (install the tool once with `dotnet tool install -g dotnet-reportgenerator-globaltool`)
+- **Open the report:** open `coverage-report/index.html` in a browser
+- **Coverage exclusions:** see the list below, each one with its reason
+
+### Coverage exclusions
+To be filled after the coverage run.
 
 ---
