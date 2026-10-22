@@ -28,3 +28,11 @@ The professor grades the before and after, so write what went wrong and what you
   3. Added an UpdateListing example, the only slice that maps two error types (404 and 400).
   4. Wrote the `HandleAsync` signature as a decision (`Task<Result<T>>`, `ct` without default), different from the course.
 - **Commits:** "Fix cqrs skill after review: Domain rule, test check, update example, handler signature decision"
+
+# PROMPTS
+
+Format: one row per run. Skill changes and regenerated code are committed separately.
+
+| Date | Who | What was asked | Skill that ran | Result | What changed in the skill and why |
+  |------|-----|----------------|----------------|--------|-----------------------------------|
+| 2026-10-22 | Diana | Wrote the first version of the unit-testing skill (no generation yet) | none (skill written by hand) | SKILL.md v1 created | n/a, first version |
