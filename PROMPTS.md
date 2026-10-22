@@ -17,10 +17,14 @@ The professor grades the before and after, so write what went wrong and what you
 
 ## Entries
 
-### 2026-10-21 · Carina Coman · cqrs · run 1
+### 2026-10-22 · Carina Coman · cqrs · review fixes
 
-- **What I asked:** (paste the prompt)
-- **Skill that ran:** cqrs, commit (paste hash)
-- **Result:** (build, tests, Postman)
-- **What I changed in the skill and why:** (fill in)
-- **Commits:** (skill commit hash, generated-code commit hash)
+- **What I asked:** review by a teammate (CreateListing example built in the real project: 0 warnings, 90 tests pass)
+- **Skill that ran:** cqrs (manual review, no generation yet)
+- **Result:** four problems found in SKILL.md
+- **What I changed in the skill and why:**
+  1. "Never change Domain/" contradicted the new `IUnitOfWork.cs`; now only existing files are protected.
+  2. Added `dotnet test` to the final check, because the existing tests prove the behaviour did not change.
+  3. Added an UpdateListing example, the only slice that maps two error types (404 and 400).
+  4. Wrote the `HandleAsync` signature as a decision (`Task<Result<T>>`, `ct` without default), different from the course.
+- **Commits:** "Fix cqrs skill after review: Domain rule, test check, update example, handler signature decision"

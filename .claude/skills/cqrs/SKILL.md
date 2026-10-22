@@ -38,6 +38,9 @@ Wire it in `CampusMarketSetup.AddCampusMarket`:
 services.AddHandlers(typeof(CampusMarketSetup).Assembly);
 services.AddSingleton<IUnitOfWork, InMemoryUnitOfWork>();
 ```
+### Decision: handler signature
+
+`HandleAsync` returns `Task<Result<TResult>>` and takes `CancellationToken ct` without a default value. The course uses `Task` and `CancellationToken cancellationToken = default`; we do not. Reasons: a handler cannot forget to return a `Result` for an expected failure, and every caller must pass the token on. Both differences are intentional.
 
 ## 2. Unit of work
 
@@ -114,7 +117,7 @@ What each handler returns (`TResult`):
 - Never call `SaveChangesAsync` in a query handler, and never change state in a query handler.
 - Never use MediatR or any mediator package.
 - Never put a repository, `IUnitOfWork` or business rule in an endpoint.
-- Never change `Domain/`, the repositories, `tests/` or `postman/` to make the refactor easier.
+- Never change existing files in `Domain/`; the only new file there is `IUnitOfWork.cs`. Never change the repositories, `tests/` or `postman/` to make the refactor easier.
 - Never change routes, status codes, JSON field names or error bodies.
 - Never rename the existing request and response records.
 
@@ -284,10 +287,107 @@ public static class GetListingByIdEndpoint
     }
 }
 ```
+## 9. Example: update slice (`UpdateListing`)
 
-## 9. Check after generating
+This is the only kind of slice that maps two error types: `NotFound` → 404 and `Validation` → 400. Success answers 204 with an empty body. The request record (`UpdateListingRequest`) stays as it is; the id comes from the route.
+
+`UpdateListingCommand.cs`
+
+```csharp
+using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Listings;
+
+namespace CampusMarket.Api.Features.Listings.UpdateListing;
+
+public sealed record UpdateListingCommand(
+    Guid Id,
+    string Title,
+    Category Category,
+    Condition Condition,
+    decimal Price) : ICommand<Guid>;
+```
+
+`UpdateListingHandler.cs`
+
+```csharp
+using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Common;
+using CampusMarket.Api.Domain.Listings;
+
+namespace CampusMarket.Api.Features.Listings.UpdateListing;
+
+public sealed class UpdateListingHandler(
+    IListingRepository repository,
+    IUnitOfWork unitOfWork)
+    : ICommandHandler<UpdateListingCommand, Guid>
+{
+    public async Task<Result<Guid>> HandleAsync(
+        UpdateListingCommand command, CancellationToken ct)
+    {
+        var listing = await repository.GetByIdAsync(command.Id, ct);
+
+        if (listing is null)
+            return Result<Guid>.Failure(
+                Error.NotFound("Listing.NotFound", $"Listing '{command.Id}' was not found."));
+
+        var updated = listing.UpdateDetails(
+            command.Title, command.Category, command.Condition, command.Price);
+
+        if (updated.IsFailure)
+            return Result<Guid>.Failure(updated.Error);
+
+        repository.Update(listing);
+        await unitOfWork.SaveChangesAsync(ct);
+
+        return listing.Id;
+    }
+}
+```
+
+`UpdateListingEndpoint.cs`
+
+```csharp
+using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Common;
+using Microsoft.AspNetCore.Http.HttpResults;
+
+namespace CampusMarket.Api.Features.Listings.UpdateListing;
+
+public static class UpdateListingEndpoint
+{
+    public static void Map(RouteGroupBuilder group)
+    {
+        group.MapPut("/{id:guid}", Handle)
+            .WithName("UpdateListing");
+    }
+
+    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>>> Handle(
+        Guid id,
+        UpdateListingRequest request,
+        ICommandHandler<UpdateListingCommand, Guid> handler,
+        CancellationToken ct)
+    {
+        var command = new UpdateListingCommand(
+            id, request.Title, request.Category, request.Condition, request.Price);
+
+        var result = await handler.HandleAsync(command, ct);
+
+        if (result.IsFailure)
+            return result.Error.Type switch
+            {
+                ErrorType.NotFound => TypedResults.NotFound(result.Error),
+                _ => TypedResults.BadRequest(result.Error)
+            };
+
+        return TypedResults.NoContent();
+    }
+}
+```
+
+## 10. Check after generating
 
 - `dotnet build` finishes with 0 errors and 0 warnings.
+- `dotnet test` passes (all existing tests), because they prove the behaviour did not change.
 - No file in `Features/` mentions `IListingRepository`, `IMemberRepository` or `IUnitOfWork` except the `*Handler.cs` files.
 - Every slice of the 10 has a command or query and a handler.
 - The Postman collection still passes (Run collection, 36/36).
