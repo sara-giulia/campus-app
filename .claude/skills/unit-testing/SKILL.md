@@ -1,55 +1,79 @@
 ---
 name: unit-testing
-description: Generates xUnit unit tests with FluentAssertions for the domain and for CQRS handlers of CampusMarket. Use when adding or changing domain classes or handlers, or when coverage is below 100%.
+description: Generates xUnit unit tests with FluentAssertions 7.* for the domain and for the CQRS handlers of CampusMarket, with hand-written fakes. Use when adding or changing domain classes or handlers, or when coverage of Domain/ or of the handlers is below 100%.
 ---
 
-# Unit testing skill
+# Unit testing skill for CampusMarket
 
 ## Goal
-Generate unit tests for `Domain/` and for every handler, reaching 100% coverage with assertions that check behaviour. Never edit production code to make a test pass.
+Generate unit tests for `src/CampusMarket.Api/Domain/` and for every handler in `Features/`, reaching 100% line and branch coverage, with assertions that check behaviour. Never edit production code to make a test pass.
 
-## Tools
-- xUnit
-- FluentAssertions, pinned to `7.*` (Apache 2.0). Never use version 8 or newer.
-- coverlet.collector for coverage, ReportGenerator for the HTML report
-- No mocking library (no Moq, no NSubstitute)
+## Project facts (read the real files, do not guess)
+- Test project: `tests/CampusMarket.UnitTests` (net10.0). It already references xUnit 2.9.3, coverlet.collector and the API project.
+- Add the package `FluentAssertions` with version `7.*` to the test project if it is missing. Never use version 8 or newer (different licence).
+- No mocking library (no Moq, no NSubstitute) and no `Microsoft.Extensions.TimeProvider.Testing`.
+- `Result<T>` and `Error` (with `ErrorType`: `Validation`, `NotFound`, `Conflict`) are in `Domain/Common/`. Assert on `result.IsSuccess`, `result.IsFailure`, `result.Error.Type` and `result.Error.Code`. Read `Result.cs` to see whether `Value` is nullable; use `result.Value!` when in doubt.
+- Handlers are `sealed class` types with constructor injection, namespace `CampusMarket.Api.Features.<Resource>.<UseCase>`. They expose `Task<Result<T>> HandleAsync(request, CancellationToken ct)`.
+- Command handlers take the repository interface, `IUnitOfWork` and sometimes `TimeProvider`. Query handlers take only the repository interface.
+- Repository interfaces (`IListingRepository`, `IMemberRepository`): `AddAsync` returns `Task<bool>` (false = duplicate Id), `GetByIdAsync` returns `null` when missing, `GetAllAsync` returns a snapshot, `Update` and `Delete` take the entity. Open the interface files and implement exactly their signatures in the fakes.
+- `IUnitOfWork.SaveChangesAsync(CancellationToken ct = default)` returns `Task<int>`.
 
-## Test project
-`tests/CampusMarket.UnitTests`. Test folders mirror production folders:
-- `Domain/Listings/ListingTests.cs`, `Domain/Listings/MoneyTests.cs`, `Domain/Listings/ReservationTests.cs`
-- `Domain/Members/MemberTests.cs`, `Domain/Members/EmailTests.cs`
-- `Domain/Common/ResultTests.cs`, `Domain/Common/ErrorTests.cs`
-- `Features/Listings/CreateListing/CreateListingHandlerTests.cs` (and the same for every handler)
-- `Fakes/` for hand-written fakes
+## Folder layout (mirrors production)
+```
+tests/CampusMarket.UnitTests/
+  Domain/Listings/ListingTests.cs, MoneyTests.cs, ReservationTests.cs
+  Domain/Members/MemberTests.cs, EmailTests.cs
+  Domain/Common/ResultTests.cs, ErrorTests.cs
+  Features/Listings/CreateListing/CreateListingHandlerTests.cs   (one file per handler, 10 in total)
+  Features/Members/CreateMember/CreateMemberHandlerTests.cs
+  Fakes/FakeListingRepository.cs, FakeMemberRepository.cs, FakeUnitOfWork.cs, FixedTimeProvider.cs
+```
+Do not touch `Api/` and `Infrastructure/` in the test project: they belong to other issues. The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `MemberTests`, `ResultTests`) are replaced by the generated ones: delete them, never edit them.
 
 ## Naming
 - Class: `<ClassUnderTest>Tests`
 - Method: `Given_<state>_When_<action>_Then_<expected>`
   Example: `Given_ActiveListing_When_SellerReservesOwnListing_Then_ReturnsValidationError`
 
+## Fakes (hand-written, in `Fakes/`)
+- `FakeListingRepository` and `FakeMemberRepository`: implement the real interface over a `Dictionary<Guid, T>`. Expose the stored items (for example `Items`) so tests can assert on them. Add a public property `RejectAdd` (bool, default false): when true, `AddAsync` returns `false` without storing. This is the only way to reach the `Conflict` branch, because the domain generates the Id itself.
+- `FakeUnitOfWork`: implements `IUnitOfWork`, counts calls in `SaveCount`, returns `Task.FromResult(0)`.
+- `FixedTimeProvider`: `class FixedTimeProvider(DateTimeOffset now) : TimeProvider` overriding `GetUtcNow()`. Never use `DateTime.Now`, `DateTime.UtcNow` or `DateTimeOffset.UtcNow` in tests.
+- Fakes contain no assertions and no business logic.
+
 ## Rules
-1. Arrange, Act, Assert, with one blank line between the blocks. No "// Arrange" comments needed.
+1. Arrange, Act, Assert, with one blank line between the blocks. No "// Arrange" comments.
 2. One behaviour per test.
 3. No logic inside tests: no `if`, no loops, no `try/catch`.
-4. Use `[Theory]` with `[InlineData]` for input variants (for example invalid titles, invalid prices).
-5. Cover every success path AND every failure branch of every method that returns a `Result` (check the error code and the error type).
-6. Fakes are written by hand in `Fakes/`: an in-memory fake repository, a fake unit of work that counts `SaveChangesAsync` calls, and a fake `TimeProvider` with a fixed time. Never use `DateTime.Now` or `DateTimeOffset.UtcNow` in tests.
-7. Tests never depend on each other or on execution order. No static mutable state.
-8. Assert on behaviour: the returned `Result`, the state of the object, the data in the fake repository. Do not assert on implementation details.
-9. Query handler tests also check that the state did not change (no save call).
-10. Command handler tests check that the unit of work was saved after a successful change, and not saved on failure.
-11. Private members are never tested directly; test them through the public API.
-12. The old week 2 tests in `Domain/` are replaced by the generated ones (delete them, do not edit them).
+4. Use `[Theory]` with `[InlineData]` for input variants (invalid titles, invalid prices, invalid emails, undefined enum values).
+5. Cover every success path AND every failure branch of every method that returns a `Result`: check `IsFailure`, `Error.Type` and `Error.Code`. Use the coverage report to find what is still missing.
+6. Handler tests, per handler:
+  - Create: success (item stored, `SaveCount` 1), invalid data (each domain failure, `SaveCount` 0, nothing stored), duplicate Id with `RejectAdd = true` (`ErrorType.Conflict`, `SaveCount` 0).
+  - Update: success (entity changed, `SaveCount` 1), id not found (`NotFound`, `SaveCount` 0), invalid data (`Validation`, `SaveCount` 0).
+  - Delete: success (item removed, `SaveCount` 1), id not found (`NotFound`, `SaveCount` 0).
+  - GetById: found (response matches the entity), not found (`NotFound`).
+  - GetAll: empty list and list with items. Query handlers have no unit of work: assert that the repository content is unchanged after the call.
+7. Tests never depend on each other or on execution order. Every test builds its own fakes. No static mutable state.
+8. Assert on behaviour (returned `Result`, state of the object, content of the fake repository), not on implementation details. Private members are tested only through the public API.
+9. Every test has at least one assertion.
+
+## Coverage
+- Collect with coverlet using the repo file `coverlet.runsettings` (the CI uses it too): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
+- HTML report with ReportGenerator into `coverage-report/` (read `coverlet.runsettings` first to see the output format and the file name of the coverage file).
+- Target: 100% line and branch for `Domain/` and for every handler.
+- Exclude only what cannot be unit-tested (`Program.cs`, `CampusMarketSetup.cs`, ...). Keep the list consistent with the CI (`sonar.coverage.exclusions`) and write each exclusion with a one-line reason in the README.
+- When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines, and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
 
 ## Never do
 - Never use a mocking library.
 - Never use `Thread.Sleep` or real time.
 - Never put two behaviours in one test.
-- Never change the production code to make a test pass.
-- Never leave a test without an assertion.
+- Never change production code to make a test pass.
 - Never share one object between tests.
+- Never guess a signature: read the interface or the class first.
+- Never touch `Api/`, `Infrastructure/`, `Features/` production code, `postman/` or the CI workflow.
 
-## Example (domain)
+## Example: domain test
 ```csharp
 public class ListingTests
 {
@@ -68,24 +92,40 @@ public class ListingTests
 }
 ```
 
-## Example (handler)
+## Example: handler tests
 ```csharp
 public class CreateListingHandlerTests
 {
+    private static readonly DateTimeOffset Now = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);
+
     [Fact]
-    public async Task Given_ValidCommand_When_Handling_Then_AddsListingAndSaves()
+    public async Task Given_ValidCommand_When_Handling_Then_StoresListingAndSavesOnce()
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FakeTimeProvider());
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
         var command = new CreateListingCommand(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        repository.GetAll().Should().HaveCount(1);
+        repository.Items.Should().HaveCount(1);
         unitOfWork.SaveCount.Should().Be(1);
     }
-} 
+
+    [Fact]
+    public async Task Given_RepositoryRejectsId_When_Handling_Then_ReturnsConflictAndDoesNotSave()
+    {
+        var repository = new FakeListingRepository { RejectAdd = true };
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var command = new CreateListingCommand(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Conflict);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+}
 ```
-The handler example is provisional: adapt names and constructor to the real handlers once they exist.
