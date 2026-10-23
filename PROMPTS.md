@@ -29,10 +29,18 @@ The professor grades the before and after, so write what went wrong and what you
   4. Wrote the `HandleAsync` signature as a decision (`Task<Result<T>>`, `ct` without default), different from the course.
 - **Commits:** "Fix cqrs skill after review: Domain rule, test check, update example, handler signature decision"
 
-# PROMPTS
+### 2026-10-22 · Carina Coman (skill), Sara Matasel (run) · cqrs · run 1
 
-Format: one row per run. Skill changes and regenerated code are committed separately.
+- **What I asked:** Use the cqrs skill in .claude/skills/cqrs/SKILL.md to refactor all 10 slices in src/CampusMarket.Api/Features (Listings and Members) into commands, queries and handlers. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.
+- **Skill that ran:** cqrs, commit a90b234 (written by Carina, run by Sara from her Claude Code account, on a shared call)
+- **Result:** all 10 slices now have a command or query and a handler. Build: 0 errors, 0 warnings. Tests: 90/90 pass. Postman: 36/36 requests, 68/68 assertions. No endpoint uses a repository or IUnitOfWork; query handlers do not use IUnitOfWork; Domain/, tests/ and postman/ unchanged (only the new IUnitOfWork.cs).
+- **What I changed in the skill and why:** nothing, the first run followed the skill. The skill was already improved before this run (see "review fixes" above).
+- **Commits:** skill a90b234, generated code <hash>
 
-| Date | Who | What was asked | Skill that ran | Result | What changed in the skill and why |
-  |------|-----|----------------|----------------|--------|-----------------------------------|
-| 2026-10-22 | Diana | Wrote the first version of the unit-testing skill (no generation yet) | none (skill written by hand) | SKILL.md v1 created | n/a, first version |
+### 2026-10-22 · Diana · unit-testing · skill v1
+
+- **What I asked:** no generation yet; I only wrote the first version of the unit-testing skill (xUnit, FluentAssertions 7.*, naming, rules, never-do list, examples)
+- **Skill that ran:** none yet (SKILL.md written by hand, commit 32a93f7)
+- **Result:** .claude/skills/unit-testing/SKILL.md v1 created; the handler example is provisional until the handlers are on main
+- **What I changed in the skill and why:** nothing, this is the first version
+- **Commits:** skill 32a93f7; generated code: none yet
