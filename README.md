@@ -367,6 +367,12 @@ However the work is split, every slice comes with its tests, its Postman request
 - **Coverage exclusions:** see the list below, each one with its reason
 
 ### Coverage exclusions
-To be filled after the coverage run.
+
+The 100% target applies to `Domain/` and to every handler. These files are outside that target and are not unit-tested:
+
+- `Program.cs`: only builds and starts the web host, no logic to test. Also excluded in the CI (`sonar.coverage.exclusions`).
+- `CampusMarketSetup.cs`: only registers services and maps routes, no logic to test.
+- `Infrastructure/`: in-memory repositories and unit of work, replaced by the EF Core implementation in another issue and covered by the integration tests.
+- `Features/**/*Endpoint.cs`, `*Request.cs`, `*Response.cs`: HTTP mapping only, covered by the integration tests.
 
 ---
