@@ -44,3 +44,11 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** .claude/skills/unit-testing/SKILL.md v1 created; the handler example is provisional until the handlers are on main
 - **What I changed in the skill and why:** nothing, this is the first version
 - **Commits:** skill 32a93f7; generated code: none yet
+
+### 2026-10-23 · Diana · unit-testing · skill v2
+
+- **What I asked:** no generation yet; I compared my v1 skill with the real code (cqrs skill, csproj, CI workflow) and rewrote it
+- **Skill that ran:** none yet (SKILL.md edited by hand)
+- **Result:** the v1 handler example did not match the real handlers: wrong time provider name, wrong constructor, wrong repository calls; the CI collects coverage differently from my commands
+- **What I changed in the skill and why:** (1) real handler and repository signatures from the cqrs skill; (2) a `RejectAdd` switch on the fake repository, because the domain generates the Id and the Conflict branch is otherwise unreachable; (3) query handlers have no unit of work, so they are checked by repository state instead of SaveCount; (4) coverage collected with `coverlet.runsettings`, like the CI; (5) a test matrix per handler so every branch is covered
+- **Commits:** skill 096e397; generated code: none yet
