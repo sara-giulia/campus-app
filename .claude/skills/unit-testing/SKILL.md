@@ -17,6 +17,7 @@ Generate unit tests for `src/CampusMarket.Api/Domain/` and for every handler in 
 - Command handlers take the repository interface, `IUnitOfWork` and sometimes `TimeProvider`. Query handlers take only the repository interface.
 - Repository interfaces (`IListingRepository`, `IMemberRepository`): `AddAsync` returns `Task<bool>` (false = duplicate Id), `GetByIdAsync` returns `null` when missing, `GetAllAsync` returns a snapshot, `Update` and `Delete` take the entity. Open the interface files and implement exactly their signatures in the fakes.
 - `IUnitOfWork.SaveChangesAsync(CancellationToken ct = default)` returns `Task<int>`.
+- The repositories behind `IListingRepository` and `IMemberRepository` are now EF Core implementations. Unit tests never use EF Core or SQLite: handlers are always tested with the hand-written fakes.
 
 ## Folder layout (mirrors production)
 ```
@@ -28,7 +29,7 @@ tests/CampusMarket.UnitTests/
   Features/Members/CreateMember/CreateMemberHandlerTests.cs
   Fakes/FakeListingRepository.cs, FakeMemberRepository.cs, FakeUnitOfWork.cs, FixedTimeProvider.cs
 ```
-Do not touch `Api/` and `Infrastructure/` in the test project: they belong to other issues. The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `MemberTests`, `ResultTests`) are replaced by the generated ones: delete them, never edit them.
+The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `MemberTests`, `ResultTests`) are replaced by the generated ones: delete them, never edit them. The old `Api/` and `Infrastructure/` test folders no longer exist: never recreate them (HTTP tests belong to the integration-testing skill).
 
 ## Naming
 - Class: `<ClassUnderTest>Tests`
@@ -57,6 +58,7 @@ Do not touch `Api/` and `Infrastructure/` in the test project: they belong to ot
 8. Assert on behaviour (returned `Result`, state of the object, content of the fake repository), not on implementation details. Private members are tested only through the public API.
 9. Every test has at least one assertion.
 10. ResultTests must also check both throwing branches: reading `Value` on a failed result throws `InvalidOperationException`, and reading `Error` on a successful result throws `InvalidOperationException`. Use `Action act = () => _ = result.Value;` and `act.Should().Throw<InvalidOperationException>()`. Otherwise those branches stay uncovered.
+11. Every run starts in a new Claude Code session, so that the current version of this file is read and not an older context.
 
 ## Coverage
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
@@ -69,7 +71,7 @@ Do not touch `Api/` and `Infrastructure/` in the test project: they belong to ot
   - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
   - `CampusMarketSetup.cs`: only registers services and routes.
   - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
-  - `Infrastructure/`: in-memory repositories and unit of work, replaced by EF Core in another issue and covered by the integration tests.
+  - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
   - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
   
 ## Never do
@@ -79,7 +81,7 @@ Do not touch `Api/` and `Infrastructure/` in the test project: they belong to ot
 - Never change production code to make a test pass.
 - Never share one object between tests.
 - Never guess a signature: read the interface or the class first.
-- Never touch `Api/`, `Infrastructure/`, `Features/` production code, `postman/` or the CI workflow.
+- Never touch production code, `postman/` or the CI workflow.
 - Never use the ! operator on Result.Value.
 
 ## Example: domain test
