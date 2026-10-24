@@ -5,7 +5,8 @@ using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Features.Listings;
 using CampusMarket.Api.Features.Members;
-using CampusMarket.Api.Infrastructure;
+using CampusMarket.Api.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace CampusMarket.Api;
 
@@ -20,17 +21,28 @@ public static class CampusMarketSetup
         // Application clock: tests can replace it with a fake clock
         services.AddSingleton(TimeProvider.System);
 
-        services.AddSingleton<IListingRepository, InMemoryListingRepository>();
-        services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
+        services.AddDbContext<CampusMarketDbContext>((sp, options) =>
+            options.UseSqlite(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));
+
+        services.AddScoped<IListingRepository, EfListingRepository>();
+        services.AddScoped<IMemberRepository, EfMemberRepository>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
-        services.AddSingleton<IUnitOfWork, InMemoryUnitOfWork>();
 
         // Enums are sent as text in JSON ("Active"), not as numbers (1)
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         return services;
+    }
+
+    public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
+        db.Database.EnsureCreated();
+        return app;
     }
 
     public static IEndpointRouteBuilder MapCampusMarket(this IEndpointRouteBuilder app)
