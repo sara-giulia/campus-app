@@ -5,7 +5,7 @@ description: Generates xUnit integration tests for CampusMarket that send real H
 
 # Integration testing skill for CampusMarket
 
-> **Status: v2.** Checked against the EF Core code in `Infrastructure/Persistence/` and `CampusMarketSetup`.
+> **Status: v3.** Checked against the EF Core code in `Infrastructure/Persistence/` and `CampusMarketSetup`.
 
 ## 1. Project facts (do not change these)
 
@@ -16,6 +16,7 @@ description: Generates xUnit integration tests for CampusMarket that send real H
 - There is no foreign key from `Listing.SellerId` to `Member`: a listing can be seeded without a member.
 - Errors come back as the `Error` record from `Domain/Common/`: `{ "code": "...", "message": "...", "type": "Validation" | "NotFound" | "Conflict" }`.
 - Enums travel as text in JSON (`"Textbook"`, `"Draft"`), because the API registers `JsonStringEnumConverter`.
+- Enum values (use only these, never guess): `Category` Textbook, Notes, Electronics, LabEquipment, Other; `Condition` New, Good, Worn; `ListingStatus` Draft, Active, Reserved, Sold; `ErrorType` Validation, NotFound, Conflict.
 - Status codes the API returns today:
 
 | Slice | Success | Failures |
@@ -57,7 +58,7 @@ tests/CampusMarket.IntegrationTests/
 - Packages (same versions as `CampusMarket.UnitTests` where they overlap):
   - `Microsoft.NET.Test.Sdk` 17.14.1, `xunit` 2.9.3, `xunit.runner.visualstudio` 3.1.4, `coverlet.collector` 6.0.4
   - `Microsoft.AspNetCore.Mvc.Testing` 10.0.*
-  - `FluentAssertions` 7.* (never 8)
+  - `FluentAssertions` 7.2.0, the same as `CampusMarket.UnitTests` (never 8)
   - SQLite for EF Core (`Microsoft.EntityFrameworkCore.Sqlite` 10.0.*) comes through the API project reference. Do not add it to the test project.
 - CI: `.github/workflows/build.yml` already runs `dotnet test` on the whole solution, so adding the project to the `.sln` is enough. Do not edit the workflow.
 
@@ -175,6 +176,7 @@ Every test checks all three, in this order:
    - update: the entity has the new values (and `Version` went up for a listing);
    - delete: the entity is gone;
    - failure and queries: nothing changed (same count, same values).
+   - unknown id (404): seed one entity first, then check it is still there and unchanged, so the test shows the failed call touched nothing.
 
 ## 5. Test plan (20)
 
@@ -185,23 +187,23 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 | `CreateListingTests` | valid body | 201, body with trimmed title, `Draft`, `Version` 1, `Location`; listing saved |
 | `CreateListingTests` | empty title | 400 `Listing.TitleEmpty`; no listing saved |
 | `GetListingByIdTests` | listing exists | 200, body equals the seeded listing; database unchanged |
-| `GetListingByIdTests` | unknown id | 404 `Listing.NotFound` |
+| `GetListingByIdTests` | unknown id | 404 `Listing.NotFound`; the seeded listing is unchanged |
 | `GetListingsTests` | two listings seeded | 200, `count` 2, both ids in `items` |
 | `GetListingsTests` | empty database | 200, `count` 0, empty `items` |
-| `UpdateListingTests` | valid body | 204, empty body; listing has new values and `Version` 2 |
+| `UpdateListingTests` | body that changes title, category, condition and price | 204, empty body; listing has all four new values and `Version` 2 |
 | `UpdateListingTests` | price 0 | 400 `Money.Invalid`; listing unchanged |
 | `DeleteListingTests` | listing exists | 204, empty body; listing gone |
-| `DeleteListingTests` | unknown id | 404 `Listing.NotFound` |
+| `DeleteListingTests` | unknown id | 404 `Listing.NotFound`; the seeded listing is unchanged |
 | `CreateMemberTests` | valid body | 201, body with trimmed name and lower-case email, `Location`; member saved |
 | `CreateMemberTests` | email without `@` | 400 `Email.Invalid`; no member saved |
 | `GetMemberByIdTests` | member exists | 200, body equals the seeded member; database unchanged |
-| `GetMemberByIdTests` | unknown id | 404 `Member.NotFound` |
+| `GetMemberByIdTests` | unknown id | 404 `Member.NotFound`; the seeded member is unchanged |
 | `GetMembersTests` | two members seeded | 200, `count` 2, both ids in `items` |
 | `GetMembersTests` | empty database | 200, `count` 0, empty `items` |
-| `UpdateMemberTests` | valid body | 204, empty body; member has new name and email |
+| `UpdateMemberTests` | body that changes name and email | 204, empty body; member has the new name and email |
 | `UpdateMemberTests` | name of 1 character | 400 `Member.InvalidName`; member unchanged |
 | `DeleteMemberTests` | member exists | 204, empty body; member gone |
-| `DeleteMemberTests` | unknown id | 404 `Member.NotFound` |
+| `DeleteMemberTests` | unknown id | 404 `Member.NotFound`; the seeded member is unchanged |
 
 `GetListings` and `GetMembers` take no input and always answer 200, so they have no failure path in the API. Their second test is the empty-database case. Do not invent a failure for them.
 

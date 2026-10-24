@@ -109,3 +109,11 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** Claude reported build 0 warnings, 90/90 unit tests, 20/20 integration tests three runs in a row; the test code was good (status, body and database checked in every test, nothing in `src/` changed). But: the skill said not to run it until the TODOs were filled, and Claude filled them in the skill itself and changed its status; it wrote this run in `PROMPTS.md` by itself (the skill asked it to); `Guid.NewGuid()` for `SellerId` in 11 places, against the "fixed test data" rule, because the skill's own examples did that; section 8 asked to delete old test files that no longer exist. The generated code was discarded.
 - **What I changed in the skill and why:** see v2.
 - **Commits:** skill 6df1d61; generated code: discarded
+
+### 2026-10-25 · Anca · integration-testing · run 2
+
+- **What I asked:** same prompt as run 1, in a new Claude Code session
+- **Skill that ran:** integration-testing v2 (committed as dcb03e4 right after the run; the content that ran was the same)
+- **Result:** Claude reported build 0 warnings, 90/90 unit tests, 20/20 integration tests three runs in a row. The run 1 problems were gone: the skill and PROMPTS.md were not edited, fixed SellerId and CreatedAt, Guid.NewGuid() only for unknown ids. Still wrong: its first draft used a Condition value that does not exist (LikeNew), because the skill does not list the enum values; it picked FluentAssertions 7.2.0 on its own, because the skill only said 7.*; only the Delete 404 tests seeded an entity, the GetById ones did not; the listing update test did not change the category. The generated code was discarded.
+- **What I changed in the skill and why:** see v3.
+- **Commits:** skill dcb03e4; generated code: discarded
