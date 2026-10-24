@@ -87,4 +87,12 @@ The professor grades the before and after, so write what went wrong and what you
 - **Lesson:** every run starts in a new Claude Code session, otherwise Claude reuses the previous context.
 - **Commits:** skill 4bf0abf; generated code <hash>
 
+### 2026-10-24 · Diana · unit-testing · skill v4 (align with main)
+
+- **What I asked:** no generation yet; after merging main I compared the skill with the real code (handlers, EF Core, deleted old tests)
+- **Skill that ran:** none yet (SKILL.md edited by hand)
+- **Result:** the skill still told Claude to avoid `Api/` and `Infrastructure/` tests that no longer exist, and described the in-memory repositories in the exclusions
+- **What I changed in the skill and why:** (1) removed the rule about the deleted test folders; (2) Infrastructure exclusion now describes EF Core; (3) added that unit tests never use EF Core or SQLite; (4) new rule: every run starts in a new Claude Code session (lesson from the efcore runs, where Claude reused old context)
+- **Commits:** skill 9356f6b; generated code: none yet
+
 

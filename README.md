@@ -373,7 +373,7 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
 - `CampusMarketSetup.cs`: only registers services and routes.
 - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
-- `Infrastructure/`: in-memory repositories and unit of work, replaced by EF Core in another issue and covered by the integration tests.
+- `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
 - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 
 ---
