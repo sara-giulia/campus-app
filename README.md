@@ -349,6 +349,31 @@ However the work is split, every slice comes with its tests, its Postman request
 - Tasks tracked as GitHub Issues, one per slice, assigned to whoever picks it up.
 - A team chat group for day-to-day questions.
 
+## Testing
 
+- **Run the unit tests:** `dotnet test tests/CampusMarket.UnitTests`
+- **Run the integration tests:** `dotnet test tests/CampusMarket.IntegrationTests`
+- **Generate the coverage report** (run from the repository root, install the tool once with `dotnet tool install -g dotnet-reportgenerator-globaltool`):
+
+  ```
+  dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults
+  ```
+
+  ```
+  reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"
+  ```
+
+- **Open the report:** open `coverage-report/index.html` in a browser
+- **Coverage exclusions:** see the list below, each one with its reason
+
+### Coverage exclusions
+
+The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and the target is 100% for them. Everything else is outside the target:
+
+- `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
+- `CampusMarketSetup.cs`: only registers services and routes.
+- `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
+- `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
+- `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 
 ---
