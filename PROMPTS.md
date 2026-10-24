@@ -101,3 +101,11 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** build 0 errors; 90/90 tests pass; 100% line and branch coverage on Domain/ (7 files) and on all 10 handlers; the week 2 domain tests were replaced by the generated ones (Given_When_Then naming, FluentAssertions 7, blank lines between Arrange, Act and Assert); hand-written fakes in Fakes/ (repositories with RejectAdd, unit of work, FixedTimeProvider); HTML report in coverage-report/; no change in src/.
 - **What I changed in the skill and why:** nothing, the first run was good. The skill was already improved in v1 to v4 (see the entries above).
 - **Commits:** skill 9356f6b; generated code d83fbab
+
+### 2026-10-25 · Anca · integration-testing · run 1
+
+- **What I asked:** Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md to write the integration tests for CampusMarket. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.
+- **Skill that ran:** integration-testing v1, commit 6df1d61 (draft with three `TODO(efcore)` lines)
+- **Result:** Claude reported build 0 warnings, 90/90 unit tests, 20/20 integration tests three runs in a row; the test code was good (status, body and database checked in every test, nothing in `src/` changed). But: the skill said not to run it until the TODOs were filled, and Claude filled them in the skill itself and changed its status; it wrote this run in `PROMPTS.md` by itself (the skill asked it to); `Guid.NewGuid()` for `SellerId` in 11 places, against the "fixed test data" rule, because the skill's own examples did that; section 8 asked to delete old test files that no longer exist. The generated code was discarded.
+- **What I changed in the skill and why:** see v2.
+- **Commits:** skill 6df1d61; generated code: discarded

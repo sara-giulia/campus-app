@@ -5,14 +5,15 @@ description: Generates xUnit integration tests for CampusMarket that send real H
 
 # Integration testing skill for CampusMarket
 
-> **Status: draft v1.** Lines marked `TODO(efcore)` wait for the EF Core + SQLite work (issue #2).
-> Do not run this skill until they are filled in with the real names from `Infrastructure/Persistence/`.
+> **Status: v2.** Checked against the EF Core code in `Infrastructure/Persistence/` and `CampusMarketSetup`.
 
 ## 1. Project facts (do not change these)
 
 - .NET 10 minimal API in `src/CampusMarket.Api`, root namespace `CampusMarket.Api`. Routes are under `/api/v1`.
 - Endpoints call CQRS handlers; handlers use the repositories and `IUnitOfWork`. The tests do not call handlers or repositories: they go through HTTP only.
-- The database is SQLite through EF Core. DbContext: `TODO(efcore): class name and namespace`.
+- The database is SQLite through EF Core. DbContext: `CampusMarketDbContext` in `CampusMarket.Api.Infrastructure.Persistence`, registered in `CampusMarketSetup.AddCampusMarket` with `AddDbContext<CampusMarketDbContext>((sp, options) => options.UseSqlite(...))` and the connection string `CampusMarket` from `appsettings.json`.
+- `Program.cs` calls `app.EnsureCampusMarketDatabase()` at startup. In the tests it runs on the in-memory connection, so the file `campusmarket.db` is never used.
+- There is no foreign key from `Listing.SellerId` to `Member`: a listing can be seeded without a member.
 - Errors come back as the `Error` record from `Domain/Common/`: `{ "code": "...", "message": "...", "type": "Validation" | "NotFound" | "Conflict" }`.
 - Enums travel as text in JSON (`"Textbook"`, `"Draft"`), because the API registers `JsonStringEnumConverter`.
 - Status codes the API returns today:
@@ -57,7 +58,7 @@ tests/CampusMarket.IntegrationTests/
   - `Microsoft.NET.Test.Sdk` 17.14.1, `xunit` 2.9.3, `xunit.runner.visualstudio` 3.1.4, `coverlet.collector` 6.0.4
   - `Microsoft.AspNetCore.Mvc.Testing` 10.0.*
   - `FluentAssertions` 7.* (never 8)
-  - SQLite for EF Core comes through the API project reference. `TODO(efcore): confirm, or add Microsoft.EntityFrameworkCore.Sqlite with the same version as the API.`
+  - SQLite for EF Core (`Microsoft.EntityFrameworkCore.Sqlite` 10.0.*) comes through the API project reference. Do not add it to the test project.
 - CI: `.github/workflows/build.yml` already runs `dotnet test` on the whole solution, so adding the project to the `.sln` is enough. Do not edit the workflow.
 
 ## 3. Test host
@@ -81,7 +82,7 @@ public partial class Program { }
 `Infrastructure/CampusMarketApiFactory.cs`
 
 ```csharp
-// TODO(efcore): check the removal lines against the real AddDbContext registration in CampusMarketSetup.
+// AddDbContext with an options lambda registers both DbContextOptions<T> and IDbContextOptionsConfiguration<T>: remove both.
 public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
 {
     // The in-memory database lives as long as this connection stays open.
@@ -211,7 +212,7 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 - Body: `// Arrange`, `// Act`, `// Assert` comments. Act is exactly one HTTP call.
 - One behaviour per test. No `if`, no loops in a test. Use `[Theory]` with `[InlineData]` only for the same behaviour with different input.
 - Assertions with FluentAssertions 7 (`Should()`), never `Assert.Equal`.
-- Use fixed, readable test data (`"Manual POO"`, `"ana@student.ro"`), not random values, except `Guid.NewGuid()` for an unknown id.
+- Use fixed, readable test data (`"Manual POO"`, `"ana@student.ro"`), not random values. Each class that needs a seller uses one fixed id: `private static readonly Guid SellerId = Guid.Parse("11111111-1111-1111-1111-111111111111");`, and a fixed `CreatedAt`: `new DateTimeOffset(2026, 10, 1, 9, 0, 0, TimeSpan.Zero)`. `Guid.NewGuid()` only for an unknown id.
 
 ## 7. Never do
 
@@ -224,15 +225,13 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 - Never use a mocking library (Moq, NSubstitute) or FluentAssertions 8.
 - Never change files in `src/` to make a test pass. The only allowed change is the `public partial class Program { }` line from section 3, and only on CS0122. If a test fails because the API behaves differently from this plan, stop and report it.
 - Never invent status codes or errors the API does not return (for example 409 on create, or a failure for `GetListings` / `GetMembers`).
-- Never edit `postman/`, `.github/`, or the tests in `tests/CampusMarket.UnitTests/Domain` and `tests/CampusMarket.UnitTests/Infrastructure`.
+- Never edit `.claude/skills/` (this skill included) or `PROMPTS.md`. If something in this skill is wrong, missing or out of date, stop and report it; do not fix the skill yourself.
+- Never commit or push; report the results.
+- Never edit `postman/`, `.github/`, or anything in `tests/CampusMarket.UnitTests`.
 
-## 8. Replacing the old API tests
+## 8. Old API tests
 
-These week 2 tests started the API on a real port and are replaced by this project. Delete exactly these files and nothing else:
-
-- `tests/CampusMarket.UnitTests/Api/TestApi.cs`
-- `tests/CampusMarket.UnitTests/Api/ListingsApiTests.cs`
-- `tests/CampusMarket.UnitTests/Api/MembersApiTests.cs`
+The week 2 API tests (`tests/CampusMarket.UnitTests/Api/`) were already deleted by the EF Core work. Do not recreate them and do not delete or change anything in `tests/CampusMarket.UnitTests`.
 
 ## 9. Example: `Listings/CreateListingTests.cs`
 
@@ -250,12 +249,14 @@ namespace CampusMarket.IntegrationTests.Listings;
 
 public sealed class CreateListingTests : IntegrationTestBase
 {
+    private static readonly Guid SellerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
     [Fact]
     public async Task Given_ValidListing_When_CreatingListing_Then_Returns201AndSavesListing()
     {
         // Arrange
         var request = new CreateListingRequest(
-            SellerId: Guid.NewGuid(),
+            SellerId: SellerId,
             Title: "  Manual POO  ",
             Category: Category.Textbook,
             Condition: Condition.Good,
@@ -283,7 +284,7 @@ public sealed class CreateListingTests : IntegrationTestBase
     public async Task Given_EmptyTitle_When_CreatingListing_Then_Returns400AndSavesNothing()
     {
         // Arrange
-        var request = new CreateListingRequest(Guid.NewGuid(), "", Category.Textbook, Condition.Good, 50m);
+        var request = new CreateListingRequest(SellerId, "", Category.Textbook, Condition.Good, 50m);
 
         // Act
         var response = await Client.PostAsJsonAsync("/api/v1/listings", request, Json);
@@ -301,11 +302,11 @@ public sealed class CreateListingTests : IntegrationTestBase
 }
 ```
 
-Pattern for a 204 slice with seeded data (`DeleteListingTests`):
+Pattern for a 204 slice with seeded data (`DeleteListingTests`, with the same `SellerId` field and a fixed `CreatedAt`):
 
 ```csharp
 // Arrange
-var listing = Listing.Create(Guid.NewGuid(), "Manual POO", Category.Textbook, Condition.Good, 50m, DateTimeOffset.UtcNow).Value;
+var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
 await SeedAsync(listing);
 
 // Act
@@ -326,5 +327,4 @@ exists.Should().BeFalse();
 - `dotnet test tests/CampusMarket.IntegrationTests` passes three runs in a row (no flaky tests).
 - There are at least 20 tests, and every slice of the 10 has at least two.
 - Every test checks the status code, the body (or that it is empty) and the database.
-- The three old files from section 8 are gone; nothing else in `tests/CampusMarket.UnitTests` changed.
-- Write the run in `PROMPTS.md` (format at the top of that file).
+- `git status` shows changes only in `tests/CampusMarket.IntegrationTests/` and `CampusMarket.sln`.
