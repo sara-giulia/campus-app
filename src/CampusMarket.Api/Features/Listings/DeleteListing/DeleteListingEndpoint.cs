@@ -1,5 +1,5 @@
+using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
-using CampusMarket.Api.Domain.Listings;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CampusMarket.Api.Features.Listings.DeleteListing;
@@ -12,19 +12,15 @@ public static class DeleteListingEndpoint
             .WithName("DeleteListing");
     }
 
-    // No response record: a successful delete answers 204 No Content, with an empty body.
     private static async Task<Results<NoContent, NotFound<Error>>> Handle(
         [AsParameters] DeleteListingRequest request,
-        IListingRepository repository,
+        ICommandHandler<DeleteListingCommand, Guid> handler,
         CancellationToken ct)
     {
-        var listing = await repository.GetByIdAsync(request.Id, ct);
+        var result = await handler.HandleAsync(new DeleteListingCommand(request.Id), ct);
 
-        if (listing is null)
-            return TypedResults.NotFound(
-                Error.NotFound("Listing.NotFound", $"Listing '{request.Id}' was not found."));
-
-        repository.Delete(listing);
+        if (result.IsFailure)
+            return TypedResults.NotFound(result.Error);
 
         return TypedResults.NoContent();
     }

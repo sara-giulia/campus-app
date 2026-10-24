@@ -427,4 +427,9 @@ FodyWeavers.xsd
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
 
-git rm -r --cached .idea
+.idea/
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal

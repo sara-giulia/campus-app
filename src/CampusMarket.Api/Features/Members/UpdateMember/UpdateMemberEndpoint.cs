@@ -1,5 +1,5 @@
+using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
-using CampusMarket.Api.Domain.Members;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CampusMarket.Api.Features.Members.UpdateMember;
@@ -12,30 +12,23 @@ public static class UpdateMemberEndpoint
             .WithName("UpdateMember");
     }
 
-    // No response record: a successful update answers 204 No Content, with an empty body.
     private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>>> Handle(
         Guid id,
         UpdateMemberRequest request,
-        IMemberRepository repository,
+        ICommandHandler<UpdateMemberCommand, Guid> handler,
         CancellationToken ct)
     {
-        // 1. Load it; 404 if it does not exist.
-        var member = await repository.GetByIdAsync(id, ct);
+        var command = new UpdateMemberCommand(id, request.Name, request.Email);
 
-        if (member is null)
-            return TypedResults.NotFound(
-                Error.NotFound("Member.NotFound", $"Member '{id}' was not found."));
-
-        // 2. The domain checks the rules (name length, email format).
-        var result = member.Update(request.Name, request.Email);
+        var result = await handler.HandleAsync(command, ct);
 
         if (result.IsFailure)
-            return TypedResults.BadRequest(result.Error);
-
-        // 3. Save and answer 204.
-        repository.Update(member);
+            return result.Error.Type switch
+            {
+                ErrorType.NotFound => TypedResults.NotFound(result.Error),
+                _ => TypedResults.BadRequest(result.Error)
+            };
 
         return TypedResults.NoContent();
     }
 }
-

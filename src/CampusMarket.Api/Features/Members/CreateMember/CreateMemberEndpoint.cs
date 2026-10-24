@@ -1,5 +1,5 @@
+using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
-using CampusMarket.Api.Domain.Members;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CampusMarket.Api.Features.Members.CreateMember;
@@ -14,28 +14,21 @@ public static class CreateMemberEndpoint
 
     private static async Task<Results<CreatedAtRoute<CreateMemberResponse>, BadRequest<Error>, Conflict<Error>>> Handle(
         CreateMemberRequest request,
-        IMemberRepository repository,
-        TimeProvider timeProvider,
+        ICommandHandler<CreateMemberCommand, CreateMemberResponse> handler,
         CancellationToken ct)
     {
-        // 1. The domain checks all the rules (name length, email format).
-        var result = Member.Create(request.Name, request.Email, timeProvider.GetUtcNow());
+        var command = new CreateMemberCommand(request.Name, request.Email);
+
+        var result = await handler.HandleAsync(command, ct);
 
         if (result.IsFailure)
-            return TypedResults.BadRequest(result.Error);
+            return result.Error.Type switch
+            {
+                ErrorType.Conflict => TypedResults.Conflict(result.Error),
+                _ => TypedResults.BadRequest(result.Error)
+            };
 
-        // 2. The repository rejects a duplicate Id.
-        var member = result.Value;
-        var added = await repository.AddAsync(member, ct);
-
-        if (!added)
-            return TypedResults.Conflict(
-                Error.Conflict("Member.Duplicate", $"A member with id '{member.Id}' already exists."));
-
-        // 3. 201 Created, with a Location header pointing to GetMemberById.
         return TypedResults.CreatedAtRoute(
-            CreateMemberResponse.From(member),
-            "GetMemberById",
-            new { id = member.Id });
+            result.Value, "GetMemberById", new { id = result.Value.Id });
     }
 }
