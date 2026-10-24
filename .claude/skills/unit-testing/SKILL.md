@@ -12,7 +12,7 @@ Generate unit tests for `src/CampusMarket.Api/Domain/` and for every handler in 
 - Test project: `tests/CampusMarket.UnitTests` (net10.0). It already references xUnit 2.9.3, coverlet.collector and the API project.
 - Add the package `FluentAssertions` with version `7.*` to the test project if it is missing. Never use version 8 or newer (different licence).
 - No mocking library (no Moq, no NSubstitute) and no `Microsoft.Extensions.TimeProvider.Testing`.
-- `Result<T>` and `Error` (with `ErrorType`: `Validation`, `NotFound`, `Conflict`) are in `Domain/Common/`. Assert on `result.IsSuccess`, `result.IsFailure`, `result.Error.Type` and `result.Error.Code`. Read `Result.cs` to see whether `Value` is nullable; use `result.Value!` when in doubt.
+- `Result<T>` and `Error` (with `ErrorType`: `Validation`, `NotFound`, `Conflict`) are in `Domain/Common/`. Assert on `result.IsSuccess`, `result.IsFailure`, `result.Error.Type` and `result.Error.Code`. `Result<T>.Value` is of type `T` (not nullable) and throws when the result is a failure: read it only after asserting `IsSuccess`, never use the `!` operator on it and never read it in a failure test (assert on `Error` instead).
 - Handlers are `sealed class` types with constructor injection, namespace `CampusMarket.Api.Features.<Resource>.<UseCase>`. They expose `Task<Result<T>> HandleAsync(request, CancellationToken ct)`.
 - Command handlers take the repository interface, `IUnitOfWork` and sometimes `TimeProvider`. Query handlers take only the repository interface.
 - Repository interfaces (`IListingRepository`, `IMemberRepository`): `AddAsync` returns `Task<bool>` (false = duplicate Id), `GetByIdAsync` returns `null` when missing, `GetAllAsync` returns a snapshot, `Update` and `Delete` take the entity. Open the interface files and implement exactly their signatures in the fakes.
@@ -42,7 +42,7 @@ Do not touch `Api/` and `Infrastructure/` in the test project: they belong to ot
 - Fakes contain no assertions and no business logic.
 
 ## Rules
-1. Arrange, Act, Assert, with one blank line between the blocks. No "// Arrange" comments.
+1. Arrange, Act, Assert, with one blank line between the blocks. No "// Arrange" comments. Copy the layout of the examples exactly.
 2. One behaviour per test.
 3. No logic inside tests: no `if`, no loops, no `try/catch`.
 4. Use `[Theory]` with `[InlineData]` for input variants (invalid titles, invalid prices, invalid emails, undefined enum values).
@@ -56,14 +56,22 @@ Do not touch `Api/` and `Infrastructure/` in the test project: they belong to ot
 7. Tests never depend on each other or on execution order. Every test builds its own fakes. No static mutable state.
 8. Assert on behaviour (returned `Result`, state of the object, content of the fake repository), not on implementation details. Private members are tested only through the public API.
 9. Every test has at least one assertion.
+10. ResultTests must also check both throwing branches: reading `Value` on a failed result throws `InvalidOperationException`, and reading `Error` on a successful result throws `InvalidOperationException`. Use `Action act = () => _ = result.Value;` and `act.Should().Throw<InvalidOperationException>()`. Otherwise those branches stay uncovered.
 
 ## Coverage
-- Collect with coverlet using the repo file `coverlet.runsettings` (the CI uses it too): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
-- HTML report with ReportGenerator into `coverage-report/` (read `coverlet.runsettings` first to see the output format and the file name of the coverage file).
-- Target: 100% line and branch for `Domain/` and for every handler.
-- Exclude only what cannot be unit-tested (`Program.cs`, `CampusMarketSetup.cs`, ...). Keep the list consistent with the CI (`sonar.coverage.exclusions`) and write each exclusion with a one-line reason in the README.
-- When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines, and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
-
+- Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
+- Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"`
+- Target: 100% line and branch coverage for every file in the report (all of `Domain/` and every handler).
+- Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`.
+- After generating, check that Git sees the report: `git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing.
+- When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
+- Everything that is not in the report is outside the target. This is the single list of exclusions (the README copies it word for word):
+  - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
+  - `CampusMarketSetup.cs`: only registers services and routes.
+  - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
+  - `Infrastructure/`: in-memory repositories and unit of work, replaced by EF Core in another issue and covered by the integration tests.
+  - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
+  
 ## Never do
 - Never use a mocking library.
 - Never use `Thread.Sleep` or real time.
@@ -72,6 +80,7 @@ Do not touch `Api/` and `Infrastructure/` in the test project: they belong to ot
 - Never share one object between tests.
 - Never guess a signature: read the interface or the class first.
 - Never touch `Api/`, `Infrastructure/`, `Features/` production code, `postman/` or the CI workflow.
+- Never use the ! operator on Result.Value.
 
 ## Example: domain test
 ```csharp
@@ -86,7 +95,7 @@ public class ListingTests
         var result = Listing.Create(sellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, createdAt);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Status.Should().Be(ListingStatus.Draft);
+        result.Value.Status.Should().Be(ListingStatus.Draft);
         result.Value.Version.Should().Be(1);
     }
 }
