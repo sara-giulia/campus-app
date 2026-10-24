@@ -1,5 +1,5 @@
+using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
-using CampusMarket.Api.Domain.Members;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CampusMarket.Api.Features.Members.DeleteMember;
@@ -12,21 +12,16 @@ public static class DeleteMemberEndpoint
             .WithName("DeleteMember");
     }
 
-    // No response record: a successful delete answers 204 No Content, with an empty body.
     private static async Task<Results<NoContent, NotFound<Error>>> Handle(
         [AsParameters] DeleteMemberRequest request,
-        IMemberRepository repository,
+        ICommandHandler<DeleteMemberCommand, Guid> handler,
         CancellationToken ct)
     {
-        var member = await repository.GetByIdAsync(request.Id, ct);
+        var result = await handler.HandleAsync(new DeleteMemberCommand(request.Id), ct);
 
-        if (member is null)
-            return TypedResults.NotFound(
-                Error.NotFound("Member.NotFound", $"Member '{request.Id}' was not found."));
-
-        repository.Delete(member);
+        if (result.IsFailure)
+            return TypedResults.NotFound(result.Error);
 
         return TypedResults.NoContent();
     }
 }
-

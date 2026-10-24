@@ -1,8 +1,8 @@
-namespace CampusMarket.Api.Features.Listings.GetListingById;
-
+using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
-using CampusMarket.Api.Domain.Listings;
 using Microsoft.AspNetCore.Http.HttpResults;
+
+namespace CampusMarket.Api.Features.Listings.GetListingById;
 
 public static class GetListingByIdEndpoint
 {
@@ -14,15 +14,14 @@ public static class GetListingByIdEndpoint
 
     private static async Task<Results<Ok<GetListingByIdResponse>, NotFound<Error>>> Handle(
         [AsParameters] GetListingByIdRequest request,
-        IListingRepository repository,
+        IQueryHandler<GetListingByIdQuery, GetListingByIdResponse> handler,
         CancellationToken ct)
     {
-        var listing = await repository.GetByIdAsync(request.Id, ct);
+        var result = await handler.HandleAsync(new GetListingByIdQuery(request.Id), ct);
 
-        if (listing is null)
-            return TypedResults.NotFound(
-                Error.NotFound("Listing.NotFound", $"Listing '{request.Id}' was not found."));
+        if (result.IsFailure)
+            return TypedResults.NotFound(result.Error);
 
-        return TypedResults.Ok(GetListingByIdResponse.From(listing));
+        return TypedResults.Ok(result.Value);
     }
 }
