@@ -27,7 +27,7 @@ The professor grades the before and after, so write what went wrong and what you
   2. Added `dotnet test` to the final check, because the existing tests prove the behaviour did not change.
   3. Added an UpdateListing example, the only slice that maps two error types (404 and 400).
   4. Wrote the `HandleAsync` signature as a decision (`Task<Result<T>>`, `ct` without default), different from the course.
-- **Commits:** "Fix cqrs skill after review: Domain rule, test check, update example, handler signature decision"
+- **Commits:** skill ec0b222 ("Fix cqrs skill after review: Domain rule, test check, update example, handler signature decision"); first version 617d8c2
 
 ### 2026-10-22 · Carina Coman (skill), Sara Matasel (run) · cqrs · run 1
 
@@ -35,8 +35,7 @@ The professor grades the before and after, so write what went wrong and what you
 - **Skill that ran:** cqrs, commit a90b234 (written by Carina, run by Sara from her Claude Code account, on a shared call)
 - **Result:** all 10 slices now have a command or query and a handler. Build: 0 errors, 0 warnings. Tests: 90/90 pass. Postman: 36/36 requests, 68/68 assertions. No endpoint uses a repository or IUnitOfWork; query handlers do not use IUnitOfWork; Domain/, tests/ and postman/ unchanged (only the new IUnitOfWork.cs).
 - **What I changed in the skill and why:** nothing, the first run followed the skill. The skill was already improved before this run (see "review fixes" above).
-- **Commits:** skill a90b234, generated code <hash>
-
+- **Commits:** skill a90b234; generated code 9c099c5
 
 ### 2026-10-22 · Diana · unit-testing · skill v1
 
@@ -85,7 +84,7 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** build 0 errors, 0 warnings; 53/53 tests (domain only, as the skill says); Postman 36/36 twice in a row; data still there after restarting the API; no change in `Features/` or `Domain/`; old `Api/` and `Infrastructure/` tests deleted, not edited; no `.db` file in `git status`.
 - **What I changed in the skill and why:** fixed the 4 problems of run 2 ("never edit tests/", delete the old API tests, `*.db` in `.gitignore`, `AsNoTracking` for `GetAll`, no empty repository method) and completed the skill with full examples, a complete "Never" list and a final check list.
 - **Lesson:** every run starts in a new Claude Code session, otherwise Claude reuses the previous context.
-- **Commits:** skill 4bf0abf; generated code <hash>
+- **Commits:** skill 4bf0abf; generated code 091296a
 
 ### 2026-10-24 · Diana · unit-testing · skill v4 (align with main)
 
@@ -95,4 +94,10 @@ The professor grades the before and after, so write what went wrong and what you
 - **What I changed in the skill and why:** (1) removed the rule about the deleted test folders; (2) Infrastructure exclusion now describes EF Core; (3) added that unit tests never use EF Core or SQLite; (4) new rule: every run starts in a new Claude Code session (lesson from the efcore runs, where Claude reused old context)
 - **Commits:** skill 9356f6b; generated code: none yet
 
+### 2026-10-24 · Diana (skill), Sara Matasel (run) · unit-testing · run 1
 
+- **What I asked:** Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md to generate the unit tests for the domain and all handlers. Follow the skill exactly, including the "Never do" list. When you finish, run the tests with coverage and generate the HTML report as the skill says, then tell me the test results and coverage for Domain/ and the handlers.
+- **Skill that ran:** unit-testing v4, commit 9356f6b (written by Diana, run by Sara from her Claude Code account, in a new session)
+- **Result:** build 0 errors; 90/90 tests pass; 100% line and branch coverage on Domain/ (7 files) and on all 10 handlers; the week 2 domain tests were replaced by the generated ones (Given_When_Then naming, FluentAssertions 7, blank lines between Arrange, Act and Assert); hand-written fakes in Fakes/ (repositories with RejectAdd, unit of work, FixedTimeProvider); HTML report in coverage-report/; no change in src/.
+- **What I changed in the skill and why:** nothing, the first run was good. The skill was already improved in v1 to v4 (see the entries above).
+- **Commits:** skill 9356f6b; generated code d83fbab
