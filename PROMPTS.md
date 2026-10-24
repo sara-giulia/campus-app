@@ -36,3 +36,29 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** all 10 slices now have a command or query and a handler. Build: 0 errors, 0 warnings. Tests: 90/90 pass. Postman: 36/36 requests, 68/68 assertions. No endpoint uses a repository or IUnitOfWork; query handlers do not use IUnitOfWork; Domain/, tests/ and postman/ unchanged (only the new IUnitOfWork.cs).
 - **What I changed in the skill and why:** nothing, the first run followed the skill. The skill was already improved before this run (see "review fixes" above).
 - **Commits:** skill a90b234, generated code <hash>
+### 2026-10-24 · Sara Matasel · efcore-sqlite-repositories · run 1
+
+- **What I asked:** Use the efcore-sqlite-repositories skill in .claude/skills/efcore-sqlite-repositories/SKILL.md to replace the in-memory repositories with EF Core + SQLite. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.
+- **Skill that ran:** efcore-sqlite-repositories v1, commit b3ebc49 (a short first draft)
+- **Result:** build OK, 90/90 tests, but: it edited `tests/.../Api/TestApi.cs` to make the old tests pass; changed the `AddCampusMarket` signature and hard-coded the connection string; created the database inside `MapCampusMarket`; left the in-memory repositories as dead code; put all mapping in one `OnModelCreating` with no configuration classes, no `ValueGeneratedNever`, no max lengths and no concurrency token; `GetAllAsync` without `AsNoTracking`; no `*.db` in `.gitignore`. The generated code was discarded.
+- **What I changed in the skill and why:** see v2.
+- **Commits:** skill b3ebc49; generated code: discarded
+
+### 2026-10-24 · Sara Matasel · efcore-sqlite-repositories · run 2
+
+- **What I asked:** same prompt as run 1
+- **Skill that ran:** efcore-sqlite-repositories v2, commit b1f0378
+- **Result:** the first two attempts ran in the old Claude Code session: Claude remembered run 1 and re-applied it instead of reading the new skill. In a new session: signature kept, connection string in `appsettings.json`, separate `EnsureCampusMarketDatabase`, in-memory code deleted, configuration classes with `ValueGeneratedNever`, max lengths and concurrency token. Still wrong: edited `TestApi.cs` again, no `AsNoTracking` in `GetAllAsync`, no `*.db` in `.gitignore`, empty `Update()` methods. The generated code was discarded.
+- **What I changed in the skill and why:** v2 added rules only for 4 problems of run 1 (signature + appsettings, separate database creation, delete in-memory code, configuration classes), to see the effect of each rule.
+- **Commits:** skill b1f0378; generated code: discarded
+
+### 2026-10-24 · Sara Matasel · efcore-sqlite-repositories · run 3
+
+- **What I asked:** same prompt, in a new Claude Code session
+- **Skill that ran:** efcore-sqlite-repositories v3, commit 4bf0abf
+- **Result:** build 0 errors, 0 warnings; 53/53 tests (domain only, as the skill says); Postman 36/36 twice in a row; data still there after restarting the API; no change in `Features/` or `Domain/`; old `Api/` and `Infrastructure/` tests deleted, not edited; no `.db` file in `git status`.
+- **What I changed in the skill and why:** fixed the 4 problems of run 2 ("never edit tests/", delete the old API tests, `*.db` in `.gitignore`, `AsNoTracking` for `GetAll`, no empty repository method) and completed the skill with full examples, a complete "Never" list and a final check list.
+- **Lesson:** every run starts in a new Claude Code session, otherwise Claude reuses the previous context.
+- **Commits:** skill 4bf0abf; generated code <hash>
+
+
