@@ -360,7 +360,7 @@ However the work is split, every slice comes with its tests, its Postman request
   ```
 
   ```
-  reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html
+  reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"
   ```
 
 - **Open the report:** open `coverage-report/index.html` in a browser
@@ -368,11 +368,12 @@ However the work is split, every slice comes with its tests, its Postman request
 
 ### Coverage exclusions
 
-The 100% target applies to `Domain/` and to every handler. These files are outside that target and are not unit-tested:
+The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and the target is 100% for them. Everything else is outside the target:
 
-- `Program.cs`: only builds and starts the web host, no logic to test. Also excluded in the CI (`sonar.coverage.exclusions`).
-- `CampusMarketSetup.cs`: only registers services and maps routes, no logic to test.
-- `Infrastructure/`: in-memory repositories and unit of work, replaced by the EF Core implementation in another issue and covered by the integration tests.
-- `Features/**/*Endpoint.cs`, `*Request.cs`, `*Response.cs`: HTTP mapping only, covered by the integration tests.
+- `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
+- `CampusMarketSetup.cs`: only registers services and routes.
+- `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
+- `Infrastructure/`: in-memory repositories and unit of work, replaced by EF Core in another issue and covered by the integration tests.
+- `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 
 ---

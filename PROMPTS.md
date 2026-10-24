@@ -52,3 +52,11 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** the v1 handler example did not match the real handlers: wrong time provider name, wrong constructor, wrong repository calls; the CI collects coverage differently from my commands
 - **What I changed in the skill and why:** (1) real handler and repository signatures from the cqrs skill; (2) a `RejectAdd` switch on the fake repository, because the domain generates the Id and the Conflict branch is otherwise unreachable; (3) query handlers have no unit of work, so they are checked by repository state instead of SaveCount; (4) coverage collected with `coverlet.runsettings`, like the CI; (5) a test matrix per handler so every branch is covered
 - **Commits:** skill 096e397; generated code: none yet
+
+### 2026-10-24 · Diana · unit-testing · skill v3 (review fixes)
+
+- **What I asked:** review by a teammate (no generation yet)
+- **Skill that ran:** none yet (SKILL.md edited by hand after review)
+- **Result:** six review points; five needed changes in the repo
+- **What I changed in the skill and why:** one explicit exclusion list shared with the README and the report limited to Domain/ and handlers; rule to commit coverage-report/; Result.Value and Result.Error documented as throwing InvalidOperationException (and a test rule for both branches); no `!` on Result.Value; examples keep the blank lines between Arrange, Act and Assert
+- **Commits:** skill 342e693; generated code: none yet
