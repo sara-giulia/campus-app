@@ -1,5 +1,5 @@
+using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
-using CampusMarket.Api.Domain.Members;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CampusMarket.Api.Features.Members.GetMemberById;
@@ -14,16 +14,14 @@ public static class GetMemberByIdEndpoint
 
     private static async Task<Results<Ok<GetMemberByIdResponse>, NotFound<Error>>> Handle(
         [AsParameters] GetMemberByIdRequest request,
-        IMemberRepository repository,
+        IQueryHandler<GetMemberByIdQuery, GetMemberByIdResponse> handler,
         CancellationToken ct)
     {
-        var member = await repository.GetByIdAsync(request.Id, ct);
+        var result = await handler.HandleAsync(new GetMemberByIdQuery(request.Id), ct);
 
-        if (member is null)
-            return TypedResults.NotFound(
-                Error.NotFound("Member.NotFound", $"Member '{request.Id}' was not found."));
+        if (result.IsFailure)
+            return TypedResults.NotFound(result.Error);
 
-        return TypedResults.Ok(GetMemberByIdResponse.From(member));
+        return TypedResults.Ok(result.Value);
     }
 }
-

@@ -7,7 +7,8 @@ builder.Services.AddCampusMarket();
 
 var app = builder.Build();
 
+app.EnsureCampusMarketDatabase();
+
 app.MapCampusMarket();
 
 await app.RunAsync();
-

@@ -1,0 +1,214 @@
+---
+name: efcore-sqlite-repositories
+description: Moves CampusMarket from the in-memory repositories to EF Core with SQLite, behind the same interfaces (IListingRepository, IMemberRepository, IUnitOfWork), so no slice or handler changes. Use it when you add or change the database, the DbContext, an entity mapping or a repository.
+---
+
+# EF Core + SQLite for CampusMarket
+
+We want the data to be saved in a real database (SQLite) instead of in memory. The handlers and the endpoints must not notice the change: they keep using the same interfaces.
+
+## What is already there
+
+- The API is in `src/CampusMarket.Api` (namespace `CampusMarket.Api`, .NET 10).
+- The `cqrs` skill already ran. Every slice has a handler, and the handlers only talk to `IListingRepository`, `IMemberRepository` and `IUnitOfWork` (`Domain/Common/IUnitOfWork.cs`).
+- The interfaces already promise this, and it must stay true:
+  - `AddAsync` returns `false` if the Id already exists, and then adds nothing.
+  - `GetByIdAsync` returns `null` if nothing is found.
+  - `GetAllAsync` returns a new list (a snapshot).
+  - `Update` and `Delete` get an entity that was loaded with `GetByIdAsync`.
+  - Nothing reaches the database until a handler calls `IUnitOfWork.SaveChangesAsync`.
+- The domain classes have private constructors and `private set`. EF Core works with that, so we leave them like this.
+
+## Package
+
+Only one package, in `src/CampusMarket.Api/CampusMarket.Api.csproj`:
+
+```xml
+<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
+```
+
+We do not use migrations. The tables are created with `EnsureCreated` when the app starts.
+
+## Where the files go
+
+```
+src/CampusMarket.Api/Infrastructure/Persistence/
+  CampusMarketDbContext.cs
+  EfListingRepository.cs
+  EfMemberRepository.cs
+  EfUnitOfWork.cs
+  Configurations/
+    ListingConfiguration.cs
+    ReservationConfiguration.cs
+    MemberConfiguration.cs
+```
+
+The namespace matches the folder: `CampusMarket.Api.Infrastructure.Persistence` and `...Persistence.Configurations`.
+
+## The DbContext
+
+- `CampusMarketDbContext : DbContext`, with a constructor that takes `DbContextOptions<CampusMarketDbContext>`.
+- Two `DbSet`s, one for each aggregate root: `Listings` and `Members`.
+- No `DbSet<Reservation>`. A reservation belongs to its listing and is saved together with it.
+- `OnModelCreating` only calls `modelBuilder.ApplyConfigurationsFromAssembly(typeof(CampusMarketDbContext).Assembly)`.
+- All the mapping is in the configuration classes. We never put attributes like `[Key]` or `[Required]` on the domain classes.
+
+## How each type is stored
+
+One `IEntityTypeConfiguration<T>` per entity.
+
+| In the domain | In the database |
+|---|---|
+| `Id` (every entity) | primary key, `ValueGeneratedNever()`, because the domain already creates the Guid |
+| `Listing.Price` (`Money`) | one number column: `m => m.Amount`, read back with `v => Money.Create(v).Value` |
+| `Member.Email` (`Email`) | one text column: `e => e.Value`, read back with `v => Email.Create(v).Value` |
+| enums (`Category`, `Condition`, `ListingStatus`, `ReservationStatus`) | text, with `HasConversion<string>()` |
+| `Listing.Title` | required, at most `Listing.MaxTitleLength` characters |
+| `Member.Name` | required, at most 100 characters |
+| `Listing.Version` | `IsConcurrencyToken()` |
+| `Listing.Reservations` | `HasMany(...).WithOne().HasForeignKey(r => r.ListingId)`, cascade delete, read through the private field `reservations` |
+
+No foreign key from `Listing.SellerId` or from `Reservation.MemberId` to `Member`. The API does not check yet that the seller or the buyer exists (Postman uses a fixed `sellerId`), so a foreign key would turn valid requests into 500 errors.
+
+## Repositories and the unit of work
+
+- `EfListingRepository : IListingRepository` and `EfMemberRepository : IMemberRepository`, both `sealed`, both get `CampusMarketDbContext db` in the constructor.
+- `AddAsync`: check with `AnyAsync` if the Id is already there. If yes, return `false`. If not, `Add` and return `true`. Do not save here.
+- `GetByIdAsync`: `FirstOrDefaultAsync` on the Id, tracked, because the handler may change the entity. For listings, `Include(l => l.Reservations)`.
+- `GetAllAsync`: `AsNoTracking()` and `ToListAsync`, returned as `IReadOnlyList<T>`. For listings, `Include(l => l.Reservations)`.
+- `Update` calls `db.Update(entity)` and `Delete` calls `db.Remove(entity)`. They do not save either. Never leave a repository method empty.
+- `EfUnitOfWork : IUnitOfWork`, `sealed`, gets `CampusMarketDbContext db`. `SaveChangesAsync` just returns `db.SaveChangesAsync(ct)`.
+- Every async EF Core call gets the `CancellationToken`.
+
+## Registration
+
+In `CampusMarketSetup.AddCampusMarket`. The signature stays `AddCampusMarket(this IServiceCollection services)`.
+
+- Remove the three in-memory lines (`InMemoryListingRepository`, `InMemoryMemberRepository`, `InMemoryUnitOfWork`).
+- Register the DbContext and read the connection string from configuration:
+
+  ```csharp
+  services.AddDbContext<CampusMarketDbContext>((sp, options) =>
+      options.UseSqlite(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));
+  ```
+
+- Register `EfListingRepository`, `EfMemberRepository` and `EfUnitOfWork` as **Scoped** (one per request, like the DbContext).
+- Do not touch `AddHandlers`, `TimeProvider` or the JSON options.
+
+Add one more method to `CampusMarketSetup`:
+
+```csharp
+public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
+```
+
+It opens a scope, gets the `CampusMarketDbContext` and calls `Database.EnsureCreated()`. `Program.cs` calls it right after `builder.Build()`.
+
+Settings:
+
+- `appsettings.json` gets `"ConnectionStrings": { "CampusMarket": "Data Source=campusmarket.db" }`.
+- `.gitignore` gets `*.db`, `*.db-shm` and `*.db-wal`, so the database file never ends up in Git.
+
+## Old code and old tests
+
+- `Infrastructure/InMemoryListingRepository.cs`, `Infrastructure/InMemoryMemberRepository.cs` and `Infrastructure/InMemoryUnitOfWork.cs`.
+- The week 2 tests that use the in-memory store: `tests/CampusMarket.UnitTests/Infrastructure/` and `tests/CampusMarket.UnitTests/Api/`. The `unit-testing` and `integration-testing` skills write new ones.
+- Keep `tests/CampusMarket.UnitTests/Domain/`.
+- Never edit a file in `tests/`. Old tests are deleted, never adapted. New tests come from the `unit-testing` and `integration-testing` skills.
+
+## Never
+
+- Never change anything in `Features/` or in a `*Handler.cs` file.
+- Never edit a file in `tests/` (only delete the old folders listed above).
+- Never change the signature of `AddCampusMarket`, and never write the connection string in code.
+- Never create the database inside `MapCampusMarket`.
+- Never change `Domain/`: no public setters or constructors, no attributes, no new properties.
+- Never call `SaveChangesAsync` in a repository.
+- Never add a `DbSet<Reservation>` or a reservation repository.
+- Never add a foreign key from `SellerId` or `MemberId` to `Member`.
+- Never use migrations, `EnsureDeleted`, raw SQL or a second DbContext.
+- Never commit a `.db` file.
+
+## Example: `ListingConfiguration.cs`
+
+```csharp
+using CampusMarket.Api.Domain.Listings;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace CampusMarket.Api.Infrastructure.Persistence.Configurations;
+
+public sealed class ListingConfiguration : IEntityTypeConfiguration<Listing>
+{
+    public void Configure(EntityTypeBuilder<Listing> builder)
+    {
+        builder.ToTable("Listings");
+
+        builder.HasKey(l => l.Id);
+        builder.Property(l => l.Id).ValueGeneratedNever();
+
+        builder.Property(l => l.Title).IsRequired().HasMaxLength(Listing.MaxTitleLength);
+        builder.Property(l => l.Category).HasConversion<string>();
+        builder.Property(l => l.Condition).HasConversion<string>();
+        builder.Property(l => l.Status).HasConversion<string>();
+
+        builder.Property(l => l.Price)
+            .HasConversion(money => money.Amount, amount => Money.Create(amount).Value);
+
+        builder.Property(l => l.Version).IsConcurrencyToken();
+
+        builder.HasMany(l => l.Reservations)
+            .WithOne()
+            .HasForeignKey(r => r.ListingId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(l => l.Reservations)
+            .HasField("reservations")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+```
+
+## Example: `EfListingRepository.cs`
+
+```csharp
+using CampusMarket.Api.Domain.Listings;
+using Microsoft.EntityFrameworkCore;
+
+namespace CampusMarket.Api.Infrastructure.Persistence;
+
+public sealed class EfListingRepository(CampusMarketDbContext db) : IListingRepository
+{
+    public async Task<bool> AddAsync(Listing listing, CancellationToken ct = default)
+    {
+        if (await db.Listings.AnyAsync(l => l.Id == listing.Id, ct))
+            return false;
+
+        db.Listings.Add(listing);
+        return true;
+    }
+
+    public Task<Listing?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
+        db.Listings
+            .Include(l => l.Reservations)
+            .FirstOrDefaultAsync(l => l.Id == id, ct);
+
+    public async Task<IReadOnlyList<Listing>> GetAllAsync(CancellationToken ct = default) =>
+        await db.Listings
+            .AsNoTracking()
+            .Include(l => l.Reservations)
+            .ToListAsync(ct);
+
+    public void Update(Listing listing) => db.Listings.Update(listing);
+
+    public void Delete(Listing listing) => db.Listings.Remove(listing);
+}
+```
+
+## Check when you are done
+
+- `dotnet build`: 0 errors and 0 warnings.
+- `git diff --stat`: nothing changed in `Features/` or in `Domain/`.
+- `dotnet test`: the domain tests that are left all pass.
+- Start the API and run the Postman collection twice in a row: 36/36 both times (the data stays in the file between runs).
+- Stop the API, start it again, call `GET /api/v1/listings`: the listings from before are still there, so they really are in SQLite.
+- `git status` shows no `.db` file, and no file in `tests/` is modified (only the two old folders are deleted).

@@ -428,3 +428,8 @@ FodyWeavers.xsd
 #*.lscache
 
 git rm -r --cached .idea
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
