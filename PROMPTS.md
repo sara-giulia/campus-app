@@ -117,3 +117,11 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** Claude reported build 0 warnings, 90/90 unit tests, 20/20 integration tests three runs in a row. The run 1 problems were gone: the skill and PROMPTS.md were not edited, fixed SellerId and CreatedAt, Guid.NewGuid() only for unknown ids. Still wrong: its first draft used a Condition value that does not exist (LikeNew), because the skill does not list the enum values; it picked FluentAssertions 7.2.0 on its own, because the skill only said 7.*; only the Delete 404 tests seeded an entity, the GetById ones did not; the listing update test did not change the category. The generated code was discarded.
 - **What I changed in the skill and why:** see v3.
 - **Commits:** skill dcb03e4; generated code: discarded
+
+### 2026-10-25 · Anca · integration-testing · run 3
+
+- **What I asked:** same prompt as run 1, in a new Claude Code session
+- **Skill that ran:** integration-testing v3, commit c6b3868
+- **Result:** Claude reported build 0 errors, 0 warnings and 20/20 integration tests three runs in a row. I ran `dotnet test` myself afterwards: 110/110 (90 unit, 20 integration). The run 2 problems were gone: only real enum values; FluentAssertions 7.2.0; every 404 test seeds an entity and checks it is unchanged; the update tests change every field. The factory is the same as in the skill; `Guid.NewGuid()` only for unknown ids; nothing changed in `src/`, `tests/CampusMarket.UnitTests`, the skill or `PROMPTS.md`; only `CampusMarket.sln` and the new test project.
+- **What I changed in the skill and why:** nothing, the run was good.
+- **Commits:** skill c6b3868; generated code 98cbece
