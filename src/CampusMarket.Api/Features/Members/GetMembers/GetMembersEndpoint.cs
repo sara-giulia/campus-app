@@ -1,4 +1,4 @@
-using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Common.CQRS;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CampusMarket.Api.Features.Members.GetMembers;
@@ -11,18 +11,12 @@ public static class GetMembersEndpoint
             .WithName("GetMembers");
     }
 
-    // No request record: this slice has no input.
     private static async Task<Ok<GetMembersResponse>> Handle(
-        IMemberRepository repository,
+        IQueryHandler<GetMembersQuery, GetMembersResponse> handler,
         CancellationToken ct)
     {
-        var members = await repository.GetAllAsync(ct);
+        var result = await handler.HandleAsync(new GetMembersQuery(), ct);
 
-        var items = members
-            .Select(GetMembersItem.From)
-            .ToList();
-
-        return TypedResults.Ok(new GetMembersResponse(items, items.Count));
+        return TypedResults.Ok(result.Value);
     }
 }
-

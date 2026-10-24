@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Features.Listings;
@@ -20,6 +22,9 @@ public static class CampusMarketSetup
 
         services.AddSingleton<IListingRepository, InMemoryListingRepository>();
         services.AddSingleton<IMemberRepository, InMemoryMemberRepository>();
+
+        services.AddHandlers(typeof(CampusMarketSetup).Assembly);
+        services.AddSingleton<IUnitOfWork, InMemoryUnitOfWork>();
 
         // Enums are sent as text in JSON ("Active"), not as numbers (1)
         services.ConfigureHttpJsonOptions(options =>
