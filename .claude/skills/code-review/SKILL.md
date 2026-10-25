@@ -1,8 +1,3 @@
----
-name: code-review
-description: Reviews a .NET vertical-slice API (CQRS handlers, domain, tests) and returns one Markdown table of problems. Read-only, it never changes a file. Use it when you want a code review of this repository or of another team's repository.
----
-
 # Code review
 
 Read the code of the repository and report the problems you find. You only read. You never change, create or delete a file.
@@ -11,6 +6,18 @@ Read the code of the repository and report the problems you find. You only read.
 
 - `src/`: the slices in `Features/`, the domain, the infrastructure, `Program.cs`.
 - `tests/`: the unit tests and the integration tests.
+- Skip generated files: `bin/`, `obj/`, `coverage-report/`, `TestResults/`, `Migrations/`.
+
+## How to review
+
+Open every file in the folders above, one by one, and go through this checklist. Do not stop after the first problems you find: the same repository must give the same table every time.
+
+- **slice boundaries**: does a slice folder use a type from another slice folder? Does an endpoint call a repository, a DbContext or the domain directly, or contain an `if` on data?
+- **CQRS violations**: does a query handler call Add, Update, Delete or `SaveChangesAsync`? Does a command handler forget `SaveChangesAsync`? Does a handler call another handler?
+- **domain invariants**: does an entity have a public setter or a public constructor? Can a factory or method put the entity in an invalid state? Can a caller change a collection from outside?
+- **test quality**, for every test method: does the name of the test match what the Arrange really sets up and what is asserted (for `Given_When_Then` names, check each part)? Does the test assert anything? Does it contain `if`, a loop, `DateTime.Now` or `Thread.Sleep`? Does it share state with other tests?
+- **naming**: do classes, methods and private fields follow the same convention as the rest of the project (compare with at least two other files)?
+- **error handling**: does a handler throw for not found, invalid input or a duplicate? Does an endpoint map an error type to the wrong status (Validation 400, NotFound 404, Conflict 409)?
 
 ## Categories
 
