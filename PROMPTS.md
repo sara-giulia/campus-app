@@ -125,3 +125,30 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** Claude reported build 0 errors, 0 warnings and 20/20 integration tests three runs in a row. I ran `dotnet test` myself afterwards: 110/110 (90 unit, 20 integration). The run 2 problems were gone: only real enum values; FluentAssertions 7.2.0; every 404 test seeds an entity and checks it is unchanged; the update tests change every field. The factory is the same as in the skill; `Guid.NewGuid()` only for unknown ids; nothing changed in `src/`, `tests/CampusMarket.UnitTests`, the skill or `PROMPTS.md`; only `CampusMarket.sln` and the new test project.
 - **What I changed in the skill and why:** nothing, the run was good.
 - **Commits:** skill c6b3868; generated code 98cbece
+
+### 2026-10-25 · Sara Matasel · code-review · run 1
+
+- **What I asked:** Use the code-review skill in .claude/skills/code-review/SKILL.md to review this repository. Follow the skill exactly. Do not edit any file. Give me only the output the skill asks for.
+- **Skill that ran:** code-review v1, commit c0d576f (a short first draft)
+- **Result:** 2 rows, both real, no file changed. But: the output was not a Markdown table that can be copied into REVIEW.md (the terminal showed it as blocks); one row had the wrong line (`using` is on line 2, not 1); the same row was a `using` order problem forced into the "naming" category, because the skill did not say what to do with a problem outside the six categories. Claude Code then suggested "apply the two fixes"; I did not run it, the review skill is read-only.
+- **What I changed in the skill and why:** see v2.
+- **Commits:** skill c0d576f; output: not kept
+
+### 2026-10-25 · Sara Matasel · code-review · run 2
+
+- **What I asked:** same prompt, in a new Claude Code session
+- **Skill that ran:** code-review v2, commit 858de47
+- **Result:** the run 1 problems were gone: the output was one Markdown block, the line was exact, the forced row was not reported. Still wrong: only 1 row (private field `reservations` without `_`); the real test naming problem from run 1 (`ListingTests.cs:289`) was missed, although the code did not change. The skill only said "read the code", with no checklist, so each run looked at different things.
+- **What I changed in the skill and why:** v2 added three rules for the run 1 problems: problems outside the six categories are not reported, `File:Line` must be the exact line checked again in the file, the output is one ```markdown block.
+- **Commits:** skill 858de47; output: not kept
+
+### 2026-10-25 · Sara Matasel · code-review · run 3
+
+- **What I asked:** same prompt, in a new Claude Code session
+- **Skill that ran:** code-review v3, commit 506d7c0
+- **Result:** 2 rows, both checked by hand: `Reservation.cs:32` (public `Cancel()` can break the Listing/Reservation invariant, Major) and `ListingTests.cs:289` (test name does not match the Arrange, now in the right category "test quality"). Exact lines, no invented row, no file changed. The table is in REVIEW.md.
+- **What I changed in the skill and why:** added a "How to review" checklist for each category, gone through file by file (for tests: the name must match what the Arrange sets up and what is asserted), and skip generated folders (`bin/`, `obj/`, `coverage-report/`, `TestResults/`). Without a checklist the review changed from run to run.
+- **Commits:** skill 506d7c0; review output in REVIEW.md
+
+
+
