@@ -101,3 +101,27 @@ The professor grades the before and after, so write what went wrong and what you
 - **Result:** build 0 errors; 90/90 tests pass; 100% line and branch coverage on Domain/ (7 files) and on all 10 handlers; the week 2 domain tests were replaced by the generated ones (Given_When_Then naming, FluentAssertions 7, blank lines between Arrange, Act and Assert); hand-written fakes in Fakes/ (repositories with RejectAdd, unit of work, FixedTimeProvider); HTML report in coverage-report/; no change in src/.
 - **What I changed in the skill and why:** nothing, the first run was good. The skill was already improved in v1 to v4 (see the entries above).
 - **Commits:** skill 9356f6b; generated code d83fbab
+
+### 2026-10-25 · Anca · integration-testing · run 1
+
+- **What I asked:** Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md to write the integration tests for CampusMarket. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.
+- **Skill that ran:** integration-testing v1, commit 6df1d61 (draft with three `TODO(efcore)` lines)
+- **Result:** Claude reported build 0 warnings, 90/90 unit tests, 20/20 integration tests three runs in a row; the test code was good (status, body and database checked in every test, nothing in `src/` changed). But: the skill said not to run it until the TODOs were filled, and Claude filled them in the skill itself and changed its status; it wrote this run in `PROMPTS.md` by itself (the skill asked it to); `Guid.NewGuid()` for `SellerId` in 11 places, against the "fixed test data" rule, because the skill's own examples did that; section 8 asked to delete old test files that no longer exist. The generated code was discarded.
+- **What I changed in the skill and why:** see v2.
+- **Commits:** skill 6df1d61; generated code: discarded
+
+### 2026-10-25 · Anca · integration-testing · run 2
+
+- **What I asked:** same prompt as run 1, in a new Claude Code session
+- **Skill that ran:** integration-testing v2 (committed as dcb03e4 right after the run; the content that ran was the same)
+- **Result:** Claude reported build 0 warnings, 90/90 unit tests, 20/20 integration tests three runs in a row. The run 1 problems were gone: the skill and PROMPTS.md were not edited, fixed SellerId and CreatedAt, Guid.NewGuid() only for unknown ids. Still wrong: its first draft used a Condition value that does not exist (LikeNew), because the skill does not list the enum values; it picked FluentAssertions 7.2.0 on its own, because the skill only said 7.*; only the Delete 404 tests seeded an entity, the GetById ones did not; the listing update test did not change the category. The generated code was discarded.
+- **What I changed in the skill and why:** see v3.
+- **Commits:** skill dcb03e4; generated code: discarded
+
+### 2026-10-25 · Anca · integration-testing · run 3
+
+- **What I asked:** same prompt as run 1, in a new Claude Code session
+- **Skill that ran:** integration-testing v3, commit c6b3868
+- **Result:** Claude reported build 0 errors, 0 warnings and 20/20 integration tests three runs in a row. I ran `dotnet test` myself afterwards: 110/110 (90 unit, 20 integration). The run 2 problems were gone: only real enum values; FluentAssertions 7.2.0; every 404 test seeds an entity and checks it is unchanged; the update tests change every field. The factory is the same as in the skill; `Guid.NewGuid()` only for unknown ids; nothing changed in `src/`, `tests/CampusMarket.UnitTests`, the skill or `PROMPTS.md`; only `CampusMarket.sln` and the new test project.
+- **What I changed in the skill and why:** nothing, the run was good.
+- **Commits:** skill c6b3868; generated code 98cbece
