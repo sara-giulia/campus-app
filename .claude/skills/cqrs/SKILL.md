@@ -97,6 +97,11 @@ What each handler returns (`TResult`):
   - duplicate Id (`AddAsync` returned false) → `Error.Conflict(...)`
 - Keep the same error codes and messages the endpoints return today (for example `Listing.NotFound`, `Listing.Duplicate`).
 - Update and Delete: load with `GetByIdAsync`, return NotFound if `null`, then call the domain or the repository, then `SaveChangesAsync`.
+- Unique email (the README says `CreateMember` needs a unique email; the same goes for `UpdateMember`). The repository has no "find by email" method, so the handler uses `GetAllAsync`:
+  - `CreateMemberHandler`: after `Member.Create` succeeded and before `AddAsync`, if any member returned by `GetAllAsync` has the same `Email`, return `Error.Conflict("Member.EmailTaken", $"A member with email '{member.Email.Value}' already exists.")` and do not add or save anything.
+  - `UpdateMemberHandler`: after the `NotFound` check and **before** `member.Update`, build the new email with `Email.Create(command.Email)`. If it is valid and any **other** member (`m.Id != member.Id`) has that `Email`, return the same `Member.EmailTaken` conflict, without changing the member and without saving. If it is not valid, go on: `member.Update` returns the validation error as today. Keeping your own email is allowed.
+  - `Email` is a record already normalized to lower case, so compare with `==`.
+- If the slices already have their command, query and handler, keep them and only add what this skill asks for that is missing.
 - Clock: take `TimeProvider` in the constructor and call `GetUtcNow()`. Never use `DateTime.Now` or `DateTime.UtcNow`.
 
 ## 5. Endpoint rules
@@ -106,7 +111,8 @@ What each handler returns (`TResult`):
 - No business rules and no `if` on data in the endpoint. The only `if` allowed is `result.IsFailure`.
 - Mapping by `ErrorType`: `Validation` → 400 `BadRequest`, `NotFound` → 404 `NotFound`, `Conflict` → 409 `Conflict`. Success: Create → 201 `CreatedAtRoute` with Location, Get → 200 `Ok`, Update and Delete → 204 `NoContent`.
 - The `Results<...>` return type lists only the statuses the slice can return, and the mapping contains only those arms.
-- If a slice can fail with just one `ErrorType`, map it directly. If it can fail with two, use a `switch` on `result.Error.Type`.
+- If a slice can fail with just one `ErrorType`, map it directly. If it can fail with two or more, use a `switch` on `result.Error.Type`.
+- `UpdateMember` can now also fail with `Conflict` (email taken): its return type becomes `Results<NoContent, NotFound<Error>, BadRequest<Error>, Conflict<Error>>` and the `switch` gets the arm `ErrorType.Conflict => TypedResults.Conflict(result.Error)`. `CreateMember` already maps `Conflict` to 409.
 - Keep `.WithName("<UseCase>")` and the route names exactly as today (`CreatedAtRoute` points to `"GetListingById"` / `"GetMemberById"`).
 
 ## 6. Never do
@@ -118,7 +124,7 @@ What each handler returns (`TResult`):
 - Never use MediatR or any mediator package.
 - Never put a repository, `IUnitOfWork` or business rule in an endpoint.
 - Never change existing files in `Domain/`; the only new file there is `IUnitOfWork.cs`. Never change the repositories, `tests/` or `postman/` to make the refactor easier.
-- Never change routes, status codes, JSON field names or error bodies.
+- Never change routes, status codes, JSON field names or error bodies. The only new status is 409 `Member.EmailTaken` in `CreateMember` and `UpdateMember`.
 - Never rename the existing request and response records.
 
 ## 7. Example: command slice (`CreateListing`)
@@ -387,7 +393,9 @@ public static class UpdateListingEndpoint
 ## 10. Check after generating
 
 - `dotnet build` finishes with 0 errors and 0 warnings.
-- `dotnet test` passes (all existing tests), because they prove the behaviour did not change.
+- `dotnet test` passes (all existing tests), because they prove the behaviour did not change. New tests for the email check come from the testing skills; never edit `tests/`.
 - No file in `Features/` mentions `IListingRepository`, `IMemberRepository` or `IUnitOfWork` except the `*Handler.cs` files.
 - Every slice of the 10 has a command or query and a handler.
 - The Postman collection still passes (Run collection, 36/36).
+
+
