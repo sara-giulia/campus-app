@@ -12,7 +12,7 @@ public static class UpdateMemberEndpoint
             .WithName("UpdateMember");
     }
 
-    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>>> Handle(
+    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>, Conflict<Error>>> Handle(
         Guid id,
         UpdateMemberRequest request,
         ICommandHandler<UpdateMemberCommand, Guid> handler,
@@ -26,6 +26,7 @@ public static class UpdateMemberEndpoint
             return result.Error.Type switch
             {
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
+                ErrorType.Conflict => TypedResults.Conflict(result.Error),
                 _ => TypedResults.BadRequest(result.Error)
             };
 

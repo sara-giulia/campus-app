@@ -20,6 +20,11 @@ public sealed class CreateMemberHandler(
 
         var member = created.Value;
 
+        var existingMembers = await repository.GetAllAsync(ct);
+        if (existingMembers.Any(m => m.Email == member.Email))
+            return Result<CreateMemberResponse>.Failure(
+                Error.Conflict("Member.EmailTaken", $"A member with email '{member.Email.Value}' already exists."));
+
         var added = await repository.AddAsync(member, ct);
         if (!added)
             return Result<CreateMemberResponse>.Failure(
