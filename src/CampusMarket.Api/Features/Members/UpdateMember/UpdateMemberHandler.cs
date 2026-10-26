@@ -18,6 +18,15 @@ public sealed class UpdateMemberHandler(
             return Result<Guid>.Failure(
                 Error.NotFound("Member.NotFound", $"Member '{command.Id}' was not found."));
 
+        var newEmail = Email.Create(command.Email);
+        if (newEmail.IsSuccess)
+        {
+            var existingMembers = await repository.GetAllAsync(ct);
+            if (existingMembers.Any(m => m.Id != member.Id && m.Email == newEmail.Value))
+                return Result<Guid>.Failure(
+                    Error.Conflict("Member.EmailTaken", $"A member with email '{newEmail.Value.Value}' already exists."));
+        }
+
         var updated = member.Update(command.Name, command.Email);
 
         if (updated.IsFailure)

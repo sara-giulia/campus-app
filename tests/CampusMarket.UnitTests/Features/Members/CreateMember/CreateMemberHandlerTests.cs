@@ -1,4 +1,5 @@
 using CampusMarket.Api.Domain.Common;
+using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Features.Members.CreateMember;
 using CampusMarket.UnitTests.Fakes;
 
@@ -74,6 +75,26 @@ public class CreateMemberHandlerTests
         result.Error.Type.Should().Be(ErrorType.Conflict);
         result.Error.Code.Should().Be("Member.Duplicate");
         repository.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_EmailAlreadyUsedByAnotherMember_When_Handling_Then_ReturnsEmailTakenConflictAndDoesNotStoreOrSave()
+    {
+        var existing = Member.Create("Ada", "ada@ubb.ro", Now).Value;
+        var repository = new FakeMemberRepository();
+        repository.Items[existing.Id] = existing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateMemberHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var command = new CreateMemberCommand("Bob", "ADA@UBB.RO");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Conflict);
+        result.Error.Code.Should().Be("Member.EmailTaken");
+        repository.Items.Should().HaveCount(1);
+        repository.Items[existing.Id].Should().BeSameAs(existing);
         unitOfWork.SaveCount.Should().Be(0);
     }
 }
