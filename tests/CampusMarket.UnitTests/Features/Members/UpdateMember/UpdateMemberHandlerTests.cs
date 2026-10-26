@@ -64,4 +64,65 @@ public class UpdateMemberHandlerTests
         unitOfWork.SaveCount.Should().Be(0);
         member.Name.Should().Be("Ada");
     }
+
+    [Fact]
+    public async Task Given_NewEmailUsedByAnotherMember_When_Handling_Then_ReturnsEmailTakenConflictAndDoesNotSave()
+    {
+        var member = BuildMember();
+        var other = Member.Create("Bob", "bob@ubb.ro", Now).Value;
+        var repository = new FakeMemberRepository();
+        repository.Items[member.Id] = member;
+        repository.Items[other.Id] = other;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateMemberHandler(repository, unitOfWork);
+        var command = new UpdateMemberCommand(member.Id, "Ada", "BOB@UBB.RO");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Conflict);
+        result.Error.Code.Should().Be("Member.EmailTaken");
+        unitOfWork.SaveCount.Should().Be(0);
+        member.Name.Should().Be("Ada");
+        member.Email.Value.Should().Be("ada@ubb.ro");
+    }
+
+    [Fact]
+    public async Task Given_ExistingMember_When_KeepingOwnEmail_Then_UpdatesAndSavesOnce()
+    {
+        var member = BuildMember();
+        var repository = new FakeMemberRepository();
+        repository.Items[member.Id] = member;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateMemberHandler(repository, unitOfWork);
+        var command = new UpdateMemberCommand(member.Id, "Ada Lovelace", "ADA@UBB.RO");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(member.Id);
+        member.Name.Should().Be("Ada Lovelace");
+        member.Email.Value.Should().Be("ada@ubb.ro");
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_ExistingMember_When_HandlingWithInvalidEmail_Then_ReturnsValidationErrorAndDoesNotSave()
+    {
+        var member = BuildMember();
+        var repository = new FakeMemberRepository();
+        repository.Items[member.Id] = member;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateMemberHandler(repository, unitOfWork);
+        var command = new UpdateMemberCommand(member.Id, "Ada", "not-an-email");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Email.Invalid");
+        unitOfWork.SaveCount.Should().Be(0);
+        member.Name.Should().Be("Ada");
+        member.Email.Value.Should().Be("ada@ubb.ro");
+    }
 }
