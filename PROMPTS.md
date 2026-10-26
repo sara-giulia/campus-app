@@ -214,7 +214,7 @@ public static IServiceCollection AddCampusMarket(this IServiceCollection service
 
 `.gitignore`: `*.db`, `*.db-shm`, `*.db-wal`.
 
-- **Change to SKILL.md:** none; v3 is the final version.
+- **Change to SKILL.md:** none for the code. Later we decided to use migrations instead of `EnsureCreated` (see run 4).
 - **Commits:** skill 4bf0abf; generated code 091296a
 
 ---
@@ -427,5 +427,42 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 - **Result:** `Found 1 problem: 1 Minor.` `Member.cs:9` (naming): the private fields `listingIds` and `reservationIds` have no `_`. Checked by hand: of the 7 `private readonly` fields in their project these are the only 2 without `_`, and every line cited as evidence is exact. One small mistake: in the "Proposed fix" column, line 81 is listed but it only has a `{`; the `File:Line` column is right. Checking the checklist by hand found nothing else either (no query that saves, no endpoint using a repository, no `DateTime.Now` in tests). Nothing changed, committed or pushed in their repository. The table is in `REVIEW.md`.
 - **Change to SKILL.md:** none; the skill worked on a different project without changes.
 - **Commits:** skill 506d7c0; review output in REVIEW.md
+
+
+### Run 4, skill v4
+
+- **Prompt:** `Use the efcore-sqlite-repositories skill in .claude/skills/efcore-sqlite-repositories/SKILL.md. The EF Core code already exists: keep it and only add what the skill asks for that is missing (the migrations). Follow the skill exactly, including the "Never" list. When you finish, run dotnet build, dotnet ef migrations list and dotnet test, and tell me the results.`
+- **Skill version:** v4, commit dda1dcc (committed right after the run; the content that ran was the same)
+- **Why a new version:** v3 created the tables with `EnsureCreated`, which can only build a database from zero. With migrations, every change of the model becomes a versioned file in Git, and an existing database can be updated without losing its data. This is also what the course shows.
+
+#### Change to SKILL.md (v3 → v4) and why
+
+| # | v3 (before) | v4 (after) | Why |
+|---|---|---|---|
+| 1 | *"Only one package … We do not use migrations. The tables are created with `EnsureCreated` when the app starts."* | Two packages: `Microsoft.EntityFrameworkCore.Design` with `PrivateAssets` all, plus a new section **Migrations**: *"The `dotnet ef` tool is a local tool of the repository … The first migration is called `InitialCreate` and goes into `Infrastructure/Persistence/Migrations/` … Never edit them by hand … add a new migration … Never change an existing migration."* | `dotnet ef` needs the Design package; a local tool means everyone uses the same version. |
+| 2 | *"It opens a scope, gets the `CampusMarketDbContext` and calls `Database.EnsureCreated()`."* | *"… calls `Database.Migrate()`, which applies the migrations that are not applied yet. … Keep the name of the method: `Program.cs` and the integration tests already use it."* | The schema now comes from the migrations; keeping the name means nothing else changes. |
+| 3 | *"Never use migrations, `EnsureDeleted`, raw SQL or a second DbContext."* | *"Never call `EnsureCreated` in the app, never edit a generated migration, and never use `EnsureDeleted`, raw SQL or a second DbContext."* | The opposite decision. |
+| 4 | Nothing about existing code. | *"If the EF Core code below already exists, keep it and only add what is missing (for example the migrations)."* | So Claude does not rewrite code that is already correct. |
+| 5 | Check list without migrations. | *"`dotnet ef migrations list` shows `InitialCreate`"* + *"Delete the old local `campusmarket.db` once (it was created by `EnsureCreated` and has no migration history)…"* + *"`dotnet test`: all the tests pass (unit and integration)."* | An old database made by `EnsureCreated` cannot be migrated. |
+
+- **Result:** build 0 errors, 0 warnings; `dotnet ef migrations list` shows `20261026061638_InitialCreate`; `dotnet test` 110/110 (90 unit, 20 integration); Postman 36/36. Changed only: the Design package in the `.csproj`, one line in `CampusMarketSetup.cs` (`EnsureCreated()` → `Migrate()`), the new `.config/dotnet-tools.json` (`dotnet-ef` 10.0.14) and the three generated migration files. The migration matches the configuration classes: max length 100 for `Title` and `Name`, a cascade foreign key from `Reservations` to `Listings`, no foreign key to `Members`. Nothing changed in `Features/`, `Domain/`, `tests/` or `Program.cs`.
+- **Problems seen:** none.
+
+#### After (excerpt of the final code)
+
+`CampusMarketSetup.cs`:
+
+```csharp
+public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
+    db.Database.Migrate();
+    return app;
+}
+```
+
+- **Change to SKILL.md:** none; v4 is the final version.
+- **Commits:** skill dda1dcc; generated code 9d9d397
 
 
