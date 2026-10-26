@@ -50,8 +50,46 @@ Skill written by Carina Coman, run by Sara Matasel from her Claude Code account 
 - **Skill version:** v2, commit a90b234
 - **Result:** all 10 slices have a command or a query and a handler. Build: 0 errors, 0 warnings. Tests: 90/90. Postman: 36/36 requests, 68/68 assertions. No endpoint uses a repository or `IUnitOfWork`; query handlers do not use `IUnitOfWork`; `Domain/`, `tests/` and `postman/` unchanged (only the new `IUnitOfWork.cs`).
 - **Problems seen:** none. The problems were already fixed in the review above.
-- **Change to SKILL.md:** none; v2 is the final version.
+- **Change to SKILL.md:** none for this run. Later we found a missing rule (see run 2).
 - **Commits:** skill a90b234; generated code 9c099c5
+
+### Run 2, skill v3
+
+- **Why a new version:** testing the API in Postman, we could create two members with the same email, although our README says `CreateMember` needs a **unique email**. Nothing checked it: `Email.Create` only checks the format, and `AddAsync` only checks duplicate Ids, which never happen because the domain creates a new Guid. All tests passed and coverage was 100%, because the check had never been written, so there was no code to cover. Our code-review skill missed it too, because it does not compare the code with the README.
+
+#### Change to SKILL.md (v2 → v3) and why
+
+| # | v2 (before) | v3 (after) | Why |
+|---|---|---|---|
+| 1 | Handler errors: not found, invalid data, *"duplicate Id (`AddAsync` returned false) → `Error.Conflict(...)`"*. Nothing about email. | *"Unique email … `CreateMemberHandler`: after `Member.Create` succeeded and before `AddAsync`, if any member returned by `GetAllAsync` has the same `Email`, return `Error.Conflict("Member.EmailTaken", …)`"* + *"`UpdateMemberHandler`: … **before** `member.Update` … if any **other** member (`m.Id != member.Id`) has that `Email`, return the same conflict, without changing the member … Keeping your own email is allowed."* | Uniqueness needs all members, so the domain cannot check it; the handler can ask the repository. The check runs before `member.Update`, so a refused update leaves the member unchanged. |
+| 2 | *"If it can fail with two, use a `switch`"* | *"`UpdateMember` can now also fail with `Conflict` … `Results<NoContent, NotFound<Error>, BadRequest<Error>, Conflict<Error>>` … `ErrorType.Conflict => TypedResults.Conflict(result.Error)`"* | The endpoint must map the new error to 409. |
+| 3 | *"Never change routes, status codes …"* | *"… The only new status is 409 `Member.EmailTaken` in `CreateMember` and `UpdateMember`."* | The old rule forbade the fix itself. |
+| 4 | Nothing about existing handlers. | *"If the slices already have their command, query and handler, keep them and only add what this skill asks for that is missing."* | So Claude does not rewrite the other 8 slices. |
+
+- **Prompt:** `Use the cqrs skill in .claude/skills/cqrs/SKILL.md. The handlers already exist: keep them and only add what the skill asks for that is missing (the unique email check in CreateMember and UpdateMember). Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.`
+- **Skill version:** v3, commit 657431f
+- **Result:** 3 files changed, 16 lines: `CreateMemberHandler`, `UpdateMemberHandler`, `UpdateMemberEndpoint`. Nothing changed in `Domain/`, the repositories or `tests/`. Build 0 errors, 0 warnings; all existing tests pass.
+- **Known limit:** the check loads all members with `GetAllAsync`, which is fine for our size. Two requests at the exact same moment could still both pass; a unique index on `Members.Email` (efcore skill and a new migration) would be the final guarantee.
+
+#### After (excerpt of the final code)
+
+`UpdateMemberHandler.cs`:
+
+```csharp
+var newEmail = Email.Create(command.Email);
+if (newEmail.IsSuccess)
+{
+    var existingMembers = await repository.GetAllAsync(ct);
+    if (existingMembers.Any(m => m.Id != member.Id && m.Email == newEmail.Value))
+        return Result<Guid>.Failure(
+            Error.Conflict("Member.EmailTaken", $"A member with email '{newEmail.Value.Value}' already exists."));
+}
+
+var updated = member.Update(command.Name, command.Email);
+```
+
+- **Change to SKILL.md:** none; v3 is the final version.
+- **Commits:** skill 657431f; generated code cd78cfe
 
 ---
 
@@ -217,6 +255,42 @@ public static IServiceCollection AddCampusMarket(this IServiceCollection service
 - **Change to SKILL.md:** none for the code. Later we decided to use migrations instead of `EnsureCreated` (see run 4).
 - **Commits:** skill 4bf0abf; generated code 091296a
 
+### Run 4, skill v4
+
+- **Prompt:** `Use the efcore-sqlite-repositories skill in .claude/skills/efcore-sqlite-repositories/SKILL.md. The EF Core code already exists: keep it and only add what the skill asks for that is missing (the migrations). Follow the skill exactly, including the "Never" list. When you finish, run dotnet build, dotnet ef migrations list and dotnet test, and tell me the results.`
+- **Skill version:** v4, commit dda1dcc (committed right after the run; the content that ran was the same)
+- **Why a new version:** v3 created the tables with `EnsureCreated`, which can only build a database from zero. With migrations, every change of the model becomes a versioned file in Git, and an existing database can be updated without losing its data. This is also what the course shows.
+
+#### Change to SKILL.md (v3 → v4) and why
+
+| # | v3 (before) | v4 (after) | Why |
+|---|---|---|---|
+| 1 | *"Only one package … We do not use migrations. The tables are created with `EnsureCreated` when the app starts."* | Two packages: `Microsoft.EntityFrameworkCore.Design` with `PrivateAssets` all, plus a new section **Migrations**: *"The `dotnet ef` tool is a local tool of the repository … The first migration is called `InitialCreate` and goes into `Infrastructure/Persistence/Migrations/` … Never edit them by hand … add a new migration … Never change an existing migration."* | `dotnet ef` needs the Design package; a local tool means everyone uses the same version. |
+| 2 | *"It opens a scope, gets the `CampusMarketDbContext` and calls `Database.EnsureCreated()`."* | *"… calls `Database.Migrate()`, which applies the migrations that are not applied yet. … Keep the name of the method: `Program.cs` and the integration tests already use it."* | The schema now comes from the migrations; keeping the name means nothing else changes. |
+| 3 | *"Never use migrations, `EnsureDeleted`, raw SQL or a second DbContext."* | *"Never call `EnsureCreated` in the app, never edit a generated migration, and never use `EnsureDeleted`, raw SQL or a second DbContext."* | The opposite decision. |
+| 4 | Nothing about existing code. | *"If the EF Core code below already exists, keep it and only add what is missing (for example the migrations)."* | So Claude does not rewrite code that is already correct. |
+| 5 | Check list without migrations. | *"`dotnet ef migrations list` shows `InitialCreate`"* + *"Delete the old local `campusmarket.db` once (it was created by `EnsureCreated` and has no migration history)…"* + *"`dotnet test`: all the tests pass (unit and integration)."* | An old database made by `EnsureCreated` cannot be migrated. |
+
+- **Result:** build 0 errors, 0 warnings; `dotnet ef migrations list` shows `20261026061638_InitialCreate`; `dotnet test` 110/110 (90 unit, 20 integration); Postman 36/36. Changed only: the Design package in the `.csproj`, one line in `CampusMarketSetup.cs` (`EnsureCreated()` → `Migrate()`), the new `.config/dotnet-tools.json` (`dotnet-ef` 10.0.14) and the three generated migration files. The migration matches the configuration classes: max length 100 for `Title` and `Name`, a cascade foreign key from `Reservations` to `Listings`, no foreign key to `Members`. Nothing changed in `Features/`, `Domain/`, `tests/` or `Program.cs`.
+- **Problems seen:** none.
+
+#### After (excerpt of the final code)
+
+`CampusMarketSetup.cs`:
+
+```csharp
+public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
+    db.Database.Migrate();
+    return app;
+}
+```
+
+- **Change to SKILL.md:** none; v4 is the final version.
+- **Commits:** skill dda1dcc; generated code 9d9d397
+
 ---
 
 ## unit-testing
@@ -266,6 +340,29 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** none in the generated code. After pushing, SonarQube Cloud reported 161 issues and 23.5% duplication, all inside `coverage-report/` (generated HTML, CSS and JS). Fixed in the SonarQube settings (`sonar.exclusions = coverage-report/**`), not in the code.
 - **Change to SKILL.md:** none; v4 is the final version.
 - **Commits:** skill 9356f6b; generated code d83fbab
+
+### Run 2, skill v5
+
+- **Why a new version:** the cqrs skill v3 added the unique email check (see cqrs, run 2), so the handlers have new branches without tests.
+
+#### Change to SKILL.md (v4 → v5) and why
+
+| # | v4 (before) | v5 (after) | Why |
+|---|---|---|---|
+| 1 | Test matrix for Create and Update: success, not found, invalid data, duplicate Id. | `CreateMemberHandler`: *"email already used by another stored member → `ErrorType.Conflict`, code `Member.EmailTaken`, `SaveCount` 0, nothing new stored"*; `UpdateMemberHandler`: email taken → conflict and *"member unchanged"*, *"keeping the member's own email → success"*, *"an invalid new email → `Validation` (so both sides of the email check are covered)"*. | The new branches must be tested, and coverage must stay 100%. |
+| 2 | Nothing about existing tests. | *"If unit tests already exist, keep them and only add the tests that are missing for the current code. Then generate the coverage report again."* | So Claude does not regenerate the 90 tests that are already correct. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests that are missing for the current code. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.`
+- **Skill version:** v5, commit 931234c
+- **Result:** 4 new `[Fact]` tests, and 0 lines removed from the existing tests:
+    - `Given_EmailAlreadyUsedByAnotherMember_When_Handling_Then_ReturnsEmailTakenConflictAndDoesNotStoreOrSave`
+    - `Given_NewEmailUsedByAnotherMember_When_Handling_Then_ReturnsEmailTakenConflictAndDoesNotSave`
+    - `Given_ExistingMember_When_KeepingOwnEmail_Then_UpdatesAndSavesOnce`
+    - `Given_ExistingMember_When_HandlingWithInvalidEmail_Then_ReturnsValidationErrorAndDoesNotSave`
+
+  94 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 332/332 lines, 90/90 branches. The report in `coverage-report/` was generated again.
+- **Change to SKILL.md:** none; v5 is the final version.
+- **Commits:** skill 931234c; generated code f1af1a2
 
 ---
 
@@ -414,9 +511,9 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 - **Prompt:** same as run 1, in a new Claude Code session
 - **Skill version:** v3, commit 506d7c0
 - **Result:** `Found 2 problems: 1 Major, 1 Minor.` Both checked by hand:
-  - `Reservation.cs:32` (Major, domain invariants): `Cancel()` is public while `Create` is internal, so a caller can cancel a reservation directly and leave the listing in `Reserved`.
-  - `ListingTests.cs:289` (Minor, test quality): found again, now in the right category.
-  - Exact lines, no invented row, no file changed. The table is in `REVIEW.md`. The problems are reported, not fixed: code changes only go through our skills.
+    - `Reservation.cs:32` (Major, domain invariants): `Cancel()` is public while `Create` is internal, so a caller can cancel a reservation directly and leave the listing in `Reserved`.
+    - `ListingTests.cs:289` (Minor, test quality): found again, now in the right category.
+    - Exact lines, no invented row, no file changed. The table is in `REVIEW.md`. The problems are reported, not fixed: code changes only go through our skills.
 - **Change to SKILL.md:** none; v3 is the final version.
 - **Commits:** skill 506d7c0; review output in REVIEW.md
 
@@ -427,42 +524,4 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 - **Result:** `Found 1 problem: 1 Minor.` `Member.cs:9` (naming): the private fields `listingIds` and `reservationIds` have no `_`. Checked by hand: of the 7 `private readonly` fields in their project these are the only 2 without `_`, and every line cited as evidence is exact. One small mistake: in the "Proposed fix" column, line 81 is listed but it only has a `{`; the `File:Line` column is right. Checking the checklist by hand found nothing else either (no query that saves, no endpoint using a repository, no `DateTime.Now` in tests). Nothing changed, committed or pushed in their repository. The table is in `REVIEW.md`.
 - **Change to SKILL.md:** none; the skill worked on a different project without changes.
 - **Commits:** skill 506d7c0; review output in REVIEW.md
-
-
-### Run 4, skill v4
-
-- **Prompt:** `Use the efcore-sqlite-repositories skill in .claude/skills/efcore-sqlite-repositories/SKILL.md. The EF Core code already exists: keep it and only add what the skill asks for that is missing (the migrations). Follow the skill exactly, including the "Never" list. When you finish, run dotnet build, dotnet ef migrations list and dotnet test, and tell me the results.`
-- **Skill version:** v4, commit dda1dcc (committed right after the run; the content that ran was the same)
-- **Why a new version:** v3 created the tables with `EnsureCreated`, which can only build a database from zero. With migrations, every change of the model becomes a versioned file in Git, and an existing database can be updated without losing its data. This is also what the course shows.
-
-#### Change to SKILL.md (v3 → v4) and why
-
-| # | v3 (before) | v4 (after) | Why |
-|---|---|---|---|
-| 1 | *"Only one package … We do not use migrations. The tables are created with `EnsureCreated` when the app starts."* | Two packages: `Microsoft.EntityFrameworkCore.Design` with `PrivateAssets` all, plus a new section **Migrations**: *"The `dotnet ef` tool is a local tool of the repository … The first migration is called `InitialCreate` and goes into `Infrastructure/Persistence/Migrations/` … Never edit them by hand … add a new migration … Never change an existing migration."* | `dotnet ef` needs the Design package; a local tool means everyone uses the same version. |
-| 2 | *"It opens a scope, gets the `CampusMarketDbContext` and calls `Database.EnsureCreated()`."* | *"… calls `Database.Migrate()`, which applies the migrations that are not applied yet. … Keep the name of the method: `Program.cs` and the integration tests already use it."* | The schema now comes from the migrations; keeping the name means nothing else changes. |
-| 3 | *"Never use migrations, `EnsureDeleted`, raw SQL or a second DbContext."* | *"Never call `EnsureCreated` in the app, never edit a generated migration, and never use `EnsureDeleted`, raw SQL or a second DbContext."* | The opposite decision. |
-| 4 | Nothing about existing code. | *"If the EF Core code below already exists, keep it and only add what is missing (for example the migrations)."* | So Claude does not rewrite code that is already correct. |
-| 5 | Check list without migrations. | *"`dotnet ef migrations list` shows `InitialCreate`"* + *"Delete the old local `campusmarket.db` once (it was created by `EnsureCreated` and has no migration history)…"* + *"`dotnet test`: all the tests pass (unit and integration)."* | An old database made by `EnsureCreated` cannot be migrated. |
-
-- **Result:** build 0 errors, 0 warnings; `dotnet ef migrations list` shows `20261026061638_InitialCreate`; `dotnet test` 110/110 (90 unit, 20 integration); Postman 36/36. Changed only: the Design package in the `.csproj`, one line in `CampusMarketSetup.cs` (`EnsureCreated()` → `Migrate()`), the new `.config/dotnet-tools.json` (`dotnet-ef` 10.0.14) and the three generated migration files. The migration matches the configuration classes: max length 100 for `Title` and `Name`, a cascade foreign key from `Reservations` to `Listings`, no foreign key to `Members`. Nothing changed in `Features/`, `Domain/`, `tests/` or `Program.cs`.
-- **Problems seen:** none.
-
-#### After (excerpt of the final code)
-
-`CampusMarketSetup.cs`:
-
-```csharp
-public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
-    db.Database.Migrate();
-    return app;
-}
-```
-
-- **Change to SKILL.md:** none; v4 is the final version.
-- **Commits:** skill dda1dcc; generated code 9d9d397
-
 
