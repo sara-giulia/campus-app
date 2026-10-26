@@ -49,16 +49,20 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 4. Use `[Theory]` with `[InlineData]` for input variants (invalid titles, invalid prices, invalid emails, undefined enum values).
 5. Cover every success path AND every failure branch of every method that returns a `Result`: check `IsFailure`, `Error.Type` and `Error.Code`. Use the coverage report to find what is still missing.
 6. Handler tests, per handler:
-  - Create: success (item stored, `SaveCount` 1), invalid data (each domain failure, `SaveCount` 0, nothing stored), duplicate Id with `RejectAdd = true` (`ErrorType.Conflict`, `SaveCount` 0).
-  - Update: success (entity changed, `SaveCount` 1), id not found (`NotFound`, `SaveCount` 0), invalid data (`Validation`, `SaveCount` 0).
-  - Delete: success (item removed, `SaveCount` 1), id not found (`NotFound`, `SaveCount` 0).
-  - GetById: found (response matches the entity), not found (`NotFound`).
-  - GetAll: empty list and list with items. Query handlers have no unit of work: assert that the repository content is unchanged after the call.
+- Create: success (item stored, `SaveCount` 1), invalid data (each domain failure, `SaveCount` 0, nothing stored), duplicate Id with `RejectAdd = true` (`ErrorType.Conflict`, `SaveCount` 0).
+- Update: success (entity changed, `SaveCount` 1), id not found (`NotFound`, `SaveCount` 0), invalid data (`Validation`, `SaveCount` 0).
+- `CreateMemberHandler` also: email already used by another stored member → `ErrorType.Conflict`, code `Member.EmailTaken`, `SaveCount` 0, nothing new stored. Seed the other member in the fake first.
+- `UpdateMemberHandler` also: new email already used by another member → `ErrorType.Conflict`, code `Member.EmailTaken`, `SaveCount` 0, member unchanged; keeping the member's own email → success, `SaveCount` 1; and an invalid new email → `Validation` (so both sides of the email check are covered).
+- Delete: success (item removed, `SaveCount` 1), id not found (`NotFound`, `SaveCount` 0).
+- GetById: found (response matches the entity), not found (`NotFound`).
+- GetAll: empty list and list with items. Query handlers have no unit of work: assert that the repository content is unchanged after the call.
 7. Tests never depend on each other or on execution order. Every test builds its own fakes. No static mutable state.
 8. Assert on behaviour (returned `Result`, state of the object, content of the fake repository), not on implementation details. Private members are tested only through the public API.
 9. Every test has at least one assertion.
 10. ResultTests must also check both throwing branches: reading `Value` on a failed result throws `InvalidOperationException`, and reading `Error` on a successful result throws `InvalidOperationException`. Use `Action act = () => _ = result.Value;` and `act.Should().Throw<InvalidOperationException>()`. Otherwise those branches stay uncovered.
 11. Every run starts in a new Claude Code session, so that the current version of this file is read and not an older context.
+
+- If unit tests already exist, keep them and only add the tests that are missing for the current code. Then generate the coverage report again.
 
 ## Coverage
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
@@ -73,7 +77,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
   - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
   - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
   - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
-  
+
 ## Never do
 - Never use a mocking library.
 - Never use `Thread.Sleep` or real time.
@@ -140,3 +144,4 @@ public class CreateListingHandlerTests
     }
 }
 ```
+
