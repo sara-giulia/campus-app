@@ -364,6 +364,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none; v5 is the final version.
 - **Commits:** skill 931234c; generated code f1af1a2
 
+### Run 3, skill v6 (Feature: Authentication)
+
+- **Why a new version:** week 4 added register and login (`Member.Register`, `RegisterHandler`, `LoginHandler`, `IPasswordHasher`, `ITokenService`). They had no unit tests.
+#### Change to SKILL.md (v5 → v6) and why
+
+| # | v5 (before) | v6 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about authentication. | New section *"Feature: Authentication (Sara)"*: the files to read, two new fakes (`FakePasswordHasher` with the `"hashed:"` prefix, `FakeTokenService` with a fixed `ExpiresAt`), and the test list for `Member.Register`, `RegisterHandler` and `LoginHandler`. | Without it Claude would have to guess the fakes and could use the real hasher or a real JWT in unit tests. |
+| 2 | — | *"The error code is the same for every login failure. Test that it is the same code."* | So the tests prove the API never tells you whether an email exists. |
+
+- **Honest note:** the section was used for the run, but it was saved and committed only after the run (we forgot Ctrl+S). The text in commit c67c85f is the one that was used.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests that are missing for the current code, following the "Feature: Authentication" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.`
+- **Skill version:** v6, commit c67c85f
+- **Result:** new files `Fakes/FakePasswordHasher.cs`, `Fakes/FakeTokenService.cs`, `Features/Auth/Register/RegisterHandlerTests.cs` (6 tests), `Features/Auth/Login/LoginHandlerTests.cs` (7 tests); 5 new tests added to `Domain/Members/MemberTests.cs`, and 0 lines removed from the existing tests. All tests pass. Coverage of `Domain/` and the handlers stays **100%**: 392/392 lines, 114/114 branches. The report in `coverage-report/` was generated again.
+- **Change to SKILL.md:** none; v6 is the final version.
+- **Commits:** skill c67c85f; generated code 596301a
+
 ---
 
 ## integration-testing
@@ -449,6 +466,25 @@ saved.Should().BeEquivalentTo(listing);
 
 - **Change to SKILL.md:** none; v3 is the final version.
 - **Commits:** skill c6b3868; generated code 98cbece
+
+
+### Run 4, skill v4 (Feature: Authentication)
+
+- **Why a new version:** week 4 added `POST /api/v1/auth/register` and `POST /api/v1/auth/login`, with rate limiting on login (5 per minute).
+#### Change to SKILL.md (v3 → v4) and why
+
+| # | v3 (before) | v4 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about authentication. | New section *"Feature: Authentication (Sara)"*: the test host settings (no Admin seed, test JWT key), 5 register tests and 6 login tests. | The new endpoints need tests for 201, 400, 409, 200 and 401. |
+| 2 | — | *"rate limit: 5 login calls, then the 6th → 429 … helper `ExhaustLoginRateLimitAsync`. Every test gets a fresh factory, so the limit never leaks into other tests."* | In the first run the rate-limit test was missing, so this line was made explicit and the skill was run again. |
+
+- **Honest note:** the section was used for the run, but it was saved and committed only after the run (we forgot Ctrl+S). The text in commit c67c85f is the one that was used.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Authentication" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.`
+- **Skill version:** v4, commit c67c85f
+- **Result (first run):** `Auth/RegisterTests.cs` (5 tests) and `Auth/LoginTests.cs` (5 tests), all pass, but **the 429 test was missing**. Not kept.
+- **Result (second run, same prompt, new session):** `Auth/LoginTests.cs` now has 6 tests, including `Given_FivePreviousLoginAttempts_When_LoggingInAgain_Then_Returns429`. Build 0 errors, 0 warnings; all tests pass; nothing changed in `src/` or in the existing tests.
+- **Change to SKILL.md:** none after the second run; v4 is the final version.
+- **Commits:** skill c67c85f; generated code 596301a
 
 ---
 
