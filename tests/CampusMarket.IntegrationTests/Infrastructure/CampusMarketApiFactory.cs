@@ -20,6 +20,8 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("Seed:AdminEmail", "");
+        builder.UseSetting("Jwt:Key", TestTokens.Key);
         builder.ConfigureTestServices(services =>
         {
             // Remove the app's SQLite file registration, then use the open in-memory connection.

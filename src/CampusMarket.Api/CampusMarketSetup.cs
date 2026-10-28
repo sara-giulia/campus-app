@@ -71,7 +71,33 @@ public static class CampusMarketSetup
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
         db.Database.Migrate();
+
+        SeedAdmin(scope.ServiceProvider, db, app.Configuration);
+
         return app;
+    }
+
+    // Creates a default Admin when Seed:AdminEmail is set (only in appsettings.Development.json).
+    private static void SeedAdmin(IServiceProvider services, CampusMarketDbContext db, IConfiguration config)
+    {
+        var email = config["Seed:AdminEmail"];
+        var password = config["Seed:AdminPassword"];
+
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            return;
+
+        if (db.Members.AsEnumerable().Any(m => m.Email.Value == email))
+            return;
+
+        var hasher = services.GetRequiredService<IPasswordHasher>();
+        var clock = services.GetRequiredService<TimeProvider>();
+
+        var admin = Member.Register("Admin", email, hasher.Hash(password), clock.GetUtcNow(), MemberRole.Admin);
+        if (admin.IsFailure)
+            return;
+
+        db.Members.Add(admin.Value);
+        db.SaveChanges();
     }
 
     public static IEndpointRouteBuilder MapCampusMarket(this IEndpointRouteBuilder app)
