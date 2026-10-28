@@ -8,6 +8,11 @@ public sealed class Member
     public string Name { get; private set; } = string.Empty;
     public Email Email { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }
+    
+    public string? PasswordHash { get; private set; }
+    public MemberRole Role { get; private set; } = MemberRole.Student;
+
+    public bool IsAdmin => Role == MemberRole.Admin;
 
     private Member() { }
 
@@ -49,6 +54,29 @@ public sealed class Member
             Email = emailResult.Value,
             CreatedAt = createdAt
         };
+    }
+    
+    public static Result<Member> Register(
+        string name,
+        string email,
+        string passwordHash,
+        DateTimeOffset createdAt,
+        MemberRole role = MemberRole.Student)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+            return Result<Member>.Failure(
+                Error.Validation("Member.PasswordRequired", "A password is required."));
+
+        var created = Create(name, email, createdAt);
+
+        if (created.IsFailure)
+            return created;
+
+        var member = created.Value;
+        member.PasswordHash = passwordHash;
+        member.Role = role;
+
+        return member;
     }
 
     public Result<Member> Update(string name, string email)

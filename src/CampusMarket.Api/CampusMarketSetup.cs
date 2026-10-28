@@ -7,6 +7,7 @@ using CampusMarket.Api.Features.Listings;
 using CampusMarket.Api.Features.Members;
 using CampusMarket.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using CampusMarket.Api.Infrastructure.Auth;
 
 namespace CampusMarket.Api;
 
@@ -27,6 +28,7 @@ public static class CampusMarketSetup
         services.AddScoped<IListingRepository, EfListingRepository>();
         services.AddScoped<IMemberRepository, EfMemberRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
 
