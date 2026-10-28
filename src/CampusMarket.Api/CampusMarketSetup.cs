@@ -8,6 +8,12 @@ using CampusMarket.Api.Features.Members;
 using CampusMarket.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using CampusMarket.Api.Infrastructure.Auth;
+using CampusMarket.Api.Features.Auth;
+using System.Text;
+using CampusMarket.Api.Common.Auth;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 
 namespace CampusMarket.Api;
 
@@ -29,6 +35,27 @@ public static class CampusMarketSetup
         services.AddScoped<IMemberRepository, EfMemberRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
+        services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
+        services.AddSingleton<ITokenService, JwtTokenService>();
+
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<IOptions<JwtOptions>>((options, jwtOptions) =>
+            {
+                var jwt = jwtOptions.Value;
+                options.MapInboundClaims = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidIssuer = jwt.Issuer,
+                    ValidAudience = jwt.Audience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+                    NameClaimType = "sub",
+                    RoleClaimType = "role"
+                };
+            });
+
+        services.AddAuthorization(options =>
+            options.AddPolicy("Admin", policy => policy.RequireRole("Admin")));
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
 
@@ -55,6 +82,7 @@ public static class CampusMarketSetup
         var api = app.MapGroup("/api/v1");
         api.MapListingsEndpoints();
         api.MapMembersEndpoints();
+        api.MapAuthEndpoints();
 
         return app;
     }
