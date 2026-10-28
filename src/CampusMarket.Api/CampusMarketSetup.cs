@@ -14,6 +14,8 @@ using CampusMarket.Api.Common.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CampusMarket.Api;
 
@@ -56,6 +58,20 @@ public static class CampusMarketSetup
 
         services.AddAuthorization(options =>
             options.AddPolicy("Admin", policy => policy.RequireRole("Admin")));
+        
+        // At most 5 login attempts per minute from the same IP address, then 429.
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy("login", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
+        });
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
 

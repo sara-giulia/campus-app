@@ -9,7 +9,8 @@ public static class LoginEndpoint
     public static void Map(RouteGroupBuilder group)
     {
         group.MapPost("/login", Handle)
-            .WithName("Login");
+            .WithName("Login")
+            .RequireRateLimiting("login");
     }
 
     private static async Task<Results<Ok<LoginResponse>, JsonHttpResult<Error>>> Handle(
