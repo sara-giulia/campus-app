@@ -330,3 +330,32 @@ exists.Should().BeFalse();
 - There are at least 20 tests, and every slice of the 10 has at least two.
 - Every test checks the status code, the body (or that it is empty) and the database.
 - `git status` shows changes only in `tests/CampusMarket.IntegrationTests/` and `CampusMarket.sln`.
+
+## Feature: Authentication (Sara)
+
+Endpoints: `POST /api/v1/auth/register` and `POST /api/v1/auth/login` (`Features/Auth/AuthEndpoints.cs`).
+
+Test host (already done by hand, do not change):
+- `CampusMarketApiFactory` sets `Seed:AdminEmail` to `""` (no default Admin in tests) and `Jwt:Key` to `TestTokens.Key`.
+- `TestTokens.Create(memberId, role)` and `IntegrationTestBase.AuthenticateAs(memberId, role = "Student")` exist for protected endpoints. Auth tests themselves do not need them.
+
+Files: `tests/CampusMarket.IntegrationTests/Auth/RegisterTests.cs` and `Auth/LoginTests.cs`.
+
+Register (5 tests):
+- valid body → 201, `Location` header, the email comes back in lowercase and the name trimmed, no password in the response; the member is in the database with a non-empty `PasswordHash` different from the password.
+- weak password → 400, nothing saved.
+- email without `@` → 400, nothing saved.
+- name too short → 400, nothing saved.
+- email already used, sent with different casing (the existing member is put in the database directly) → 409, still exactly one member.
+
+Login (6 tests). Arrange: build the member with `Member.Register` and a real `AspNetPasswordHasher`, and put it in the database directly (helper `BuildMemberWithPassword(email, password)`). Do not call `/auth/register` in login tests.
+- valid credentials → 200, non-empty `token`, `expiresAt` after the fixed test time.
+- unknown email → 401.
+- wrong password → 401.
+- invalid email format → 401.
+- empty password → 401.
+- rate limit: 5 login calls, then the 6th → 429 `TooManyRequests`. Put the 5 calls in a private helper `ExhaustLoginRateLimitAsync`. Every test gets a fresh factory, so the limit never leaks into other tests.
+
+Rules:
+- 401 responses for login must all look the same (same error code), whatever the reason.
+- Never hard-code a token string; never read `appsettings.Development.json` from tests.

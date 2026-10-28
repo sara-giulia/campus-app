@@ -143,5 +143,26 @@ public class CreateListingHandlerTests
         unitOfWork.SaveCount.Should().Be(0);
     }
 }
+
 ```
 
+## Feature: Authentication (Sara)
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/Member.cs`: `Member.Register(name, email, passwordHash, createdAt, role = MemberRole.Student)`, `PasswordHash`, `Role`, `IsAdmin`.
+- `Domain/Members/IPasswordHasher.cs` and `Common/Auth/ITokenService.cs`.
+- `Features/Auth/Register/RegisterHandler.cs` and `Features/Auth/Login/LoginHandler.cs`.
+
+New fakes in `Fakes/` (hand-written style, no mocking library):
+- `FakePasswordHasher`: `Hash(p)` returns `"hashed:" + p`, `Verify` compares with the same prefix. Never use the real `AspNetPasswordHasher` in unit tests.
+- `FakeTokenService`: returns `"token-{member.Id}"` and a fixed `ExpiresAt`, and remembers `LastMember`.
+
+Tests to add:
+- `Domain/Members/MemberTests.cs` (add to the existing file, do not delete anything): Register with valid data returns a Student with the hash; Register with `MemberRole.Admin` returns an Admin; empty or null hash returns `Member.PasswordRequired`; invalid name and invalid email still return validation errors.
+- `Features/Auth/Register/RegisterHandlerTests.cs`: valid command stores the member with the hashed password and saves once; weak password (shorter than 8, `[Theory]`) returns `Auth.WeakPassword`; invalid name and invalid email return validation errors; email already used returns `Member.EmailTaken` (Conflict); repository rejects the Id returns Conflict. In every failure case: nothing stored and `SaveChangesAsync`/`CommitAsync` never called.
+- `Features/Auth/Login/LoginHandlerTests.cs`: valid credentials return the token and `ExpiresAt` from the fake; email with different casing still works; invalid email format (`[Theory]`), empty password, unknown email, member without password hash and wrong password all return the same `Auth.InvalidCredentials` error.
+
+Rules for this feature:
+- Never assert on a real hash or a real JWT. Only the fakes' values.
+- The error code is the same for every login failure. Test that it is the same code, so we never leak whether the email exists.
+- The password must never appear in the response object.
