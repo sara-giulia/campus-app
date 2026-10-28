@@ -88,4 +88,64 @@ public class MemberTests
         result.Error.Code.Should().Be("Email.Invalid");
         member.Email.Value.Should().Be("ada@ubb.ro");
     }
+
+    // Feature: Authentication
+
+    [Fact]
+    public void Given_ValidData_When_Registering_Then_ReturnsMemberWithPasswordHashAndStudentRole()
+    {
+        var result = Member.Register("  Ada  ", "  Ada@UBB.RO  ", "hashed:secret", Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Id.Should().NotBe(Guid.Empty);
+        result.Value.Name.Should().Be("Ada");
+        result.Value.Email.Value.Should().Be("ada@ubb.ro");
+        result.Value.PasswordHash.Should().Be("hashed:secret");
+        result.Value.Role.Should().Be(MemberRole.Student);
+        result.Value.IsAdmin.Should().BeFalse();
+        result.Value.CreatedAt.Should().Be(Now);
+    }
+
+    [Fact]
+    public void Given_AdminRole_When_Registering_Then_ReturnsAdminMember()
+    {
+        var result = Member.Register("Ada", "ada@ubb.ro", "hashed:secret", Now, MemberRole.Admin);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Role.Should().Be(MemberRole.Admin);
+        result.Value.IsAdmin.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Given_EmptyPasswordHash_When_Registering_Then_ReturnsValidationError(string? passwordHash)
+    {
+        var result = Member.Register("Ada", "ada@ubb.ro", passwordHash!, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Member.PasswordRequired");
+    }
+
+    [Fact]
+    public void Given_InvalidName_When_Registering_Then_ReturnsValidationError()
+    {
+        var result = Member.Register(" ", "ada@ubb.ro", "hashed:secret", Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Member.InvalidName");
+    }
+
+    [Fact]
+    public void Given_InvalidEmail_When_Registering_Then_ReturnsValidationError()
+    {
+        var result = Member.Register("Ada", "not-an-email", "hashed:secret", Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Email.Invalid");
+    }
 }
