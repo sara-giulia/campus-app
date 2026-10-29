@@ -300,6 +300,34 @@
           "name": "GetListings",
           "item": [
             {
+              "name": "Publish the created listing (204)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/publish",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings", "{{listingId}}", "publish"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Get listings - 200 with a list",
               "request": {
                 "method": "GET",
