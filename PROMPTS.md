@@ -561,3 +561,10 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 - **Change to SKILL.md:** none; the skill worked on a different project without changes.
 - **Commits:** skill 506d7c0; review output in REVIEW.md
 
+### 2026-10-29 · Carina Coman · cqrs · skill change
+
+- **What I asked:** (edit only) the groundwork PR renames IUnitOfWork.SaveChangesAsync to CommitAsync, as agreed for week 4
+- **Skill that ran:** cqrs (edit only, no generation)
+- **Result:** the skill still told Claude Code to call SaveChangesAsync, so a new run would generate code that does not compile
+- **What I changed in the skill and why:** every SaveChangesAsync became CommitAsync, and the signature has no default value (`CommitAsync(CancellationToken ct)`), as in the week 4 contract
+- **Commits:** "Update cqrs skill: SaveChangesAsync renamed to CommitAsync"

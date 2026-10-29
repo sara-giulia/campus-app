@@ -44,11 +44,11 @@ services.AddSingleton<IUnitOfWork, InMemoryUnitOfWork>();
 
 ## 2. Unit of work
 
-- `IUnitOfWork` lives in `Domain/Common/` (namespace `CampusMarket.Api.Domain.Common`) with one method: `Task<int> SaveChangesAsync(CancellationToken ct = default);`
-- **Decision:** `SaveChangesAsync` returns `Task<int>`, like EF Core, so issue #2 can swap the implementation without touching any handler. The course code returns `Task<Guid>`; we do not.
+- `IUnitOfWork` lives in `Domain/Common/` (namespace `CampusMarket.Api.Domain.Common`) with one method: `Task<int> CommitAsync(CancellationToken ct);`
+- **Decision:** `CommitAsync` returns `Task<int>`, like EF Core, so issue #2 can swap the implementation without touching any handler. The course code returns `Task<Guid>`; we do not.
 - For now the implementation is `Infrastructure/InMemoryUnitOfWork.cs`: it does nothing and returns `Task.FromResult(0)`, because the data is already saved in the in-memory dictionaries. Registered as Singleton (like the in-memory repositories). Issue #2 replaces it with `EfUnitOfWork` (Scoped).
-- Command handlers call `SaveChangesAsync` once, after `Add`, `Update` or `Delete`, and only when everything before it succeeded.
-- Query handlers never receive `IUnitOfWork` and never call `SaveChangesAsync`.
+- Command handlers call `CommitAsync` once, after `Add`, `Update` or `Delete`, and only when everything before it succeeded.
+- Query handlers never receive `IUnitOfWork` and never call `CommitAsync`.
 
 ## 3. Folder layout and naming
 
@@ -96,7 +96,7 @@ What each handler returns (`TResult`):
   - invalid data (the domain returned a failure) → pass the domain `Error` on unchanged (it is `Error.Validation`)
   - duplicate Id (`AddAsync` returned false) → `Error.Conflict(...)`
 - Keep the same error codes and messages the endpoints return today (for example `Listing.NotFound`, `Listing.Duplicate`).
-- Update and Delete: load with `GetByIdAsync`, return NotFound if `null`, then call the domain or the repository, then `SaveChangesAsync`.
+- Update and Delete: load with `GetByIdAsync`, return NotFound if `null`, then call the domain or the repository, then `ncSaveChangesAsy`.
 - Unique email (the README says `CreateMember` needs a unique email; the same goes for `UpdateMember`). The repository has no "find by email" method, so the handler uses `GetAllAsync`:
   - `CreateMemberHandler`: after `Member.Create` succeeded and before `AddAsync`, if any member returned by `GetAllAsync` has the same `Email`, return `Error.Conflict("Member.EmailTaken", $"A member with email '{member.Email.Value}' already exists.")` and do not add or save anything.
   - `UpdateMemberHandler`: after the `NotFound` check and **before** `member.Update`, build the new email with `Email.Create(command.Email)`. If it is valid and any **other** member (`m.Id != member.Id`) has that `Email`, return the same `Member.EmailTaken` conflict, without changing the member and without saving. If it is not valid, go on: `member.Update` returns the validation error as today. Keeping your own email is allowed.
@@ -120,7 +120,7 @@ What each handler returns (`TResult`):
 - Never add a new repository, or `new InMemory...Repository()`, inside a handler.
 - Never let a handler call another handler.
 - Never throw an exception for an expected failure (not found, invalid data, duplicate).
-- Never call `SaveChangesAsync` in a query handler, and never change state in a query handler.
+- Never call `CommitAsync` in a query handler, and never change state in a query handler.
 - Never use MediatR or any mediator package.
 - Never put a repository, `IUnitOfWork` or business rule in an endpoint.
 - Never change existing files in `Domain/`; the only new file there is `IUnitOfWork.cs`. Never change the repositories, `tests/` or `postman/` to make the refactor easier.
@@ -177,7 +177,7 @@ public sealed class CreateListingHandler(
             return Result<CreateListingResponse>.Failure(
                 Error.Conflict("Listing.Duplicate", $"A listing with id '{listing.Id}' already exists."));
 
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return CreateListingResponse.From(listing);
     }
@@ -343,7 +343,7 @@ public sealed class UpdateListingHandler(
             return Result<Guid>.Failure(updated.Error);
 
         repository.Update(listing);
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return listing.Id;
     }
