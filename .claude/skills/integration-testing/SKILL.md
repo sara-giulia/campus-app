@@ -365,15 +365,17 @@ Rules:
 This feature changes two facts above: `GET /api/v1/listings` now takes query parameters and **can return 400**, and the body has `items`, `count`, `totalCount`, `page`, `pageSize`. For `GetListings` only, the "no failure path" note in section 5 no longer applies. `GetMembers` is unchanged.
 
 Endpoint: `GET /api/v1/listings?category=&minPrice=&maxPrice=&search=&page=&pageSize=`. Every parameter is optional; defaults are `page=1`, `pageSize=20`. Public, no `AuthenticateAs`.
+Only `Active` listings are returned. Publish a listing in the domain before seeding it (`listing.Publish()`); never call the publish endpoint, which needs a login. The two existing tests seed `Draft` listings: update them so their listings are published before `SeedAsync`, keeping what they check.
 
 File: `tests/CampusMarket.IntegrationTests/Listings/GetListingsTests.cs`. Keep the two existing tests and add the new ones to the same class.
 
-Arrange: seed three listings with `SeedAsync`, each with its own fixed `CreatedAt` (the class `CreatedAt`, plus 1 hour, plus 2 hours) and the same `SellerId`:
+Arrange: seed three listings with `SeedAsync`, each with its own fixed `CreatedAt` (the class `CreatedAt`, plus 1 hour, plus 2 hours) and the same `SellerId`, each one published with `listing.Publish()` before `SeedAsync`:
 - `"OOP textbook"`, `Textbook`, 40
 - `"oop problem set"`, `Textbook`, 15
 - `"Scientific calculator"`, `Electronics`, 120
 
 Tests to add (status, body, then the database still has exactly 3 listings):
+- one `Draft` and one published listing seeded, no parameters → 200, only the published one, `totalCount` 1.
 - `?search=OOP` â†’ 200, the two OOP listings (case is ignored).
 - `?category=Textbook&minPrice=20&maxPrice=100&search=oop` â†’ 200, only `"OOP textbook"`.
 - `?minPrice=40&maxPrice=40` â†’ 200, only `"OOP textbook"` (limits are inclusive).

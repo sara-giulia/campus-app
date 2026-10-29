@@ -138,7 +138,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 
 ### Searching listings
 
-`GET /api/v1/listings` filters, searches and pages the listings. Every parameter is optional.
+`GET /api/v1/listings` filters, searches and pages the listings. Every parameter is optional. Only `Active` listings are returned: drafts, reserved and sold listings are hidden.
 
 | Parameter | Meaning | Default |
 |---|---|---|

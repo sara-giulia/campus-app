@@ -176,9 +176,13 @@ Production code (written by hand, read it before generating):
 
 File: `Features/Listings/GetListings/GetListingsHandlerTests.cs`. Keep the two existing tests and add the new ones to the same file.
 
-Arrange: seed the listings straight into `FakeListingRepository.Items`, built with `Listing.Create(...).Value`. Give each listing its own fixed `createdAt` (for example `Now`, `Now.AddHours(1)`, `Now.AddHours(2)`) so the expected order is known.
+Only `Active` listings are returned. Arrange: build each listing with `Listing.Create(...).Value`, call `listing.Publish()` so it becomes `Active`, then seed it straight into `FakeListingRepository.Items`. Give each listing its own fixed `createdAt` (for example `Now`, `Now.AddHours(1)`, `Now.AddHours(2)`) so the expected order is known.
+
+The two existing tests seed `Draft` listings, which are now hidden. Update them so their listings are published first; they must still check the same behaviour.
 
 Tests to add:
+
+- Status: with one `Draft`, one `Active` and one `Reserved` listing seeded (reserve with `listing.Publish()` then `listing.Reserve(buyerId, Now)`), only the `Active` one is returned, and `TotalCount` is 1.
 - Validation, each one returns `ErrorType.Validation` and leaves the repository unchanged:
   - `Page` 0 and -1 (`[Theory]`) return `Listings.InvalidPage`.
   - `PageSize` 0, -1 and 101 (`[Theory]`) return `Listings.InvalidPageSize`.

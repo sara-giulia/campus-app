@@ -23,7 +23,7 @@ public sealed class GetListingsHandler(IListingRepository repository)
                     "Minimum price cannot be greater than maximum price."));
 
         var listings = await repository.GetAllAsync(ct);
-        IEnumerable<Listing> filtered = listings;
+        IEnumerable<Listing> filtered = listings.Where(l => l.Status == ListingStatus.Active);
 
         if (query.Category is not null)
             filtered = filtered.Where(l => l.Category == query.Category);
