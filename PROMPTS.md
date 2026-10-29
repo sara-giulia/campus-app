@@ -382,6 +382,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Commits:** skill c67c85f; generated code 596301a
 
 ---
+### Run 4, skill v7 (Feature: Listing search and paging)
+
+- **Why a new version:** week 4 added filters, text search and paging to `GetListingsHandler`, and search now returns only `Active` listings. The new branches had no unit tests.
+
+#### Change to SKILL.md (v6 → v7) and why
+
+| # | v6 (before) | v7 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about search. | New section *"Feature: Listing search and paging (Diana)"*: the files to read, the arrange rule (fixed `createdAt` per listing, listings published with `Publish()`), and the test list: each 400 error, the valid limits, each filter alone, two filters together, the order, the paging and `TotalCount`. | Without it Claude would only keep the two GetAll tests and miss most branches of the new handler. |
+| 2 | — | *"Status: with one `Draft`, one `Active` and one `Reserved` listing seeded … only the `Active` one is returned"* | Proves the Active filter, which the README asks for. |
+
+- **Honest note:** after the Active filter, the two existing `GetListingsHandlerTests` broke the CI because they seed `Draft` listings. They were fixed by hand before the run (two `Publish()` calls, commit 8d21e3e), so the CI was green before the skill ran.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Listing search and paging" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.`
+- **Skill version:** v7, commit 8d21e3e
+- **Result:** 25 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs`, and 0 lines removed from the existing tests. All 146 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 419/419 lines, 130/130 branches. The report in `coverage-report/` was generated again.
+- **Change to SKILL.md:** none; v7 is the final version.
+- **Commits:** skill 8d21e3e; generated code 0c5274d
 
 ## integration-testing
 
@@ -487,7 +504,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Commits:** skill c67c85f; generated code 596301a
 
 ---
+### Run 5, skill v5 (Feature: Listing search and paging)
 
+- **Why a new version:** `GET /api/v1/listings` now takes query parameters, returns only `Active` listings and can return 400, while section 1 of the skill said GetAll has no failure path.
+
+#### Change to SKILL.md (v4 → v5) and why
+
+| # | v4 (before) | v5 (after) | Why |
+|---|---|---|---|
+| 1 | *"GetAll (`GET /`) · 200 + body (`items`, `count`) · none"* and *"Do not invent a failure for them."* | New section *"Feature: Listing search and paging (Diana)"*: *"For `GetListings` only, the 'no failure path' note in section 5 no longer applies."* + three seeded listings with fixed `CreatedAt`, each published before `SeedAsync`, and the test list (search, all filters, inclusive limits, default paging, page 2, the three 400 errors, unknown category). | Otherwise the skill forbids the 400 tests the feature needs. |
+| 2 | — | *"Publish a listing in the domain before seeding it (`listing.Publish()`); never call the publish endpoint, which needs a login."* | Search hides drafts, and the publish endpoint needs authentication. |
+| 3 | Arrows saved with the wrong encoding. | 9 arrows fixed, file saved as UTF-8. | Found in review by Sara. |
+
+- **Honest note:** the existing test `Given_TwoListings_When_GettingListings_Then_Returns200WithBothListings` broke the CI after the Active filter, because it seeds `Draft` listings. It was fixed by hand before the run (two `Publish()` calls, commit 8d21e3e).
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Listing search and paging" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.`
+- **Skill version:** v5, commit f88662b; section written by Diana Preutu, run by Sara Matasel
+- **Result:** 10 new tests in `Listings/GetListingsTests.cs`. All 41 integration tests pass; nothing changed in `src/` or in the other tests.
+- **Change to SKILL.md:** none; v5 is the final version.
+- **Commits:** skill f88662b; generated code 0c5274d
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
