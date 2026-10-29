@@ -24,9 +24,10 @@ tests/CampusMarket.ArchitectureTests/
   DomainTests.cs
   EndpointTests.cs
   HandlerTests.cs
+  FeatureTests.cs
 ```
 - Namespace: `CampusMarket.ArchitectureTests`.
-- `.csproj`: `net10.0`, `Nullable` and `ImplicitUsings` enabled, `IsPackable` false, `<Using Include="Xunit" />`, a `ProjectReference` to `src/CampusMarket.Api/CampusMarket.Api.csproj`.
+- `.csproj`: copy the structure of `tests/CampusMarket.UnitTests/CampusMarket.UnitTests.csproj`: `net10.0`, `Nullable` and `ImplicitUsings` enabled, `IsPackable` false, `<Using Include="Xunit" />` and `<Using Include="FluentAssertions" />`, `<FrameworkReference Include="Microsoft.AspNetCore.App" />` (the API is a web project, so the test project does not build without it), and a `ProjectReference` to `src/CampusMarket.Api/CampusMarket.Api.csproj`.
 - Packages, with the same versions as `CampusMarket.UnitTests` where they overlap: `Microsoft.NET.Test.Sdk`, `xunit`, `xunit.runner.visualstudio`, `FluentAssertions` 7.2.0 (never 8), and `NetArchTest.Rules` (latest 1.3.x).
 - Add the project to the solution: `dotnet sln add tests/CampusMarket.ArchitectureTests`. The CI already runs `dotnet test` on the whole solution, so nothing else is needed.
 
@@ -49,6 +50,7 @@ public abstract class ArchitectureTestBase
 | 5 | `EndpointTests` | Classes whose name ends with `Endpoint` have no dependency on `IListingRepository`, `IMemberRepository` or `IUnitOfWork` (use their full type names). |
 | 6 | `HandlerTests` | Query handlers (classes implementing `IQueryHandler<,>`) have no dependency on `IUnitOfWork`. |
 | 7 | `HandlerTests` | Every handler class (implementing `IQueryHandler<,>` or `ICommandHandler<,>`) is `sealed`. |
+| 8 | `FeatureTests` | Types in `CampusMarket.Api.Features` have no dependency on `CampusMarket.Api.Infrastructure`: handlers and endpoints use only the interfaces from `Domain`. This is the main architecture rule. |
 
 How to select the types:
 - Always add `.And().AreClasses()` when selecting by name, so the CQRS interfaces themselves (whose names also end with `Handler`) are never selected.
@@ -76,6 +78,6 @@ A failing rule means the production code breaks an agreed rule. Never change fil
 
 ## Check after generating
 - `dotnet build` finishes with 0 errors and 0 warnings.
-- `dotnet test tests/CampusMarket.ArchitectureTests` runs 7 tests (or more, if a rule was split).
+- `dotnet test tests/CampusMarket.ArchitectureTests` runs 8 tests (or more, if a rule was split).
 - `CampusMarket.sln` lists the new project.
 - `git status` shows changes only in `tests/CampusMarket.ArchitectureTests/` and `CampusMarket.sln`.
