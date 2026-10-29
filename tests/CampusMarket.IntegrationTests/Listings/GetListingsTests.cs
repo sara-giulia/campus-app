@@ -19,6 +19,8 @@ public sealed class GetListingsTests : IntegrationTestBase
         // Arrange
         var manual = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         var calculator = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt).Value;
+        manual.Publish();
+        calculator.Publish();
         await SeedAsync(manual, calculator);
 
         // Act

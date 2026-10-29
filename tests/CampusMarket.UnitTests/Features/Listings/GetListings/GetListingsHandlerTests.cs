@@ -28,6 +28,8 @@ public class GetListingsHandlerTests
     {
         var first = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
         var second = Listing.Create(Guid.NewGuid(), "Lab coat", Category.LabEquipment, Condition.New, 60m, Now).Value;
+        first.Publish();
+        second.Publish();
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;

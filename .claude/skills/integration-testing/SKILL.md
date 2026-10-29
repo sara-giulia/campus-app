@@ -365,7 +365,7 @@ Rules:
 This feature changes two facts above: `GET /api/v1/listings` now takes query parameters and **can return 400**, and the body has `items`, `count`, `totalCount`, `page`, `pageSize`. For `GetListings` only, the "no failure path" note in section 5 no longer applies. `GetMembers` is unchanged.
 
 Endpoint: `GET /api/v1/listings?category=&minPrice=&maxPrice=&search=&page=&pageSize=`. Every parameter is optional; defaults are `page=1`, `pageSize=20`. Public, no `AuthenticateAs`.
-Only `Active` listings are returned. Publish a listing in the domain before seeding it (`listing.Publish()`); never call the publish endpoint, which needs a login. The two existing tests seed `Draft` listings: update them so their listings are published before `SeedAsync`, keeping what they check.
+Only `Active` listings are returned. Publish a listing in the domain before seeding it (`listing.Publish()`); never call the publish endpoint, which needs a login. 
 
 File: `tests/CampusMarket.IntegrationTests/Listings/GetListingsTests.cs`. Keep the two existing tests and add the new ones to the same class.
 

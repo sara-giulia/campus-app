@@ -178,7 +178,6 @@ File: `Features/Listings/GetListings/GetListingsHandlerTests.cs`. Keep the two e
 
 Only `Active` listings are returned. Arrange: build each listing with `Listing.Create(...).Value`, call `listing.Publish()` so it becomes `Active`, then seed it straight into `FakeListingRepository.Items`. Give each listing its own fixed `createdAt` (for example `Now`, `Now.AddHours(1)`, `Now.AddHours(2)`) so the expected order is known.
 
-The two existing tests seed `Draft` listings, which are now hidden. Update them so their listings are published first; they must still check the same behaviour.
 
 Tests to add:
 
