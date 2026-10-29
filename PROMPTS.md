@@ -561,10 +561,12 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 - **Change to SKILL.md:** none; the skill worked on a different project without changes.
 - **Commits:** skill 506d7c0; review output in REVIEW.md
 
-### 2026-10-29 · Carina Coman · cqrs · skill change
+### Skill update v3 → v4
 
-- **What I asked:** (edit only) the groundwork PR renames IUnitOfWork.SaveChangesAsync to CommitAsync, as agreed for week 4
-- **Skill that ran:** cqrs (edit only, no generation)
-- **Result:** the skill still told Claude Code to call SaveChangesAsync, so a new run would generate code that does not compile
-- **What I changed in the skill and why:** every SaveChangesAsync became CommitAsync, and the signature has no default value (`CommitAsync(CancellationToken ct)`), as in the week 4 contract
-- **Commits:** "Update cqrs skill: SaveChangesAsync renamed to CommitAsync"
+| Unit of work method | `SaveChangesAsync(CancellationToken ct = default)` | `CommitAsync(CancellationToken ct)` |
+| Error mapping rule | Validation, NotFound, Conflict | also `Forbidden` → 403 (`TypedResults.Json`, type `JsonHttpResult<Error>`) |
+| "Update and Delete" rule | typo left by the first rename | fixed: "then `CommitAsync`" |
+
+- **Why:** the groundwork PR renames the method (week 4 contract); a new run with v3 would generate code that does not compile. `Forbidden` is needed for the ownership rules.
+- **Who:** Carina Coman (edit only, no generation)
+- **Commit:** `<hash-ul commit-ului "cqrs skill v4...">`
