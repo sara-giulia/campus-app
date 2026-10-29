@@ -16,7 +16,7 @@ We want the data to be saved in a real database (SQLite) instead of in memory. T
   - `GetByIdAsync` returns `null` if nothing is found.
   - `GetAllAsync` returns a new list (a snapshot).
   - `Update` and `Delete` get an entity that was loaded with `GetByIdAsync`.
-  - Nothing reaches the database until a handler calls `IUnitOfWork.SaveChangesAsync`.
+  - Nothing reaches the database until a handler calls `IUnitOfWork.CommitAsync`.
 - The domain classes have private constructors and `private set`. EF Core works with that, so we leave them like this.
 - If the EF Core code below already exists, keep it and only add what is missing (for example the migrations).
 
@@ -100,7 +100,7 @@ No foreign key from `Listing.SellerId` or from `Reservation.MemberId` to `Member
 - `GetByIdAsync`: `FirstOrDefaultAsync` on the Id, tracked, because the handler may change the entity. For listings, `Include(l => l.Reservations)`.
 - `GetAllAsync`: `AsNoTracking()` and `ToListAsync`, returned as `IReadOnlyList<T>`. For listings, `Include(l => l.Reservations)`.
 - `Update` calls `db.Update(entity)` and `Delete` calls `db.Remove(entity)`. They do not save either. Never leave a repository method empty.
-- `EfUnitOfWork : IUnitOfWork`, `sealed`, gets `CampusMarketDbContext db`. `SaveChangesAsync` just returns `db.SaveChangesAsync(ct)`.
+- `EfUnitOfWork : IUnitOfWork`, `sealed`, gets `CampusMarketDbContext db`. `CommitAsync` just returns `db.SaveChangesAsync(ct)`.
 - Every async EF Core call gets the `CancellationToken`.
 
 ## Registration
