@@ -16,7 +16,7 @@ Generate unit tests for `src/CampusMarket.Api/Domain/` and for every handler in 
 - Handlers are `sealed class` types with constructor injection, namespace `CampusMarket.Api.Features.<Resource>.<UseCase>`. They expose `Task<Result<T>> HandleAsync(request, CancellationToken ct)`.
 - Command handlers take the repository interface, `IUnitOfWork` and sometimes `TimeProvider`. Query handlers take only the repository interface.
 - Repository interfaces (`IListingRepository`, `IMemberRepository`): `AddAsync` returns `Task<bool>` (false = duplicate Id), `GetByIdAsync` returns `null` when missing, `GetAllAsync` returns a snapshot, `Update` and `Delete` take the entity. Open the interface files and implement exactly their signatures in the fakes.
-- `IUnitOfWork.SaveChangesAsync(CancellationToken ct = default)` returns `Task<int>`.
+- `IUnitOfWork.CommitAsync(CancellationToken ct)` returns `Task<int>`.
 - The repositories behind `IListingRepository` and `IMemberRepository` are now EF Core implementations. Unit tests never use EF Core or SQLite: handlers are always tested with the hand-written fakes.
 
 ## Folder layout (mirrors production)
