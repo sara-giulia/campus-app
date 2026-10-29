@@ -48,4 +48,9 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
         return await query(db);
     }
+    
+    // Logs the test client in as this member, so protected endpoints accept its requests.
+    protected void AuthenticateAs(Guid memberId, string role = "Student") =>
+        Client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TestTokens.Create(memberId, role));
 }

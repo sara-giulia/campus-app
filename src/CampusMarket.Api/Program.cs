@@ -9,6 +9,8 @@ var app = builder.Build();
 
 app.EnsureCampusMarketDatabase();
 
+app.UseRateLimiter();
+
 app.MapCampusMarket();
 
 await app.RunAsync();

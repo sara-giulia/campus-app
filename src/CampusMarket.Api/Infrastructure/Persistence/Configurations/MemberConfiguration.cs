@@ -17,5 +17,14 @@ public sealed class MemberConfiguration : IEntityTypeConfiguration<Member>
 
         builder.Property(m => m.Email)
             .HasConversion(email => email.Value, value => Email.Create(value).Value);
+        
+        builder.HasIndex(m => m.Email).IsUnique();
+
+        builder.Property(m => m.PasswordHash);
+
+        builder.Property(m => m.Role)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(MemberRole.Student);
     }
 }
