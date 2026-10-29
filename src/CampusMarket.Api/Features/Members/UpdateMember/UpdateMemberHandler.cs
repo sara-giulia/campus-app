@@ -33,7 +33,7 @@ public sealed class UpdateMemberHandler(
             return Result<Guid>.Failure(updated.Error);
 
         repository.Update(member);
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return member.Id;
     }

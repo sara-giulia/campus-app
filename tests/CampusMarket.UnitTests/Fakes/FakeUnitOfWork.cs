@@ -6,7 +6,7 @@ public sealed class FakeUnitOfWork : IUnitOfWork
 {
     public int SaveCount { get; private set; }
 
-    public Task<int> SaveChangesAsync(CancellationToken ct = default)
+    public Task<int> CommitAsync(CancellationToken ct)
     {
         SaveCount++;
         return Task.FromResult(0);

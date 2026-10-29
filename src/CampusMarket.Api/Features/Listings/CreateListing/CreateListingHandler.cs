@@ -27,7 +27,7 @@ public sealed class CreateListingHandler(
             return Result<CreateListingResponse>.Failure(
                 Error.Conflict("Listing.Duplicate", $"A listing with id '{listing.Id}' already exists."));
 
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return CreateListingResponse.From(listing);
     }
