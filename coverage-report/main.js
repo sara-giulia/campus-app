@@ -302,7 +302,7 @@ var assemblies = [
       { "name": "CampusMarket.Api.Features.Listings.CreateListing.CreateListingHandler", "rp": "CampusMarket.Api_CreateListingHandler.html", "cl": 18, "ucl": 0, "cal": 18, "tl": 34, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.DeleteListing.DeleteListingHandler", "rp": "CampusMarket.Api_DeleteListingHandler.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 26, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.GetListingById.GetListingByIdHandler", "rp": "CampusMarket.Api_GetListingByIdHandler.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 21, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "rp": "CampusMarket.Api_GetListingsHandler.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 21, "cb": 0, "tb": 0, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "rp": "CampusMarket.Api_GetListingsHandler.html", "cl": 35, "ucl": 0, "cal": 35, "tl": 51, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.UpdateListing.UpdateListingHandler", "rp": "CampusMarket.Api_UpdateListingHandler.html", "cl": 16, "ucl": 0, "cal": 16, "tl": 32, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Members.CreateMember.CreateMemberHandler", "rp": "CampusMarket.Api_CreateMemberHandler.html", "cl": 20, "ucl": 0, "cal": 20, "tl": 37, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Members.DeleteMember.DeleteMemberHandler", "rp": "CampusMarket.Api_DeleteMemberHandler.html", "cl": 12, "ucl": 0, "cal": 12, "tl": 26, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -317,9 +317,17 @@ var metrics = [{ "name": "Cyclomatic complexity", "abbreviation": "cc", "explana
 var historicCoverageExecutionTimes = [];
 
 var riskHotspotMetrics = [
+      { "name": "Cyclomatic complexity", "explanationUrl": "https://en.wikipedia.org/wiki/Cyclomatic_complexity" },
+      { "name": "NPath complexity", "explanationUrl": "https://modess.io/npath-complexity-cyclomatic-complexity-explained" },
 ];
 
 var riskHotspots = [
+  {
+    "assembly": "CampusMarket.Api", "class": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "reportPath": "CampusMarket.Api_GetListingsHandler.html", "methodName": "HandleAsync()", "methodShortName": "HandleAsync()", "fileIndex": 0, "line": 12,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
 ];
 
 var branchCoverageAvailable = true;
