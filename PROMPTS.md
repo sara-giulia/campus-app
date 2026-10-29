@@ -395,7 +395,7 @@ The skill was improved three times before its run, by comparing it with the real
 
 - **Honest note:** after the Active filter, the two existing `GetListingsHandlerTests` broke the CI because they seed `Draft` listings. They were fixed by hand before the run (two `Publish()` calls, commit 8d21e3e), so the CI was green before the skill ran.
 - **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Listing search and paging" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.`
-- **Skill version:** v7, commit 8d21e3e
+- **Skill version:** v7, commit 8d21e3e; section written by Diana Preutu, run by Sara Matasel
 - **Result:** 25 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs`, and 0 lines removed from the existing tests. All 146 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 419/419 lines, 130/130 branches. The report in `coverage-report/` was generated again.
 - **Change to SKILL.md:** none; v7 is the final version.
 - **Commits:** skill 8d21e3e; generated code 0c5274d
