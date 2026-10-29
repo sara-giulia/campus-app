@@ -359,3 +359,32 @@ Login (6 tests). Arrange: build the member with `Member.Register` and a real `As
 Rules:
 - 401 responses for login must all look the same (same error code), whatever the reason.
 - Never hard-code a token string; never read `appsettings.Development.json` from tests.
+
+## Feature: Listing search and paging (Diana)
+
+This feature changes two facts above: `GET /api/v1/listings` now takes query parameters and **can return 400**, and the body has `items`, `count`, `totalCount`, `page`, `pageSize`. For `GetListings` only, the "no failure path" note in section 5 no longer applies. `GetMembers` is unchanged.
+
+Endpoint: `GET /api/v1/listings?category=&minPrice=&maxPrice=&search=&page=&pageSize=`. Every parameter is optional; defaults are `page=1`, `pageSize=20`. Public, no `AuthenticateAs`.
+
+File: `tests/CampusMarket.IntegrationTests/Listings/GetListingsTests.cs`. Keep the two existing tests and add the new ones to the same class.
+
+Arrange: seed three listings with `SeedAsync`, each with its own fixed `CreatedAt` (the class `CreatedAt`, plus 1 hour, plus 2 hours) and the same `SellerId`:
+- `"OOP textbook"`, `Textbook`, 40
+- `"oop problem set"`, `Textbook`, 15
+- `"Scientific calculator"`, `Electronics`, 120
+
+Tests to add (status, body, then the database still has exactly 3 listings):
+- `?search=OOP` â†’ 200, the two OOP listings (case is ignored).
+- `?category=Textbook&minPrice=20&maxPrice=100&search=oop` â†’ 200, only `"OOP textbook"`.
+- `?minPrice=40&maxPrice=40` â†’ 200, only `"OOP textbook"` (limits are inclusive).
+- no parameters â†’ 200, the three listings newest first, `page` 1, `pageSize` 20, `totalCount` 3.
+- `?page=2&pageSize=2` â†’ 200, one item (the oldest), `count` 1, `totalCount` 3, `page` 2, `pageSize` 2.
+- `?page=0` â†’ 400, `Error` with code `Listings.InvalidPage`, type `Validation`.
+- `?pageSize=101` â†’ 400, `Listings.InvalidPageSize`, type `Validation`.
+- `?minPrice=100&maxPrice=10` â†’ 400, `Listings.InvalidPriceRange`, type `Validation`.
+- `?category=Abc` â†’ 400. This one is rejected by ASP.NET Core before the handler runs, so check only the status code, not an `Error` body.
+
+Rules for this feature:
+- Build the query string exactly as a client would send it, in the URL of `Client.GetAsync`.
+- Read the success body into `GetListingsResponse` and check the order of `items` by id, not only their count.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
