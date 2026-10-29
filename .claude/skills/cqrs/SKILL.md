@@ -96,7 +96,7 @@ What each handler returns (`TResult`):
   - invalid data (the domain returned a failure) → pass the domain `Error` on unchanged (it is `Error.Validation`)
   - duplicate Id (`AddAsync` returned false) → `Error.Conflict(...)`
 - Keep the same error codes and messages the endpoints return today (for example `Listing.NotFound`, `Listing.Duplicate`).
-- Update and Delete: load with `GetByIdAsync`, return NotFound if `null`, then call the domain or the repository, then `ncSaveChangesAsy`.
+- Update and Delete: load with `GetByIdAsync`, return NotFound if `null`, then call the domain or the repository, then `CommitAsync`.
 - Unique email (the README says `CreateMember` needs a unique email; the same goes for `UpdateMember`). The repository has no "find by email" method, so the handler uses `GetAllAsync`:
   - `CreateMemberHandler`: after `Member.Create` succeeded and before `AddAsync`, if any member returned by `GetAllAsync` has the same `Email`, return `Error.Conflict("Member.EmailTaken", $"A member with email '{member.Email.Value}' already exists.")` and do not add or save anything.
   - `UpdateMemberHandler`: after the `NotFound` check and **before** `member.Update`, build the new email with `Email.Create(command.Email)`. If it is valid and any **other** member (`m.Id != member.Id`) has that `Email`, return the same `Member.EmailTaken` conflict, without changing the member and without saving. If it is not valid, go on: `member.Update` returns the validation error as today. Keeping your own email is allowed.
@@ -109,7 +109,7 @@ What each handler returns (`TResult`):
 - The endpoint only builds the command or query from the request, calls the handler and maps the `Result` to an HTTP status with `TypedResults`.
 - The endpoint injects the handler interface (`ICommandHandler<,>` or `IQueryHandler<,>`), never a repository, never `IUnitOfWork`.
 - No business rules and no `if` on data in the endpoint. The only `if` allowed is `result.IsFailure`.
-- Mapping by `ErrorType`: `Validation` → 400 `BadRequest`, `NotFound` → 404 `NotFound`, `Conflict` → 409 `Conflict`. Success: Create → 201 `CreatedAtRoute` with Location, Get → 200 `Ok`, Update and Delete → 204 `NoContent`.
+- Mapping by `ErrorType`: `Validation` → 400 `BadRequest`, `NotFound` → 404 `NotFound`, `Conflict` → 409 `Conflict`, `Forbidden` → 403 `TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden)` (its type in `Results<...>` is `JsonHttpResult<Error>`). Success: Create → 201 `CreatedAtRoute` with Location, Get → 200 `Ok`, Update and Delete → 204 `NoContent`.
 - The `Results<...>` return type lists only the statuses the slice can return, and the mapping contains only those arms.
 - If a slice can fail with just one `ErrorType`, map it directly. If it can fail with two or more, use a `switch` on `result.Error.Type`.
 - `UpdateMember` can now also fail with `Conflict` (email taken): its return type becomes `Results<NoContent, NotFound<Error>, BadRequest<Error>, Conflict<Error>>` and the `switch` gets the arm `ErrorType.Conflict => TypedResults.Conflict(result.Error)`. `CreateMember` already maps `Conflict` to 409.
