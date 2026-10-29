@@ -12,7 +12,7 @@ public static class UpdateMemberEndpoint
             .WithName("UpdateMember");
     }
 
-    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>, Conflict<Error>>> Handle(
+    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>, Conflict<Error>, JsonHttpResult<Error>>> Handle(
         Guid id,
         UpdateMemberRequest request,
         ICommandHandler<UpdateMemberCommand, Guid> handler,
@@ -27,6 +27,7 @@ public static class UpdateMemberEndpoint
             {
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
                 ErrorType.Conflict => TypedResults.Conflict(result.Error),
+                ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };
 
