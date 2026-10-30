@@ -144,8 +144,7 @@ Settings:
 - Never edit a file in `tests/` (only delete the old folders listed above).
 - Never change the signature of `AddCampusMarket`, and never write the connection string in code.
 - Never create the database inside `MapCampusMarket`.
-- Never change `Domain/`: no public setters or constructors, no attributes, no new properties.
-- Never call `SaveChangesAsync` in a repository.
+- Never change `Domain/`: no public setters or constructors, no attributes, no new properties.- Never call `db.SaveChangesAsync` or `CommitAsync` in a repository. Only `EfUnitOfWork` saves.
 - Never add a `DbSet<Reservation>` or a reservation repository.
 - Never add a foreign key from `SellerId` or `MemberId` to `Member`.
 - Never call `EnsureCreated` in the app, never edit a generated migration, and never use `EnsureDeleted`, raw SQL or a second DbContext.
