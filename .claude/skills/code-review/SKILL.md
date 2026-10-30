@@ -13,7 +13,7 @@ Read the code of the repository and report the problems you find. You only read.
 Open every file in the folders above, one by one, and go through this checklist. Do not stop after the first problems you find: the same repository must give the same table every time.
 
 - **slice boundaries**: does a slice folder use a type from another slice folder? Does an endpoint call a repository, a DbContext or the domain directly, or contain an `if` on data?
-- **CQRS violations**: does a query handler call Add, Update, Delete or `CommitAsync`? Does a command handler forget `SaveChangesAsync`? Does a handler call another handler?
+- **CQRS violations**: does a query handler call Add, Update, Delete or `CommitAsync`? Does a command handler forget `CommitAsync`? Does a handler call another handler?
 - **domain invariants**: does an entity have a public setter or a public constructor? Can a factory or method put the entity in an invalid state? Can a caller change a collection from outside?
 - **test quality**, for every test method: does the name of the test match what the Arrange really sets up and what is asserted (for `Given_When_Then` names, check each part)? Does the test assert anything? Does it contain `if`, a loop, `DateTime.Now` or `Thread.Sleep`? Does it share state with other tests?
 - **naming**: do classes, methods and private fields follow the same convention as the rest of the project (compare with at least two other files)?
@@ -59,7 +59,7 @@ Found 2 problems: 1 Major, 1 Minor.
 
 | # | File:Line | Severity | Category | Problem | Proposed fix |
 |---|---|---|---|---|---|
-| 1 | src/Api/Features/Books/GetBooks/GetBooksHandler.cs:18 | Major | CQRS violations | The query handler calls `SaveChangesAsync`. | Remove the call; a query must not change state. |
+| 1 | src/Api/Features/Books/GetBooks/GetBooksHandler.cs:18 | Major | CQRS violations | The query handler calls `CommitAsync`. | Remove the call; a query must not change state. |
 | 2 | tests/Api.UnitTests/BookTests.cs:12 | Minor | naming | The test is called `Test1`. | Rename it to `Given_EmptyTitle_When_Creating_Then_ReturnsValidationError`. |
 
 
