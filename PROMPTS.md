@@ -563,10 +563,30 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 
 ### Skill update v3 → v4
 
-| Unit of work method | `SaveChangesAsync(CancellationToken ct = default)` | `CommitAsync(CancellationToken ct)` |
-| Error mapping rule | Validation, NotFound, Conflict | also `Forbidden` → 403 (`TypedResults.Json`, type `JsonHttpResult<Error>`) |
-| "Update and Delete" rule | typo left by the first rename | fixed: "then `CommitAsync`" |
-
-- **Why:** the groundwork PR renames the method (week 4 contract); a new run with v3 would generate code that does not compile. `Forbidden` is needed for the ownership rules.
+- **Why:** the groundwork PR renames the method (week 4 contract); a run with v3 would generate code that does not compile. `Forbidden` is needed for the ownership rules.
 - **Who:** Carina Coman (edit only, no generation)
-- **Commit:** `<hash-ul commit-ului "cqrs skill v4...">`
+- **Commit:** `9c8de00`
+
+### Skill update v4 → v5
+
+| Unit of work method (lines 16 and 62) | `SaveChangesAsync` | `CommitAsync` |
+- **Why:** the groundwork PR renames `IUnitOfWork.SaveChangesAsync` to `CommitAsync(CancellationToken ct)`; a review that looks for the old name would miss the real call.
+- **Who:** Carina Coman (edit only, no generation)
+- **Commit:** `129593d`
+
+### Skill update v5 → v6
+
+| Unit of work method (lines 19 and 162) | `IUnitOfWork.SaveChangesAsync(CancellationToken ct = default)`, "`SaveChangesAsync`/`CommitAsync` never called" | `IUnitOfWork.CommitAsync(CancellationToken ct)`, "`CommitAsync` never called" |
+
+- **Why:** the groundwork PR renames the method; a run with the old name would generate tests that implement a method that no longer exists.
+- **Who:** Carina Coman (edit only, no generation)
+- **Commit:** `b22b04d`
+
+### Skill update v6 → v7
+
+| Unit of work method (line 19) | `SaveChangesAsync` | `CommitAsync` |
+| Repository rule (line 148) | "Never call `SaveChangesAsync` in a repository." | "Never call `db.SaveChangesAsync` or `CommitAsync` in a repository. Only `EfUnitOfWork` saves." |
+
+- **Why:** the groundwork PR renames the method. Line 103 stays as it is: `EfUnitOfWork.CommitAsync` returns EF Core's `db.SaveChangesAsync(ct)`. The rule on line 148 was ambiguous because both methods had the same name.
+- **Who:** Carina Coman (edit only, no generation)
+- **Commit:** `a7326c6`
