@@ -19,7 +19,7 @@ public sealed class DeleteListingHandler(
                 Error.NotFound("Listing.NotFound", $"Listing '{command.Id}' was not found."));
 
         repository.Delete(listing);
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return listing.Id;
     }

@@ -25,7 +25,7 @@ public sealed class UpdateListingHandler(
             return Result<Guid>.Failure(updated.Error);
 
         repository.Update(listing);
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return listing.Id;
     }

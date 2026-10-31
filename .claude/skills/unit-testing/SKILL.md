@@ -16,7 +16,7 @@ Generate unit tests for `src/CampusMarket.Api/Domain/` and for every handler in 
 - Handlers are `sealed class` types with constructor injection, namespace `CampusMarket.Api.Features.<Resource>.<UseCase>`. They expose `Task<Result<T>> HandleAsync(request, CancellationToken ct)`.
 - Command handlers take the repository interface, `IUnitOfWork` and sometimes `TimeProvider`. Query handlers take only the repository interface.
 - Repository interfaces (`IListingRepository`, `IMemberRepository`): `AddAsync` returns `Task<bool>` (false = duplicate Id), `GetByIdAsync` returns `null` when missing, `GetAllAsync` returns a snapshot, `Update` and `Delete` take the entity. Open the interface files and implement exactly their signatures in the fakes.
-- `IUnitOfWork.SaveChangesAsync(CancellationToken ct = default)` returns `Task<int>`.
+- `IUnitOfWork.CommitAsync(CancellationToken ct)` returns `Task<int>`.
 - The repositories behind `IListingRepository` and `IMemberRepository` are now EF Core implementations. Unit tests never use EF Core or SQLite: handlers are always tested with the hand-written fakes.
 
 ## Folder layout (mirrors production)
@@ -159,7 +159,7 @@ New fakes in `Fakes/` (hand-written style, no mocking library):
 
 Tests to add:
 - `Domain/Members/MemberTests.cs` (add to the existing file, do not delete anything): Register with valid data returns a Student with the hash; Register with `MemberRole.Admin` returns an Admin; empty or null hash returns `Member.PasswordRequired`; invalid name and invalid email still return validation errors.
-- `Features/Auth/Register/RegisterHandlerTests.cs`: valid command stores the member with the hashed password and saves once; weak password (shorter than 8, `[Theory]`) returns `Auth.WeakPassword`; invalid name and invalid email return validation errors; email already used returns `Member.EmailTaken` (Conflict); repository rejects the Id returns Conflict. In every failure case: nothing stored and `SaveChangesAsync`/`CommitAsync` never called.
+- `Features/Auth/Register/RegisterHandlerTests.cs`: valid command stores the member with the hashed password and saves once; weak password (shorter than 8, `[Theory]`) returns `Auth.WeakPassword`; invalid name and invalid email return validation errors; email already used returns `Member.EmailTaken` (Conflict); repository rejects the Id returns Conflict. In every failure case: nothing stored and `CommitAsync` never called.
 - `Features/Auth/Login/LoginHandlerTests.cs`: valid credentials return the token and `ExpiresAt` from the fake; email with different casing still works; invalid email format (`[Theory]`), empty password, unknown email, member without password hash and wrong password all return the same `Auth.InvalidCredentials` error.
 
 Rules for this feature:
@@ -207,3 +207,30 @@ Tests to add:
 Rules for this feature:
 - The handler is a query handler: no `IUnitOfWork`. In every test, assert that the repository still has the same items after the call.
 - Never use real time; every `createdAt` is a fixed `DateTimeOffset`.
+
+
+## Feature: Groundwork (Carina)
+
+New code in the groundwork PR: `Error.Forbidden`, `ErrorType.Forbidden` and `CurrentUserExtensions`. Nothing else changed in behaviour (`SaveChangesAsync` was renamed to `CommitAsync`; the existing tests already cover it).
+
+Files to read: `src/CampusMarket.Api/Domain/Common/Error.cs`, `src/CampusMarket.Api/Domain/Common/ErrorType.cs`, `src/CampusMarket.Api/Common/Auth/CurrentUserExtensions.cs`.
+
+Files:
+- `tests/CampusMarket.UnitTests/Domain/Common/ErrorTests.cs`: keep the existing tests and add the one below to the same class.
+- `tests/CampusMarket.UnitTests/Common/Auth/CurrentUserExtensionsTests.cs`: new file, same folder structure as `src/`.
+
+Tests to add:
+- `Error.Forbidden("Listing.NotOwner", "Not allowed")` → `Code` is `"Listing.NotOwner"`, `Message` is `"Not allowed"`, `Type` is `ErrorType.Forbidden`.
+- `GetMemberId` with a `sub` claim set to the fixed id `11111111-1111-1111-1111-111111111111` → returns that `Guid`.
+- `IsAdmin` with the claim `role` = `Admin` → `true`.
+- `IsAdmin` with the claim `role` = `Student` → `false`.
+- `IsAdmin` with no `role` claim → `false`.
+
+Arrange:
+- Build the user with `new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))`. The authentication type must be set, otherwise the identity counts as not authenticated.
+- Claim names are exactly `sub` and `role` (the API reads tokens with `MapInboundClaims = false`).
+- No mocks, no `HttpContext`.
+
+Rules for this feature:
+- The coverage of `Domain/` stays 100% for lines and branches, so `Error.Forbidden` must be called by a test.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.

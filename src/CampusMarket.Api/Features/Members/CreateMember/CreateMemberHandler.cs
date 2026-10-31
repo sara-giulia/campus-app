@@ -30,7 +30,7 @@ public sealed class CreateMemberHandler(
             return Result<CreateMemberResponse>.Failure(
                 Error.Conflict("Member.Duplicate", $"A member with id '{member.Id}' already exists."));
 
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return CreateMemberResponse.From(member);
     }

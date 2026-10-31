@@ -12,7 +12,7 @@ public static class UpdateListingEndpoint
             .WithName("UpdateListing");
     }
 
-    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>>> Handle(
+    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>, JsonHttpResult<Error>>> Handle(
         Guid id,
         UpdateListingRequest request,
         ICommandHandler<UpdateListingCommand, Guid> handler,
@@ -27,6 +27,7 @@ public static class UpdateListingEndpoint
             return result.Error.Type switch
             {
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
+                ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };
 

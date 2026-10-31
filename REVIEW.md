@@ -1,6 +1,6 @@
 # REVIEW.md
 
-Reviews made with the `code-review` skill (`.claude/skills/code-review/SKILL.md`): v3, commit 506d7c0, and in week 4 v4, commit 742806e. Every row was checked by hand: the file and line exist and the problem is real.
+Reviews made with the `code-review` skill (`.claude/skills/code-review/SKILL.md`): v3, commit 506d7c0, and in week 4 v5, commit 742806e. Every row was checked by hand: the file and line exist and the problem is real.
 
 ## CampusMarket (our repository)
 
@@ -19,9 +19,9 @@ Found 1 problem: 1 Minor.
 |---|---|---|---|---|---|
 | 1 | src/CampusMarket.Api/Domain/Members/Member.cs:9 | Minor | naming | Private instance fields `listingIds` and `reservationIds` do not follow the `_camelCase` convention used by every other private instance field in the project (e.g. `_value` in `src/CampusMarket.Api/Domain/Common/Result.cs:28`, `_favorites` in `tests/CampusMarket.UnitTests/Fakes/FakeFavoriteRepository.cs:7`, `_listings` in `tests/CampusMarket.UnitTests/Fakes/FakeListingRepository.cs:7`, `_members` in `tests/CampusMarket.UnitTests/Fakes/FakeMemberRepository.cs:7`). | Rename the fields to `_listingIds` and `_reservationIds`, update their references on `src/CampusMarket.Api/Domain/Members/Member.cs:17`, `18`, `65`, `80`, `81`, `85`, `91`, `106`, `111`, `117`, and update `HasField("listingIds")` to `HasField("_listingIds")` on `src/CampusMarket.Api/Infrastructure/Persistence/Configurations/MemberConfiguration.cs:26` and `HasField("reservationIds")` to `HasField("_reservationIds")` on line 30. |
 
-## Week 4 – code-review v4
+## Week 4 – code-review v5
 
-Our repository, `main` at c4191e6 (after authentication, listing search and mutation testing). Skill v4, commit 742806e: it also reads the README and checks that every business rule in it has code that enforces it. Run by Ancuța Ilenei; every row was checked by hand: the file and line exist and the problem is real.
+Our repository, `main` at c4191e6 (after authentication, listing search and mutation testing). Skill v5, commit 742806e (committed as "v4"; renumbered because the groundwork PR made v4): it also reads the README and checks that every business rule in it has code that enforces it. Run by Ancuța Ilenei; every row was checked by hand: the file and line exist and the problem is real.
 
 Found 14 problems: 0 Critical, 10 Major, 4 Minor.
 
@@ -51,5 +51,5 @@ Found 14 problems: 0 Critical, 10 Major, 4 Minor.
 - **9:** true; the automatic expiry after 48 h was moved to week 7 by the team.
 - **10:** true; today it does not show, because `Seed:AdminEmail` in `appsettings.Development.json` is already lower case.
 - **11–14:** the lines and names are exact.
-- **Not reported again:** the two v3 rows above (`Reservation.cs:32` and `ListingTests.cs:289`) are still in the code, but v4 did not report them (see `PROMPTS.md`, code-review run 5). They are fixed this week in the ownership PR.
+- **Not reported again:** the two v3 rows above (`Reservation.cs:32` and `ListingTests.cs:289`) are still in the code, but v5 did not report them (see `PROMPTS.md`, code-review run 5). They are fixed this week in the ownership PR.
 

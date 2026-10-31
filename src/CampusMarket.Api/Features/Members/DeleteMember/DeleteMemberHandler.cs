@@ -19,7 +19,7 @@ public sealed class DeleteMemberHandler(
                 Error.NotFound("Member.NotFound", $"Member '{command.Id}' was not found."));
 
         repository.Delete(member);
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return member.Id;
     }

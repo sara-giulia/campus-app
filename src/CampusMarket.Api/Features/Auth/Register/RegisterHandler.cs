@@ -41,7 +41,7 @@ public sealed class RegisterHandler(
             return Result<RegisterResponse>.Failure(
                 Error.Conflict("Member.Duplicate", $"A member with id '{member.Id}' already exists."));
 
-        await unitOfWork.SaveChangesAsync(ct);
+        await unitOfWork.CommitAsync(ct);
 
         return RegisterResponse.From(member);
     }
