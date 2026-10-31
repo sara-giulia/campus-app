@@ -424,3 +424,34 @@ Rules for this feature:
 - Use fixed ids for the people: `SellerId` (already in the listing classes), `OtherStudentId = Guid.Parse("22222222-2222-2222-2222-222222222222")`, `AdminId = Guid.Parse("33333333-3333-3333-3333-333333333333")`. Members do not need to exist in the database to log in: the token is enough.
 - Read a 403 body from the handler into `Error` and check `Code` and `Type` (`Forbidden`). For 401, and for the 403 of `CreateMember`, check only the status code.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Reservations (Sara)
+
+New endpoints (read them in `Features/` before generating). All of them need a login: without `AuthenticateAs` the answer is 401 with an empty body.
+
+| Slice | Route | Who may call it | Success | Failures |
+|---|---|---|---|---|
+| `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204 | 401; 403 `Listing.NotOwner`; 404 `Listing.NotFound`; 400 `Listing.NotDraft` |
+| `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + reservation (`id`, `listingId`, `buyerId`, `createdAt`, `expiresAt`, `status`) + `Location` ending in `/api/v1/members/me/reservations` | 401; 404 `Listing.NotFound`; 404 `Member.NotFound`; 400 `Listing.NotActive`, `Reservation.OwnListing`, `Reservation.LimitReached` |
+| `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204 | 401; 403 `Reservation.NotAllowed`; 404 `Listing.NotFound`, `Reservation.NotFound`; 400 `Reservation.NotActive` |
+| `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200 `{ items, count }`, each item `reservationId`, `listingId`, `listingTitle`, `price`, `status`, `createdAt`, `expiresAt` | 401 |
+
+`ReservationStatus` values: Active, Cancelled, Expired, Completed.
+
+Files: `Listings/PublishListingTests.cs`, `Listings/ReserveListingTests.cs`, `Listings/CancelReservationTests.cs`, `Members/GetMyReservationsTests.cs`.
+
+Arrange:
+- Seed the listing with `SeedAsync`: `Listing.Create(SellerId, ...)`, then `Publish()` for an `Active` listing, and `Reserve(buyer.Id, CreatedAt)` for a reserved one, all in the domain before `SeedAsync`.
+- The buyer must exist for `ReserveListing`: seed a `Member` (`Member.Create(...).Value`) and log in as `AuthenticateAs(buyer.Id)`.
+- Fixed ids as in the ownership section: `SellerId`, `OtherStudentId`, `AdminId`.
+
+Tests to add (status, body, then the database):
+- PublishListing: the seller → 204, the saved listing is `Active` with `Version` 2; another student → 403 `Listing.NotOwner`, still `Draft`; an Admin → 204; unknown id → 404; an `Active` listing → 400 `Listing.NotDraft`; no token → 401, still `Draft`.
+- ReserveListing: a seeded buyer reserves an `Active` listing → 201, the body has the buyer and status `Active`, `expiresAt` is 48 h after `createdAt`, the `Location` header ends with `/api/v1/members/me/reservations`; in the database the listing is `Reserved` and has exactly one reservation for that buyer. Then: the seller reserves their own listing → 400 `Reservation.OwnListing`; a `Draft` listing → 400 `Listing.NotActive`; a logged-in member that is not in the database → 404 `Member.NotFound`; unknown listing → 404; the buyer already has 3 active reservations on 3 other seeded listings → 400 `Reservation.LimitReached`; no token → 401. Every failure: the listing has no new reservation.
+- CancelReservation: the buyer cancels → 204, in the database the reservation is `Cancelled` and the listing `Active`; the seller → 204; an Admin → 204; another student → 403 `Reservation.NotAllowed`, still `Active`/`Reserved`; unknown reservation id → 404 `Reservation.NotFound`; a reservation already cancelled → 400 `Reservation.NotActive`; no token → 401.
+- GetMyReservations: no token → 401; the buyer with two reservations on two seeded listings → 200, both items, newest first, with the right `listingTitle` and `price`; another student → 200 with an empty list; a reservation created 49 h ago (seed it with `Reserve(buyer.Id, DateTimeOffset.UtcNow.AddHours(-49))`) → status `Expired`, while in the database it is still `Active`.
+
+Rules for this feature:
+- Read 403/404/400 bodies into `Error` and check `Code` and `Type`. For 401 check only the status code.
+- The reservation's `createdAt` comes from the real clock of the API: never compare it to a fixed time, only check `expiresAt - createdAt` is 48 h.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
