@@ -11,10 +11,15 @@ namespace CampusMarket.IntegrationTests.Members;
 
 public sealed class CreateMemberTests : IntegrationTestBase
 {
+    private static readonly Guid OtherStudentId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid AdminId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
+
     [Fact]
     public async Task Given_ValidMember_When_CreatingMember_Then_Returns201AndSavesMember()
     {
         // Arrange
+        AuthenticateAs(AdminId, "Admin");
         var request = new CreateMemberRequest(Name: "  Ana Popescu  ", Email: "Ana@Student.ro");
 
         // Act
@@ -38,6 +43,7 @@ public sealed class CreateMemberTests : IntegrationTestBase
     public async Task Given_EmailWithoutAt_When_CreatingMember_Then_Returns400AndSavesNothing()
     {
         // Arrange
+        AuthenticateAs(AdminId, "Admin");
         var request = new CreateMemberRequest("Ana Popescu", "ana.student.ro");
 
         // Act
@@ -52,5 +58,63 @@ public sealed class CreateMemberTests : IntegrationTestBase
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NoToken_When_CreatingMember_Then_Returns401AndSavesNothing()
+    {
+        // Arrange
+        var request = new CreateMemberRequest("Ana Popescu", "ana@student.ro");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/members", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_Student_When_CreatingMember_Then_Returns403AndSavesNothing()
+    {
+        // Arrange
+        AuthenticateAs(OtherStudentId);
+        var request = new CreateMemberRequest("Ana Popescu", "ana@student.ro");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/members", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_EmailAlreadyUsedWithDifferentCasing_When_CreatingMember_Then_Returns409AndKeepsOneMember()
+    {
+        // Arrange
+        var existing = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        await SeedAsync(existing);
+        AuthenticateAs(AdminId, "Admin");
+        var request = new CreateMemberRequest("Ana Ionescu", "ANA@Student.RO");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/members", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Member.EmailTaken");
+        error.Type.Should().Be(ErrorType.Conflict);
+
+        var saved = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(existing);
     }
 }

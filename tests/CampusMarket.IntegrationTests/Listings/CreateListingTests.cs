@@ -17,8 +17,8 @@ public sealed class CreateListingTests : IntegrationTestBase
     public async Task Given_ValidListing_When_CreatingListing_Then_Returns201AndSavesListing()
     {
         // Arrange
+        AuthenticateAs(SellerId);
         var request = new CreateListingRequest(
-            SellerId: SellerId,
             Title: "  Manual POO  ",
             Category: Category.Textbook,
             Condition: Condition.Good,
@@ -55,7 +55,8 @@ public sealed class CreateListingTests : IntegrationTestBase
     public async Task Given_EmptyTitle_When_CreatingListing_Then_Returns400AndSavesNothing()
     {
         // Arrange
-        var request = new CreateListingRequest(SellerId, "", Category.Textbook, Condition.Good, 50m);
+        AuthenticateAs(SellerId);
+        var request = new CreateListingRequest("", Category.Textbook, Condition.Good, 50m);
 
         // Act
         var response = await Client.PostAsJsonAsync("/api/v1/listings", request, Json);
@@ -66,6 +67,23 @@ public sealed class CreateListingTests : IntegrationTestBase
         var error = await response.Content.ReadFromJsonAsync<Error>(Json);
         error!.Code.Should().Be("Listing.TitleEmpty");
         error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NoToken_When_CreatingListing_Then_Returns401AndSavesNothing()
+    {
+        // Arrange
+        var request = new CreateListingRequest("Manual POO", Category.Textbook, Condition.Good, 50m);
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);
