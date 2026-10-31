@@ -3,6 +3,9 @@ using CampusMarket.Api.Features.Listings.DeleteListing;
 using CampusMarket.Api.Features.Listings.GetListingById;
 using CampusMarket.Api.Features.Listings.GetListings;
 using CampusMarket.Api.Features.Listings.UpdateListing;
+using CampusMarket.Api.Features.Listings.PublishListing;
+using CampusMarket.Api.Features.Listings.ReserveListing;
+using CampusMarket.Api.Features.Listings.CancelReservation;
 
 namespace CampusMarket.Api.Features.Listings;
 
@@ -17,6 +20,9 @@ public static class ListingsEndpoints
         GetListingsEndpoint.Map(group);
         UpdateListingEndpoint.Map(group);
         DeleteListingEndpoint.Map(group);
+        PublishListingEndpoint.Map(group);
+        ReserveListingEndpoint.Map(group);
+        CancelReservationEndpoint.Map(group);
 
         return app;
     }

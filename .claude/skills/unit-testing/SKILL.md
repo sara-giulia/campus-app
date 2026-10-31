@@ -257,3 +257,31 @@ Tests to add, in the same four handler test files:
 Rules for this feature:
 - Use fixed, named ids for the people in a test (`OwnerId`, `OtherMemberId`, `AdminId`) so it is clear who is calling.
 - `ErrorType.Forbidden` exists in `Domain/Common/ErrorType.cs`; never assert on a status code in a unit test, only on `ErrorType` and the error code.
+
+## Feature: Reservations (Sara)
+
+Production code (written by hand, read it before generating):
+- `Features/Listings/PublishListing/`: `PublishListingCommand(Id, RequesterId, IsAdmin)`. Order in the handler: 404 `Listing.NotFound`, then 403 `Listing.NotOwner` (not the seller and not Admin), then the domain error from `listing.Publish()` (`Listing.NotDraft`), then `Update` and one `CommitAsync`.
+- `Features/Listings/ReserveListing/`: `ReserveListingCommand(ListingId, BuyerId)`, handler with `IListingRepository`, `IMemberRepository`, `IUnitOfWork`, `TimeProvider`. Order: 404 `Listing.NotFound`, 404 `Member.NotFound` (the buyer does not exist), `Reservation.LimitReached` (Validation) when the buyer already has `MaxActiveReservations` (3) reservations with status `Active` on any listing, then the domain errors from `listing.Reserve` (`Listing.NotActive`, `Reservation.OwnListing`), then one `CommitAsync`. It does **not** call `repository.Update` (see the comment in the handler). The response is built from the new reservation.
+- `Features/Listings/CancelReservation/`: `CancelReservationCommand(ListingId, ReservationId, RequesterId, IsAdmin)`. Order: 404 `Listing.NotFound`, 404 `Reservation.NotFound` (no reservation with that id on the listing), 403 `Reservation.NotAllowed` (the requester is not the buyer, not the seller and not Admin), then the domain error from `listing.CancelReservation` (`Reservation.NotActive`), then `Update` and one `CommitAsync`.
+- `Features/Members/GetMyReservations/`: query handler with `IListingRepository` and `TimeProvider`, no `IUnitOfWork`. It returns the reservations of `MemberId` from every listing, with the listing's title and price, newest `CreatedAt` first (then `ReservationId` ascending). A reservation that `IsExpired(now)` is shown with status `Expired`; nothing is saved.
+
+Files (same folders as `src/`):
+- `Features/Listings/PublishListing/PublishListingHandlerTests.cs`
+- `Features/Listings/ReserveListing/ReserveListingHandlerTests.cs`
+- `Features/Listings/CancelReservation/CancelReservationHandlerTests.cs`
+- `Features/Members/GetMyReservations/GetMyReservationsHandlerTests.cs`
+
+Arrange:
+- Use `FakeListingRepository`, `FakeMemberRepository`, `FakeUnitOfWork` and `FixedTimeProvider` with a fixed `Now`. Fixed, named ids: `SellerId`, `BuyerId`, `OtherMemberId`, `AdminId`.
+- An `Active` listing: `Listing.Create(...).Value` then `listing.Publish()`. A reserved listing: then `listing.Reserve(BuyerId, Now)`. The buyer exists when `FakeMemberRepository.Items` has a member with that id: create it with `Member.Create(...).Value` and use its `Id` as `BuyerId`.
+
+Tests to add:
+- PublishListing: the seller publishes a draft → success, status `Active`, `Version` 2, `SaveCount` 1; an Admin who is not the seller → success; another member → `Forbidden` `Listing.NotOwner`, status still `Draft`, `SaveCount` 0; unknown id → `NotFound`; an `Active` listing → `Validation` `Listing.NotDraft`, `SaveCount` 0.
+- ReserveListing: success → the response has the buyer, the listing id, status `Active`, `CreatedAt` = `Now`, `ExpiresAt` = `Now` + 48 h; the listing is `Reserved` and has one reservation; `SaveCount` 1. Then: unknown listing → `Listing.NotFound`; unknown buyer → `Member.NotFound`; a `Draft` listing → `Listing.NotActive`; the seller reserves their own listing → `Reservation.OwnListing`; the buyer already has 3 active reservations on 3 other listings → `Reservation.LimitReached`; the buyer has 2 active and 1 cancelled reservation → success (cancelled ones do not count). Every failure: `SaveCount` 0 and the listing unchanged.
+- CancelReservation: the buyer cancels → success, reservation `Cancelled`, listing `Active`, `SaveCount` 1; the seller cancels → success; an Admin cancels → success; another member → `Forbidden` `Reservation.NotAllowed`, reservation still `Active`, `SaveCount` 0; unknown listing → `Listing.NotFound`; unknown reservation id → `Reservation.NotFound`; a reservation already cancelled → `Validation` `Reservation.NotActive`, `SaveCount` 0.
+- GetMyReservations: a member with no reservations → empty `Items`, `Count` 0; two reservations on two listings → both, newest first, with the right title and price; a reservation of another member is not returned; a cancelled reservation is returned with status `Cancelled`; a reservation created more than 48 h before `Now` → status `Expired`, and the reservation in the repository is still `Active`.
+
+Rules for this feature:
+- Never assert on a status code in a unit test, only on `ErrorType` and the error code.
+- Never use real time: `Now` is a fixed `DateTimeOffset`, given to `FixedTimeProvider`.

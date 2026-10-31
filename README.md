@@ -110,18 +110,18 @@ flowchart LR
 |---|---|---|---|
 | Register as member | `CreateMember` | `POST /api/v1/members` | unique email |
 | Create listing draft | `CreateListing` | `POST /api/v1/listings` | price > 0, valid category and condition |
-| Publish listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | only the owner; only from `Draft` |
+| Publish listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | only the owner or an Admin; only from `Draft` |
 | Browse and filter listings | `GetListings` | `GET /api/v1/listings?category=&minPrice=&maxPrice=&page=&pageSize=` | only `Active` listings; paging |
 | View listing details | `GetListingById` | `GET /api/v1/listings/{id}` | 404 if missing |
-| Reserve listing | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | not own listing; not sold; max 3 active; **409 on concurrent reservation** |
-| Cancel reservation | `CancelReservation` | `POST /api/v1/reservations/{id}/cancel` | only the buyer; only if active |
+| Reserve listing | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | not own listing; only `Active` (so not sold); max 3 active; **409 on concurrent reservation** (planned, week 5) |
+| Cancel reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin; only if active |
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
-| View my reservations | `GetMyReservations` | `GET /api/v1/members/{id}/reservations` | expired reservations shown as expired |
+| View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
 | Get suggested price | `SuggestPrice` (AI) | `POST /api/v1/listings/price-suggestion` | suggestion only, never applied |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
-### Implemented so far: CRUD slices
+### Implemented so far
 
 | Resource | Slice | Endpoint | Who may call it | Responses |
 |---|---|---|---|---|
@@ -135,8 +135,14 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `GetMembers` | `GET /api/v1/members` | everyone | 200 |
 | Member | `UpdateMember` | `PUT /api/v1/members/{id}` | the member or an Admin | 204, 400, 401, 403 `Member.NotOwner`, 404, 409 |
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
+| Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
+| Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
+| Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
+| Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
+| Auth | `Register` | `POST /api/v1/auth/register` | everyone | 201 + `Location`, 400, 409 |
+| Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
 
-GET endpoints are public. POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public, except `GET /api/v1/members/me/reservations`. POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -174,7 +180,40 @@ Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
 | 400 (from ASP.NET Core) | `category` is not one of the values above |
 
-Both resources are stored in memory (`ConcurrentDictionary`) behind `IListingRepository` / `IMemberRepository`, registered as singletons. Endpoints depend only on the interfaces. Errors are returned as `{ "code", "message", "type" }`.
+Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors are returned as `{ "code", "message", "type" }`.
+
+### Authentication
+
+1. `POST /api/v1/auth/register` with `{ "name", "email", "password" }`. The password needs at least 8 characters. Every new account has the role `Student`.
+2. `POST /api/v1/auth/login` with `{ "email", "password" }` returns `{ "token", "expiresAt" }`. The token is valid for 60 minutes.
+3. Send it on every protected request: `Authorization: Bearer <token>`.
+
+- Passwords are stored only as a hash, never returned.
+- A wrong email and a wrong password get the same 401 `Auth.InvalidCredentials`, so nobody can find out which emails have an account.
+- Login allows 5 attempts per minute from the same IP, then 429.
+- Roles: `Student` and `Admin`. In the Development environment an Admin account is created at startup from `Seed:AdminEmail` / `Seed:AdminPassword` in `appsettings.Development.json`. The JWT key is also there, for development only.
+
+### Error codes
+
+| Code | HTTP | When |
+|---|---|---|
+| `Auth.WeakPassword` | 400 | the password has fewer than 8 characters |
+| `Auth.InvalidCredentials` | 401 | wrong email or password (same answer for both) |
+| `Member.EmailTaken` | 409 | another member already uses the email |
+| `Member.NotFound` | 404 | no member with that id, also when the buyer of a reservation does not exist |
+| `Member.NotOwner` | 403 | you change or delete a profile that is not yours |
+| `Listing.NotFound` | 404 | no listing with that id |
+| `Listing.NotOwner` | 403 | you change, delete or publish a listing that is not yours |
+| `Listing.NotDraft` | 400 | you publish a listing that is not a draft |
+| `Listing.NotActive` | 400 | you reserve a listing that is not `Active` (draft, reserved or sold) |
+| `Reservation.OwnListing` | 400 | the seller reserves their own listing |
+| `Reservation.LimitReached` | 400 | the buyer already has 3 active reservations |
+| `Reservation.NotFound` | 404 | the listing has no reservation with that id |
+| `Reservation.NotAllowed` | 403 | you cancel a reservation and you are not the buyer, the seller or an Admin |
+| `Reservation.NotActive` | 400 | you cancel a reservation that is not active |
+| `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
+
+Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty` or `Member.InvalidName`.
 
 ### Example scenario: reserving a listing
 
