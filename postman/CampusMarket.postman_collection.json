@@ -207,6 +207,110 @@
               }
             }
           ]
+        },
+        {
+          "name": "Register second student",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ion Ionescu\",\n  \"email\": \"{{otherEmail}}\",\n  \"password\": \"secret123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"otherEmail\", `ion${Date.now()}@student.ro`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login second student",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{otherEmail}}\",\n  \"password\": \"secret123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"otherToken\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -239,7 +343,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"sellerId\": \"{{sellerId}}\",\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
+                  "raw": "{\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -292,7 +396,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"sellerId\": \"{{sellerId}}\",\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 0\n}",
+                  "raw": "{\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 0\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -336,7 +440,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"sellerId\": \"{{sellerId}}\",\n  \"title\": \"\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
+                  "raw": "{\n  \"title\": \"\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -380,7 +484,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"sellerId\": \"{{sellerId}}\",\n  \"title\": \"Calculus textbook\",\n  \"category\": 99,\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
+                  "raw": "{\n  \"title\": \"Calculus textbook\",\n  \"category\": 99,\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -396,6 +500,52 @@
                     "exec": [
                       "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
                       "pm.test(\"Error code is Listing.CategoryInvalid\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.CategoryInvalid\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create listing - no token (401)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));"
                     ]
                   }
                 }
@@ -919,6 +1069,61 @@
                     "exec": [
                       "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));",
                       "pm.test(\"Body is empty\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update listing - another student's listing (403)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{otherToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "{{listingId}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Not my listing\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                      "pm.test(\"Error code is Listing.NotOwner\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.NotOwner\"));"
                     ]
                   }
                 }
@@ -1616,6 +1821,16 @@
         },
         {
           "name": "UpdateMember",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{adminToken}}",
+                "type": "string"
+              }
+            ]
+          },
           "item": [
             {
               "name": "Update member - valid (204)",
@@ -1791,6 +2006,16 @@
         },
         {
           "name": "DeleteMember",
+          "auth": {
+            "type": "bearer",
+            "bearer": [
+              {
+                "key": "token",
+                "value": "{{adminToken}}",
+                "type": "string"
+              }
+            ]
+          },
           "item": [
             {
               "name": "Delete member - existing (204)",
@@ -1937,10 +2162,6 @@
       "value": "http://localhost:5112"
     },
     {
-      "key": "sellerId",
-      "value": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
-    },
-    {
       "key": "listingId",
       "value": ""
     },
@@ -1958,6 +2179,14 @@
     },
     {
       "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "otherEmail",
+      "value": ""
+    },
+    {
+      "key": "otherToken",
       "value": ""
     }
   ]
