@@ -8,10 +8,13 @@ namespace CampusMarket.UnitTests.Features.Listings.UpdateListing;
 public class UpdateListingHandlerTests
 {
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly Guid OwnerId = new("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid OtherMemberId = new("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid AdminId = new("33333333-3333-3333-3333-333333333333");
 
     private static Listing BuildListing()
     {
-        return Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
+        return Listing.Create(OwnerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
     }
 
     [Fact]
@@ -22,7 +25,7 @@ public class UpdateListingHandlerTests
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateListingHandler(repository, unitOfWork);
-        var command = new UpdateListingCommand(listing.Id, "Linear algebra", Category.Textbook, Condition.New, 30m);
+        var command = new UpdateListingCommand(listing.Id, listing.SellerId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -41,7 +44,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateListingHandler(repository, unitOfWork);
-        var command = new UpdateListingCommand(Guid.NewGuid(), "Linear algebra", Category.Textbook, Condition.New, 30m);
+        var command = new UpdateListingCommand(Guid.NewGuid(), Guid.NewGuid(), false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -59,7 +62,7 @@ public class UpdateListingHandlerTests
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateListingHandler(repository, unitOfWork);
-        var command = new UpdateListingCommand(listing.Id, " ", Category.Textbook, Condition.New, 30m);
+        var command = new UpdateListingCommand(listing.Id, listing.SellerId, false, " ", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -69,5 +72,65 @@ public class UpdateListingHandlerTests
         unitOfWork.SaveCount.Should().Be(0);
         listing.Title.Should().Be("Algebra book");
         listing.Version.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_ListingOfAnotherMember_When_NonAdminUpdates_Then_ReturnsForbiddenAndDoesNotSave()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var command = new UpdateListingCommand(listing.Id, OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Forbidden);
+        result.Error.Code.Should().Be("Listing.NotOwner");
+        repository.Items.Should().ContainKey(listing.Id);
+        listing.Title.Should().Be("Algebra book");
+        listing.Condition.Should().Be(Condition.Good);
+        listing.Price.Amount.Should().Be(25m);
+        listing.Version.Should().Be(1);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ListingOfAnotherMember_When_AdminUpdates_Then_UpdatesEntityAndSavesOnce()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var command = new UpdateListingCommand(listing.Id, AdminId, true, "Linear algebra", Category.Textbook, Condition.New, 30m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(listing.Id);
+        listing.Title.Should().Be("Linear algebra");
+        listing.Condition.Should().Be(Condition.New);
+        listing.Price.Amount.Should().Be(30m);
+        listing.Version.Should().Be(2);
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_UnknownId_When_NonOwnerNonAdminUpdates_Then_ReturnsNotFoundNotForbidden()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var command = new UpdateListingCommand(Guid.NewGuid(), OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.NotFound);
+        result.Error.Code.Should().Be("Listing.NotFound");
+        unitOfWork.SaveCount.Should().Be(0);
     }
 }
