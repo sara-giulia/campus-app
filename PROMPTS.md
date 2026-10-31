@@ -15,6 +15,8 @@ For each skill, one section per run:
 - **Change to SKILL.md (vX → vY) and why:** a before/after table of the rules that changed
 - **Commits:** the skill commit and the generated-code commit (separate commits)
 
+For a change to a skill without a run (for example a rename after a merge), a section **Skill update vX → vY** under that skill: a table with the columns `| What | Before | After |`, the reason, who made the change and the commit.
+
 ---
 
 ## cqrs
@@ -90,6 +92,18 @@ var updated = member.Update(command.Name, command.Email);
 
 - **Change to SKILL.md:** none; v3 is the final version.
 - **Commits:** skill 657431f; generated code cd78cfe
+
+### Skill update v3 → v4 (groundwork PR)
+
+| What | Before (v3) | After (v4) |
+|---|---|---|
+| Unit of work method | `SaveChangesAsync(CancellationToken ct = default)` | `CommitAsync(CancellationToken ct)`, no default value |
+| Error mapping rule | `Validation`, `NotFound`, `Conflict` | also `Forbidden` → 403 (`TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden)`, type `JsonHttpResult<Error>` in `Results<...>`) |
+| "Update and Delete" rule | a broken word left by the first rename | fixed: "then `CommitAsync`" |
+
+- **Why:** the groundwork PR renames the method (week 4 contract); a run with v3 would generate code that does not compile. `Forbidden` is needed for the ownership rules.
+- **Who:** Carina Coman (edit only, no generation)
+- **Commit:** `9c8de00`
 
 ---
 
@@ -291,6 +305,18 @@ public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
 - **Change to SKILL.md:** none; v4 is the final version.
 - **Commits:** skill dda1dcc; generated code 9d9d397
 
+### Skill update v4 → v5 (groundwork PR)
+
+| What | Before (v4) | After (v5) |
+|---|---|---|
+| Unit of work method (line 19) | `SaveChangesAsync` | `CommitAsync` |
+| Repository rule (line 148) | "Never call `SaveChangesAsync` in a repository." | "Never call `db.SaveChangesAsync` or `CommitAsync` in a repository. Only `EfUnitOfWork` saves." |
+| "Never" list (lines 145 and 151) | several rules joined on one line with "and never" | one rule per line |
+
+- **Why:** the groundwork PR renames the method. Line 103 stays as it is: `EfUnitOfWork.CommitAsync` returns EF Core's `db.SaveChangesAsync(ct)`. The rule on line 148 was ambiguous because both methods had the same name. The "Never" list is easier for Claude to follow with one rule per line.
+- **Who:** Carina Coman (edit only, no generation)
+- **Commits:** `a7326c6`, `07aa3ea`
+
 ---
 
 ## unit-testing
@@ -367,6 +393,7 @@ The skill was improved three times before its run, by comparing it with the real
 ### Run 3, skill v6 (Feature: Authentication)
 
 - **Why a new version:** week 4 added register and login (`Member.Register`, `RegisterHandler`, `LoginHandler`, `IPasswordHasher`, `ITokenService`). They had no unit tests.
+
 #### Change to SKILL.md (v5 → v6) and why
 
 | # | v5 (before) | v6 (after) | Why |
@@ -381,7 +408,6 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none; v6 is the final version.
 - **Commits:** skill c67c85f; generated code 596301a
 
----
 ### Run 4, skill v7 (Feature: Listing search and paging)
 
 - **Why a new version:** week 4 added filters, text search and paging to `GetListingsHandler`, and search now returns only `Active` listings. The new branches had no unit tests.
@@ -399,6 +425,19 @@ The skill was improved three times before its run, by comparing it with the real
 - **Result:** 25 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs`, and 0 lines removed from the existing tests. All 146 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 419/419 lines, 130/130 branches. The report in `coverage-report/` was generated again.
 - **Change to SKILL.md:** none; v7 is the final version.
 - **Commits:** skill 8d21e3e; generated code 0c5274d
+
+### Skill update v7 → v8 (groundwork PR)
+
+| What | Before (v7) | After (v8) |
+|---|---|---|
+| Unit of work method (lines 19 and 162) | `IUnitOfWork.SaveChangesAsync(CancellationToken ct = default)`, "`SaveChangesAsync`/`CommitAsync` never called" | `IUnitOfWork.CommitAsync(CancellationToken ct)`, "`CommitAsync` never called" |
+| Groundwork tests | no section for `Error.Forbidden` and `CurrentUserExtensions` | new section "Feature: Groundwork (Carina)" with 5 cases (1 for `Error.Forbidden`, 1 for `GetMemberId`, 3 for `IsAdmin`) |
+
+- **Why:** the groundwork PR renames the method; a run with the old name would generate tests that implement a method that no longer exists. The new code (`Error.Forbidden`, `CurrentUserExtensions`) had no tests, and SonarQube failed the quality gate on the PR (65.4% coverage on new code, minimum 80%).
+- **Who:** Carina Coman (edit only, no generation). The run is done by Anca Ilenei on the branch `feature/groundwork` and will be logged as the next run of this skill.
+- **Commits:** `b22b04d`, `b56c59a`
+
+---
 
 ## integration-testing
 
@@ -484,10 +523,10 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none; v3 is the final version.
 - **Commits:** skill c6b3868; generated code 98cbece
 
-
 ### Run 4, skill v4 (Feature: Authentication)
 
 - **Why a new version:** week 4 added `POST /api/v1/auth/register` and `POST /api/v1/auth/login`, with rate limiting on login (5 per minute).
+
 #### Change to SKILL.md (v3 → v4) and why
 
 | # | v3 (before) | v4 (after) | Why |
@@ -503,7 +542,6 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the second run; v4 is the final version.
 - **Commits:** skill c67c85f; generated code 596301a
 
----
 ### Run 5, skill v5 (Feature: Listing search and paging)
 
 - **Why a new version:** `GET /api/v1/listings` now takes query parameters, returns only `Active` listings and can return 400, while section 1 of the skill said GetAll has no failure path.
@@ -522,6 +560,9 @@ saved.Should().BeEquivalentTo(listing);
 - **Result:** 10 new tests in `Listings/GetListingsTests.cs`. All 41 integration tests pass; nothing changed in `src/` or in the other tests.
 - **Change to SKILL.md:** none; v5 is the final version.
 - **Commits:** skill f88662b; generated code 0c5274d
+
+---
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -595,32 +636,13 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 - **Change to SKILL.md:** none; the skill worked on a different project without changes.
 - **Commits:** skill 506d7c0; review output in REVIEW.md
 
-### Skill update v3 → v4
+### Skill update v3 → v4 (groundwork PR)
 
-- **Why:** the groundwork PR renames the method (week 4 contract); a run with v3 would generate code that does not compile. `Forbidden` is needed for the ownership rules.
-- **Who:** Carina Coman (edit only, no generation)
-- **Commit:** `9c8de00`
+| What | Before (v3) | After (v4) |
+|---|---|---|
+| Unit of work method, line 16 (checklist) | "Does a command handler forget `SaveChangesAsync`?" | "Does a command handler forget `CommitAsync`?" |
+| Unit of work method, line 62 (example row) | "The query handler calls `SaveChangesAsync`." | "The query handler calls `CommitAsync`." |
 
-### Skill update v4 → v5
-
-| Unit of work method (lines 16 and 62) | `SaveChangesAsync` | `CommitAsync` |
 - **Why:** the groundwork PR renames `IUnitOfWork.SaveChangesAsync` to `CommitAsync(CancellationToken ct)`; a review that looks for the old name would miss the real call.
 - **Who:** Carina Coman (edit only, no generation)
 - **Commit:** `129593d`
-
-### Skill update v5 → v6
-
-| Unit of work method (lines 19 and 162) | `IUnitOfWork.SaveChangesAsync(CancellationToken ct = default)`, "`SaveChangesAsync`/`CommitAsync` never called" | `IUnitOfWork.CommitAsync(CancellationToken ct)`, "`CommitAsync` never called" |
-
-- **Why:** the groundwork PR renames the method; a run with the old name would generate tests that implement a method that no longer exists.
-- **Who:** Carina Coman (edit only, no generation)
-- **Commit:** `b22b04d`
-
-### Skill update v6 → v7
-
-| Unit of work method (line 19) | `SaveChangesAsync` | `CommitAsync` |
-| Repository rule (line 148) | "Never call `SaveChangesAsync` in a repository." | "Never call `db.SaveChangesAsync` or `CommitAsync` in a repository. Only `EfUnitOfWork` saves." |
-
-- **Why:** the groundwork PR renames the method. Line 103 stays as it is: `EfUnitOfWork.CommitAsync` returns EF Core's `db.SaveChangesAsync(ct)`. The rule on line 148 was ambiguous because both methods had the same name.
-- **Who:** Carina Coman (edit only, no generation)
-- **Commit:** `a7326c6`
