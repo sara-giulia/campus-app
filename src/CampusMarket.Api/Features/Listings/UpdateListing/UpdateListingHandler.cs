@@ -18,6 +18,10 @@ public sealed class UpdateListingHandler(
             return Result<Guid>.Failure(
                 Error.NotFound("Listing.NotFound", $"Listing '{command.Id}' was not found."));
 
+        if (listing.SellerId != command.RequesterId && !command.IsAdmin)
+            return Result<Guid>.Failure(
+                Error.Forbidden("Listing.NotOwner", "Only the seller or an Admin can change this listing."));
+
         var updated = listing.UpdateDetails(
             command.Title, command.Category, command.Condition, command.Price);
 

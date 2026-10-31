@@ -123,18 +123,20 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 
 ### Implemented so far: CRUD slices
 
-| Resource | Slice | Endpoint | Responses |
-|---|---|---|---|
-| Listing | `CreateListing` | `POST /api/v1/listings` | 201 + `Location`, 400, 409 |
-| Listing | `GetListingById` | `GET /api/v1/listings/{id}` | 200, 404 |
-| Listing | `GetListings` | `GET /api/v1/listings` | 200, 400 (see [Searching listings](#searching-listings)) |
-| Listing | `UpdateListing` | `PUT /api/v1/listings/{id}` | 204, 400, 404 |
-| Listing | `DeleteListing` | `DELETE /api/v1/listings/{id}` | 204, 404 |
-| Member | `CreateMember` | `POST /api/v1/members` | 201 + `Location`, 400, 409 |
-| Member | `GetMemberById` | `GET /api/v1/members/{id}` | 200, 404 |
-| Member | `GetMembers` | `GET /api/v1/members` | 200 |
-| Member | `UpdateMember` | `PUT /api/v1/members/{id}` | 204, 400, 404 |
-| Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | 204, 404 |
+| Resource | Slice | Endpoint | Who may call it | Responses |
+|---|---|---|---|---|
+| Listing | `CreateListing` | `POST /api/v1/listings` | anyone logged in; the seller is the user in the token | 201 + `Location`, 400, 401, 409 |
+| Listing | `GetListingById` | `GET /api/v1/listings/{id}` | everyone | 200, 404 |
+| Listing | `GetListings` | `GET /api/v1/listings` | everyone | 200, 400 (see [Searching listings](#searching-listings)) |
+| Listing | `UpdateListing` | `PUT /api/v1/listings/{id}` | the seller or an Admin | 204, 400, 401, 403 `Listing.NotOwner`, 404 |
+| Listing | `DeleteListing` | `DELETE /api/v1/listings/{id}` | the seller or an Admin | 204, 401, 403 `Listing.NotOwner`, 404 |
+| Member | `CreateMember` | `POST /api/v1/members` | Admins only (students use `Register`) | 201 + `Location`, 400, 401, 403, 409 |
+| Member | `GetMemberById` | `GET /api/v1/members/{id}` | everyone | 200, 404 |
+| Member | `GetMembers` | `GET /api/v1/members` | everyone | 200 |
+| Member | `UpdateMember` | `PUT /api/v1/members/{id}` | the member or an Admin | 204, 400, 401, 403 `Member.NotOwner`, 404, 409 |
+| Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
+
+GET endpoints are public. POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 

@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -9,15 +11,17 @@ public static class DeleteListingEndpoint
     public static void Map(RouteGroupBuilder group)
     {
         group.MapDelete("/{id:guid}", Handle)
-            .WithName("DeleteListing");
+            .WithName("DeleteListing")
+            .RequireAuthorization();
     }
 
     private static async Task<Results<NoContent, NotFound<Error>, JsonHttpResult<Error>>> Handle(
         [AsParameters] DeleteListingRequest request,
+        ClaimsPrincipal user,
         ICommandHandler<DeleteListingCommand, Guid> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new DeleteListingCommand(request.Id), ct);
+        var result = await handler.HandleAsync(new DeleteListingCommand(request.Id, user.GetMemberId(), user.IsAdmin()), ct);
 
         if (result.IsFailure)
             return result.Error.Type switch

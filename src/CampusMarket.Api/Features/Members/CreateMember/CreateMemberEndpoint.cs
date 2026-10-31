@@ -9,7 +9,8 @@ public static class CreateMemberEndpoint
     public static void Map(RouteGroupBuilder group)
     {
         group.MapPost("/", Handle)
-            .WithName("CreateMember");
+            .WithName("CreateMember")
+            .RequireAuthorization("Admin");
     }
 
     private static async Task<Results<CreatedAtRoute<CreateMemberResponse>, BadRequest<Error>, Conflict<Error>>> Handle(
