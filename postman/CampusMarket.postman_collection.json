@@ -300,6 +300,34 @@
           "name": "GetListings",
           "item": [
             {
+              "name": "Publish the created listing (204)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/publish",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings", "{{listingId}}", "publish"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Get listings - 200 with a list",
               "request": {
                 "method": "GET",
@@ -392,6 +420,250 @@
                       "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
                       "pm.test(\"Every price is a number greater than 0\", () => {",
                       "  pm.response.json().items.forEach(i => { pm.expect(i.price).to.be.a(\"number\"); pm.expect(i.price).to.be.above(0); });",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - search by title, ignores case (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?search=CALCULUS",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"],
+                  "query": [{ "key": "search", "value": "CALCULUS" }]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Created listing is found\", () => {",
+                      "  const ids = pm.response.json().items.map(i => i.id);",
+                      "  pm.expect(ids).to.include(pm.collectionVariables.get(\"listingId\"));",
+                      "});",
+                      "pm.test(\"Every title contains the search text\", () => {",
+                      "  pm.response.json().items.forEach(i => pm.expect(i.title.toLowerCase()).to.include(\"calculus\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - filter by category (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?category=Textbook",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"],
+                  "query": [{ "key": "category", "value": "Textbook" }]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Created listing is found\", () => {",
+                      "  const ids = pm.response.json().items.map(i => i.id);",
+                      "  pm.expect(ids).to.include(pm.collectionVariables.get(\"listingId\"));",
+                      "});",
+                      "pm.test(\"Every listing is a Textbook\", () => {",
+                      "  pm.response.json().items.forEach(i => pm.expect(i.category).to.eql(\"Textbook\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - price limits are inclusive (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?minPrice=40&maxPrice=40",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"],
+                  "query": [
+                    { "key": "minPrice", "value": "40" },
+                    { "key": "maxPrice", "value": "40" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Listing priced exactly 40 is found\", () => {",
+                      "  const ids = pm.response.json().items.map(i => i.id);",
+                      "  pm.expect(ids).to.include(pm.collectionVariables.get(\"listingId\"));",
+                      "});",
+                      "pm.test(\"Every price is 40\", () => {",
+                      "  pm.response.json().items.forEach(i => pm.expect(i.price).to.eql(40));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - page 1, page size 1 (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?page=1&pageSize=1",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "1" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"One item on the page, paging values echoed\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.items.length).to.eql(1);",
+                      "  pm.expect(body.count).to.eql(1);",
+                      "  pm.expect(body.page).to.eql(1);",
+                      "  pm.expect(body.pageSize).to.eql(1);",
+                      "  pm.expect(body.totalCount).to.be.at.least(body.count);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - default paging (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Defaults are page 1 and page size 20\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.page).to.eql(1);",
+                      "  pm.expect(body.pageSize).to.eql(20);",
+                      "  pm.expect(body.count).to.be.at.most(20);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - page 0 (400)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?page=0",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"],
+                  "query": [{ "key": "page", "value": "0" }]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Listings.InvalidPage\", () => {",
+                      "  pm.expect(pm.response.json().code).to.eql(\"Listings.InvalidPage\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - page size 101 (400)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?pageSize=101",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"],
+                  "query": [{ "key": "pageSize", "value": "101" }]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Listings.InvalidPageSize\", () => {",
+                      "  pm.expect(pm.response.json().code).to.eql(\"Listings.InvalidPageSize\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - min price above max price (400)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?minPrice=100&maxPrice=10",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "v1", "listings"],
+                  "query": [
+                    { "key": "minPrice", "value": "100" },
+                    { "key": "maxPrice", "value": "10" }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Listings.InvalidPriceRange\", () => {",
+                      "  pm.expect(pm.response.json().code).to.eql(\"Listings.InvalidPriceRange\");",
                       "});"
                     ]
                   }
