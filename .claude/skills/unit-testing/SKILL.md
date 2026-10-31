@@ -166,3 +166,44 @@ Rules for this feature:
 - Never assert on a real hash or a real JWT. Only the fakes' values.
 - The error code is the same for every login failure. Test that it is the same code, so we never leak whether the email exists.
 - The password must never appear in the response object.
+
+## Feature: Listing search and paging (Diana)
+
+Production code (written by hand, read it before generating):
+- `Features/Listings/GetListings/GetListingsQuery.cs`: optional `Category`, `MinPrice`, `MaxPrice`, `Search`, `Page` (default `DefaultPage` = 1), `PageSize` (default `DefaultPageSize` = 20), and `MaxPageSize` = 100.
+- `Features/Listings/GetListings/GetListingsHandler.cs`: validates the query, filters the result of `GetAllAsync` in memory, orders by `CreatedAt` descending then `Id` ascending, then pages.
+- `Features/Listings/GetListings/GetListingsResponse.cs`: `Items`, `Count` (items on this page), `TotalCount` (items after the filters, before paging), `Page`, `PageSize`.
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs`. Keep the two existing tests and add the new ones to the same file.
+
+Only `Active` listings are returned. Arrange: build each listing with `Listing.Create(...).Value`, call `listing.Publish()` so it becomes `Active`, then seed it straight into `FakeListingRepository.Items`. Give each listing its own fixed `createdAt` (for example `Now`, `Now.AddHours(1)`, `Now.AddHours(2)`) so the expected order is known.
+
+
+Tests to add:
+
+- Status: with one `Draft`, one `Active` and one `Reserved` listing seeded (reserve with `listing.Publish()` then `listing.Reserve(buyerId, Now)`), only the `Active` one is returned, and `TotalCount` is 1.
+- Validation, each one returns `ErrorType.Validation` and leaves the repository unchanged:
+  - `Page` 0 and -1 (`[Theory]`) return `Listings.InvalidPage`.
+  - `PageSize` 0, -1 and 101 (`[Theory]`) return `Listings.InvalidPageSize`.
+  - `MinPrice` greater than `MaxPrice` returns `Listings.InvalidPriceRange`.
+- Limits that are valid: `PageSize` 1 and 100 (`[Theory]`) succeed; `MinPrice` equal to `MaxPrice` succeeds; only `MinPrice` or only `MaxPrice` set succeeds (no range error when one side is null).
+- Filters, each one alone, checking exactly which ids come back:
+  - `Category` returns only listings of that category.
+  - `MinPrice` is inclusive: a listing priced exactly at `MinPrice` is returned, one below it is not.
+  - `MaxPrice` is inclusive: a listing priced exactly at `MaxPrice` is returned, one above it is not.
+  - `Search` matches part of the title and ignores case (`"oop"` finds `"OOP textbook"`).
+  - `Search` with spaces around the text (`"  oop  "`) still matches.
+  - `Search` that is empty or only spaces (`[Theory]` with `""` and `"   "`) does not filter: every listing comes back.
+  - `Search` that matches nothing returns an empty `Items`, `Count` 0, `TotalCount` 0.
+- Two filters together (`Category` and `Search`) return only the listings that match both.
+- Order: newest first (`CreatedAt` descending). Two listings with the same `CreatedAt` come back ordered by `Id` ascending (check with `BeInAscendingOrder`).
+- Paging, with 3 seeded listings:
+  - page 1, size 2: 2 items (the two newest), `Count` 2, `TotalCount` 3, `Page` 1, `PageSize` 2.
+  - page 2, size 2: 1 item (the oldest), `Count` 1, `TotalCount` 3.
+  - page 5, size 2: empty `Items`, `Count` 0, `TotalCount` 3.
+  - default query (no paging values): `Page` 1 and `PageSize` 20 in the response.
+- `TotalCount` counts after the filters: with a filter and paging together, `TotalCount` is the number of matching listings, not all listings.
+
+Rules for this feature:
+- The handler is a query handler: no `IUnitOfWork`. In every test, assert that the repository still has the same items after the call.
+- Never use real time; every `createdAt` is a fixed `DateTimeOffset`.

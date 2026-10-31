@@ -2,7 +2,7 @@ using CampusMarket.Api.Domain.Listings;
 
 namespace CampusMarket.Api.Features.Listings.GetListings;
 
-public sealed record GetListingsResponse(IReadOnlyList<GetListingsItem> Items, int Count);
+public sealed record GetListingsResponse(IReadOnlyList<GetListingsItem> Items, int Count, int TotalCount, int Page, int PageSize);
 
 public sealed record GetListingsItem(
     Guid Id,

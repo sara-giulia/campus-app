@@ -127,7 +127,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 |---|---|---|---|
 | Listing | `CreateListing` | `POST /api/v1/listings` | 201 + `Location`, 400, 409 |
 | Listing | `GetListingById` | `GET /api/v1/listings/{id}` | 200, 404 |
-| Listing | `GetListings` | `GET /api/v1/listings` | 200 |
+| Listing | `GetListings` | `GET /api/v1/listings` | 200, 400 (see [Searching listings](#searching-listings)) |
 | Listing | `UpdateListing` | `PUT /api/v1/listings/{id}` | 204, 400, 404 |
 | Listing | `DeleteListing` | `DELETE /api/v1/listings/{id}` | 204, 404 |
 | Member | `CreateMember` | `POST /api/v1/members` | 201 + `Location`, 400, 409 |
@@ -135,6 +135,42 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `GetMembers` | `GET /api/v1/members` | 200 |
 | Member | `UpdateMember` | `PUT /api/v1/members/{id}` | 204, 400, 404 |
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | 204, 404 |
+
+### Searching listings
+
+`GET /api/v1/listings` filters, searches and pages the listings. Every parameter is optional. Only `Active` listings are returned: drafts, reserved and sold listings are hidden.
+
+| Parameter | Meaning | Default |
+|---|---|---|
+| `category` | `Textbook`, `Notes`, `Electronics`, `LabEquipment` or `Other` | all categories |
+| `minPrice` | lowest price, inclusive | no limit |
+| `maxPrice` | highest price, inclusive | no limit |
+| `search` | text in the title, upper and lower case ignored | no search |
+| `page` | page number, from 1 | `1` |
+| `pageSize` | listings per page, from 1 to 100 | `20` |
+
+Listings come newest first (`createdAt` descending, then `id`), so the same query always returns the same pages.
+
+Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search=oop&page=1&pageSize=20`
+
+```json
+{
+  "items": [ { "id": "...", "title": "OOP textbook", "category": "Textbook", "price": 40, "...": "..." } ],
+  "count": 1,
+  "totalCount": 1,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+`count` is the number of listings on this page; `totalCount` is the number of listings that match the filters, on all pages.
+
+| Error | When |
+|---|---|
+| 400 `Listings.InvalidPage` | `page` is less than 1 |
+| 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
+| 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
+| 400 (from ASP.NET Core) | `category` is not one of the values above |
 
 Both resources are stored in memory (`ConcurrentDictionary`) behind `IListingRepository` / `IMemberRepository`, registered as singletons. Endpoints depend only on the interfaces. Errors are returned as `{ "code", "message", "type" }`.
 
