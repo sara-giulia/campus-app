@@ -700,3 +700,34 @@ Skill written and run by Sara Matasel. The skill is read-only: after every run `
 - **Why:** the groundwork PR renames `IUnitOfWork.SaveChangesAsync` to `CommitAsync(CancellationToken ct)`; a review that looks for the old name would miss the real call.
 - **Who:** Carina Coman (edit only, no generation)
 - **Commit:** `129593d`
+
+### Run 5, skill v5 (our repository)
+
+Skill v5 written by Sara Matasel, run by Ancuța Ilenei.
+
+#### Change to SKILL.md (v4 → v5) and why
+
+| # | v4 (before) | v5 (after) | Why |
+|---|---|---|---|
+| 1 | No YAML header: the file started with `# Code review`. | `name: code-review` and `description: ...` between `---` at the top. | Without the header Claude Code did not find the skill by its name. |
+| 2 | *"What to look at"* started with `src/`. | *"First read the project's own rules: `README.md` and every `.claude/skills/*/SKILL.md`. ... Something these rules explicitly allow is not a problem."* | v4 did not compare the code with the README. |
+| 3 | Five checklist items. | New item **requirements**: *"for every business rule written in the README (... words like unique, must, only, at most), find the code that enforces it. If no code enforces it, it is a problem: report it as domain invariants ... and quote the README rule in `Problem`."* | The README rule "unique email" was not enforced in the code, and v3/v4 did not report it. |
+| 4 | Only *"the exact line where the problem is"*. | *"For a missing check, use the line with the name of the method where the check should be ..., never a `{` line."* | A missing check has no line of its own. |
+
+#### Run
+
+- **Prompt:** `Use the code-review skill in .claude/skills/code-review/SKILL.md to review this repository. Follow the skill exactly. Do not edit any file. Give me only the output the skill asks for.` (new Claude Code session)
+- **Skill version:** v5, commit 742806e (committed as "v4"; renumbered because the groundwork PR made v4)
+- **Result:** `Found 14 problems: 0 Critical, 10 Major, 4 Minor.` Every row checked by hand: the file and line exist and the problem is real. No file changed. The table and the notes are in `REVIEW.md`, section "Week 4 – code-review v5".
+    - The new **requirements** check works: 6 rows quote a README rule (409 on concurrent update, owner-only publish, max 3 reservations, buyer-only cancel, confirm sale, expiry back to `Active`). Some of them are planned for later (reservations this week, expiry in week 7).
+    - The unique email is now enforced (fix/unique-email), so it was not reported as missing; instead v5 found the race between the check and the save (rows 2–4).
+    - One row shows that the README is out of date: "cancel: only the buyer" (row 7), while the team decided "the buyer, the seller or an Admin".
+
+#### Problems seen
+
+1. **It missed the two v3 rows.** `Reservation.cs:32` (`Cancel()` is public) and `ListingTests.cs:289` (test name does not match its Arrange) are still in the code, but v5 did not report them. The run spent its attention on the README rules, so the same repository no longer gives the same table for the old checklist items. Not changed in the skill this week; the two problems are fixed in the ownership PR.
+
+- **Change to SKILL.md:** none after this run.
+- **Problems found:** reported only, not fixed in this PR.
+- **Commits:** skill 742806e; review output in REVIEW.md
+
