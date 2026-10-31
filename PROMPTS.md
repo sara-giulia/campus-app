@@ -437,6 +437,18 @@ The skill was improved three times before its run, by comparing it with the real
 - **Who:** Carina Coman (edit only, no generation). The run is done by Anca Ilenei on the branch `feature/groundwork` and will be logged as the next run of this skill.
 - **Commits:** `b22b04d`, `b56c59a`
 
+### Run 5, skill v8 (Feature: Groundwork)
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Groundwork (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session, on `feature/groundwork`)
+- **Skill version:** v8, commit b56c59a; section written by Carina Coman, run by Ancuța Ilenei
+- **Result:** 1 new test in `Domain/Common/ErrorTests.cs` (`Error.Forbidden`) and a new file `Common/Auth/CurrentUserExtensionsTests.cs` with 4 tests (`GetMemberId`, `IsAdmin` for Admin, Student and no role claim), users built by hand with `ClaimsPrincipal`, no JWT and no mocks. No existing test changed, nothing changed in `src/`. All 151 unit and 41 integration tests pass. Coverage of `Domain/` and the handlers stays **100%**: 420/420 lines, 130/130 branches. The report in `coverage-report/` was generated again.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. `reportgenerator` is not installed as a tool in the repository; the run used `dotnet dnx dotnet-reportgenerator-globaltool`.
+    2. The report filter (`Domain` + `*Handler.cs`) leaves out `Common/Auth/CurrentUserExtensions.cs`. The raw `coverage.opencover.xml` shows it at 100%, but the skill should say whether `Common/` belongs in the report.
+    3. The folder layout in the skill lists 10 handler test files; there are 12 since Login and Register.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill b56c59a; generated code c20b3af
+
 ---
 
 ## integration-testing

@@ -12,7 +12,7 @@ public static class DeleteMemberEndpoint
             .WithName("DeleteMember");
     }
 
-    private static async Task<Results<NoContent, NotFound<Error>, JsonHttpResult<Error>>> Handle(
+    private static async Task<Results<NoContent, NotFound<Error>>> Handle(
         [AsParameters] DeleteMemberRequest request,
         ICommandHandler<DeleteMemberCommand, Guid> handler,
         CancellationToken ct)
@@ -20,11 +20,7 @@ public static class DeleteMemberEndpoint
         var result = await handler.HandleAsync(new DeleteMemberCommand(request.Id), ct);
 
         if (result.IsFailure)
-            return result.Error.Type switch
-            {
-                ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
-                _ => TypedResults.NotFound(result.Error)
-            };
+            return TypedResults.NotFound(result.Error);
 
         return TypedResults.NoContent();
     }
