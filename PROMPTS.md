@@ -731,3 +731,32 @@ Skill v5 written by Sara Matasel, run by Ancuța Ilenei.
 - **Problems found:** reported only, not fixed in this PR.
 - **Commits:** skill 742806e; review output in REVIEW.md
 
+---
+
+## architecture-testing
+
+Skill written by Diana Preutu, run by Sara Matasel.
+
+### Review before the first run: v1 → v2
+
+- **What happened:** Sara reviewed the skill in PR #36 before it was run.
+- **Skill version:** v1, commit 24483a2
+
+#### Change to SKILL.md (v1 → v2) and why
+
+| # | v1 (before) | v2 (after) | Why |
+|---|---|---|---|
+| 1 | The `.csproj` had only the packages and the `ProjectReference`. | *"`<FrameworkReference Include="Microsoft.AspNetCore.App" />` (the API is a web project, so the test project does not build without it)"* and *"`<Using Include="FluentAssertions" />`"*, copying the structure of `CampusMarket.UnitTests.csproj`. | The API is a web project; without the framework reference the test project may not build. |
+| 2 | 7 rules. | Rule 8 in `FeatureTests`: *"Types in `CampusMarket.Api.Features` have no dependency on `CampusMarket.Api.Infrastructure`: handlers and endpoints use only the interfaces."* The final check says 8 tests. | It is our main architecture rule: slices only talk to interfaces, never to EF Core classes. |
+
+- **Commits:** skill d25ca00
+
+### Run 1, skill v2
+
+- **Prompt:** `Use the architecture-testing skill in .claude/skills/architecture-testing/SKILL.md to create the architecture test project. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results, including which way the handlers were selected.`
+- **Skill version:** v2, commit d25ca00
+- **Result:** new project `tests/CampusMarket.ArchitectureTests` (`ArchitectureTestBase`, `DomainTests`, `EndpointTests`, `HandlerTests`, `FeatureTests`), added to `CampusMarket.sln`. Build: 0 errors, 0 warnings. **8/8 tests pass**, one per rule. Handlers are selected **by name** (`HaveNameEndingWith("Handler").And().AreClasses()`; query handlers also `HaveNameStartingWith("Get")`), the fallback the skill allows, because NetArchTest does not reliably match the open generic interfaces. Every test also checks that its selection is not empty. `git status`: only `CampusMarket.sln` and the new folder.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none; v2 is the final version.
+- **Commits:** skill d25ca00; generated code 4029cc3
+
