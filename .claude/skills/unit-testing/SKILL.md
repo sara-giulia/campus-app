@@ -208,6 +208,33 @@ Rules for this feature:
 - The handler is a query handler: no `IUnitOfWork`. In every test, assert that the repository still has the same items after the call.
 - Never use real time; every `createdAt` is a fixed `DateTimeOffset`.
 
+
+## Feature: Groundwork (Carina)
+
+New code in the groundwork PR: `Error.Forbidden`, `ErrorType.Forbidden` and `CurrentUserExtensions`. Nothing else changed in behaviour (`SaveChangesAsync` was renamed to `CommitAsync`; the existing tests already cover it).
+
+Files to read: `src/CampusMarket.Api/Domain/Common/Error.cs`, `src/CampusMarket.Api/Domain/Common/ErrorType.cs`, `src/CampusMarket.Api/Common/Auth/CurrentUserExtensions.cs`.
+
+Files:
+- `tests/CampusMarket.UnitTests/Domain/Common/ErrorTests.cs`: keep the existing tests and add the one below to the same class.
+- `tests/CampusMarket.UnitTests/Common/Auth/CurrentUserExtensionsTests.cs`: new file, same folder structure as `src/`.
+
+Tests to add:
+- `Error.Forbidden("Listing.NotOwner", "Not allowed")` → `Code` is `"Listing.NotOwner"`, `Message` is `"Not allowed"`, `Type` is `ErrorType.Forbidden`.
+- `GetMemberId` with a `sub` claim set to the fixed id `11111111-1111-1111-1111-111111111111` → returns that `Guid`.
+- `IsAdmin` with the claim `role` = `Admin` → `true`.
+- `IsAdmin` with the claim `role` = `Student` → `false`.
+- `IsAdmin` with no `role` claim → `false`.
+
+Arrange:
+- Build the user with `new ClaimsPrincipal(new ClaimsIdentity(claims, "test"))`. The authentication type must be set, otherwise the identity counts as not authenticated.
+- Claim names are exactly `sub` and `role` (the API reads tokens with `MapInboundClaims = false`).
+- No mocks, no `HttpContext`.
+
+Rules for this feature:
+- The coverage of `Domain/` stays 100% for lines and branches, so `Error.Forbidden` must be called by a test.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Ownership (Anca)
 
 Production code (written by hand, read it before generating):
