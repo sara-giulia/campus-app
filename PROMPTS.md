@@ -451,6 +451,28 @@ The skill was improved three times before its run, by comparing it with the real
 
 ---
 
+---
+### Run 6, skill v9 (Feature: Ownership)
+
+- **Why a new version:** week 4 added the ownership rules: `UpdateListing`, `DeleteListing`, `UpdateMember` and `DeleteMember` commands got `RequesterId` and `IsAdmin`, and the handlers return 403 (`Listing.NotOwner`, `Member.NotOwner`) to anyone who is not the owner or an Admin. `Reservation.Cancel()` became `internal`. The existing handler tests no longer compiled and the new branches had no tests.
+
+#### Change to SKILL.md (v8 → v9) and why
+
+| # | v8 (before) | v9 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about ownership. | New section *"Feature: Ownership (Anca)"*: the files to read, how to update the existing tests (the requester is the owner, `IsAdmin` false), and the test list per handler: another member → `Forbidden`, an Admin → success, unknown id → `NotFound`, not `Forbidden`. | Without it Claude would only fix the compile errors and miss the new branches. |
+| 2 | — | *"The order in all four handlers: 404 ..., then 403, then the other checks"* + a test for a non-owner sending a taken email → `Member.NotOwner`, not `Member.EmailTaken`. | Proves the order of the checks, so a stranger never learns which emails exist. |
+| 3 | — | Rename the test at `ListingTests.cs:289` (name only). | Problem 2 from the week 3 code review (`REVIEW.md`). |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them, update the ones that no longer compile, and add the tests that are missing for the current code, following the "Feature: Ownership (Anca)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session)
+- **Skill version:** v9, commit 5dd5624 (committed as "v8" on the ownership branch; renumbered because the groundwork PR made v8); section written and run by Ancuța Ilenei
+- **Result:** 13 new tests and 13 updated tests in the four handler test files, 1 test renamed in `ListingTests.cs`, no test deleted, nothing changed in `src/`. All 159 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 432/432 lines, 146/146 branches. The report in `coverage-report/` was generated again.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. `reportgenerator` is not installed as a tool in the repository; the run used `dotnet dnx dotnet-reportgenerator-globaltool`. That version differs from the one used before, so the report's icons and scripts changed too. The skill should say how to get the tool and pin its version.
+    2. `Member.Create` generates the member's id, so the member tests use `member.Id` as owner; only `OtherMemberId` and `AdminId` are fixed there.
+- **Change to SKILL.md:** none after the run; v9 is the final version.
+- **Commits:** skill 5dd5624; generated code 888d779
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -574,6 +596,26 @@ saved.Should().BeEquivalentTo(listing);
 - **Commits:** skill f88662b; generated code 0c5274d
 
 ---
+### Run 6, skill v6 (Feature: Ownership)
+
+- **Why a new version:** week 4 put `.RequireAuthorization()` on POST, PUT and DELETE, `RequireAuthorization("Admin")` on `CreateMember`, and owner checks (403) in the update and delete handlers. `CreateListingRequest` lost `SellerId`, which now comes from the token. The existing tests no longer compiled or got 401.
+
+#### Change to SKILL.md (v5 → v6) and why
+
+| # | v5 (before) | v6 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about login on the CRUD endpoints. | New section *"Feature: Ownership (Anca)"*: a table of who may call each slice and the new failures (401, 403 `Listing.NotOwner` / `Member.NotOwner`, the empty-body 403 of `CreateMember`), how to log in the existing tests with `AuthenticateAs`, and the list of tests to add. | Without it the existing tests get 401 and Claude would have to guess who logs in. |
+| 2 | — | Tests for the gaps found earlier: 404 on update listing and update member, 409 `Member.EmailTaken` on create (different casing) and on update. | Planned in the week 4 issue. |
+| 3 | — | Fixed ids `OtherStudentId` and `AdminId`; *"Members do not need to exist in the database to log in: the token is enough."* | Readable tests, and no extra seeding just to get a token. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, update the ones the "Feature: Ownership (Anca)" section asks to update, and add the tests from that section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v6, commit 5dd5624; section written and run by Ancuța Ilenei
+- **Result:** 12 existing tests updated (login added; `CreateListing` now checks that `SellerId` comes from the token) and 19 new tests in the six Create/Update/Delete test classes. No test deleted, nothing changed in `src/`. Build 0 errors, 0 warnings; all 60 integration tests pass (three runs in a row) and all 159 unit tests pass.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. Sections 1, 5 and 10 of the skill still describe the API before login (no 401/403 in the status table, "Test plan (20)"). The Ownership section overrides them, but the core sections should be updated.
+    2. For 401 and for the 403 of `CreateMember`, the section says to check only the status; the run also checked that the body is empty (section 4 asks every test to check the body). Kept, it is stricter.
+- **Change to SKILL.md:** none after the run; v6 is the final version.
+- **Commits:** skill 5dd5624; generated code b0892bf
 
 ## code-review
 

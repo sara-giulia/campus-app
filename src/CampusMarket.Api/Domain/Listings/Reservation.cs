@@ -29,7 +29,8 @@ public sealed class Reservation
         };
     }
 
-    public Result<Reservation> Cancel()
+    // Internal: only Listing.CancelReservation may cancel, so the listing's Status and Version stay in sync.
+    internal Result<Reservation> Cancel()
     {
         if (Status != ReservationStatus.Active)
             return Result<Reservation>.Failure(Error.Validation("Reservation.NotActive", "Only an active reservation can be cancelled."));

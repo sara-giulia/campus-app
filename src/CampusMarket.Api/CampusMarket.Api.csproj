@@ -14,4 +14,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="CampusMarket.UnitTests" />
+  </ItemGroup>
+
 </Project>

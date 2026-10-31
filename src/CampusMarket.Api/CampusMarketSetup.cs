@@ -56,8 +56,8 @@ public static class CampusMarketSetup
                 };
             });
 
-        services.AddAuthorization(options =>
-            options.AddPolicy("Admin", policy => policy.RequireRole("Admin")));
+        services.AddAuthorizationBuilder()
+            .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
         
         // At most 5 login attempts per minute from the same IP address, then 429.
         services.AddRateLimiter(options =>

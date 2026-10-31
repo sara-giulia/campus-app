@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -9,16 +11,18 @@ public static class CreateListingEndpoint
     public static void Map(RouteGroupBuilder group)
     {
         group.MapPost("/", Handle)
-            .WithName("CreateListing");
+            .WithName("CreateListing")
+            .RequireAuthorization();
     }
 
     private static async Task<Results<CreatedAtRoute<CreateListingResponse>, BadRequest<Error>, Conflict<Error>>> Handle(
         CreateListingRequest request,
+        ClaimsPrincipal user,
         ICommandHandler<CreateListingCommand, CreateListingResponse> handler,
         CancellationToken ct)
     {
         var command = new CreateListingCommand(
-            request.SellerId, request.Title, request.Category, request.Condition, request.Price);
+            user.GetMemberId(), request.Title, request.Category, request.Condition, request.Price);
 
         var result = await handler.HandleAsync(command, ct);
 

@@ -286,7 +286,7 @@ public class ListingTests
     }
 
     [Fact]
-    public void Given_ReservedListing_When_CancellingAlreadyCancelledReservation_Then_ReturnsValidationError()
+    public void Given_ListingWithCancelledReservation_When_CancellingItAgain_Then_ReturnsValidationError()
     {
         var listing = ActiveListing();
         var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;

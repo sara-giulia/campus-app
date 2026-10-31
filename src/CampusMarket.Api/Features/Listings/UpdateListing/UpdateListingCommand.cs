@@ -5,6 +5,8 @@ namespace CampusMarket.Api.Features.Listings.UpdateListing;
 
 public sealed record UpdateListingCommand(
     Guid Id,
+    Guid RequesterId,
+    bool IsAdmin,
     string Title,
     Category Category,
     Condition Condition,

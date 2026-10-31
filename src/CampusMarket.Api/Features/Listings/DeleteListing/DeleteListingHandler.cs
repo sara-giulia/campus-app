@@ -18,6 +18,10 @@ public sealed class DeleteListingHandler(
             return Result<Guid>.Failure(
                 Error.NotFound("Listing.NotFound", $"Listing '{command.Id}' was not found."));
 
+        if (listing.SellerId != command.RequesterId && !command.IsAdmin)
+            return Result<Guid>.Failure(
+                Error.Forbidden("Listing.NotOwner", "Only the seller or an Admin can delete this listing."));
+
         repository.Delete(listing);
         await unitOfWork.CommitAsync(ct);
 

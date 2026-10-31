@@ -18,6 +18,10 @@ public sealed class DeleteMemberHandler(
             return Result<Guid>.Failure(
                 Error.NotFound("Member.NotFound", $"Member '{command.Id}' was not found."));
 
+        if (member.Id != command.RequesterId && !command.IsAdmin)
+            return Result<Guid>.Failure(
+                Error.Forbidden("Member.NotOwner", "Only the member or an Admin can delete this profile."));
+
         repository.Delete(member);
         await unitOfWork.CommitAsync(ct);
 
