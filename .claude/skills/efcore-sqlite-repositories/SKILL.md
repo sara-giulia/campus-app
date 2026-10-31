@@ -16,7 +16,7 @@ We want the data to be saved in a real database (SQLite) instead of in memory. T
   - `GetByIdAsync` returns `null` if nothing is found.
   - `GetAllAsync` returns a new list (a snapshot).
   - `Update` and `Delete` get an entity that was loaded with `GetByIdAsync`.
-  - Nothing reaches the database until a handler calls `IUnitOfWork.SaveChangesAsync`.
+  - Nothing reaches the database until a handler calls `IUnitOfWork.CommitAsync`.
 - The domain classes have private constructors and `private set`. EF Core works with that, so we leave them like this.
 - If the EF Core code below already exists, keep it and only add what is missing (for example the migrations).
 
@@ -100,7 +100,7 @@ No foreign key from `Listing.SellerId` or from `Reservation.MemberId` to `Member
 - `GetByIdAsync`: `FirstOrDefaultAsync` on the Id, tracked, because the handler may change the entity. For listings, `Include(l => l.Reservations)`.
 - `GetAllAsync`: `AsNoTracking()` and `ToListAsync`, returned as `IReadOnlyList<T>`. For listings, `Include(l => l.Reservations)`.
 - `Update` calls `db.Update(entity)` and `Delete` calls `db.Remove(entity)`. They do not save either. Never leave a repository method empty.
-- `EfUnitOfWork : IUnitOfWork`, `sealed`, gets `CampusMarketDbContext db`. `SaveChangesAsync` just returns `db.SaveChangesAsync(ct)`.
+- `EfUnitOfWork : IUnitOfWork`, `sealed`, gets `CampusMarketDbContext db`. `CommitAsync` just returns `db.SaveChangesAsync(ct)`.
 - Every async EF Core call gets the `CancellationToken`.
 
 ## Registration
@@ -142,13 +142,16 @@ Settings:
 
 - Never change anything in `Features/` or in a `*Handler.cs` file.
 - Never edit a file in `tests/` (only delete the old folders listed above).
-- Never change the signature of `AddCampusMarket`, and never write the connection string in code.
+- Never change the signature of `AddCampusMarket`.
+- Never write the connection string in code.
 - Never create the database inside `MapCampusMarket`.
 - Never change `Domain/`: no public setters or constructors, no attributes, no new properties.
-- Never call `SaveChangesAsync` in a repository.
+- Never call `db.SaveChangesAsync` or `CommitAsync` in a repository. Only `EfUnitOfWork` saves.
 - Never add a `DbSet<Reservation>` or a reservation repository.
 - Never add a foreign key from `SellerId` or `MemberId` to `Member`.
-- Never call `EnsureCreated` in the app, never edit a generated migration, and never use `EnsureDeleted`, raw SQL or a second DbContext.
+- Never call `EnsureCreated` in the app.
+- Never edit a generated migration.
+- Never use `EnsureDeleted`, raw SQL or a second DbContext.
 - Never commit a `.db` file.
 
 ## Example: `ListingConfiguration.cs`

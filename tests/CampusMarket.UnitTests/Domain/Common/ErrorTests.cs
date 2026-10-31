@@ -33,4 +33,14 @@ public class ErrorTests
         error.Message.Should().Be("Some message.");
         error.Type.Should().Be(ErrorType.Conflict);
     }
+
+    [Fact]
+    public void Given_CodeAndMessage_When_CreatingForbidden_Then_ReturnsForbiddenError()
+    {
+        var error = Error.Forbidden("Listing.NotOwner", "Not allowed");
+
+        error.Code.Should().Be("Listing.NotOwner");
+        error.Message.Should().Be("Not allowed");
+        error.Type.Should().Be(ErrorType.Forbidden);
+    }
 }
