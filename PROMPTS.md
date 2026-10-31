@@ -473,6 +473,26 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v9 is the final version.
 - **Commits:** skill 5dd5624; generated code 888d779
 
+### Run 7, skill v10 (Feature: Reservations)
+
+- **Why a new version:** week 4 added four slices: `PublishListing`, `ReserveListing`, `CancelReservation` and `GetMyReservations`. Their handlers had no unit tests.
+
+#### Change to SKILL.md (v9 → v10) and why
+
+| # | v9 (before) | v10 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about reservations. | New section *"Feature: Reservations (Sara)"*: the order of the checks in each handler (404, then 403, then the domain errors), the four test files, the arrange rules (fixed `Now`, named ids, the buyer must exist in `FakeMemberRepository`) and the list of tests per handler. | Without it Claude would have to guess the order of the checks and which errors each handler returns. |
+| 2 | — | *"the buyer already has 3 active reservations ... → `Reservation.LimitReached`; the buyer has 2 active and 1 cancelled reservation → success (cancelled ones do not count)"* | Proves the README rule "at most 3 active reservations" from both sides. |
+| 3 | — | *"a reservation created more than 48 h before `Now` → status `Expired`, and the reservation in the repository is still `Active`"* | Proves the README rule "expired reservations shown as expired" without changing data. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Reservations (Sara)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session)
+- **Skill version:** v10, commit a6f5866; section written and run by Sara Matasel
+- **Result:** four new test files (`PublishListingHandlerTests`, `ReserveListingHandlerTests`, `CancelReservationHandlerTests`, `GetMyReservationsHandlerTests`), no existing test changed. All 189 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 525/525 lines, 180/180 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:**
+  1. After the tests in the list, branch coverage was 99.4%: `ReserveListingHandler.cs:36` (`r.MemberId == command.BuyerId`) was never false, because no test had a reservation of another member. The run added one test that is not in the list: *"another member has active reservations → they do not count against the buyer"*. The test is correct and kept; the list in the skill missed this case.
+- **Change to SKILL.md:** none after the run; v10 is the final version.
+- **Commits:** skill a6f5866; generated code 927334b
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -616,6 +636,25 @@ saved.Should().BeEquivalentTo(listing);
     2. For 401 and for the 403 of `CreateMember`, the section says to check only the status; the run also checked that the body is empty (section 4 asks every test to check the body). Kept, it is stricter.
 - **Change to SKILL.md:** none after the run; v6 is the final version.
 - **Commits:** skill 5dd5624; generated code b0892bf
+
+### Run 7, skill v7 (Feature: Reservations)
+
+- **Why a new version:** the four new endpoints (`POST /listings/{id}/publish`, `POST /listings/{id}/reservations`, `DELETE /listings/{id}/reservations/{reservationId}`, `GET /members/me/reservations`) had no integration tests.
+
+#### Change to SKILL.md (v6 → v7) and why
+
+| # | v6 (before) | v7 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about reservations. | New section *"Feature: Reservations (Sara)"*: a table with route, who may call it, success and failures for each slice, the response fields, the four test files and the tests to add (status, body, then the database). | The endpoints are new, so Claude needs the contract to test it. |
+| 2 | — | *"The reservation's `createdAt` comes from the real clock of the API: never compare it to a fixed time, only check `expiresAt - createdAt` is 48 h."* | The API uses the real `TimeProvider` in the tests, so a fixed time would make the test fail. |
+| 3 | — | *"a reservation created 49 h ago ... → status `Expired`, while in the database it is still `Active`"* | Checks the expired display end to end. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Reservations (Sara)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v7, commit a6f5866; section written and run by Sara Matasel
+- **Result:** four new test files with 24 tests (6 Publish, 7 Reserve, 7 Cancel, 4 GetMyReservations). No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; all 84 integration tests and all 189 unit tests pass. The reserve tests also prove that the new reservation is saved without `repository.Update` (see the comment in `ReserveListingHandler`).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v7 is the final version.
+- **Commits:** skill a6f5866; generated code 927334b
 
 ## code-review
 
