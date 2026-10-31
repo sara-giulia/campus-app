@@ -390,3 +390,37 @@ Rules for this feature:
 - Build the query string exactly as a client would send it, in the URL of `Client.GetAsync`.
 - Read the success body into `GetListingsResponse` and check the order of `items` by id, not only their count.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Ownership (Anca)
+
+This feature changes facts from section 1: POST, PUT and DELETE now need a login, and the API can return **401** and **403**. `ErrorType` also has `Forbidden`. GET endpoints stay public.
+
+Who may call what (read the endpoints in `Features/` before generating):
+
+| Slice | Who may call it | New failures |
+|---|---|---|
+| `CreateListing` | anyone logged in; `SellerId` comes from the token, it is no longer in `CreateListingRequest` | 401 |
+| `UpdateListing`, `DeleteListing` | the seller or an Admin | 401; 403 `Listing.NotOwner`, type `Forbidden` |
+| `CreateMember` | Admins only (`RequireAuthorization("Admin")`) | 401; 403 with an **empty body** (the authorization middleware answers, not the handler) |
+| `UpdateMember`, `DeleteMember` | the member themself or an Admin | 401; 403 `Member.NotOwner`, type `Forbidden` |
+
+401 always has an empty body. Log in with `AuthenticateAs(memberId)` or `AuthenticateAs(memberId, "Admin")` from `IntegrationTestBase`, in the Arrange, before the one HTTP call. A test without `AuthenticateAs` is a test with no token.
+
+Update the existing tests in `Listings/CreateListingTests.cs`, `UpdateListingTests.cs`, `DeleteListingTests.cs`, `Members/CreateMemberTests.cs`, `UpdateMemberTests.cs`, `DeleteMemberTests.cs` (do not delete any):
+- listings: `AuthenticateAs(SellerId)`. `CreateListingRequest` has no `SellerId` any more: check that the body and the saved listing have the `SellerId` of the token.
+- `CreateMember`: `AuthenticateAs(AdminId, "Admin")` with a fixed `AdminId`.
+- `UpdateMember`, `DeleteMember`: `AuthenticateAs(member.Id)`, the member changes their own profile.
+- tests with an unknown id: log in as `OtherStudentId`; the API answers 404 before it checks the owner.
+
+Tests to add (status, body, then the database):
+- `CreateListingTests`: no token → 401, no listing saved.
+- `UpdateListingTests`: no token → 401, listing unchanged; another student → 403 `Listing.NotOwner`, listing unchanged; an Admin who is not the seller → 204, the new values saved, `Version` 2; unknown id → 404 `Listing.NotFound`, the seeded listing unchanged.
+- `DeleteListingTests`: no token → 401, listing still there; another student → 403 `Listing.NotOwner`, listing still there; an Admin → 204, listing gone.
+- `CreateMemberTests`: no token → 401, no member saved; a student → 403 (check only the status), no member saved; Admin with an email already used (seed the member first, send it with different casing) → 409 `Member.EmailTaken`, still exactly one member.
+- `UpdateMemberTests`: no token → 401, member unchanged; another member → 403 `Member.NotOwner`, member unchanged; an Admin → 204, the new values saved; unknown id → 404 `Member.NotFound`; a new email that another member already uses → 409 `Member.EmailTaken`, both members unchanged.
+- `DeleteMemberTests`: no token → 401, member still there; another member → 403 `Member.NotOwner`, member still there; an Admin → 204, member gone.
+
+Rules for this feature:
+- Use fixed ids for the people: `SellerId` (already in the listing classes), `OtherStudentId = Guid.Parse("22222222-2222-2222-2222-222222222222")`, `AdminId = Guid.Parse("33333333-3333-3333-3333-333333333333")`. Members do not need to exist in the database to log in: the token is enough.
+- Read a 403 body from the handler into `Error` and check `Code` and `Type` (`Forbidden`). For 401, and for the 403 of `CreateMember`, check only the status code.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.

@@ -207,3 +207,26 @@ Tests to add:
 Rules for this feature:
 - The handler is a query handler: no `IUnitOfWork`. In every test, assert that the repository still has the same items after the call.
 - Never use real time; every `createdAt` is a fixed `DateTimeOffset`.
+
+## Feature: Ownership (Anca)
+
+Production code (written by hand, read it before generating):
+- `Features/Listings/UpdateListing/UpdateListingCommand.cs` and `Features/Listings/DeleteListing/DeleteListingCommand.cs` now have `RequesterId` and `IsAdmin` right after `Id`. The handlers return `Error.Forbidden("Listing.NotOwner", ...)` when `listing.SellerId != RequesterId` and `IsAdmin` is false.
+- `Features/Members/UpdateMember/UpdateMemberCommand.cs` and `Features/Members/DeleteMember/DeleteMemberCommand.cs`: the same two fields; the handlers return `Error.Forbidden("Member.NotOwner", ...)` when `member.Id != RequesterId` and `IsAdmin` is false.
+- The order in all four handlers: 404 when the entity does not exist, then 403, then the other checks (validation, `Member.EmailTaken`).
+- `Domain/Listings/Reservation.cs`: `Cancel()` is now `internal`. The test project sees it through `InternalsVisibleTo` in `CampusMarket.Api.csproj`, so `ReservationTests` keeps calling it directly.
+- `CreateListingCommand` did not change (the endpoint fills `SellerId` from the token), so `CreateListingHandlerTests` stays as it is.
+
+Update the existing tests (do not delete any):
+- `UpdateListingHandlerTests`, `DeleteListingHandlerTests`, `UpdateMemberHandlerTests`, `DeleteMemberHandlerTests`: build every command with the new fields. In the existing tests the requester is the owner (`listing.SellerId` or `member.Id`) and `IsAdmin` is false, so they keep testing what they tested before. For an unknown id use any `Guid` as requester.
+- `Domain/Listings/ListingTests.cs`: rename `Given_ReservedListing_When_CancellingAlreadyCancelledReservation_Then_ReturnsValidationError` to `Given_ListingWithCancelledReservation_When_CancellingItAgain_Then_ReturnsValidationError`. The Arrange cancels the reservation first, so the listing is `Active`, not `Reserved`, when the Act runs. Change only the name.
+
+Tests to add, in the same four handler test files:
+- another member, not Admin → `ErrorType.Forbidden` with `Listing.NotOwner` (listings) or `Member.NotOwner` (members); the entity is unchanged (same values, same `Version` for a listing), it is still in the repository, and `SaveCount` is 0.
+- an Admin who is not the owner → success, the change is made (updated, or removed for delete), `SaveCount` 1.
+- unknown id, requester is another member and not Admin → `NotFound`, not `Forbidden` (404 comes before 403).
+- `UpdateMemberHandlerTests` only: another member, not Admin, sending an email that a third member already uses → `Member.NotOwner`, not `Member.EmailTaken` (403 comes before the email check).
+
+Rules for this feature:
+- Use fixed, named ids for the people in a test (`OwnerId`, `OtherMemberId`, `AdminId`) so it is clear who is calling.
+- `ErrorType.Forbidden` exists in `Domain/Common/ErrorType.cs`; never assert on a status code in a unit test, only on `ErrorType` and the error code.
