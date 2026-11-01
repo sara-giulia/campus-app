@@ -19,6 +19,10 @@ public sealed class RegisterHandler(
         if (string.IsNullOrEmpty(command.Password) || command.Password.Length < MinPasswordLength)
             return Result<RegisterResponse>.Failure(
                 Error.Validation("Auth.WeakPassword", $"Password must have at least {MinPasswordLength} characters."));
+        
+        if (command.Password != command.ConfirmPassword)
+            return Result<RegisterResponse>.Failure(
+                Error.Validation("Auth.PasswordsDoNotMatch", "The two passwords are not the same."));
 
         var registered = Member.Register(
             command.Name,
