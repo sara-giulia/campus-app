@@ -184,8 +184,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 
 ### Authentication
 
-1. `POST /api/v1/auth/register` with `{ "name", "email", "password" }`. The password needs at least 8 characters. Every new account has the role `Student`.
-2. `POST /api/v1/auth/login` with `{ "email", "password" }` returns `{ "token", "expiresAt" }`. The token is valid for 60 minutes.
+1. `POST /api/v1/auth/register` with `{ "name", "email", "password", "confirmPassword" }`. The password needs at least 8 characters and `confirmPassword` must be exactly the same. Every new account has the role `Student`.2. `POST /api/v1/auth/login` with `{ "email", "password" }` returns `{ "token", "expiresAt" }`. The token is valid for 60 minutes.
 3. Send it on every protected request: `Authorization: Bearer <token>`.
 
 - Passwords are stored only as a hash, never returned.
@@ -199,6 +198,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 |---|---|---|
 | `Auth.WeakPassword` | 400 | the password has fewer than 8 characters |
 | `Auth.InvalidCredentials` | 401 | wrong email or password (same answer for both) |
+| `Auth.PasswordsDoNotMatch` | 400 | `confirmPassword` is not the same as `password` |
 | `Member.EmailTaken` | 409 | another member already uses the email |
 | `Member.NotFound` | 404 | no member with that id, also when the buyer of a reservation does not exist |
 | `Member.NotOwner` | 403 | you change or delete a profile that is not yours |
