@@ -347,6 +347,7 @@ Register (5 tests):
 - email without `@` → 400, nothing saved.
 - name too short → 400, nothing saved.
 - email already used, sent with different casing (the existing member is put in the database directly) → 409, still exactly one member.
+- - `RegisterRequest` now has `confirmPassword`. Update the existing register tests so the body sends the same value as `password`. Add: `confirmPassword` different from `password` → 400 `Auth.PasswordsDoNotMatch`, nothing saved.
 
 Login (6 tests). Arrange: build the member with `Member.Register` and a real `AspNetPasswordHasher`, and put it in the database directly (helper `BuildMemberWithPassword(email, password)`). Do not call `/auth/register` in login tests.
 - valid credentials → 200, non-empty `token`, `expiresAt` after the fixed test time.

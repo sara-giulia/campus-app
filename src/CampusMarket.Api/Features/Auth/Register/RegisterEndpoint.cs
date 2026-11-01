@@ -17,7 +17,7 @@ public static class RegisterEndpoint
         ICommandHandler<RegisterCommand, RegisterResponse> handler,
         CancellationToken ct)
     {
-        var command = new RegisterCommand(request.Name, request.Email, request.Password);
+        var command = new RegisterCommand(request.Name, request.Email, request.Password, request.ConfirmPassword);
 
         var result = await handler.HandleAsync(command, ct);
 

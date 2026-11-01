@@ -493,6 +493,24 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v10 is the final version.
 - **Commits:** skill a6f5866; generated code 927334b
 
+### Run 8, skill v11 (Feature: Authentication, confirm password)
+
+- **Why a new version:** the professor asked that register also takes the password a second time. `RegisterCommand` got `ConfirmPassword`, and `RegisterHandler` returns `Auth.PasswordsDoNotMatch` when the two differ. The existing register tests no longer compiled.
+
+#### Change to SKILL.md (v10 → v11) and why
+
+| # | v10 (before) | v11 (after) | Why |
+|---|---|---|---|
+| 1 | Register tests built `RegisterCommand` with three values. | *"Update the existing `RegisterHandlerTests` so every command sends the same value in both (they must keep testing what they tested before)."* | So the old tests compile and keep their meaning. |
+| 2 | — | *"`ConfirmPassword` different from `Password` (also a [Theory] with only the letter case different, `"secret123"` vs `"Secret123"`) → `Auth.PasswordsDoNotMatch`, nothing stored, `CommitAsync` never called; a weak password with a different confirmation → `Auth.WeakPassword` (the weak check comes first)."* | Tests the new rule, that the comparison is case-sensitive, and the order of the two checks. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them, update the RegisterHandlerTests that no longer compile, and add only the confirm-password tests from the "Feature: Authentication (Sara)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session)
+- **Skill version:** v11, commit ae11e33; written and run by Sara Matasel
+- **Result:** in `RegisterHandlerTests.cs`, 6 existing tests updated (same value in `ConfirmPassword`), 2 new tests (a [Theory] with 2 cases for different passwords, a [Fact] for weak + different). No test deleted. All 192 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 528/528 lines, 182/182 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v11 is the final version.
+- **Commits:** skill ae11e33; generated code a79e111
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -655,6 +673,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v7 is the final version.
 - **Commits:** skill a6f5866; generated code 927334b
+
+### Run 8, skill v8 (Feature: Authentication, confirm password)
+
+- **Why a new version:** `RegisterRequest` got `confirmPassword`; the API answers 400 `Auth.PasswordsDoNotMatch` when it differs from `password`.
+
+#### Change to SKILL.md (v7 → v8) and why
+
+| # | v7 (before) | v8 (after) | Why |
+|---|---|---|---|
+| 1 | Register bodies had `name`, `email`, `password`. | *"Update the existing register tests so the body sends the same value as `password`. Add: `confirmPassword` different from `password` → 400 `Auth.PasswordsDoNotMatch`, nothing saved."* | The old tests must compile and keep their meaning; the new rule needs one HTTP test. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, update the register tests so the body sends confirmPassword, and add only the confirm-password test from the "Feature: Authentication (Sara)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v8, commit ae11e33; written and run by Sara Matasel
+- **Result:** in `Auth/RegisterTests.cs`, 5 existing tests updated and 1 new test (different passwords → 400, code and type checked, 0 members in the database). Build 0 errors, 0 warnings; all tests pass: 192 unit, 85 integration, 8 architecture.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v8 is the final version.
+- **Commits:** skill ae11e33; generated code a79e111
 
 ## code-review
 
