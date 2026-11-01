@@ -36,7 +36,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ana Popescu\",\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"secret123\"\n}",
+              "raw": "{\n  \"name\": \"Ana Popescu\",\n  \"email\": \"{{studentEmail}}\",\n  \"password\": \"secret123\",\n  \"confirmPassword\": \"secret123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -60,6 +60,54 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register - passwords do not match (400)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana Popescu\",\n  \"email\": \"mismatch{{$timestamp}}@student.ro\",\n  \"password\": \"secret123\",\n  \"confirmPassword\": \"secret456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error code is Auth.PasswordsDoNotMatch\", () => pm.expect(pm.response.json().code).to.eql(\"Auth.PasswordsDoNotMatch\"));"
                 ]
               }
             }
@@ -235,7 +283,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ion Ionescu\",\n  \"email\": \"{{otherEmail}}\",\n  \"password\": \"secret123\"\n}",
+              "raw": "{\n  \"name\": \"Ion Ionescu\",\n  \"email\": \"{{otherEmail}}\",\n  \"password\": \"secret123\",\n  \"confirmPassword\": \"secret123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
