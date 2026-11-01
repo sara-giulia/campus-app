@@ -16,7 +16,7 @@ public class RegisterHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var hasher = new FakePasswordHasher();
         var handler = new RegisterHandler(repository, unitOfWork, hasher, new FixedTimeProvider(Now));
-        var command = new RegisterCommand("Ada", "Ada@UBB.RO", "secret12");
+        var command = new RegisterCommand("Ada", "Ada@UBB.RO", "secret12", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -40,7 +40,7 @@ public class RegisterHandlerTests
         var repository = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new RegisterHandler(repository, unitOfWork, new FakePasswordHasher(), new FixedTimeProvider(Now));
-        var command = new RegisterCommand("Ada", "ada@ubb.ro", password);
+        var command = new RegisterCommand("Ada", "ada@ubb.ro", password, password);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -57,7 +57,7 @@ public class RegisterHandlerTests
         var repository = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new RegisterHandler(repository, unitOfWork, new FakePasswordHasher(), new FixedTimeProvider(Now));
-        var command = new RegisterCommand(" ", "ada@ubb.ro", "secret12");
+        var command = new RegisterCommand(" ", "ada@ubb.ro", "secret12", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -74,7 +74,7 @@ public class RegisterHandlerTests
         var repository = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new RegisterHandler(repository, unitOfWork, new FakePasswordHasher(), new FixedTimeProvider(Now));
-        var command = new RegisterCommand("Ada", "not-an-email", "secret12");
+        var command = new RegisterCommand("Ada", "not-an-email", "secret12", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -93,7 +93,7 @@ public class RegisterHandlerTests
         repository.Items[existing.Id] = existing;
         var unitOfWork = new FakeUnitOfWork();
         var handler = new RegisterHandler(repository, unitOfWork, new FakePasswordHasher(), new FixedTimeProvider(Now));
-        var command = new RegisterCommand("Ada", "ADA@UBB.RO", "secret12");
+        var command = new RegisterCommand("Ada", "ADA@UBB.RO", "secret12", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
@@ -111,13 +111,49 @@ public class RegisterHandlerTests
         var repository = new FakeMemberRepository { RejectAdd = true };
         var unitOfWork = new FakeUnitOfWork();
         var handler = new RegisterHandler(repository, unitOfWork, new FakePasswordHasher(), new FixedTimeProvider(Now));
-        var command = new RegisterCommand("Ada", "ada@ubb.ro", "secret12");
+        var command = new RegisterCommand("Ada", "ada@ubb.ro", "secret12", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Conflict);
         result.Error.Code.Should().Be("Member.Duplicate");
+        repository.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("secret123", "Secret123")]
+    [InlineData("secret12", "secret13")]
+    public async Task Given_ConfirmPasswordDifferentFromPassword_When_Handling_Then_ReturnsValidationErrorAndDoesNotStoreOrSave(string password, string confirmPassword)
+    {
+        var repository = new FakeMemberRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new RegisterHandler(repository, unitOfWork, new FakePasswordHasher(), new FixedTimeProvider(Now));
+        var command = new RegisterCommand("Ada", "ada@ubb.ro", password, confirmPassword);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Auth.PasswordsDoNotMatch");
+        repository.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_WeakPasswordWithDifferentConfirmation_When_Handling_Then_ReturnsWeakPasswordErrorAndDoesNotStoreOrSave()
+    {
+        var repository = new FakeMemberRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new RegisterHandler(repository, unitOfWork, new FakePasswordHasher(), new FixedTimeProvider(Now));
+        var command = new RegisterCommand("Ada", "ada@ubb.ro", "short", "different");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Auth.WeakPassword");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
