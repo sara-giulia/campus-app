@@ -11,6 +11,7 @@ public sealed class Listing
 
     public Guid Id { get; private set; }
     public Guid SellerId { get; private set; }
+    // Stryker disable once String : the factory always sets Title, so the default value is never observable
     public string Title { get; private set; } = string.Empty;
     public Category Category { get; private set; }
     public Condition Condition { get; private set; }
