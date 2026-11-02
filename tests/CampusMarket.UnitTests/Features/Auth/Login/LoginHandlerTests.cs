@@ -60,6 +60,7 @@ public class LoginHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Auth.InvalidCredentials");
+        result.Error.Message.Should().Be("The email or the password is wrong.");
     }
 
     [Fact]
@@ -74,6 +75,7 @@ public class LoginHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Auth.InvalidCredentials");
+        result.Error.Message.Should().Be("The email or the password is wrong.");
     }
 
     [Fact]
@@ -88,6 +90,7 @@ public class LoginHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Auth.InvalidCredentials");
+        result.Error.Message.Should().Be("The email or the password is wrong.");
     }
 
     [Fact]
@@ -104,6 +107,7 @@ public class LoginHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Auth.InvalidCredentials");
+        result.Error.Message.Should().Be("The email or the password is wrong.");
     }
 
     [Fact]
@@ -121,6 +125,7 @@ public class LoginHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Auth.InvalidCredentials");
+        result.Error.Message.Should().Be("The email or the password is wrong.");
         tokenService.LastMember.Should().BeNull();
     }
 }

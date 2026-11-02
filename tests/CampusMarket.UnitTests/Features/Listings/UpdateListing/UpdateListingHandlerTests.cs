@@ -44,13 +44,15 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateListingHandler(repository, unitOfWork);
-        var command = new UpdateListingCommand(Guid.NewGuid(), Guid.NewGuid(), false, "Linear algebra", Category.Textbook, Condition.New, 30m);
+        var unknownId = Guid.NewGuid();
+        var command = new UpdateListingCommand(unknownId, Guid.NewGuid(), false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -69,6 +71,7 @@ public class UpdateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.TitleEmpty");
+        result.Error.Message.Should().Be("Title must not be empty.");
         unitOfWork.SaveCount.Should().Be(0);
         listing.Title.Should().Be("Algebra book");
         listing.Version.Should().Be(1);
@@ -89,6 +92,7 @@ public class UpdateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Listing.NotOwner");
+        result.Error.Message.Should().Be("Only the seller or an Admin can change this listing.");
         repository.Items.Should().ContainKey(listing.Id);
         listing.Title.Should().Be("Algebra book");
         listing.Condition.Should().Be(Condition.Good);
@@ -173,6 +177,7 @@ public class UpdateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.DescriptionTooLong");
+        result.Error.Message.Should().Be("Description must have at most 1000 characters.");
         unitOfWork.SaveCount.Should().Be(0);
         listing.Title.Should().Be("Algebra book");
         listing.Description.Should().BeNull();
@@ -185,13 +190,15 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateListingHandler(repository, unitOfWork);
-        var command = new UpdateListingCommand(Guid.NewGuid(), OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
+        var unknownId = Guid.NewGuid();
+        var command = new UpdateListingCommand(unknownId, OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 }

@@ -33,12 +33,14 @@ public class GetMemberByIdHandlerTests
     {
         var repository = new FakeMemberRepository();
         var handler = new GetMemberByIdHandler(repository);
-        var query = new GetMemberByIdQuery(Guid.NewGuid());
+        var unknownId = Guid.NewGuid();
+        var query = new GetMemberByIdQuery(unknownId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{unknownId}' was not found.");
     }
 }

@@ -520,6 +520,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v11 is the final version.
 - **Commits:** generated code on feature/listing-description
 
+### Run 10, skill v12 (Feature: Surviving mutants)
+
+- **Why a new run:** Stryker left 58 mutants alive on main; the goal is a mutation score of 100% without changing production code.
+- **Prompt:** `Use the unit-testing skill, section "Feature: Surviving mutants (Diana)". Follow its rules exactly: never change production code, keep every existing test and its name, in existing tests only add the Error.Message assertions described in point 1. Point 1 also covers the new Listing.DescriptionTooLong error. At the end run dotnet test, show me the results and list every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v12 (section written by Diana Preutu); run by Sara Matasel
+- **Result:** <copiază aici ce a raportat: câte teste noi, câte asserturi pe mesaje>
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.

@@ -38,12 +38,14 @@ public class GetListingByIdHandlerTests
     {
         var repository = new FakeListingRepository();
         var handler = new GetListingByIdHandler(repository);
-        var query = new GetListingByIdQuery(Guid.NewGuid());
+        var unknownId = Guid.NewGuid();
+        var query = new GetListingByIdQuery(unknownId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
     }
 }
