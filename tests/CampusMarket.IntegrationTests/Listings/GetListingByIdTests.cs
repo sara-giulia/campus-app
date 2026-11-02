@@ -30,7 +30,7 @@ public sealed class GetListingByIdTests : IntegrationTestBase
         var body = await response.Content.ReadFromJsonAsync<GetListingByIdResponse>(Json);
         body.Should().Be(new GetListingByIdResponse(
             listing.Id, SellerId, "Manual POO", Category.Textbook, Condition.Good,
-            50m, ListingStatus.Draft, 1, CreatedAt));
+            50m, ListingStatus.Draft, 1, CreatedAt, null));
 
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(listing);

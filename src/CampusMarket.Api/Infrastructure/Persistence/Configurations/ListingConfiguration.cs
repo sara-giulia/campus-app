@@ -14,6 +14,8 @@ public sealed class ListingConfiguration : IEntityTypeConfiguration<Listing>
         builder.Property(l => l.Id).ValueGeneratedNever();
 
         builder.Property(l => l.Title).IsRequired().HasMaxLength(Listing.MaxTitleLength);
+        builder.Property(l => l.Description).HasMaxLength(Listing.MaxDescriptionLength);
+        
         builder.Property(l => l.Category).HasConversion<string>();
         builder.Property(l => l.Condition).HasConversion<string>();
         builder.Property(l => l.Status).HasConversion<string>();

@@ -11,7 +11,8 @@ public sealed record CreateListingResponse(
     decimal Price,
     ListingStatus Status,
     int Version,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    string? Description)
 {
     public static CreateListingResponse From(Listing listing) => new(
         listing.Id,
@@ -22,5 +23,6 @@ public sealed record CreateListingResponse(
         listing.Price.Amount,
         listing.Status,
         listing.Version,
-        listing.CreatedAt);
+        listing.CreatedAt,
+        listing.Description);
 }

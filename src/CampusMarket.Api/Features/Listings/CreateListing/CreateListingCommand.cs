@@ -8,4 +8,5 @@ public sealed record CreateListingCommand(
     string Title,
     Category Category,
     Condition Condition,
-    decimal Price) : ICommand<CreateListingResponse>;
+    decimal Price,
+    string? Description = null) : ICommand<CreateListingResponse>;
