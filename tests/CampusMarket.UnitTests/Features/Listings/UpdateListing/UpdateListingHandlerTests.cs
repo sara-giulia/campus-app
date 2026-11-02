@@ -119,6 +119,67 @@ public class UpdateListingHandlerTests
     }
 
     [Fact]
+    public async Task Given_CommandWithDescription_When_Handling_Then_PassesDescriptionToListingTrimmed()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var command = new UpdateListingCommand(
+            listing.Id, listing.SellerId, false,
+            "Linear algebra", Category.Textbook, Condition.New, 30m, "  Second edition.  ");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Description.Should().Be("Second edition.");
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_CommandWithoutDescription_When_Handling_Then_DescriptionIsNull()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var command = new UpdateListingCommand(
+            listing.Id, listing.SellerId, false,
+            "Linear algebra", Category.Textbook, Condition.New, 30m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Description.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_DescriptionTooLong_When_Handling_Then_ReturnsValidationErrorAndDoesNotSave()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var description = new string('a', 1001);
+        var command = new UpdateListingCommand(
+            listing.Id, listing.SellerId, false,
+            "Linear algebra", Category.Textbook, Condition.New, 30m, description);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.DescriptionTooLong");
+        unitOfWork.SaveCount.Should().Be(0);
+        listing.Title.Should().Be("Algebra book");
+        listing.Description.Should().BeNull();
+        listing.Version.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Given_UnknownId_When_NonOwnerNonAdminUpdates_Then_ReturnsNotFoundNotForbidden()
     {
         var repository = new FakeListingRepository();

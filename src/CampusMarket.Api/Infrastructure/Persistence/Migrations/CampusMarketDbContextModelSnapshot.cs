@@ -33,6 +33,10 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("TEXT");
 

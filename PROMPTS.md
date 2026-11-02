@@ -511,6 +511,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v11 is the final version.
 - **Commits:** skill ae11e33; generated code a79e111
 
+### Run 9, skill v11 (Feature: Listing description)
+
+- **Why a new run:** a listing gets an optional description (at most 1000 characters), which the ML models of week 5 (category and spam) need as input text. `Listing.Create`, `Listing.UpdateDetails`,- **Prompt:** `We are on branch feature/listing-description. Listings get an optional Description. The domain, the configuration, the migration and the CreateListing slice are already done. Finish the rest (UpdateListing slice, GetListingByIdResponse, unit tests, integration tests, Postman, README, PROMPTS.md). Rules: do not change existing tests except where a change is needed to compile; do not touch the ListingStatus or ReservationStatus enums; do not commit .idea or .db files; do not commit or push, I will do that. At the end run dotnet build and dotnet test, show me the results and list every file you changed.` (new session)
+- **Skill version:** v11, commit ae11e33; run by Sara Matasel
+- **Result:** 5 new tests in `Domain/Listings/ListingTests.cs` for `Listing.Create` with a description (no description → null, whitespace → trimmed, blank → null, exactly 1000 → success, 1001 → `Listing.DescriptionTooLong`), 5 new tests for `UpdateDetails` with a description (trimmed, blank → null, 1000 → success, 1001 → `Listing.DescriptionTooLong` and listing unchanged, no description → null), 3 new tests in `CreateListingHandlerTests` (passes trimmed, no description → null, 1001 → `DescriptionTooLong` with nothing stored or saved), 3 new tests in `UpdateListingHandlerTests` (passes trimmed, no description → null, 1001 → `DescriptionTooLong` with listing unchanged). No existing unit test deleted. All unit tests pass.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v11 is the final version.
+- **Commits:** generated code on feature/listing-description
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -690,6 +699,16 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v8 is the final version.
 - **Commits:** skill ae11e33; generated code a79e111
+
+### Run 9, skill v8 (Feature: Listing description)
+
+- **Why a new run:** the optional description reaches the HTTP contract (`CreateListingRequest`, `UpdateListingRequest`, `CreateListingResponse`, `GetListingByIdResponse`), so the integration tests have to prove it end to end.
+- **Prompt:** same feature prompt as the unit-testing Run 9 above (new session).
+- **Skill version:** v8, commit ae11e33; run by Sara Matasel
+- **Result:** 3 new tests in `Listings/CreateListingTests.cs` (POST with description → 201 with the description, GET by id returns it, row in SQLite has the trimmed description; POST without description → 201 with `description: null` and the row's `Description` is null; POST with a 1001-character description → 400 `Listing.DescriptionTooLong`, nothing saved) and 1 new test in `Listings/UpdateListingTests.cs` (PUT changes the description → 204 and the row's `Description` is the new value, `Version` is 2). The existing `GetListingByIdTests` body comparison was updated to pass `null` as the new `Description` field, the only change needed to compile. No other existing test changed. All integration tests pass.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v8 is the final version.
+- **Commits:** generated code on feature/listing-description
 
 ## code-review
 

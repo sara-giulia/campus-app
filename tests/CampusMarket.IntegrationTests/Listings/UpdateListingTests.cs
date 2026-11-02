@@ -131,6 +131,27 @@ public sealed class UpdateListingTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task Given_NewDescription_When_UpdatingListing_Then_Returns204AndSavesDescription()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(SellerId);
+        var request = new UpdateListingRequest(
+            "Manual POO", Category.Textbook, Condition.Good, 50m, "Second edition, barely used.");
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/listings/{listing.Id}", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Description.Should().Be("Second edition, barely used.");
+        saved.Version.Should().Be(2);
+    }
+
+    [Fact]
     public async Task Given_UnknownId_When_UpdatingListing_Then_Returns404()
     {
         // Arrange

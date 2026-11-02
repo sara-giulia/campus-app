@@ -15,7 +15,7 @@ public sealed class CreateListingHandler(
     {
         var created = Listing.Create(
             command.SellerId, command.Title, command.Category,
-            command.Condition, command.Price, timeProvider.GetUtcNow());
+            command.Condition, command.Price, timeProvider.GetUtcNow(), command.Description);
 
         if (created.IsFailure)
             return Result<CreateListingResponse>.Failure(created.Error);
