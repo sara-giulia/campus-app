@@ -286,3 +286,42 @@ Tests to add:
 Rules for this feature:
 - Never assert on a status code in a unit test, only on `ErrorType` and the error code.
 - Never use real time: `Now` is a fixed `DateTimeOffset`, given to `FixedTimeProvider`.
+
+## Feature: Surviving mutants (Diana)
+
+Stryker.NET left mutants alive in `Domain/` and the handlers. The goal is a mutation score of 100%: add or extend unit tests so that each mutant below makes at least one test fail. Production code does not change.
+
+Read the production code of every file named below before writing a test, and use the exact texts and values from it.
+
+### 1. Error messages (String mutations, about 47 mutants)
+Stryker replaces error messages with `""`. Today the tests check only `Error.Code` and `Error.Type`.
+- In every existing test that asserts on `result.Error.Code`, add one assertion on `result.Error.Message` with the exact text from the production code. For interpolated messages (`$"... {id} ..."`), build the expected text from the same values the test uses. This is the only change allowed in existing tests; do not change anything else in them.
+- If an error in `Domain/` or in a handler has no test that reaches it yet, add one.
+- `ResultTests`: the two tests that expect `InvalidOperationException` also check the message with `.WithMessage(...)`, using the exact texts from `Result.cs`.
+
+### 2. `repository.Update(...)` calls (Statement mutations, 4 mutants)
+`UpdateListingHandler`, `UpdateMemberHandler`, `PublishListingHandler` and `CancelReservationHandler` call `repository.Update(...)`. The fakes store the same object, so a missing call is not visible.
+- `FakeListingRepository` and `FakeMemberRepository` get a public `int UpdateCount`, incremented in `Update`.
+- In the success test of each of the four handlers, assert `UpdateCount` is 1.
+
+### 3. Boundaries (Equality mutations, 3 mutants)
+- `Listing.Create` with a title of exactly `Listing.MaxTitleLength` (100) characters succeeds.
+- `Member.Create` with a name of exactly 2 characters succeeds.
+- `Member.Create` with a name of exactly 100 characters succeeds.
+
+### 4. Login early return (Logical mutation, 1 mutant)
+`LoginHandler` returns early when the email is invalid **or** the password is empty.
+- `FakePasswordHasher` gets a public `int VerifyCount`, incremented in `Verify`.
+- New test: a stored member with a password, a login with that member's valid email and an **empty** password returns `Auth.InvalidCredentials` and `VerifyCount` is 0. (With `&&` instead of `||`, the handler would reach `Verify`.)
+
+### 5. Order of my reservations (Linq mutation, 1 mutant)
+`GetMyReservationsHandler` orders by `CreatedAt` descending, then by `ReservationId` ascending.
+- New test: the same buyer reserves two different active listings at the same fixed time (same `CreatedAt`). The items come back ordered by `ReservationId` ascending (`BeInAscendingOrder(i => i.ReservationId)`).
+
+### 6. Equivalent mutants (2): no test
+`Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them.
+
+Rules for this feature:
+- Keep every existing test and its name. Only add assertions as described in point 1.
+- Never change production code.
+- After the run, `dotnet test` passes and coverage of `Domain/` and the handlers stays 100%.
