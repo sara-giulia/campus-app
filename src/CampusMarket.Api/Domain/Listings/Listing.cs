@@ -5,6 +5,7 @@ namespace CampusMarket.Api.Domain.Listings;
 public sealed class Listing
 {
     public const int MaxTitleLength = 100;
+    public const int MaxDescriptionLength = 1000;
 
     private readonly List<Reservation> reservations = new();
     public IReadOnlyList<Reservation> Reservations => reservations.AsReadOnly();
@@ -13,6 +14,7 @@ public sealed class Listing
     public Guid SellerId { get; private set; }
     // Stryker disable once String : the factory always sets Title, so the default value is never observable
     public string Title { get; private set; } = string.Empty;
+    public string? Description { get; private set; }
     public Category Category { get; private set; }
     public Condition Condition { get; private set; }
     public Money Price { get; private set; } = null!;
@@ -28,13 +30,14 @@ public sealed class Listing
         Category category,
         Condition condition,
         decimal price,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        string? description = null)
     {
         if (sellerId == Guid.Empty)
             return Result<Listing>.Failure(
                 Error.Validation("Listing.SellerEmpty", "Seller id must not be empty."));
 
-        var details = ValidateDetails(title, category, condition, price);
+        var details = ValidateDetails(title, description, category, condition, price);
         if (details.IsFailure)
             return Result<Listing>.Failure(details.Error);
 
@@ -43,6 +46,7 @@ public sealed class Listing
             Id = Guid.NewGuid(),
             SellerId = sellerId,
             Title = title.Trim(),
+            Description = NormalizeDescription(description),
             Category = category,
             Condition = condition,
             Price = details.Value,
@@ -52,16 +56,16 @@ public sealed class Listing
         };
     }
 
-    public Result<Listing> UpdateDetails(string title, Category category, Condition condition, decimal price)
-    {
+    public Result<Listing> UpdateDetails(string title, Category category, Condition condition, decimal price, string? description = null)    {
         // Nothing can make a listing Sold yet. The ConfirmSale slice will add
         // the "Listing.Sold" check here, together with its test.
 
-        var details = ValidateDetails(title, category, condition, price);
+        var details = ValidateDetails(title, description, category, condition, price);
         if (details.IsFailure)
             return Result<Listing>.Failure(details.Error);
 
         Title = title.Trim();
+        Description = NormalizeDescription(description);
         Category = category;
         Condition = condition;
         Price = details.Value;
@@ -123,15 +127,18 @@ public sealed class Listing
 
     // Checks the details shared by Create and UpdateDetails.
     // On success it returns the validated price, so the caller does not create Money twice.
-    private static Result<Money> ValidateDetails(string? title, Category category, Condition condition, decimal price)
-    {
+    private static Result<Money> ValidateDetails(string? title, string? description, Category category, Condition condition, decimal price)    {
         if (!Enum.IsDefined(category))
             return Result<Money>.Failure(
                 Error.Validation("Listing.CategoryInvalid", "Unknown category."));
         if (!Enum.IsDefined(condition))
             return Result<Money>.Failure(
                 Error.Validation("Listing.ConditionInvalid", "Unknown condition."));
-
+       
+        if (description is not null && description.Trim().Length > MaxDescriptionLength)
+            return Result<Money>.Failure(
+                Error.Validation("Listing.DescriptionTooLong", $"Description must have at most {MaxDescriptionLength} characters."));
+        
         if (string.IsNullOrWhiteSpace(title))
             return Result<Money>.Failure(
                 Error.Validation("Listing.TitleEmpty", "Title must not be empty."));
@@ -141,5 +148,9 @@ public sealed class Listing
 
         return Money.Create(price);
     }
+    
+    // An empty or blank description is stored as null, so "no description" has only one form.
+    private static string? NormalizeDescription(string? description) =>
+        string.IsNullOrWhiteSpace(description) ? null : description.Trim();
 }
 

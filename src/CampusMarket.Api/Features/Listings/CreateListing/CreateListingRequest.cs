@@ -9,4 +9,5 @@ public sealed record CreateListingRequest(
     string Title,
     Category Category,
     Condition Condition,
-    decimal Price);
+    decimal Price,
+    string? Description = null);

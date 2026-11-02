@@ -23,7 +23,7 @@ public sealed class UpdateListingHandler(
                 Error.Forbidden("Listing.NotOwner", "Only the seller or an Admin can change this listing."));
 
         var updated = listing.UpdateDetails(
-            command.Title, command.Category, command.Condition, command.Price);
+            command.Title, command.Category, command.Condition, command.Price, command.Description);
 
         if (updated.IsFailure)
             return Result<Guid>.Failure(updated.Error);
