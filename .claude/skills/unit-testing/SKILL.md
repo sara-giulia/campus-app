@@ -322,6 +322,6 @@ Stryker replaces error messages with `""`. Today the tests check only `Error.Cod
 `Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them.
 
 Rules for this feature:
-- Keep every existing test and its name. Only add assertions as described in point 1.
+- Keep every existing test and its name. In existing tests, only add the assertions described in points 1 and 2; everything else is a new test.
 - Never change production code.
 - After the run, `dotnet test` passes and coverage of `Domain/` and the handlers stays 100%.
