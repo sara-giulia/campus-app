@@ -102,13 +102,18 @@ public static class CampusMarketSetup
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             return;
 
-        if (db.Members.AsEnumerable().Any(m => m.Email.Value == email))
+        // Same normalization as Register (trim + lower case), so the lookup matches the stored email.
+        var adminEmail = Email.Create(email);
+        if (adminEmail.IsFailure)
+            return;
+
+        if (db.Members.AsEnumerable().Any(m => m.Email == adminEmail.Value))
             return;
 
         var hasher = services.GetRequiredService<IPasswordHasher>();
         var clock = services.GetRequiredService<TimeProvider>();
 
-        var admin = Member.Register("Admin", email, hasher.Hash(password), clock.GetUtcNow(), MemberRole.Admin);
+        var admin = Member.Register("Admin", adminEmail.Value.Value, hasher.Hash(password), clock.GetUtcNow(), MemberRole.Admin);
         if (admin.IsFailure)
             return;
 
