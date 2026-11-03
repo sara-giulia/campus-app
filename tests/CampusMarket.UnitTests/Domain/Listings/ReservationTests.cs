@@ -40,6 +40,7 @@ public class ReservationTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Reservation.NotActive");
+        result.Error.Message.Should().Be("Only an active reservation can be cancelled.");
     }
 
     [Fact]

@@ -40,6 +40,7 @@ public class CreateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Member.InvalidName");
+        result.Error.Message.Should().Be("Name must have between 2 and 100 characters.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -57,6 +58,7 @@ public class CreateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Email.Invalid");
+        result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -74,6 +76,7 @@ public class CreateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Conflict);
         result.Error.Code.Should().Be("Member.Duplicate");
+        result.Error.Message.Should().Match("A member with id '*' already exists.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -93,6 +96,7 @@ public class CreateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Conflict);
         result.Error.Code.Should().Be("Member.EmailTaken");
+        result.Error.Message.Should().Be("A member with email 'ada@ubb.ro' already exists.");
         repository.Items.Should().HaveCount(1);
         repository.Items[existing.Id].Should().BeSameAs(existing);
         unitOfWork.SaveCount.Should().Be(0);

@@ -31,6 +31,7 @@ public class MemberTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Member.InvalidName");
+        result.Error.Message.Should().Be("Name must have between 2 and 100 characters.");
     }
 
     [Fact]
@@ -42,6 +43,27 @@ public class MemberTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Member.InvalidName");
+        result.Error.Message.Should().Be("Name must have between 2 and 100 characters.");
+    }
+
+    [Fact]
+    public void Given_NameAtMinLength_When_Creating_Then_Succeeds()
+    {
+        var result = Member.Create("Ad", "ada@ubb.ro", Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Name.Should().Be("Ad");
+    }
+
+    [Fact]
+    public void Given_NameAtMaxLength_When_Creating_Then_Succeeds()
+    {
+        var name = new string('a', 100);
+
+        var result = Member.Create(name, "ada@ubb.ro", Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Name.Should().Be(name);
     }
 
     [Fact]
@@ -51,6 +73,7 @@ public class MemberTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Email.Invalid");
+        result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
     }
 
     [Fact]
@@ -74,6 +97,7 @@ public class MemberTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Member.InvalidName");
+        result.Error.Message.Should().Be("Name must have between 2 and 100 characters.");
         member.Name.Should().Be("Ada");
     }
 
@@ -86,6 +110,7 @@ public class MemberTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Email.Invalid");
+        result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
         member.Email.Value.Should().Be("ada@ubb.ro");
     }
 
@@ -127,6 +152,7 @@ public class MemberTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Member.PasswordRequired");
+        result.Error.Message.Should().Be("A password is required.");
     }
 
     [Fact]
@@ -137,6 +163,7 @@ public class MemberTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Member.InvalidName");
+        result.Error.Message.Should().Be("Name must have between 2 and 100 characters.");
     }
 
     [Fact]
@@ -147,5 +174,6 @@ public class MemberTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Email.Invalid");
+        result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
     }
 }

@@ -47,6 +47,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.SellerEmpty");
+        result.Error.Message.Should().Be("Seller id must not be empty.");
     }
 
     [Fact]
@@ -57,6 +58,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.CategoryInvalid");
+        result.Error.Message.Should().Be("Unknown category.");
     }
 
     [Fact]
@@ -67,6 +69,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.ConditionInvalid");
+        result.Error.Message.Should().Be("Unknown condition.");
     }
 
     [Theory]
@@ -80,6 +83,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.TitleEmpty");
+        result.Error.Message.Should().Be("Title must not be empty.");
     }
 
     [Fact]
@@ -92,6 +96,18 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.TitleTooLong");
+        result.Error.Message.Should().Be("Title must have at most 100 characters.");
+    }
+
+    [Fact]
+    public void Given_TitleAtMaxLength_When_Creating_Then_Succeeds()
+    {
+        var title = new string('a', Listing.MaxTitleLength);
+
+        var result = Listing.Create(Guid.NewGuid(), title, Category.Textbook, Condition.Good, 25m, Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Title.Should().Be(title);
     }
 
     [Theory]
@@ -104,6 +120,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Money.Invalid");
+        result.Error.Message.Should().Be("Price must be greater than 0.");
     }
 
     [Fact]
@@ -161,6 +178,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.DescriptionTooLong");
+        result.Error.Message.Should().Be("Description must have at most 1000 characters.");
     }
 
     [Fact]
@@ -188,6 +206,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.CategoryInvalid");
+        result.Error.Message.Should().Be("Unknown category.");
         listing.Version.Should().Be(1);
     }
 
@@ -200,6 +219,7 @@ public class ListingTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Listing.ConditionInvalid");
+        result.Error.Message.Should().Be("Unknown condition.");
     }
 
     [Theory]
@@ -214,6 +234,7 @@ public class ListingTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Listing.TitleEmpty");
+        result.Error.Message.Should().Be("Title must not be empty.");
     }
 
     [Fact]
@@ -226,6 +247,7 @@ public class ListingTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Listing.TitleTooLong");
+        result.Error.Message.Should().Be("Title must have at most 100 characters.");
     }
 
     [Fact]
@@ -237,6 +259,7 @@ public class ListingTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Money.Invalid");
+        result.Error.Message.Should().Be("Price must be greater than 0.");
     }
 
     [Fact]
@@ -290,6 +313,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.DescriptionTooLong");
+        result.Error.Message.Should().Be("Description must have at most 1000 characters.");
         listing.Description.Should().BeNull();
         listing.Version.Should().Be(1);
     }
@@ -328,6 +352,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.NotDraft");
+        result.Error.Message.Should().Be("Only a draft listing can be published.");
         listing.Version.Should().Be(2);
     }
 
@@ -358,6 +383,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.NotActive");
+        result.Error.Message.Should().Be("Only an active listing can be reserved.");
     }
 
     [Fact]
@@ -369,6 +395,7 @@ public class ListingTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Reservation.InvalidBuyer");
+        result.Error.Message.Should().Be("Buyer id must not be empty.");
     }
 
     [Fact]
@@ -380,6 +407,7 @@ public class ListingTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Reservation.OwnListing");
+        result.Error.Message.Should().Be("A seller cannot reserve their own listing.");
     }
 
     [Fact]
@@ -407,6 +435,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Reservation.NotFound");
+        result.Error.Message.Should().Be("Reservation not found.");
     }
 
     [Fact]
@@ -421,5 +450,6 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Reservation.NotActive");
+        result.Error.Message.Should().Be("Only an active reservation can be cancelled.");
     }
 }

@@ -59,13 +59,15 @@ public class ReserveListingHandlerTests
         members.Items[buyer.Id] = buyer;
         var unitOfWork = new FakeUnitOfWork();
         var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
-        var command = new ReserveListingCommand(Guid.NewGuid(), buyer.Id);
+        var unknownListingId = Guid.NewGuid();
+        var command = new ReserveListingCommand(unknownListingId, buyer.Id);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownListingId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -78,13 +80,15 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
-        var command = new ReserveListingCommand(listing.Id, Guid.NewGuid());
+        var unknownBuyerId = Guid.NewGuid();
+        var command = new ReserveListingCommand(listing.Id, unknownBuyerId);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{unknownBuyerId}' was not found.");
         listing.Status.Should().Be(ListingStatus.Active);
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -107,6 +111,7 @@ public class ReserveListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.NotActive");
+        result.Error.Message.Should().Be("Only an active listing can be reserved.");
         listing.Status.Should().Be(ListingStatus.Draft);
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -129,6 +134,7 @@ public class ReserveListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Reservation.OwnListing");
+        result.Error.Message.Should().Be("A seller cannot reserve their own listing.");
         listing.Status.Should().Be(ListingStatus.Active);
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -160,6 +166,7 @@ public class ReserveListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Reservation.LimitReached");
+        result.Error.Message.Should().Be("A buyer can hold at most 3 active reservations.");
         target.Status.Should().Be(ListingStatus.Active);
         target.Reservations.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);

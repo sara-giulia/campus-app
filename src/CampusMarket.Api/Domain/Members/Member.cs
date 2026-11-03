@@ -5,6 +5,7 @@ namespace CampusMarket.Api.Domain.Members;
 public sealed class Member
 {
     public Guid Id { get; private set; }
+    // Stryker disable once String : the factory always sets Name, so the default value is never observable
     public string Name { get; private set; } = string.Empty;
     public Email Email { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }

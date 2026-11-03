@@ -30,6 +30,7 @@ public class UpdateMemberHandlerTests
         member.Name.Should().Be("Bob");
         member.Email.Value.Should().Be("bob@ubb.ro");
         unitOfWork.SaveCount.Should().Be(1);
+        repository.UpdateCount.Should().Be(1);
     }
 
     [Fact]
@@ -38,13 +39,15 @@ public class UpdateMemberHandlerTests
         var repository = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateMemberHandler(repository, unitOfWork);
-        var command = new UpdateMemberCommand(Guid.NewGuid(), Guid.NewGuid(), false, "Bob", "bob@ubb.ro");
+        var unknownId = Guid.NewGuid();
+        var command = new UpdateMemberCommand(unknownId, Guid.NewGuid(), false, "Bob", "bob@ubb.ro");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -63,6 +66,7 @@ public class UpdateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Member.InvalidName");
+        result.Error.Message.Should().Be("Name must have between 2 and 100 characters.");
         unitOfWork.SaveCount.Should().Be(0);
         member.Name.Should().Be("Ada");
     }
@@ -84,6 +88,7 @@ public class UpdateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Conflict);
         result.Error.Code.Should().Be("Member.EmailTaken");
+        result.Error.Message.Should().Be("A member with email 'bob@ubb.ro' already exists.");
         unitOfWork.SaveCount.Should().Be(0);
         member.Name.Should().Be("Ada");
         member.Email.Value.Should().Be("ada@ubb.ro");
@@ -123,6 +128,7 @@ public class UpdateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Email.Invalid");
+        result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
         unitOfWork.SaveCount.Should().Be(0);
         member.Name.Should().Be("Ada");
         member.Email.Value.Should().Be("ada@ubb.ro");
@@ -143,6 +149,7 @@ public class UpdateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Member.NotOwner");
+        result.Error.Message.Should().Be("Only the member or an Admin can change this profile.");
         repository.Items.Should().ContainKey(member.Id);
         member.Name.Should().Be("Ada");
         member.Email.Value.Should().Be("ada@ubb.ro");
@@ -174,13 +181,15 @@ public class UpdateMemberHandlerTests
         var repository = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateMemberHandler(repository, unitOfWork);
-        var command = new UpdateMemberCommand(Guid.NewGuid(), OtherMemberId, false, "Bob", "bob@ubb.ro");
+        var unknownId = Guid.NewGuid();
+        var command = new UpdateMemberCommand(unknownId, OtherMemberId, false, "Bob", "bob@ubb.ro");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -201,6 +210,7 @@ public class UpdateMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Member.NotOwner");
+        result.Error.Message.Should().Be("Only the member or an Admin can change this profile.");
         member.Email.Value.Should().Be("ada@ubb.ro");
         unitOfWork.SaveCount.Should().Be(0);
     }

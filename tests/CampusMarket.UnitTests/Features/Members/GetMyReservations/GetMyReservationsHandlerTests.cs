@@ -123,4 +123,26 @@ public class GetMyReservationsHandlerTests
         result.Value.Items[0].Status.Should().Be(ReservationStatus.Expired);
         repository.Items[listing.Id].Reservations[0].Status.Should().Be(ReservationStatus.Active);
     }
+
+    [Fact]
+    public async Task Given_TwoReservationsAtSameCreatedAt_When_Handling_Then_OrderedByReservationIdAscending()
+    {
+        var firstListing = BuildActiveListing("Linear algebra", 30m, Now);
+        var firstReservation = firstListing.Reserve(BuyerId, Now).Value;
+        var secondListing = BuildActiveListing("Calculus", 20m, Now);
+        var secondReservation = secondListing.Reserve(BuyerId, Now).Value;
+        var repository = new FakeListingRepository();
+        repository.Items[firstListing.Id] = firstListing;
+        repository.Items[secondListing.Id] = secondListing;
+        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var query = new GetMyReservationsQuery(BuyerId);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(2);
+        result.Value.Items.Should().BeInAscendingOrder(i => i.ReservationId);
+        result.Value.Items.Select(i => i.ReservationId).Should()
+            .Contain(new[] { firstReservation.Id, secondReservation.Id });
+    }
 }
