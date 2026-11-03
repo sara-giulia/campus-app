@@ -47,6 +47,26 @@ public class MemberTests
     }
 
     [Fact]
+    public void Given_NameAtMinLength_When_Creating_Then_Succeeds()
+    {
+        var result = Member.Create("Ad", "ada@ubb.ro", Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Name.Should().Be("Ad");
+    }
+
+    [Fact]
+    public void Given_NameAtMaxLength_When_Creating_Then_Succeeds()
+    {
+        var name = new string('a', 100);
+
+        var result = Member.Create(name, "ada@ubb.ro", Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Name.Should().Be(name);
+    }
+
+    [Fact]
     public void Given_InvalidEmail_When_Creating_Then_ReturnsValidationError()
     {
         var result = Member.Create("Ada", "not-an-email", Now);

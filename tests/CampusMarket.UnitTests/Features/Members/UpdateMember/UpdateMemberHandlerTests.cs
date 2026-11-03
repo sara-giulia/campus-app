@@ -30,6 +30,7 @@ public class UpdateMemberHandlerTests
         member.Name.Should().Be("Bob");
         member.Email.Value.Should().Be("bob@ubb.ro");
         unitOfWork.SaveCount.Should().Be(1);
+        repository.UpdateCount.Should().Be(1);
     }
 
     [Fact]

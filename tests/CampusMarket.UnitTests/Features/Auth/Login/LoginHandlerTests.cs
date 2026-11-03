@@ -128,4 +128,23 @@ public class LoginHandlerTests
         result.Error.Message.Should().Be("The email or the password is wrong.");
         tokenService.LastMember.Should().BeNull();
     }
+
+    [Fact]
+    public async Task Given_StoredMemberWithPassword_When_HandlingWithEmptyPassword_Then_ReturnsInvalidCredentialsWithoutCallingVerify()
+    {
+        var member = BuildRegisteredMember();
+        var repository = new FakeMemberRepository();
+        repository.Items[member.Id] = member;
+        var hasher = new FakePasswordHasher();
+        var handler = new LoginHandler(repository, hasher, new FakeTokenService());
+        var command = new LoginCommand("ada@ubb.ro", "");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Auth.InvalidCredentials");
+        result.Error.Message.Should().Be("The email or the password is wrong.");
+        hasher.VerifyCount.Should().Be(0);
+    }
 }

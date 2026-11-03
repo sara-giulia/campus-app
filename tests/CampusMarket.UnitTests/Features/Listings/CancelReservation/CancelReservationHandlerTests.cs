@@ -38,6 +38,7 @@ public class CancelReservationHandlerTests
         reservation.Status.Should().Be(ReservationStatus.Cancelled);
         listing.Status.Should().Be(ListingStatus.Active);
         unitOfWork.SaveCount.Should().Be(1);
+        repository.UpdateCount.Should().Be(1);
     }
 
     [Fact]

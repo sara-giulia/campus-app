@@ -99,6 +99,17 @@ public class ListingTests
         result.Error.Message.Should().Be("Title must have at most 100 characters.");
     }
 
+    [Fact]
+    public void Given_TitleAtMaxLength_When_Creating_Then_Succeeds()
+    {
+        var title = new string('a', Listing.MaxTitleLength);
+
+        var result = Listing.Create(Guid.NewGuid(), title, Category.Textbook, Condition.Good, 25m, Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Title.Should().Be(title);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]

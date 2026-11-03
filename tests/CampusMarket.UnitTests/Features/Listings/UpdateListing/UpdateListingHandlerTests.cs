@@ -36,6 +36,7 @@ public class UpdateListingHandlerTests
         listing.Price.Amount.Should().Be(30m);
         listing.Version.Should().Be(2);
         unitOfWork.SaveCount.Should().Be(1);
+        repository.UpdateCount.Should().Be(1);
     }
 
     [Fact]

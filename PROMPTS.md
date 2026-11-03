@@ -525,7 +525,14 @@ The skill was improved three times before its run, by comparing it with the real
 - **Why a new run:** Stryker left 58 mutants alive on main; the goal is a mutation score of 100% without changing production code.
 - **Prompt:** `Use the unit-testing skill, section "Feature: Surviving mutants (Diana)". Follow its rules exactly: never change production code, keep every existing test and its name, in existing tests only add the Error.Message assertions described in point 1. Point 1 also covers the new Listing.DescriptionTooLong error. At the end run dotnet test, show me the results and list every file you changed. Do not commit or push.` (new session)
 - **Skill version:** v12 (section written by Diana Preutu); run by Sara Matasel
-- **Result:** <copiază aici ce a raportat: câte teste noi, câte asserturi pe mesaje>
+- **Result:** point 1 of the section: Error.Message assertions were added to the existing tests that check an error code (including the new Listing.DescriptionTooLong error). No new tests (210 unit tests before and after). Points 2–5 were not generated, because the rule "in existing tests only add Error.Message assertions" blocked point 2 (see Run 11). No production code changed. All unit tests pass.- **Change to SKILL.md:** - **Change to SKILL.md:** after the run, the rule "only add Error.Message assertions in existing tests" contradicted point 2 (UpdateCount in the existing success tests). The rule was changed to also allow the UpdateCount assertions (commit b9b496b, Diana Preutu). The generated tests already matched the new rule, so no new run was needed.
+
+### Run 11, skill v13 (Feature: Surviving mutants, points 2–5)
+
+- **Why a new run:** in Run 10 the rule "in existing tests only add Error.Message assertions" blocked point 2. The rule was changed to also allow the UpdateCount assertions (commit b9b496b, Diana Preutu), then points 2–5 were run.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them. In the "Feature: Surviving mutants" section, point 1 is already done; only implement points 2, 3, 4 and 5 (the UpdateCount and VerifyCount counters in the fakes and their assertions, the three boundary tests, the login test with an empty password, and the reservations order test). Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results.` (new session)
+- **Skill version:** v13, commit b9b496b; run by Sara Matasel
+- **Result:** UpdateCount in FakeListingRepository and FakeMemberRepository, VerifyCount in FakePasswordHasher; UpdateCount = 1 asserted in the success tests of UpdateListing, UpdateMember, PublishListing and CancelReservation; 5 new tests: title of exactly 100 characters, member name of exactly 2 and exactly 100 characters, login with an empty password (VerifyCount = 0), two reservations with the same CreatedAt ordered by ReservationId. 215/215 unit tests pass; coverage 100% lines (535/535) and 100% branches (188/188). No production code changed.
 - **Problems seen:** none.
 - **Change to SKILL.md:** none.
 
