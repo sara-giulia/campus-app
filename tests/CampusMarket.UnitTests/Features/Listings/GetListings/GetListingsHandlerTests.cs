@@ -89,6 +89,7 @@ public class GetListingsHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listings.InvalidPage");
+        result.Error.Message.Should().Be("Page must be at least 1.");
         repository.Items.Should().BeEmpty();
     }
 
@@ -107,6 +108,7 @@ public class GetListingsHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listings.InvalidPageSize");
+        result.Error.Message.Should().Be("Page size must be between 1 and 100.");
         repository.Items.Should().BeEmpty();
     }
 
@@ -122,6 +124,7 @@ public class GetListingsHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listings.InvalidPriceRange");
+        result.Error.Message.Should().Be("Minimum price cannot be greater than maximum price.");
         repository.Items.Should().BeEmpty();
     }
 

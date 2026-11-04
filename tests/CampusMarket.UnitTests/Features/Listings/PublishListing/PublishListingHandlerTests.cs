@@ -34,6 +34,7 @@ public class PublishListingHandlerTests
         listing.Status.Should().Be(ListingStatus.Active);
         listing.Version.Should().Be(2);
         unitOfWork.SaveCount.Should().Be(1);
+        repository.UpdateCount.Should().Be(1);
     }
 
     [Fact]
@@ -70,6 +71,7 @@ public class PublishListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Listing.NotOwner");
+        result.Error.Message.Should().Be("Only the seller or an Admin can publish this listing.");
         listing.Status.Should().Be(ListingStatus.Draft);
         listing.Version.Should().Be(1);
         unitOfWork.SaveCount.Should().Be(0);
@@ -81,13 +83,15 @@ public class PublishListingHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new PublishListingHandler(repository, unitOfWork);
-        var command = new PublishListingCommand(Guid.NewGuid(), SellerId, false);
+        var unknownId = Guid.NewGuid();
+        var command = new PublishListingCommand(unknownId, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -107,6 +111,7 @@ public class PublishListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.NotDraft");
+        result.Error.Message.Should().Be("Only a draft listing can be published.");
         listing.Status.Should().Be(ListingStatus.Active);
         unitOfWork.SaveCount.Should().Be(0);
     }

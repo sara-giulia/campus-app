@@ -37,13 +37,15 @@ public class DeleteMemberHandlerTests
         var repository = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new DeleteMemberHandler(repository, unitOfWork);
-        var command = new DeleteMemberCommand(Guid.NewGuid(), Guid.NewGuid(), false);
+        var unknownId = Guid.NewGuid();
+        var command = new DeleteMemberCommand(unknownId, Guid.NewGuid(), false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -62,6 +64,7 @@ public class DeleteMemberHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Member.NotOwner");
+        result.Error.Message.Should().Be("Only the member or an Admin can delete this profile.");
         repository.Items.Should().ContainKey(member.Id);
         member.Name.Should().Be("Ada");
         member.Email.Value.Should().Be("ada@ubb.ro");
@@ -92,13 +95,15 @@ public class DeleteMemberHandlerTests
         var repository = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new DeleteMemberHandler(repository, unitOfWork);
-        var command = new DeleteMemberCommand(Guid.NewGuid(), OtherMemberId, false);
+        var unknownId = Guid.NewGuid();
+        var command = new DeleteMemberCommand(unknownId, OtherMemberId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 }

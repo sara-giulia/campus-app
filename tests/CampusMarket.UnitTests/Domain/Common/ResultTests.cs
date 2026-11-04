@@ -33,7 +33,8 @@ public class ResultTests
 
         Action act = () => _ = result.Value;
 
-        act.Should().Throw<InvalidOperationException>();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot access the value of a failed result.");
     }
 
     [Fact]
@@ -43,7 +44,8 @@ public class ResultTests
 
         Action act = () => _ = result.Error;
 
-        act.Should().Throw<InvalidOperationException>();
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("Cannot access the error of a successful result.");
     }
 
     [Fact]

@@ -459,6 +459,18 @@ However the work is split, every slice comes with its tests, its Postman request
 - **Open the report:** open `coverage-report/index.html` in a browser
 - **Coverage exclusions:** see the list below, each one with its reason
 
+### Mutation testing
+
+Stryker.NET checks that the unit tests really verify the code: it changes `Domain/` and the handlers on purpose and checks that a test fails each time. **Current mutation score: 100%** (326 mutants killed, 0 survived; 82.13% in week 4).
+
+```
+dotnet tool install -g dotnet-stryker
+cd tests/CampusMarket.UnitTests
+dotnet stryker
+```
+
+Details and the two equivalent mutants: [MUTATION.md](MUTATION.md). Report: `mutation-report/mutation-report.html`.
+
 ### Coverage exclusions
 
 The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and the target is 100% for them. Everything else is outside the target:

@@ -41,13 +41,15 @@ public class DeleteListingHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new DeleteListingHandler(repository, unitOfWork);
-        var command = new DeleteListingCommand(Guid.NewGuid(), Guid.NewGuid(), false);
+        var unknownId = Guid.NewGuid();
+        var command = new DeleteListingCommand(unknownId, Guid.NewGuid(), false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -66,6 +68,7 @@ public class DeleteListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Listing.NotOwner");
+        result.Error.Message.Should().Be("Only the seller or an Admin can delete this listing.");
         repository.Items.Should().ContainKey(listing.Id);
         listing.Title.Should().Be("Algebra book");
         listing.Version.Should().Be(1);
@@ -96,13 +99,15 @@ public class DeleteListingHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new DeleteListingHandler(repository, unitOfWork);
-        var command = new DeleteListingCommand(Guid.NewGuid(), OtherMemberId, false);
+        var unknownId = Guid.NewGuid();
+        var command = new DeleteListingCommand(unknownId, OtherMemberId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 }

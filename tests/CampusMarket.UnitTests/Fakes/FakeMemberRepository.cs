@@ -8,6 +8,8 @@ public sealed class FakeMemberRepository : IMemberRepository
 
     public bool RejectAdd { get; set; }
 
+    public int UpdateCount { get; private set; }
+
     public Task<bool> AddAsync(Member member, CancellationToken ct = default)
     {
         if (RejectAdd)
@@ -35,6 +37,7 @@ public sealed class FakeMemberRepository : IMemberRepository
     public void Update(Member member)
     {
         Items[member.Id] = member;
+        UpdateCount++;
     }
 
     public void Delete(Member member)
