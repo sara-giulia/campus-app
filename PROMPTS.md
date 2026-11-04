@@ -552,9 +552,9 @@ The skill was improved three times before its run, by comparing it with the real
 
 - **Honest note:** the two renames were first made by hand and then reverted (commit f637052) before the run, because test changes only go through the skills.
 - **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only do what the "Feature: Code review v5 renames (Carina)" section asks for (two test names). Follow the skill exactly, including the "Never do" list. When you finish, run dotnet test, tell me the results and list every file you changed.` (new session)
-- **Skill version:** v14, commit 14cdf0c; section written by Carina Coman, run by TODO
-- **Result:** TODO
-- **Problems seen:** TODO
+- **Skill version:** v14, commit 14cdf0c; section written by Carina Coman, run by Sara Matasel
+- **Result:** the two tests were renamed (ReservationTests: ..._When_CheckingExpirationAtExpiry_...; ListingTests: ..._When_ReservingWithEmptyBuyerId_...). No other change. 215/215 unit tests pass, the same number as before.
+- **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v14 is the final version.
 - **Commits:** skill 14cdf0c; generated code TODO
 
@@ -761,9 +761,9 @@ saved.Should().BeEquivalentTo(listing);
 
 - **Honest note:** these tests were first written by hand and then reverted (commit f637052) before the run, because test changes only go through the skills.
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add what the "Feature: Admin seed (Carina)" section asks for (the new SeedAdminTests file and the database checks in the three LoginTests). Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
-- **Skill version:** v9, commit edb9e2f; section written by Carina Coman, run by TODO
-- **Result:** TODO
-- **Problems seen:** TODO
+- **Skill version:** v9, commit edb9e2f; section written by Carina Coman, run by Sara Matasel
+- **Result:** new SeedAdminTests with 5 tests (upper case and spaces in the config, the app started twice, an admin already in the database, an invalid email, an empty password) through a WithAdminSeed helper on the same in-memory connection; the database check added at the end of the three login 401 tests (1, 0 and 1 members), nothing else changed in them. dotnet build 0 warnings; 215 unit, 8 architecture and 94 integration tests pass.
+- **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v9 is the final version.
 - **Commits:** skill edb9e2f; generated code TODO
 
