@@ -7,13 +7,13 @@ public sealed class AspNetPasswordHasher : IPasswordHasher
 {
     // ASP.NET's hasher asks for a user object but does not use it.
     private static readonly object NoUser = new();
-    private readonly PasswordHasher<object> hasher = new();
+    private readonly PasswordHasher<object> _hasher = new();
 
     public string Hash(string password) =>
-        hasher.HashPassword(NoUser, password);
+        _hasher.HashPassword(NoUser, password);
 
     public bool Verify(string passwordHash, string password) =>
-        hasher.VerifyHashedPassword(NoUser, passwordHash, password)
+        _hasher.VerifyHashedPassword(NoUser, passwordHash, password)
             is PasswordVerificationResult.Success
             or PasswordVerificationResult.SuccessRehashNeeded;
 }

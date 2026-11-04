@@ -31,7 +31,7 @@ public sealed class ListingConfiguration : IEntityTypeConfiguration<Listing>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Navigation(l => l.Reservations)
-            .HasField("reservations")
+            .HasField("_reservations")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
