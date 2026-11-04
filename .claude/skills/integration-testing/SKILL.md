@@ -507,4 +507,26 @@ Tests to add:
 Rules for this feature:
 - Never assert an exact price: the model can be retrained. Only assert ≥ 1, whole number, and the laptop-vs-notes relation.
 
+## Feature: Confirm sale (Sara)
+
+Endpoint: `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm`, logged in, 204 on success; 404 (`Listing.NotFound`, `Reservation.NotFound`), 403 `Listing.NotOwner`, 400 (`Reservation.NotActive`, `Reservation.Expired`), 401 without a token. `PUT /api/v1/listings/{id}` on a sold listing → 400 `Listing.Sold`.
+
+File: `Listings/ConfirmSaleTests.cs`, same base class and login helper as the other reservation tests.
+
+Arrange: seed the seller and the buyer, a listing that is published and reserved by the buyer (`Reserve(BuyerId, time)`), with `SeedAsync`. The API uses the real clock: for a normal reservation reserve at the current UTC time; for an expired one reserve 49 hours in the past.
+
+Tests to add (status, body, then the database):
+- The seller confirms → 204; in the database the listing is `Sold`, its `Version` went up by 1 and the reservation is `Completed`.
+- Afterwards the buyer's `GET /api/v1/members/me/reservations` shows the reservation with status `Completed`.
+- An Admin who is not the seller → 204.
+- The buyer → 403 `Listing.NotOwner`; another member → 403 `Listing.NotOwner`; no token → 401. Listing still `Reserved`.
+- Unknown listing → 404 `Listing.NotFound`; unknown reservation → 404 `Reservation.NotFound`.
+- Confirming twice → the second is 400 `Reservation.NotActive`.
+- A reservation made 49 hours ago → 400 `Reservation.Expired`; listing still `Reserved`, reservation still `Active`.
+- After the sale: `PUT` on the listing → 400 `Listing.Sold`, nothing changed; another member reserving it → 400 `Listing.NotActive`.
+
+Rules for this feature:
+- Read 400/403/404 bodies into `Error` and check `Code` and `Type`; for 401 only the status code.
+- Every test checks the database at the end.
+
 

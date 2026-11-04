@@ -361,4 +361,25 @@ Rules for this feature:
 - Build the expected messages for the length errors from `Listing.MaxDescriptionLength` and `Listing.MaxTitleLength`, the same way the handler does.
 - Never use the real `PriceSuggester` or a `.zip` model in unit tests.
 
+## Feature: Confirm sale (Sara)
+
+Production code (read it before generating):
+- `Domain/Listings/Reservation.cs`: `internal Complete()`: only an `Active` reservation becomes `Completed`, otherwise `Reservation.NotActive`. Tests may call it directly (`InternalsVisibleTo`).
+- `Domain/Listings/Listing.cs`: `ConfirmSale(reservationId, currentTime)`: unknown reservation → NotFound `Reservation.NotFound`; not `Active` → `Reservation.NotActive`; `IsExpired(currentTime)` → `Reservation.Expired`; otherwise the reservation is `Completed`, the listing `Sold` and `Version` + 1. `UpdateDetails` on a `Sold` listing → `Listing.Sold` (checked before the other details).
+- `Features/Listings/ConfirmSale/`: `ConfirmSaleCommand(ListingId, ReservationId, RequesterId, IsAdmin)`; order in the handler: 404 `Listing.NotFound`, 403 `Listing.NotOwner` (not the seller and not Admin; the buyer cannot confirm), the domain errors, then `Update` and one `CommitAsync`.
+
+Files: `Domain/Listings/ReservationTests.cs` and `ListingTests.cs` (add to them), `Features/Listings/ConfirmSale/ConfirmSaleHandlerTests.cs` (new).
+
+Arrange: a reserved listing is `Listing.Create(...).Value`, `Publish()`, then `Reserve(BuyerId, Now)`. Fixed, named ids: `SellerId`, `BuyerId`, `OtherMemberId`, `AdminId`. The reservation expires at `Now` + 48 h.
+
+Tests to add:
+- `Reservation.Complete()`: an active reservation → `Completed`; a cancelled one → `Reservation.NotActive`, status unchanged.
+- `Listing.ConfirmSale`: at `Now` + 1 h → success, listing `Sold`, `Version` + 1, reservation `Completed`; unknown reservation id → `Reservation.NotFound`; a cancelled reservation → `Reservation.NotActive`; confirming twice → `Reservation.NotActive`; at exactly `Now` + 48 h → `Reservation.Expired`; at `Now` + 48 h minus 1 second → success. In every failure: status `Reserved` and `Version` unchanged.
+- `UpdateDetails` on a sold listing → `Listing.Sold`, details unchanged; with invalid details too (empty title) → still `Listing.Sold` (it is checked first).
+- A sold listing cannot be published (`Listing.NotDraft`) or reserved (`Listing.NotActive`).
+- Handler: the seller confirms → success, `Sold`, `SaveCount` 1, `UpdateCount` 1; an Admin who is not the seller → success; the buyer → Forbidden `Listing.NotOwner`; another member → Forbidden `Listing.NotOwner`; unknown listing → `Listing.NotFound`; unknown reservation → `Reservation.NotFound`; the clock at `Now` + 48 h → `Reservation.Expired`. Order: unknown listing with another member as requester → `NotFound`; the buyer with an unknown reservation id → `Forbidden` (403 comes before the reservation check). In every failure: `SaveCount` 0, `UpdateCount` 0, listing unchanged.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`.
+- Never use real time: `Now` is fixed, the handler gets it through `FixedTimeProvider`.
 
