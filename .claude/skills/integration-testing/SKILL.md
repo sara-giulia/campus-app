@@ -456,3 +456,35 @@ Rules for this feature:
 - Read 403/404/400 bodies into `Error` and check `Code` and `Type`. For 401 check only the status code.
 - The reservation's `createdAt` comes from the real clock of the API: never compare it to a fixed time, only check `expiresAt - createdAt` is 48 h.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+
+## Feature: Admin seed (Carina)
+
+Production code (written by hand, read it before generating):
+- `src/CampusMarket.Api/CampusMarketSetup.cs`, method `SeedAdmin`: when `Seed:AdminEmail` and `Seed:AdminPassword` are both set, it normalizes the email with `Email.Create` (trim + lower case, the same as Register), returns without creating anything when the email is invalid, looks for a member with the same `Email`, and creates an Admin only when none exists. `Program.cs` runs it at startup through `EnsureCampusMarketDatabase()`.
+- `src/CampusMarket.Api/Domain/Members/Email.cs`.
+
+Test host:
+- `CampusMarketApiFactory` sets `Seed:AdminEmail` to `""`, so the seed never runs in the other tests. Do not change the factory or `IntegrationTestBase`.
+- To turn the seed on in one test, start a second copy of the API on the same in-memory database with `Factory.WithWebHostBuilder(builder => { builder.UseSetting("Seed:AdminEmail", email); builder.UseSetting("Seed:AdminPassword", password); })`. It uses the same open connection as `Factory`, so `SeedAsync` and `QueryDbAsync` see the same data. The copy starts, and the seed runs, at its first `CreateClient()`. Dispose every copy with `await using`.
+- Put this in one private helper `WithAdminSeed(string adminEmail, string adminPassword = AdminPassword)` that returns `WebApplicationFactory<Program>`. Always set both settings in the test; never rely on `appsettings.Development.json`.
+- Fixed data: `private const string AdminPassword = "admin-secret12";` and the class `CreatedAt`.
+
+File: `tests/CampusMarket.IntegrationTests/Auth/SeedAdminTests.cs` (new), class `SeedAdminTests : IntegrationTestBase`.
+
+Tests to add (status, body, then the database). In every test the Act is the one HTTP call made with the client of the seeded copy:
+- `"  Admin@Campus.Test  "` in the config → login with `admin@campus.test` and `AdminPassword` → 200, non-empty `token`; exactly one member, `Email.Value` is `admin@campus.test`, `Role` is `MemberRole.Admin`.
+- the app starts twice with `"Admin@Campus.Test"` (Arrange: start a first copy with `CreateClient()` and dispose it; Act: start a second copy and log in) → 200; still exactly one member. This is the case from issue #44: before the fix, the second start failed on the unique email index.
+- an Admin already in the database (seeded with `Member.Register("Admin", "admin@campus.test", new AspNetPasswordHasher().Hash(AdminPassword), CreatedAt, MemberRole.Admin)`) and `"Admin@Campus.Test"` in the config → login 200; still exactly one member, with the id of the seeded one.
+- `"not-an-email"` in the config → `GET /` → 200 with the body `CampusMarket API is running`; no member saved.
+- a valid email and an empty password in the config → `GET /` → 200 with the same body; no member saved.
+
+Code review v5, row 11 (`REVIEW.md`): in `Auth/LoginTests.cs` three 401 tests check only the status and the body. Add the database check at the end of each one, the same way `Given_UnknownEmail_When_LoggingIn_Then_Returns401` does it (`CountAsync` on `db.Set<Member>()`), and change nothing else in them:
+- `Given_WrongPassword_When_LoggingIn_Then_Returns401` → 1 member.
+- `Given_InvalidEmailFormat_When_LoggingIn_Then_Returns401` → 0 members (it seeds nothing).
+- `Given_EmptyPassword_When_LoggingIn_Then_Returns401` → 1 member.
+
+Rules for this feature:
+- Keep every existing test and its name.
+- Never read `appsettings.Development.json` from tests and never hard-code a token.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
