@@ -556,7 +556,7 @@ The skill was improved three times before its run, by comparing it with the real
 - **Result:** the two tests were renamed (ReservationTests: ..._When_CheckingExpirationAtExpiry_...; ListingTests: ..._When_ReservingWithEmptyBuyerId_...). No other change. 215/215 unit tests pass, the same number as before.
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v14 is the final version.
-- **Commits:** skill 14cdf0c; generated code TODO
+- **Commits:** skill 14cdf0c; generated code dd316cc
 
 ## integration-testing
 
@@ -765,7 +765,7 @@ saved.Should().BeEquivalentTo(listing);
 - **Result:** new SeedAdminTests with 5 tests (upper case and spaces in the config, the app started twice, an admin already in the database, an invalid email, an empty password) through a WithAdminSeed helper on the same in-memory connection; the database check added at the end of the three login 401 tests (1, 0 and 1 members), nothing else changed in them. dotnet build 0 warnings; 215 unit, 8 architecture and 94 integration tests pass.
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v9 is the final version.
-- **Commits:** skill edb9e2f; generated code TODO
+- **Commits:** skill edb9e2f; generated code dd316cc
 
 ## code-review
 
