@@ -29,13 +29,6 @@ var trainers = new List<IModelTrainer>
     new PriceTrainer()
 };
 
-if (trainers.Count == 0)
-{
-    Console.WriteLine();
-    Console.WriteLine("No trainers registered yet.");
-    return;
-}
-
 foreach (var trainer in trainers)
 {
     Console.WriteLine();
