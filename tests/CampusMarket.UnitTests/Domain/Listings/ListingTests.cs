@@ -387,7 +387,7 @@ public class ListingTests
     }
 
     [Fact]
-    public void Given_ActiveListing_When_BuyerIdIsEmpty_Then_ReturnsValidationError()
+    public void Given_ActiveListing_When_ReservingWithEmptyBuyerId_Then_ReturnsValidationError()
     {
         var listing = ActiveListing();
 

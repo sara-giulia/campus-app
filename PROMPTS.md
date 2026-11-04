@@ -539,7 +539,26 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none.
 - **Commits:** skill b9b496b; generated code 505b060
 
-### Run 12, skill v14 (Feature: Price suggestion)
+### Run 12, skill v14 (Feature: Code review v5 renames)
+
+- **Why a new version:** code review v5 (`REVIEW.md`, rows 12 and 13, issue #47) found two test names that do not match what the test does or break the `Given_<state>_When_<action>_Then_<expected>` convention.
+
+#### Change to SKILL.md (v13 → v14) and why
+
+| # | v13 (before) | v14 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about these two tests. | New section *"Feature: Code review v5 renames (Carina)"*: rename `Given_CancelledReservation_When_CheckingExpirationAfterExpiry_Then_ReturnsFalse` to `..._When_CheckingExpirationAtExpiry_...` and keep `Now.AddHours(48)`; rename `Given_ActiveListing_When_BuyerIdIsEmpty_Then_ReturnsValidationError` to `..._When_ReservingWithEmptyBuyerId_...`. Change only the names. | Rows 12 and 13 of code review v5. For row 12 the name changes, not the value, because mutation testing needs the exact 48 h boundary. |
+| 2 | *"If unit tests already exist, keep them ... Then generate the coverage report again."* | *"Only names change, so the coverage does not change: do not generate the coverage report again for this feature."* | A rename does not change the coverage; a new report would only change files in `coverage-report/`. |
+
+- **Honest note:** the two renames were first made by hand and then reverted (commit f637052) before the run, because test changes only go through the skills.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only do what the "Feature: Code review v5 renames (Carina)" section asks for (two test names). Follow the skill exactly, including the "Never do" list. When you finish, run dotnet test, tell me the results and list every file you changed.` (new session)
+- **Skill version:** v14, commit 14cdf0c; section written by Carina Coman, run by Sara Matasel
+- **Result:** the two tests were renamed (ReservationTests: ..._When_CheckingExpirationAtExpiry_...; ListingTests: ..._When_ReservingWithEmptyBuyerId_...). No other change. 215/215 unit tests pass, the same number as before.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v14 is the final version.
+- **Commits:** skill 14cdf0c; generated code dd316cc
+
+### Run 13, skill v14 (Feature: Price suggestion)
 
 - **Why a new run:** B3 added the SuggestPrice query handler and the IPriceSuggester interface; the handler needs unit tests and a fake for the suggester.
 - **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Unit tests already exist: keep them and add only what this section asks. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the results. Do not commit or push.` (new session)
@@ -738,7 +757,26 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v8 is the final version.
 - **Commits:** generated code on feature/listing-description
 
-### Run 10, skill v9 (Feature: Price suggestion)
+### Run 10, skill v9 (Feature: Admin seed)
+
+- **Why a new version:** issue #44 (code review v5, row 10): `SeedAdmin` compared the stored lower-case email with the raw `Seed:AdminEmail`, so an upper-case email in the config created a second admin and the startup failed on the unique index. The fix in `CampusMarketSetup.cs` was made by hand, as the week 5 task asks. The seed had no integration test, because the test factory turns it off. Code review v5, row 11 (issue #47): three login 401 tests did not check the database.
+
+#### Change to SKILL.md (v8 → v9) and why
+
+| # | v8 (before) | v9 (after) | Why |
+|---|---|---|---|
+| 1 | *"`CampusMarketApiFactory` sets `Seed:AdminEmail` to `""` (no default Admin in tests)"*; nothing about testing the seed. | New section *"Feature: Admin seed (Carina)"*: turn the seed on in one test with `Factory.WithWebHostBuilder(...)` and `UseSetting` for both seed settings, a helper `WithAdminSeed`, and 5 tests: upper case and spaces, the app started twice, an admin already in the database, an invalid email, an empty password. | Without it the seed cannot be tested without changing the factory. The "started twice" test is the case from issue #44. |
+| 2 | Login: wrong password, invalid email format and empty password → 401, with no database check. | *"Add the database check at the end of each one ... and change nothing else in them"*: 1, 0 and 1 members. | Section 4 asks every test to check the database (code review v5, row 11). |
+
+- **Honest note:** these tests were first written by hand and then reverted (commit f637052) before the run, because test changes only go through the skills.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add what the "Feature: Admin seed (Carina)" section asks for (the new SeedAdminTests file and the database checks in the three LoginTests). Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v9, commit edb9e2f; section written by Carina Coman, run by Sara Matasel
+- **Result:** new SeedAdminTests with 5 tests (upper case and spaces in the config, the app started twice, an admin already in the database, an invalid email, an empty password) through a WithAdminSeed helper on the same in-memory connection; the database check added at the end of the three login 401 tests (1, 0 and 1 members), nothing else changed in them. dotnet build 0 warnings; 215 unit, 8 architecture and 94 integration tests pass.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v9 is the final version.
+- **Commits:** skill edb9e2f; generated code dd316cc
+
+### Run 11, skill v9 (Feature: Price suggestion)
 
 - **Why a new run:** B3 added POST /api/v1/listings/price-suggestion, which uses the real ML model.
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results. Do not commit or push.` (new session)

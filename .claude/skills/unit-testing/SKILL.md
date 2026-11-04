@@ -326,6 +326,17 @@ Rules for this feature:
 - Never change production code.
 - After the run, `dotnet test` passes and coverage of `Domain/` and the handlers stays 100%.
 
+
+## Feature: Code review v5 renames (Carina)
+
+Code review v5 (`REVIEW.md`, "Week 4 – code-review v5", rows 12 and 13) found two test names that do not match what the test does or do not follow `Given_<state>_When_<action>_Then_<expected>`. Change only the names: no new tests, no other change in these files, nothing in `src/`.
+
+- `Domain/Listings/ReservationTests.cs`: rename `Given_CancelledReservation_When_CheckingExpirationAfterExpiry_Then_ReturnsFalse` to `Given_CancelledReservation_When_CheckingExpirationAtExpiry_Then_ReturnsFalse`. The test checks `Now.AddHours(48)`, which is exactly the expiry moment, not after it. Keep `Now.AddHours(48)`: mutation testing needs the exact boundary.
+- `Domain/Listings/ListingTests.cs`: rename `Given_ActiveListing_When_BuyerIdIsEmpty_Then_ReturnsValidationError` to `Given_ActiveListing_When_ReservingWithEmptyBuyerId_Then_ReturnsValidationError`. The `When` part must be the action (`Reserve`), not a state.
+
+Rules for this feature:
+- Only names change, so the coverage does not change: do not generate the coverage report again for this feature.
+- After the run, `dotnet test` passes with the same number of unit tests as before.
 ## Feature: Price suggestion (Sara)
 
 Production code (read it before generating):

@@ -7,8 +7,8 @@ public sealed class Listing
     public const int MaxTitleLength = 100;
     public const int MaxDescriptionLength = 1000;
 
-    private readonly List<Reservation> reservations = new();
-    public IReadOnlyList<Reservation> Reservations => reservations.AsReadOnly();
+    private readonly List<Reservation> _reservations = new();
+    public IReadOnlyList<Reservation> Reservations => _reservations.AsReadOnly();
 
     public Guid Id { get; private set; }
     public Guid SellerId { get; private set; }
@@ -99,7 +99,7 @@ public sealed class Listing
                 Error.Validation("Reservation.OwnListing", "A seller cannot reserve their own listing."));
 
         var reservation = Reservation.Create(Id, buyerId, currentTime);
-        reservations.Add(reservation);
+        _reservations.Add(reservation);
         Status = ListingStatus.Reserved;
         Version++;
 
@@ -108,7 +108,7 @@ public sealed class Listing
 
     public Result<Listing> CancelReservation(Guid reservationId)
     {
-        var reservation = reservations.FirstOrDefault(r => r.Id == reservationId);
+        var reservation = _reservations.FirstOrDefault(r => r.Id == reservationId);
         if (reservation is null)
             return Result<Listing>.Failure(
                 Error.NotFound("Reservation.NotFound", "Reservation not found."));
