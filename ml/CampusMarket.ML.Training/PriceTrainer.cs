@@ -58,6 +58,7 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
         return mlContext.Data.LoadFromEnumerable(rows);
     }
 
+    // NOSONAR: ITransformer keeps IModelTrainer the same for every model
     private PriceMetrics Evaluate(MLContext mlContext, ITransformer model, IDataView test)
     {
         var scored = model.Transform(test);

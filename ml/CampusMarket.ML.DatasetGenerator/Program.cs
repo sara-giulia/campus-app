@@ -6,7 +6,7 @@ using CampusMarket.ML.DatasetGenerator;
 var outputPath = ResolveOutputPath();
 Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-var rng = new Random(42);
+var rng = new Random(42); // NOSONAR: fixed seed on purpose, the dataset must be reproducible; not used for security
 var rows = Generator.Generate(rng).ToList();
 
 var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
@@ -93,7 +93,7 @@ static void PrintStats(List<Row> rows)
 
     Console.WriteLine();
     Console.WriteLine("10 random rows (deterministic Random(123)):");
-    var sampleRng = new Random(123);
+    var sampleRng = new Random(123); // NOSONAR: fixed seed on purpose, the sample printout must be reproducible; not used for security
     var picks = Enumerable.Range(0, 10).Select(_ => rows[sampleRng.Next(rows.Count)]);
     foreach (var row in picks)
     {
