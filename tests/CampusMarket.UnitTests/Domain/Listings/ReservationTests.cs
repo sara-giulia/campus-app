@@ -83,4 +83,30 @@ public class ReservationTests
         reservation.ExpiresAt.Should().Be(Now.AddHours(48));
         reservation.Status.Should().Be(ReservationStatus.Active);
     }
+
+    [Fact]
+    public void Given_ActiveReservation_When_Completing_Then_ReturnsSuccessWithCompletedStatus()
+    {
+        var reservation = ActiveReservation();
+
+        var result = reservation.Complete();
+
+        result.IsSuccess.Should().BeTrue();
+        reservation.Status.Should().Be(ReservationStatus.Completed);
+    }
+
+    [Fact]
+    public void Given_CancelledReservation_When_Completing_Then_ReturnsValidationErrorAndStatusUnchanged()
+    {
+        var reservation = ActiveReservation();
+        reservation.Cancel();
+
+        var result = reservation.Complete();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Reservation.NotActive");
+        result.Error.Message.Should().Be("Only an active reservation can be completed.");
+        reservation.Status.Should().Be(ReservationStatus.Cancelled);
+    }
 }

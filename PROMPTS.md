@@ -567,6 +567,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** none.
 - **Change to SKILL.md:** none.
 
+### Run 14, skill v16 (Feature: Confirm sale)
+
+- **Why a new run:** A1 added Reservation.Complete, Listing.ConfirmSale, the Listing.Sold check in UpdateDetails and the ConfirmSale handler.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md, section "Feature: Confirm sale (Sara)". Unit tests already exist: keep them and add only what this section asks. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v16, commit ad2e9f5; run by Sara Matasel
+- **Result:** 21 new tests: 2 in ReservationTests (Complete), 10 in ListingTests (ConfirmSale before and exactly at the 48 h expiry, unknown, cancelled and already completed reservation, a sold listing cannot be updated, published or reserved), 9 in the new ConfirmSaleHandlerTests (seller and Admin succeed, buyer and another member get Listing.NotOwner, 404 before 403, 403 before the reservation check, expired reservation). Every failure test checks the code, the exact message, SaveCount 0 and UpdateCount 0. 250/250 unit tests pass.
+- **Problems seen:** coverage was 99.8%: Listing.ConfirmSale checked "reservation not Active" itself and then again through Reservation.Complete(), so the failure branch after Complete() could never run. The explicit check was removed from Listing.cs (same behaviour: IsExpired is false for a reservation that is not active, and Complete() returns the same Reservation.NotActive error). After that: coverage 100% lines and branches, all tests still pass.
+- **Change to SKILL.md:** none.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -782,6 +791,15 @@ saved.Should().BeEquivalentTo(listing);
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results. Do not commit or push.` (new session)
 - **Skill version:** v9 (new section "Feature: Price suggestion"); run by Sara Matasel
 - **Result:** 6 new tests in Listings/SuggestPriceTests with the real price-regression.zip: laptop New → 200 with a whole price ≥ 1; the laptop is priced higher than worn course notes; no token → 401; empty title → 400 Listing.TitleEmpty; description of 1001 characters → 400 Listing.DescriptionTooLong; unknown condition "Used" → 400. Every test checks that no listing was saved. All tests pass: 10 architecture, 229 unit, 4 ML, 95 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
+
+### Run 12, skill v11 (Feature: Confirm sale)
+
+- **Why a new run:** A1 added POST /api/v1/listings/{id}/reservations/{reservationId}/confirm and the Listing.Sold rule.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Confirm sale (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v11, commit ad2e9f5; run by Sara Matasel
+- **Result:** 12 new tests in Listings/ConfirmSaleTests: the seller confirms (204, listing Sold, Version + 1, reservation Completed), the buyer's reservations list shows Completed, Admin 204, buyer and another member 403, no token 401, unknown listing and unknown reservation 404, confirming twice 400 Reservation.NotActive, a reservation made 49 h ago 400 Reservation.Expired, PUT on a sold listing 400 Listing.Sold, reserving a sold listing 400 Listing.NotActive. Every test checks the database. 376 tests pass (10 architecture, 250 unit, 4 ML, 112 integration).
 - **Problems seen:** none.
 - **Change to SKILL.md:** none.
 

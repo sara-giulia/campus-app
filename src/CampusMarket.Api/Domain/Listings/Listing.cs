@@ -113,11 +113,7 @@ public sealed class Listing
         if (reservation is null)
             return Result<Listing>.Failure(
                 Error.NotFound("Reservation.NotFound", "Reservation not found."));
-
-        if (reservation.Status != ReservationStatus.Active)
-            return Result<Listing>.Failure(
-                Error.Validation("Reservation.NotActive", "Only an active reservation can be completed."));
-
+        
         if (reservation.IsExpired(currentTime))
             return Result<Listing>.Failure(
                 Error.Validation("Reservation.Expired", "The reservation has expired."));
