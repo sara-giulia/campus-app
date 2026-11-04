@@ -36,6 +36,7 @@ public class UpdateListingHandlerTests
         listing.Price.Amount.Should().Be(30m);
         listing.Version.Should().Be(2);
         unitOfWork.SaveCount.Should().Be(1);
+        repository.UpdateCount.Should().Be(1);
     }
 
     [Fact]
@@ -44,13 +45,15 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateListingHandler(repository, unitOfWork);
-        var command = new UpdateListingCommand(Guid.NewGuid(), Guid.NewGuid(), false, "Linear algebra", Category.Textbook, Condition.New, 30m);
+        var unknownId = Guid.NewGuid();
+        var command = new UpdateListingCommand(unknownId, Guid.NewGuid(), false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -69,6 +72,7 @@ public class UpdateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.TitleEmpty");
+        result.Error.Message.Should().Be("Title must not be empty.");
         unitOfWork.SaveCount.Should().Be(0);
         listing.Title.Should().Be("Algebra book");
         listing.Version.Should().Be(1);
@@ -89,6 +93,7 @@ public class UpdateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Listing.NotOwner");
+        result.Error.Message.Should().Be("Only the seller or an Admin can change this listing.");
         repository.Items.Should().ContainKey(listing.Id);
         listing.Title.Should().Be("Algebra book");
         listing.Condition.Should().Be(Condition.Good);
@@ -119,18 +124,82 @@ public class UpdateListingHandlerTests
     }
 
     [Fact]
+    public async Task Given_CommandWithDescription_When_Handling_Then_PassesDescriptionToListingTrimmed()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var command = new UpdateListingCommand(
+            listing.Id, listing.SellerId, false,
+            "Linear algebra", Category.Textbook, Condition.New, 30m, "  Second edition.  ");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Description.Should().Be("Second edition.");
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_CommandWithoutDescription_When_Handling_Then_DescriptionIsNull()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var command = new UpdateListingCommand(
+            listing.Id, listing.SellerId, false,
+            "Linear algebra", Category.Textbook, Condition.New, 30m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Description.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_DescriptionTooLong_When_Handling_Then_ReturnsValidationErrorAndDoesNotSave()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork);
+        var description = new string('a', 1001);
+        var command = new UpdateListingCommand(
+            listing.Id, listing.SellerId, false,
+            "Linear algebra", Category.Textbook, Condition.New, 30m, description);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.DescriptionTooLong");
+        result.Error.Message.Should().Be("Description must have at most 1000 characters.");
+        unitOfWork.SaveCount.Should().Be(0);
+        listing.Title.Should().Be("Algebra book");
+        listing.Description.Should().BeNull();
+        listing.Version.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Given_UnknownId_When_NonOwnerNonAdminUpdates_Then_ReturnsNotFoundNotForbidden()
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new UpdateListingHandler(repository, unitOfWork);
-        var command = new UpdateListingCommand(Guid.NewGuid(), OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
+        var unknownId = Guid.NewGuid();
+        var command = new UpdateListingCommand(unknownId, OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 }

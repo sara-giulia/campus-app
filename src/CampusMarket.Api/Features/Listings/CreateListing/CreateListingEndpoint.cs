@@ -22,7 +22,7 @@ public static class CreateListingEndpoint
         CancellationToken ct)
     {
         var command = new CreateListingCommand(
-            user.GetMemberId(), request.Title, request.Category, request.Condition, request.Price);
+            user.GetMemberId(), request.Title, request.Category, request.Condition, request.Price, request.Description);
 
         var result = await handler.HandleAsync(command, ct);
 

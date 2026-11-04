@@ -25,5 +25,6 @@ public class MoneyTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Money.Invalid");
+        result.Error.Message.Should().Be("Price must be greater than 0.");
     }
 }

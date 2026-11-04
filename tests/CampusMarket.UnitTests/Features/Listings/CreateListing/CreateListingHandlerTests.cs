@@ -46,6 +46,7 @@ public class CreateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.TitleEmpty");
+        result.Error.Message.Should().Be("Title must not be empty.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -63,6 +64,7 @@ public class CreateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Money.Invalid");
+        result.Error.Message.Should().Be("Price must be greater than 0.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -79,6 +81,59 @@ public class CreateListingHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Listing.SellerEmpty");
+        result.Error.Message.Should().Be("Seller id must not be empty.");
+        repository.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_CommandWithDescription_When_Handling_Then_PassesDescriptionToListingTrimmed()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var command = new CreateListingCommand(
+            Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, "  Looks almost new.  ");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Description.Should().Be("Looks almost new.");
+        repository.Items.Single().Value.Description.Should().Be("Looks almost new.");
+    }
+
+    [Fact]
+    public async Task Given_CommandWithoutDescription_When_Handling_Then_DescriptionIsNull()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var command = new CreateListingCommand(
+            Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Description.Should().BeNull();
+        repository.Items.Single().Value.Description.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_DescriptionTooLong_When_Handling_Then_ReturnsValidationErrorAndDoesNotStoreOrSave()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var description = new string('a', 1001);
+        var command = new CreateListingCommand(
+            Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, description);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.DescriptionTooLong");
+        result.Error.Message.Should().Be("Description must have at most 1000 characters.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
@@ -96,6 +151,7 @@ public class CreateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Conflict);
         result.Error.Code.Should().Be("Listing.Duplicate");
+        result.Error.Message.Should().Match("A listing with id '*' already exists.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }

@@ -8,6 +8,8 @@ public sealed class FakeListingRepository : IListingRepository
 
     public bool RejectAdd { get; set; }
 
+    public int UpdateCount { get; private set; }
+
     public Task<bool> AddAsync(Listing listing, CancellationToken ct = default)
     {
         if (RejectAdd)
@@ -35,6 +37,7 @@ public sealed class FakeListingRepository : IListingRepository
     public void Update(Listing listing)
     {
         Items[listing.Id] = listing;
+        UpdateCount++;
     }
 
     public void Delete(Listing listing)

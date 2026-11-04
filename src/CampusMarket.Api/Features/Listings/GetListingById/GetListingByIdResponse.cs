@@ -11,7 +11,8 @@ public sealed record GetListingByIdResponse(
     decimal Price,
     ListingStatus Status,
     int Version,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    string? Description)
 {
     // Turns the domain object into what the API sends back.
     public static GetListingByIdResponse From(Listing listing) => new(
@@ -23,5 +24,6 @@ public sealed record GetListingByIdResponse(
         listing.Price.Amount,
         listing.Status,
         listing.Version,
-        listing.CreatedAt);
+        listing.CreatedAt,
+        listing.Description);
 }
