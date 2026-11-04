@@ -442,6 +442,13 @@ However the work is split, every slice comes with its tests, its Postman request
 - Tasks tracked as GitHub Issues, one per slice, assigned to whoever picks it up.
 - A team chat group for day-to-day questions.
 
+### Code conventions
+
+- Private instance fields use `_camelCase`: `_reservations`, `_hasher`, `_value`. Decided in week 5, because code review v3 and v5 disagreed on the `_` (`REVIEW.md`, row 14).
+- Constructor parameters, including primary constructor parameters (`repository` in `RegisterHandler`), have no `_`.
+- `const` and `static readonly` fields use `PascalCase`: `Now`, `CreatedAt`, `InvalidCredentials`.
+- When EF Core uses a field by name (`HasField("_reservations")`), rename the string together with the field: a wrong name still builds, but fails at runtime.
+
 ## Testing
 
 - **Run the unit tests:** `dotnet test tests/CampusMarket.UnitTests`
