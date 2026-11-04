@@ -47,7 +47,7 @@ Unit tests: `dotnet test` from the repository root.
 
 ### Business rules
 
-- A listing has a title, category, condition (`New`, `Good`, `Worn`), asking price, status (`Draft`, `Active`, `Reserved`, `Sold`) and a `Version` for optimistic concurrency.
+- A listing has a title, category, condition (`New`, `Good`, `Worn`), asking price, an optional description (at most 1000 characters), status (`Draft`, `Active`, `Reserved`, `Sold`) and a `Version` for optimistic concurrency.
 - A reservation **expires after 48h** (computed with `TimeProvider`).
 - A buyer can hold **at most 3 active reservations**.
 - A seller **cannot reserve their own listing**.
@@ -171,6 +171,22 @@ Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search
 }
 ```
 
+A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
+
+```json
+{
+  "id": "...",
+  "title": "OOP textbook",
+  "category": "Textbook",
+  "condition": "Good",
+  "price": 40,
+  "status": "Active",
+  "version": 1,
+  "createdAt": "...",
+  "description": "Looks almost new, no highlights."
+}
+```
+
 `count` is the number of listings on this page; `totalCount` is the number of listings that match the filters, on all pages.
 
 | Error | When |
@@ -213,7 +229,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Reservation.NotActive` | 400 | you cancel a reservation that is not active |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
 
-Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty` or `Member.InvalidName`.
+Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
 ### Example scenario: reserving a listing
 
@@ -442,6 +458,18 @@ However the work is split, every slice comes with its tests, its Postman request
 
 - **Open the report:** open `coverage-report/index.html` in a browser
 - **Coverage exclusions:** see the list below, each one with its reason
+
+### Mutation testing
+
+Stryker.NET checks that the unit tests really verify the code: it changes `Domain/` and the handlers on purpose and checks that a test fails each time. **Current mutation score: 100%** (326 mutants killed, 0 survived; 82.13% in week 4).
+
+```
+dotnet tool install -g dotnet-stryker
+cd tests/CampusMarket.UnitTests
+dotnet stryker
+```
+
+Details and the two equivalent mutants: [MUTATION.md](MUTATION.md). Report: `mutation-report/mutation-report.html`.
 
 ### Coverage exclusions
 

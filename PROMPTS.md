@@ -511,6 +511,34 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v11 is the final version.
 - **Commits:** skill ae11e33; generated code a79e111
 
+### Run 9, skill v11 (Feature: Listing description)
+
+- **Why a new run:** a listing gets an optional description (at most 1000 characters), which the ML models of week 5 (category and spam) need as input text. `Listing.Create`, `Listing.UpdateDetails`,- **Prompt:** `We are on branch feature/listing-description. Listings get an optional Description. The domain, the configuration, the migration and the CreateListing slice are already done. Finish the rest (UpdateListing slice, GetListingByIdResponse, unit tests, integration tests, Postman, README, PROMPTS.md). Rules: do not change existing tests except where a change is needed to compile; do not touch the ListingStatus or ReservationStatus enums; do not commit .idea or .db files; do not commit or push, I will do that. At the end run dotnet build and dotnet test, show me the results and list every file you changed.` (new session)
+- **Skill version:** v11, commit ae11e33; run by Sara Matasel
+- **Result:** 5 new tests in `Domain/Listings/ListingTests.cs` for `Listing.Create` with a description (no description → null, whitespace → trimmed, blank → null, exactly 1000 → success, 1001 → `Listing.DescriptionTooLong`), 5 new tests for `UpdateDetails` with a description (trimmed, blank → null, 1000 → success, 1001 → `Listing.DescriptionTooLong` and listing unchanged, no description → null), 3 new tests in `CreateListingHandlerTests` (passes trimmed, no description → null, 1001 → `DescriptionTooLong` with nothing stored or saved), 3 new tests in `UpdateListingHandlerTests` (passes trimmed, no description → null, 1001 → `DescriptionTooLong` with listing unchanged). No existing unit test deleted. All unit tests pass.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v11 is the final version.
+- **Commits:** generated code on feature/listing-description
+
+### Run 10, skill v12 (Feature: Surviving mutants)
+
+- **Why a new run:** Stryker left 58 mutants alive on main; the goal is a mutation score of 100% without changing production code.
+- **Prompt:** `Use the unit-testing skill, section "Feature: Surviving mutants (Diana)". Follow its rules exactly: never change production code, keep every existing test and its name, in existing tests only add the Error.Message assertions described in point 1. Point 1 also covers the new Listing.DescriptionTooLong error. At the end run dotnet test, show me the results and list every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v12 (section written by Diana Preutu); run by Sara Matasel
+- **Result:** point 1 of the section: Error.Message assertions were added to the existing tests that check an error code (including the new Listing.DescriptionTooLong error). No new tests (210 unit tests before and after). Points 2–5 were not generated, because the rule "in existing tests only add Error.Message assertions" blocked point 2 (see Run 11). No production code changed. All unit tests pass. Stryker after the run: 9 mutants still alive, exactly points 2–5.
+- **Change to SKILL.md:** after the run, the rule "only add Error.Message assertions in existing tests" contradicted point 2 (UpdateCount in the existing success tests). The rule was changed to also allow the UpdateCount assertions (commit b9b496b, Diana Preutu). The tests from this run already follow the new rule; points 2–5 were run in Run 11.
+- **Commits:** skill fa9b3e3; generated code 22b1fc6
+
+### Run 11, skill v13 (Feature: Surviving mutants, points 2–5)
+
+- **Why a new run:** in Run 10 the rule "in existing tests only add Error.Message assertions" blocked point 2. The rule was changed to also allow the UpdateCount assertions (commit b9b496b, Diana Preutu), then points 2–5 were run.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them. In the "Feature: Surviving mutants" section, point 1 is already done; only implement points 2, 3, 4 and 5 (the UpdateCount and VerifyCount counters in the fakes and their assertions, the three boundary tests, the login test with an empty password, and the reservations order test). Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results.` (new session)
+- **Skill version:** v13, commit b9b496b; run by Sara Matasel
+- **Result:** UpdateCount in FakeListingRepository and FakeMemberRepository, VerifyCount in FakePasswordHasher; UpdateCount = 1 asserted in the success tests of UpdateListing, UpdateMember, PublishListing and CancelReservation; 5 new tests: title of exactly 100 characters, member name of exactly 2 and exactly 100 characters, login with an empty password (VerifyCount = 0), two reservations with the same CreatedAt ordered by ReservationId. 215/215 unit tests pass; coverage 100% lines (535/535) and 100% branches (188/188). No production code changed.  Stryker after the run: **100%** (326 mutants killed, 0 survived); the two equivalent mutants are marked with `// Stryker disable once String` (commit 7c61905).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
+- **Commits:** skill b9b496b; generated code 505b060
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -690,6 +718,16 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v8 is the final version.
 - **Commits:** skill ae11e33; generated code a79e111
+
+### Run 9, skill v8 (Feature: Listing description)
+
+- **Why a new run:** the optional description reaches the HTTP contract (`CreateListingRequest`, `UpdateListingRequest`, `CreateListingResponse`, `GetListingByIdResponse`), so the integration tests have to prove it end to end.
+- **Prompt:** same feature prompt as the unit-testing Run 9 above (new session).
+- **Skill version:** v8, commit ae11e33; run by Sara Matasel
+- **Result:** 3 new tests in `Listings/CreateListingTests.cs` (POST with description → 201 with the description, GET by id returns it, row in SQLite has the trimmed description; POST without description → 201 with `description: null` and the row's `Description` is null; POST with a 1001-character description → 400 `Listing.DescriptionTooLong`, nothing saved) and 1 new test in `Listings/UpdateListingTests.cs` (PUT changes the description → 204 and the row's `Description` is the new value, `Version` is 2). The existing `GetListingByIdTests` body comparison was updated to pass `null` as the new `Description` field, the only change needed to compile. No other existing test changed. All integration tests pass.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v8 is the final version.
+- **Commits:** generated code on feature/listing-description
 
 ## code-review
 

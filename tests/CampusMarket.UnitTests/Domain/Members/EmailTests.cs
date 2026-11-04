@@ -25,6 +25,7 @@ public class EmailTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Email.Empty");
+        result.Error.Message.Should().Be("Email must not be empty.");
     }
 
     [Theory]
@@ -39,5 +40,6 @@ public class EmailTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Email.Invalid");
+        result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
     }
 }

@@ -38,6 +38,7 @@ public class CancelReservationHandlerTests
         reservation.Status.Should().Be(ReservationStatus.Cancelled);
         listing.Status.Should().Be(ListingStatus.Active);
         unitOfWork.SaveCount.Should().Be(1);
+        repository.UpdateCount.Should().Be(1);
     }
 
     [Fact]
@@ -93,6 +94,7 @@ public class CancelReservationHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Reservation.NotAllowed");
+        result.Error.Message.Should().Be("Only the buyer, the seller or an Admin can cancel this reservation.");
         reservation.Status.Should().Be(ReservationStatus.Active);
         listing.Status.Should().Be(ListingStatus.Reserved);
         unitOfWork.SaveCount.Should().Be(0);
@@ -104,13 +106,15 @@ public class CancelReservationHandlerTests
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
         var handler = new CancelReservationHandler(repository, unitOfWork);
-        var command = new CancelReservationCommand(Guid.NewGuid(), Guid.NewGuid(), BuyerId, false);
+        var unknownListingId = Guid.NewGuid();
+        var command = new CancelReservationCommand(unknownListingId, Guid.NewGuid(), BuyerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{unknownListingId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -122,13 +126,15 @@ public class CancelReservationHandlerTests
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
         var handler = new CancelReservationHandler(repository, unitOfWork);
-        var command = new CancelReservationCommand(listing.Id, Guid.NewGuid(), BuyerId, false);
+        var unknownReservationId = Guid.NewGuid();
+        var command = new CancelReservationCommand(listing.Id, unknownReservationId, BuyerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Reservation.NotFound");
+        result.Error.Message.Should().Be($"Reservation '{unknownReservationId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 
@@ -148,6 +154,7 @@ public class CancelReservationHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Reservation.NotActive");
+        result.Error.Message.Should().Be("Only an active reservation can be cancelled.");
         unitOfWork.SaveCount.Should().Be(0);
     }
 }

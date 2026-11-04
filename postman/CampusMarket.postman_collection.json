@@ -391,7 +391,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40\n}",
+                  "raw": "{\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40,\n  \"description\": \"Looks almost new, no highlights.\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -414,6 +414,7 @@
                       "  const body = pm.response.json();",
                       "  pm.expect(body.status).to.eql(\"Draft\");",
                       "  pm.expect(body.version).to.eql(1);",
+                      "  pm.expect(body.description).to.eql(\"Looks almost new, no highlights.\");",
                       "});",
                       "pm.collectionVariables.set(\"listingId\", pm.response.json().id);"
                     ]
@@ -594,6 +595,59 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create listing - description too long (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Calculus textbook\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Good\",\n  \"price\": 40,\n  \"description\": \"{{tooLongDescription}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"tooLongDescription\", \"a\".repeat(1001));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Listing.DescriptionTooLong\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.DescriptionTooLong\"));"
                     ]
                   }
                 }
@@ -1623,7 +1677,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"title\": \"Calculus textbook (2nd edition)\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Worn\",\n  \"price\": 35\n}",
+                  "raw": "{\n  \"title\": \"Calculus textbook (2nd edition)\",\n  \"category\": \"Textbook\",\n  \"condition\": \"Worn\",\n  \"price\": 35,\n  \"description\": \"Updated: second edition, cover slightly worn.\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

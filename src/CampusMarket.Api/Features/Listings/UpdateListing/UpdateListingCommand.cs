@@ -10,4 +10,5 @@ public sealed record UpdateListingCommand(
     string Title,
     Category Category,
     Condition Condition,
-    decimal Price) : ICommand<Guid>;
+    decimal Price,
+    string? Description = null) : ICommand<Guid>;
