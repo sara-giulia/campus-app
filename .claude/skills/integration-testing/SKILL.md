@@ -456,3 +456,24 @@ Rules for this feature:
 - Read 403/404/400 bodies into `Error` and check `Code` and `Type`. For 401 check only the status code.
 - The reservation's `createdAt` comes from the real clock of the API: never compare it to a fixed time, only check `expiresAt - createdAt` is 48 h.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Price suggestion (Sara)
+
+Endpoint: `POST /api/v1/listings/price-suggestion`, needs a logged-in user, body `{ title, description?, category, condition }`, returns `200 { suggestedPrice }` (whole lei, at least 1). It is a query: nothing is saved.
+
+The integration tests use the **real** model `price-regression.zip`, which the API project copies to the output folder `ml-models/`. Do not replace `IPriceSuggester` in the test factory.
+
+File: `Listings/SuggestPriceTests.cs`, using the same base class and the same login helper as the other listing tests.
+
+Tests to add:
+- Logged in, a laptop (`"Laptop Lenovo ThinkPad T480, i5, 16GB RAM"`, `Electronics`, `New`) → 200, `suggestedPrice` is a whole number ≥ 1.
+- The model separates cheap from expensive items: the laptop above (`New`) gets a higher price than course notes (`"Notite Analiza matematica anul 1"`, `Notes`, `Worn`).
+- No token → 401.
+- Empty title → 400 `Listing.TitleEmpty`; description of 1001 characters → 400 `Listing.DescriptionTooLong`.
+- An unknown condition in the JSON (`"condition": "Used"`) → 400 (only the status code: the body is produced by ASP.NET, not by our handler).
+- After any of these requests, the database still has 0 listings.
+
+Rules for this feature:
+- Never assert an exact price: the model can be retrained. Only assert ≥ 1, whole number, and the laptop-vs-notes relation.
+
+
