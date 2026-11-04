@@ -337,3 +337,28 @@ Code review v5 (`REVIEW.md`, "Week 4 – code-review v5", rows 12 and 13) found 
 Rules for this feature:
 - Only names change, so the coverage does not change: do not generate the coverage report again for this feature.
 - After the run, `dotnet test` passes with the same number of unit tests as before.
+## Feature: Price suggestion (Sara)
+
+Production code (read it before generating):
+- `Common/Pricing/IPriceSuggester.cs`: `int Suggest(string title, string? description, Category category, Condition condition)`. The real implementation (`Infrastructure/ML/PriceSuggester.cs`) uses the ML model; unit tests never use it.
+- `Features/Listings/SuggestPrice/SuggestPriceQuery.cs` and `SuggestPriceHandler.cs`: a query handler (no `IUnitOfWork`). Validation order: unknown category `Listing.CategoryInvalid`, unknown condition `Listing.ConditionInvalid`, description longer than `Listing.MaxDescriptionLength` after trim `Listing.DescriptionTooLong`, empty title `Listing.TitleEmpty`, title longer than `Listing.MaxTitleLength` after trim `Listing.TitleTooLong`. Then it calls the suggester once with the **trimmed** title and returns `SuggestPriceResponse` with the suggester's value.
+
+New fake in `Fakes/` (hand-written, no mocking library):
+- `FakePriceSuggester : IPriceSuggester`: returns the public property `SuggestedPrice` (default `123`), counts calls in `CallCount`, and remembers `LastTitle`, `LastDescription`, `LastCategory`, `LastCondition`.
+
+File: `Features/Listings/SuggestPrice/SuggestPriceHandlerTests.cs`.
+
+Tests to add:
+- Valid query (title `"  Casio fx-991EX  "`, a description, `Electronics`, `Good`) → success, `SuggestedPrice` equals the fake's value; `CallCount` 1; `LastTitle` is `"Casio fx-991EX"` (trimmed); description, category and condition are passed unchanged.
+- Description `null` → success, `LastDescription` is `null`.
+- Invalid category (`(Category)99`) → `Listing.CategoryInvalid`; invalid condition (`(Condition)99`) → `Listing.ConditionInvalid`.
+- Description of 1001 characters → `Listing.DescriptionTooLong`; exactly 1000 → success; 1000 characters with spaces around → success (the length is checked after trim).
+- Title `""` and `"   "` (`[Theory]`) → `Listing.TitleEmpty`; 101 characters → `Listing.TitleTooLong`; exactly 100 → success; 100 characters with spaces around → success.
+- Order of the checks: invalid category **and** empty title → `Listing.CategoryInvalid`; description too long **and** empty title → `Listing.DescriptionTooLong`.
+
+Rules for this feature:
+- In every failure test: `ErrorType.Validation`, the exact `Error.Code` **and** the exact `Error.Message` from the handler, and `CallCount` 0 (the model is never asked when the input is invalid).
+- Build the expected messages for the length errors from `Listing.MaxDescriptionLength` and `Listing.MaxTitleLength`, the same way the handler does.
+- Never use the real `PriceSuggester` or a `.zip` model in unit tests.
+
+

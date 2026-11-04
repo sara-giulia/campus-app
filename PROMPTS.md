@@ -558,6 +558,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v14 is the final version.
 - **Commits:** skill 14cdf0c; generated code dd316cc
 
+### Run 13, skill v14 (Feature: Price suggestion)
+
+- **Why a new run:** B3 added the SuggestPrice query handler and the IPriceSuggester interface; the handler needs unit tests and a fake for the suggester.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Unit tests already exist: keep them and add only what this section asks. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the results. Do not commit or push.` (new session)
+- **Skill version:** v14 (new section "Feature: Price suggestion"); run by Sara Matasel
+- **Result:** new FakePriceSuggester (SuggestedPrice, CallCount, last arguments); 14 new tests in SuggestPriceHandlerTests: valid query with the trimmed title passed to the suggester, null description, unknown category and condition, description and title limits (exactly at the limit, over the limit, at the limit with spaces around), empty title, and the order of the checks. Every failure test checks the code, the exact message and that the suggester was not called. 229/229 unit tests pass; coverage 100% lines (558/558) and branches; SuggestPriceHandler 100%.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -767,6 +776,15 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v9 is the final version.
 - **Commits:** skill edb9e2f; generated code dd316cc
 
+### Run 11, skill v9 (Feature: Price suggestion)
+
+- **Why a new run:** B3 added POST /api/v1/listings/price-suggestion, which uses the real ML model.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results. Do not commit or push.` (new session)
+- **Skill version:** v9 (new section "Feature: Price suggestion"); run by Sara Matasel
+- **Result:** 6 new tests in Listings/SuggestPriceTests with the real price-regression.zip: laptop New → 200 with a whole price ≥ 1; the laptop is priced higher than worn course notes; no token → 401; empty title → 400 Listing.TitleEmpty; description of 1001 characters → 400 Listing.DescriptionTooLong; unknown condition "Used" → 400. Every test checks that no listing was saved. All tests pass: 10 architecture, 229 unit, 4 ML, 95 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -959,5 +977,121 @@ Do not change anything in src/ or tests/. Do not commit or push.
 - **Result:** 3000 rows, 300 spam (10.00%); the same file on two runs (same SHA-256). Non-spam prices: Notes 5–53 lei, Textbook 17–188, LabEquipment 8–364, Other 10–1403, Electronics 28–5022; the averages follow New > Good > Worn (Textbook 90 / 64 / 39, Electronics 963 / 710 / 529). No change in src/ or tests/.
 - **Problems seen:** none.
 
+---
 
+## ml-training
+
+Training project and ML structure in the API (week 5, task B2). Run by Sara Matasel.
+
+### Run 1
+
+- **Why:** B1 produced the dataset; B2 adds the console project that will train the three models (price in B3, category in B4, spam in B5), plus the ML wiring on the API side, without any concrete model yet.
+- **Prompt:** (new session)
+
+```
+Week 5, task B2: the ML training project and the ML structure in the API. The dataset from B1 is in ml/data/listings.csv
+(columns Title, Description, Category, Condition, Price, IsSpam). Do not add any concrete model yet:
+PriceTrainer (B3), CategoryTrainer (B4) and SpamTrainer (B5) come later, each as one new class.
+
+1. New console project ml/CampusMarket.ML.Training (net10.0), added to CampusMarket.sln under the ml folder,
+   with the latest stable Microsoft.ML that supports net10.0.
+   - ListingRow: the CSV columns with [LoadColumn]; load with hasHeader, allowQuoting, separator ','.
+   - IModelTrainer: Name, ModelFileName, and a method that gets the MLContext, the train and the test IDataView
+     and returns the trained ITransformer plus the metrics as text.
+   - Program: MLContext(seed: 42), load the CSV, TrainTestSplit(testFraction: 0.2, seed: 42), print the number of
+     train and test rows, run every trainer in one list (empty for now: print "No trainers registered yet"),
+     print its metrics and save its model to ml/models/<ModelFileName> with the input schema.
+     Find ml/ from AppContext.BaseDirectory, like the dataset generator does.
+2. ml/models/README.md: what the folder holds, that the .zip files are committed so the API works without training,
+   and how to retrain (dotnet run --project ml/CampusMarket.ML.Training).
+3. API, src/CampusMarket.Api/Infrastructure/ML/:
+   - add Microsoft.ML and Microsoft.Extensions.ML (PredictionEnginePool, thread safe) to the API project;
+   - MlOptions with ModelsPath (config section "Ml", default "ml-models");
+   - an extension AddCampusMarketMl(this IServiceCollection, IConfiguration) called from CampusMarketSetup,
+     with a comment that each model registers its PredictionEnginePool here in B3, B4 and B5;
+   - the API .csproj copies ../../ml/models/*.zip to the output folder ml-models (no error if there are no .zip files yet).
+4. Architecture tests: a new rule that Domain and Features do not depend on Microsoft.ML
+   (only Infrastructure may), in the same style as the existing rules, with a non-empty selection check.
+5. README: a short "Machine learning" section (the ml/ folders, the flow dataset -> training -> models -> API,
+   how to retrain), and PROMPTS.md: a "Run 2" entry under ml-dataset... no: a new section "## ml-training", Run 1, with this prompt.
+Run dotnet build, dotnet test and dotnet run --project ml/CampusMarket.ML.Training, show me the output and list every file you changed.
+Do not change existing tests. Do not commit or push.
+```
+
+- **Result:** `dotnet build` 0 warnings, 0 errors. `dotnet test`: 192 unit, 10 architecture (the 2 new rules among them), 85 integration, all pass. `dotnet run --project ml/CampusMarket.ML.Training` prints `Train rows: 2397`, `Test rows: 603` and `No trainers registered yet.` Package picked: `Microsoft.ML` 5.0.1 and `Microsoft.Extensions.ML` 5.0.1 (restored against net10.0). No `.zip` is produced yet.
+- **Files changed:**
+    - `ml/CampusMarket.ML.Training/CampusMarket.ML.Training.csproj` (new)
+    - `ml/CampusMarket.ML.Training/ListingRow.cs` (new)
+    - `ml/CampusMarket.ML.Training/IModelTrainer.cs` (new)
+    - `ml/CampusMarket.ML.Training/Program.cs` (new)
+    - `ml/models/README.md` (new)
+    - `src/CampusMarket.Api/Infrastructure/ML/MlOptions.cs` (new)
+    - `src/CampusMarket.Api/Infrastructure/ML/MlServiceCollectionExtensions.cs` (new, holds `AddCampusMarketMl`)
+    - `src/CampusMarket.Api/CampusMarket.Api.csproj` (added `Microsoft.ML`, `Microsoft.Extensions.ML`, and a `<None Include="..\..\ml\models\*.zip" Link="ml-models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />` block)
+    - `src/CampusMarket.Api/CampusMarketSetup.cs` (added `using` for `Infrastructure.ML`; `AddCampusMarket` now also takes `IConfiguration` and calls `AddCampusMarketMl(configuration)` — no test references `AddCampusMarket` directly)
+    - `src/CampusMarket.Api/Program.cs` (one line: `AddCampusMarket(builder.Configuration)`)
+    - `tests/CampusMarket.ArchitectureTests/MlTests.cs` (new, two `[Fact]` tests: Domain and Features do not depend on `Microsoft.ML`)
+    - `CampusMarket.sln` (project added under the `ml` solution folder via `dotnet sln add`)
+    - `README.md` (new "Machine learning" section after the coverage exclusions)
+    - `PROMPTS.md` (this entry)
+- **Problems seen:** none.
+
+### Run 2
+
+- **Why:** B2 added the training project and the ML wiring on the API side without any concrete model. B3 adds the first real model (price suggestion): `PriceTrainer`, the `price-regression.zip` artefact, the `SuggestPrice` slice behind an `IPriceSuggester` interface, and a quality test project that guards the model on every CI run.
+- **Prompt:** (new session)
+
+```
+Week 5, task B3: price suggestion. The training project (ml/CampusMarket.ML.Training, IModelTrainer) and the ML wiring
+in the API (Infrastructure/ML, AddCampusMarketMl, models copied to ml-models) already exist from B2.
+
+1. Training: new class PriceTrainer : IModelTrainer, registered in the trainers list of Program.cs.
+   - Train only on rows with IsSpam = false (spam prices are absurd on purpose).
+   - Label: Price. Features: Category and Condition one-hot encoded, Title and Description with FeaturizeText.
+   - Use a regression trainer that handles prices from 5 to 5000 lei well (FastTree, add Microsoft.ML.FastTree with the same version as Microsoft.ML).
+   - Metrics on the test split: R², MAE and RMSE, printed by Program.
+   - ModelFileName: price-regression.zip, saved to ml/models/ and committed.
+2. Run the training and show me the metrics. If R² is below 0.8, try one simple improvement (for example training on log(Price)
+   and converting back in the API) and show both results; keep the better one.
+3. API, a new slice Features/Listings/SuggestPrice/ following our cqrs skill (.claude/skills/cqrs):
+   - POST /api/v1/listings/price-suggestion, RequireAuthorization, body { title, description?, category, condition }.
+   - It is a query: it changes nothing, so no IUnitOfWork.
+   - Validation with the same rules and error codes as Listing (title empty / too long, description too long, unknown category or condition) -> 400.
+   - Response { suggestedPrice }: whole lei, at least 1.
+   - The handler depends on an interface IPriceSuggester with no Microsoft.ML types; put it where our other service interfaces
+     (like IPasswordHasher and ITokenService) live. The implementation PriceSuggester is in Infrastructure/ML and uses
+     PredictionEnginePool, registered in AddCampusMarketMl with the model file from MlOptions.ModelsPath (path relative to AppContext.BaseDirectory).
+   - The ML input and output classes for the API live in Infrastructure/ML and match the column names used in training.
+4. A quality test for the model: a new test project tests/CampusMarket.ML.Tests (added to the solution) that loads
+   ml/models/price-regression.zip and ml/data/listings.csv, uses the same non-spam rows and the same split (seed 42, test 20%),
+   and fails if R² < 0.8. Add one more check: for the same title, New is priced higher than Worn.
+5. Make sure the integration tests can start the API with the model (the .zip must reach their output folder). Do not write new
+   unit or integration tests for the slice yet; we generate them with the skills in the next step.
+6. Postman: one request "Price suggestion" (200) in the Listings folder, after login. README: the endpoint in the table and a short
+   note in the "Machine learning" section with the metrics. PROMPTS.md: Run 2 under ml-training with this prompt.
+Run dotnet build, dotnet test and the training, show me the metrics, three example suggestions (a laptop New, a used calculator,
+course notes Worn) and list every file you changed. Do not change existing tests. Do not commit or push.
+```
+
+- **Result:** `dotnet build` on the whole solution: 0 warnings, 0 errors. `dotnet test`: 215 unit, 10 architecture, 89 integration and 4 new ML tests (`CampusMarket.ML.Tests`), all green. `dotnet run --project ml/CampusMarket.ML.Training` on the committed dataset prints: `R² 0.830`, `MAE 81.24 lei`, `RMSE 189.39 lei` — above the 0.8 bar, so the base FastTree model is kept and no `log(Price)` fallback is applied. Three sample suggestions (Laptop ThinkPad T480, Electronics, New → **2967 lei**; Casio fx-991EX, Electronics, Good → **84 lei**; Rezumat examen Analiza, Notes, Worn → **11 lei**) line up with the dataset's per-category ranges.
+- **Files changed:**
+    - `ml/CampusMarket.ML.Training/CampusMarket.ML.Training.csproj` (added `Microsoft.ML.FastTree` 5.0.1)
+    - `ml/CampusMarket.ML.Training/PriceTrainer.cs` (new, FastTree regression; filters out spam, one-hot Category/Condition, `FeaturizeText` on Title and Description; supports a `logLabel: true` variant with price-space metrics for the fallback the task describes)
+    - `ml/CampusMarket.ML.Training/Program.cs` (registers `new PriceTrainer()` in the trainers list)
+    - `ml/models/price-regression.zip` (new committed artefact, ≈208 KB)
+    - `src/CampusMarket.Api/CampusMarket.Api.csproj` (added `Microsoft.ML.FastTree` 5.0.1 — needed at runtime, because FastTree registers its own loadable classes and `PredictionEnginePool.Load` otherwise throws `FileNotFoundException` on `Microsoft.ML.FastTree`)
+    - `src/CampusMarket.Api/Common/Pricing/IPriceSuggester.cs` (new, no `Microsoft.ML` types)
+    - `src/CampusMarket.Api/Infrastructure/ML/PriceInput.cs`, `PricePrediction.cs`, `PriceSuggester.cs` (new; `PriceSuggester` calls `PredictionEnginePool<PriceInput, PricePrediction>.Predict` and rounds to whole lei with a `≥ 1` floor)
+    - `src/CampusMarket.Api/Infrastructure/ML/MlServiceCollectionExtensions.cs` (now registers the `PredictionEnginePool` from `MlOptions.ModelsPath` + `AppContext.BaseDirectory` and the `IPriceSuggester → PriceSuggester` singleton)
+    - `src/CampusMarket.Api/Features/Listings/SuggestPrice/SuggestPriceRequest.cs`, `SuggestPriceQuery.cs`, `SuggestPriceResponse.cs`, `SuggestPriceHandler.cs`, `SuggestPriceEndpoint.cs` (new slice, follows `.claude/skills/cqrs`: handler is `IQueryHandler<,>` with no `IUnitOfWork`, validation reuses the exact `Listing.*` error codes)
+    - `src/CampusMarket.Api/Features/Listings/ListingsEndpoints.cs` (mapped `SuggestPriceEndpoint`)
+    - `tests/CampusMarket.ML.Tests/CampusMarket.ML.Tests.csproj` (new xUnit + FluentAssertions project, references the training project so the FastTree assembly is on the test runner's path)
+    - `tests/CampusMarket.ML.Tests/TestPaths.cs` (walks up to find `ml/`, so tests load the model and the CSV from the repo root)
+    - `tests/CampusMarket.ML.Tests/PriceModelQualityTests.cs` (R² ≥ 0.8 on the same non-spam test split, and three `[Theory]` cases asserting `New > Worn` for the same title and description)
+    - `CampusMarket.sln` (new `CampusMarket.ML.Tests` project, nested under the `tests` solution folder)
+    - `postman/CampusMarket.postman_collection.json` (new `SuggestPrice` folder inside `Listings`, one request "Price suggestion - laptop (200)" that asserts `suggestedPrice` is a whole number ≥ 1; inherits the collection-level bearer token set by `Login`)
+    - `README.md` (new row in the "Implemented so far" table for `POST /api/v1/listings/price-suggestion`, and a "Price suggestion model (B3)" subsection under "Machine learning" with the metrics and the quality-gate description)
+    - `PROMPTS.md` (this entry)
+- **Problems seen:**
+    1. The first scratchpad consumer of `price-regression.zip` only referenced `Microsoft.ML` and threw `FileNotFoundException: 'Microsoft.ML.FastTree'` on load — the same failure the API would have hit at first request. Fixed by adding `Microsoft.ML.FastTree` to `CampusMarket.Api.csproj` too (it was only added to the training project at first, where the task's "add Microsoft.ML.FastTree with the same version as Microsoft.ML" bullet pointed).
 

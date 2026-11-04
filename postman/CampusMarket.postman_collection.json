@@ -2010,6 +2010,62 @@
               ]
             }
           ]
+        },
+        {
+          "name": "SuggestPrice",
+          "item": [
+            {
+              "name": "Price suggestion - laptop (200)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/price-suggestion",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "price-suggestion"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Laptop Lenovo ThinkPad T480, i5 + 16GB RAM\",\n  \"description\": \"Laptop folosit la cursuri, bateria tine 4 ore.\",\n  \"category\": \"Electronics\",\n  \"condition\": \"New\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Response has a whole-lei suggestedPrice >= 1\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body).to.have.property(\"suggestedPrice\");",
+                      "  pm.expect(body.suggestedPrice).to.be.a(\"number\");",
+                      "  pm.expect(Number.isInteger(body.suggestedPrice)).to.eql(true);",
+                      "  pm.expect(body.suggestedPrice).to.be.at.least(1);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     },

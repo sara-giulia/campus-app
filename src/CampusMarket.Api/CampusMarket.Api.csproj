@@ -12,10 +12,23 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.ML" Version="5.0.1" />
+    <PackageReference Include="Microsoft.ML.FastTree" Version="5.0.1" />
+    <PackageReference Include="Microsoft.Extensions.ML" Version="5.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="CampusMarket.UnitTests" />
+  </ItemGroup>
+
+  <!--
+    Copy every trained model from ml/models/ into the output folder under ml-models/,
+    so the API finds them next to the compiled binaries. No error if the folder is
+    empty before the first training run.
+  -->
+  <ItemGroup>
+    <_MlModels Include="..\..\ml\models\*.zip" />
+    <None Include="@(_MlModels)" Link="ml-models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
