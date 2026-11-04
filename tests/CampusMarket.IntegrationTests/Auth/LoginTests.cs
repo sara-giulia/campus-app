@@ -81,6 +81,9 @@ public sealed class LoginTests : IntegrationTestBase
         var error = await response.Content.ReadFromJsonAsync<Error>(Json);
         error!.Code.Should().Be("Auth.InvalidCredentials");
         error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(1);
     }
 
     [Fact]
@@ -98,6 +101,9 @@ public sealed class LoginTests : IntegrationTestBase
         var error = await response.Content.ReadFromJsonAsync<Error>(Json);
         error!.Code.Should().Be("Auth.InvalidCredentials");
         error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(0);
     }
 
     [Fact]
@@ -117,6 +123,9 @@ public sealed class LoginTests : IntegrationTestBase
         var error = await response.Content.ReadFromJsonAsync<Error>(Json);
         error!.Code.Should().Be("Auth.InvalidCredentials");
         error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(1);
     }
 
     [Fact]
