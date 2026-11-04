@@ -64,7 +64,7 @@ public class ReservationTests
     }
 
     [Fact]
-    public void Given_CancelledReservation_When_CheckingExpirationAtExpiry_Then_ReturnsFalse()
+    public void Given_CancelledReservation_When_CheckingExpirationAfterExpiry_Then_ReturnsFalse()
     {
         var reservation = ActiveReservation();
         reservation.Cancel();
