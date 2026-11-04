@@ -24,7 +24,10 @@ var testCount = mlContext.Data.CreateEnumerable<ListingRow>(split.TestSet, reuse
 Console.WriteLine($"Train rows: {trainCount}");
 Console.WriteLine($"Test rows:  {testCount}");
 
-var trainers = new List<IModelTrainer>();
+var trainers = new List<IModelTrainer>
+{
+    new PriceTrainer()
+};
 
 if (trainers.Count == 0)
 {

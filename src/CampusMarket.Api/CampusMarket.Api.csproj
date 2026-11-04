@@ -13,6 +13,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.ML" Version="5.0.1" />
+    <PackageReference Include="Microsoft.ML.FastTree" Version="5.0.1" />
     <PackageReference Include="Microsoft.Extensions.ML" Version="5.0.1" />
   </ItemGroup>
 

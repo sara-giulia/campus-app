@@ -136,6 +136,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `UpdateMember` | `PUT /api/v1/members/{id}` | the member or an Admin | 204, 400, 401, 403 `Member.NotOwner`, 404, 409 |
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
+| Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
@@ -512,5 +513,25 @@ dotnet run --project ml/CampusMarket.ML.Training
 The concrete models (price in B3, category in B4, spam in B5) are added later,
 one per task. Their `PredictionEnginePool` registrations live in
 `src/CampusMarket.Api/Infrastructure/ML/`.
+
+### Price suggestion model (B3)
+
+- Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, FastTree regression on
+  the non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
+  `Title` and `Description` through `FeaturizeText`. Label: `Price`.
+- Metrics on the 20% hold-out (seed 42, non-spam rows):
+
+  | Metric | Value |
+  |---|---|
+  | R² | **0.830** |
+  | MAE | 81.24 lei |
+  | RMSE | 189.39 lei |
+
+- The saved model (`ml/models/price-regression.zip`) is loaded by the API through
+  `PredictionEnginePool<PriceInput, PricePrediction>`; the `SuggestPrice` slice
+  depends on `IPriceSuggester` (in `Common/Pricing/`) and never sees `Microsoft.ML`.
+- Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
+  on the same split and fails if R² drops below 0.8, or if, for the same title,
+  `Condition = New` is not priced higher than `Condition = Worn`.
 
 ---
