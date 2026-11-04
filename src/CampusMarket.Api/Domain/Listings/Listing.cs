@@ -57,8 +57,9 @@ public sealed class Listing
     }
 
     public Result<Listing> UpdateDetails(string title, Category category, Condition condition, decimal price, string? description = null)    {
-        // Nothing can make a listing Sold yet. The ConfirmSale slice will add
-        // the "Listing.Sold" check here, together with its test.
+        if (Status == ListingStatus.Sold)
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.Sold", "A sold listing cannot be changed."));
 
         var details = ValidateDetails(title, description, category, condition, price);
         if (details.IsFailure)
@@ -104,6 +105,33 @@ public sealed class Listing
         Version++;
 
         return reservation;
+    }
+
+    public Result<Listing> ConfirmSale(Guid reservationId, DateTimeOffset currentTime)
+    {
+        var reservation = _reservations.FirstOrDefault(r => r.Id == reservationId);
+        if (reservation is null)
+            return Result<Listing>.Failure(
+                Error.NotFound("Reservation.NotFound", "Reservation not found."));
+
+        if (reservation.Status != ReservationStatus.Active)
+            return Result<Listing>.Failure(
+                Error.Validation("Reservation.NotActive", "Only an active reservation can be completed."));
+
+        if (reservation.IsExpired(currentTime))
+            return Result<Listing>.Failure(
+                Error.Validation("Reservation.Expired", "The reservation has expired."));
+
+        // A listing has at most one active reservation (Reserve needs an Active listing and sets it to Reserved),
+        // so there are no other active reservations to cancel here.
+        var completed = reservation.Complete();
+        if (completed.IsFailure)
+            return Result<Listing>.Failure(completed.Error);
+
+        Status = ListingStatus.Sold;
+        Version++;
+
+        return this;
     }
 
     public Result<Listing> CancelReservation(Guid reservationId)

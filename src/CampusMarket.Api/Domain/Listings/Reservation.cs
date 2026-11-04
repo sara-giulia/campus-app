@@ -40,6 +40,17 @@ public sealed class Reservation
         return this;
     }
 
+    // Internal: only Listing.ConfirmSale may complete, so the listing's Status and Version stay in sync.
+    internal Result<Reservation> Complete()
+    {
+        if (Status != ReservationStatus.Active)
+            return Result<Reservation>.Failure(Error.Validation("Reservation.NotActive", "Only an active reservation can be completed."));
+
+        Status = ReservationStatus.Completed;
+
+        return this;
+    }
+
     public bool IsExpired(DateTimeOffset currentTime)
     {
         return Status == ReservationStatus.Active && currentTime >= ExpiresAt;
