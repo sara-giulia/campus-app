@@ -452,5 +452,6 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
 - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
 - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
+- `ml/**`: dev tools for the AI module (synthetic dataset generator), not app code shipped by the API.
 
 ---
