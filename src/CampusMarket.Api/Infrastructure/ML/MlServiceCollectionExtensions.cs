@@ -10,9 +10,7 @@ public static class MlServiceCollectionExtensions
         services.AddOptions<MlOptions>().Bind(configuration.GetSection(MlOptions.SectionName));
 
         var options = configuration.GetSection(MlOptions.SectionName).Get<MlOptions>() ?? new MlOptions();
-        var modelsPath = Path.IsPathRooted(options.ModelsPath)
-            ? options.ModelsPath
-            : Path.Combine(AppContext.BaseDirectory, options.ModelsPath);
+        var modelsPath = Path.Combine(AppContext.BaseDirectory, options.ModelsPath);
 
         // PredictionEnginePool is thread safe and comes from Microsoft.Extensions.ML.
         // The model file path is resolved against AppContext.BaseDirectory, so the API

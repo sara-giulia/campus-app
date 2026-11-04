@@ -14,7 +14,7 @@ public sealed class PriceSuggester(PredictionEnginePool<PriceInput, PricePredict
     {
         var input = new PriceInput
         {
-            Title = title ?? string.Empty,
+            Title = title,
             Description = description ?? string.Empty,
             Category = category.ToString(),
             Condition = condition.ToString()
