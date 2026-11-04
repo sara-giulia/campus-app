@@ -539,6 +539,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none.
 - **Commits:** skill b9b496b; generated code 505b060
 
+### Run 12, skill v14 (Feature: Price suggestion)
+
+- **Why a new run:** B3 added the SuggestPrice query handler and the IPriceSuggester interface; the handler needs unit tests and a fake for the suggester.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Unit tests already exist: keep them and add only what this section asks. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the results. Do not commit or push.` (new session)
+- **Skill version:** v14 (new section "Feature: Price suggestion"); run by Sara Matasel
+- **Result:** new FakePriceSuggester (SuggestedPrice, CallCount, last arguments); 14 new tests in SuggestPriceHandlerTests: valid query with the trimmed title passed to the suggester, null description, unknown category and condition, description and title limits (exactly at the limit, over the limit, at the limit with spaces around), empty title, and the order of the checks. Every failure test checks the code, the exact message and that the suggester was not called. 229/229 unit tests pass; coverage 100% lines (558/558) and branches; SuggestPriceHandler 100%.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -728,6 +737,15 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v8 is the final version.
 - **Commits:** generated code on feature/listing-description
+
+### Run 10, skill v9 (Feature: Price suggestion)
+
+- **Why a new run:** B3 added POST /api/v1/listings/price-suggestion, which uses the real ML model.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results. Do not commit or push.` (new session)
+- **Skill version:** v9 (new section "Feature: Price suggestion"); run by Sara Matasel
+- **Result:** 6 new tests in Listings/SuggestPriceTests with the real price-regression.zip: laptop New → 200 with a whole price ≥ 1; the laptop is priced higher than worn course notes; no token → 401; empty title → 400 Listing.TitleEmpty; description of 1001 characters → 400 Listing.DescriptionTooLong; unknown condition "Used" → 400. Every test checks that no listing was saved. All tests pass: 10 architecture, 229 unit, 4 ML, 95 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
 
 ## code-review
 
