@@ -5,6 +5,7 @@ using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Features.Listings;
 using CampusMarket.Api.Features.Members;
+using CampusMarket.Api.Infrastructure.ML;
 using CampusMarket.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using CampusMarket.Api.Infrastructure.Auth;
@@ -25,10 +26,12 @@ namespace CampusMarket.Api;
 /// </summary>
 public static class CampusMarketSetup
 {
-    public static IServiceCollection AddCampusMarket(this IServiceCollection services)
+    public static IServiceCollection AddCampusMarket(this IServiceCollection services, IConfiguration configuration)
     {
         // Application clock: tests can replace it with a fake clock
         services.AddSingleton(TimeProvider.System);
+
+        services.AddCampusMarketMl(configuration);
 
         services.AddDbContext<CampusMarketDbContext>((sp, options) =>
             options.UseSqlite(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));

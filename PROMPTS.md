@@ -883,5 +883,63 @@ Do not change anything in src/ or tests/. Do not commit or push.
 - **Result:** 3000 rows, 300 spam (10.00%); the same file on two runs (same SHA-256). Non-spam prices: Notes 5–53 lei, Textbook 17–188, LabEquipment 8–364, Other 10–1403, Electronics 28–5022; the averages follow New > Good > Worn (Textbook 90 / 64 / 39, Electronics 963 / 710 / 529). No change in src/ or tests/.
 - **Problems seen:** none.
 
+---
+
+## ml-training
+
+Training project and ML structure in the API (week 5, task B2). Run by Sara Matasel.
+
+### Run 1
+
+- **Why:** B1 produced the dataset; B2 adds the console project that will train the three models (price in B3, category in B4, spam in B5), plus the ML wiring on the API side, without any concrete model yet.
+- **Prompt:** (new session)
+
+```
+Week 5, task B2: the ML training project and the ML structure in the API. The dataset from B1 is in ml/data/listings.csv
+(columns Title, Description, Category, Condition, Price, IsSpam). Do not add any concrete model yet:
+PriceTrainer (B3), CategoryTrainer (B4) and SpamTrainer (B5) come later, each as one new class.
+
+1. New console project ml/CampusMarket.ML.Training (net10.0), added to CampusMarket.sln under the ml folder,
+   with the latest stable Microsoft.ML that supports net10.0.
+   - ListingRow: the CSV columns with [LoadColumn]; load with hasHeader, allowQuoting, separator ','.
+   - IModelTrainer: Name, ModelFileName, and a method that gets the MLContext, the train and the test IDataView
+     and returns the trained ITransformer plus the metrics as text.
+   - Program: MLContext(seed: 42), load the CSV, TrainTestSplit(testFraction: 0.2, seed: 42), print the number of
+     train and test rows, run every trainer in one list (empty for now: print "No trainers registered yet"),
+     print its metrics and save its model to ml/models/<ModelFileName> with the input schema.
+     Find ml/ from AppContext.BaseDirectory, like the dataset generator does.
+2. ml/models/README.md: what the folder holds, that the .zip files are committed so the API works without training,
+   and how to retrain (dotnet run --project ml/CampusMarket.ML.Training).
+3. API, src/CampusMarket.Api/Infrastructure/ML/:
+   - add Microsoft.ML and Microsoft.Extensions.ML (PredictionEnginePool, thread safe) to the API project;
+   - MlOptions with ModelsPath (config section "Ml", default "ml-models");
+   - an extension AddCampusMarketMl(this IServiceCollection, IConfiguration) called from CampusMarketSetup,
+     with a comment that each model registers its PredictionEnginePool here in B3, B4 and B5;
+   - the API .csproj copies ../../ml/models/*.zip to the output folder ml-models (no error if there are no .zip files yet).
+4. Architecture tests: a new rule that Domain and Features do not depend on Microsoft.ML
+   (only Infrastructure may), in the same style as the existing rules, with a non-empty selection check.
+5. README: a short "Machine learning" section (the ml/ folders, the flow dataset -> training -> models -> API,
+   how to retrain), and PROMPTS.md: a "Run 2" entry under ml-dataset... no: a new section "## ml-training", Run 1, with this prompt.
+Run dotnet build, dotnet test and dotnet run --project ml/CampusMarket.ML.Training, show me the output and list every file you changed.
+Do not change existing tests. Do not commit or push.
+```
+
+- **Result:** `dotnet build` 0 warnings, 0 errors. `dotnet test`: 192 unit, 10 architecture (the 2 new rules among them), 85 integration, all pass. `dotnet run --project ml/CampusMarket.ML.Training` prints `Train rows: 2397`, `Test rows: 603` and `No trainers registered yet.` Package picked: `Microsoft.ML` 5.0.1 and `Microsoft.Extensions.ML` 5.0.1 (restored against net10.0). No `.zip` is produced yet.
+- **Files changed:**
+    - `ml/CampusMarket.ML.Training/CampusMarket.ML.Training.csproj` (new)
+    - `ml/CampusMarket.ML.Training/ListingRow.cs` (new)
+    - `ml/CampusMarket.ML.Training/IModelTrainer.cs` (new)
+    - `ml/CampusMarket.ML.Training/Program.cs` (new)
+    - `ml/models/README.md` (new)
+    - `src/CampusMarket.Api/Infrastructure/ML/MlOptions.cs` (new)
+    - `src/CampusMarket.Api/Infrastructure/ML/MlServiceCollectionExtensions.cs` (new, holds `AddCampusMarketMl`)
+    - `src/CampusMarket.Api/CampusMarket.Api.csproj` (added `Microsoft.ML`, `Microsoft.Extensions.ML`, and a `<None Include="..\..\ml\models\*.zip" Link="ml-models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />` block)
+    - `src/CampusMarket.Api/CampusMarketSetup.cs` (added `using` for `Infrastructure.ML`; `AddCampusMarket` now also takes `IConfiguration` and calls `AddCampusMarketMl(configuration)` — no test references `AddCampusMarket` directly)
+    - `src/CampusMarket.Api/Program.cs` (one line: `AddCampusMarket(builder.Configuration)`)
+    - `tests/CampusMarket.ArchitectureTests/MlTests.cs` (new, two `[Fact]` tests: Domain and Features do not depend on `Microsoft.ML`)
+    - `CampusMarket.sln` (project added under the `ml` solution folder via `dotnet sln add`)
+    - `README.md` (new "Machine learning" section after the coverage exclusions)
+    - `PROMPTS.md` (this entry)
+- **Problems seen:** none.
 
 

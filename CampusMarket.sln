@@ -19,6 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ml", "ml", "{EF63391B-C3E5-
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CampusMarket.ML.DatasetGenerator", "ml\CampusMarket.ML.DatasetGenerator\CampusMarket.ML.DatasetGenerator.csproj", "{1968EDAB-6505-4BC0-984E-8B5310781972}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CampusMarket.ML.Training", "ml\CampusMarket.ML.Training\CampusMarket.ML.Training.csproj", "{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -89,6 +91,18 @@ Global
 		{1968EDAB-6505-4BC0-984E-8B5310781972}.Release|x64.Build.0 = Release|Any CPU
 		{1968EDAB-6505-4BC0-984E-8B5310781972}.Release|x86.ActiveCfg = Release|Any CPU
 		{1968EDAB-6505-4BC0-984E-8B5310781972}.Release|x86.Build.0 = Release|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Debug|x64.Build.0 = Debug|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Debug|x86.Build.0 = Debug|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Release|x64.ActiveCfg = Release|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Release|x64.Build.0 = Release|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Release|x86.ActiveCfg = Release|Any CPU
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -99,5 +113,6 @@ Global
 		{54512110-ECBD-4138-AED6-5105EA151C9C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{20B45752-320B-44F9-B474-D1179ECFBD21} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{1968EDAB-6505-4BC0-984E-8B5310781972} = {EF63391B-C3E5-250D-9024-053ABA41E467}
+		{370FDD1E-143E-49AD-9C53-7E4D2E1C104C} = {EF63391B-C3E5-250D-9024-053ABA41E467}
 	EndGlobalSection
 EndGlobal

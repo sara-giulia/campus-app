@@ -455,3 +455,34 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `ml/**`: dev tools for the AI module (synthetic dataset generator), not app code shipped by the API.
 
 ---
+
+## Machine learning
+
+The AI module (price, category and spam) is trained offline and served by the API.
+
+```
+ml/
+├── CampusMarket.ML.DatasetGenerator/   # writes the synthetic CSV
+├── CampusMarket.ML.Training/           # loads the CSV and trains the models
+├── data/
+│   └── listings.csv                    # synthetic dataset (B1)
+└── models/
+    └── *.zip                           # trained models, committed
+```
+
+Flow: **dataset → training → models → API**. The generator produces a deterministic
+CSV; the training project reads it, runs an 80 / 20 split and writes the trained
+models into `ml/models/`. The `.csproj` of the API copies every `ml/models/*.zip`
+to its output under `ml-models/`, so the API runs without training.
+
+Retrain the models (no error if no trainer has been registered yet):
+
+```
+dotnet run --project ml/CampusMarket.ML.Training
+```
+
+The concrete models (price in B3, category in B4, spam in B5) are added later,
+one per task. Their `PredictionEnginePool` registrations live in
+`src/CampusMarket.Api/Infrastructure/ML/`.
+
+---
