@@ -872,3 +872,54 @@ Skill written by Diana Preutu, run by Sara Matasel.
 - **Change to SKILL.md:** none; v2 is the final version.
 - **Commits:** skill d25ca00; generated code 4029cc3
 
+## ml-dataset
+
+Dataset generator for the ML part (week 5, task B1). Run by Sara Matasel.
+
+### Run 1 (synthetic listings dataset)
+
+- **Why:** the ML models (price, category, spam) need thousands of labelled listings; the app has only a few test listings and there is no public Romanian campus-marketplace dataset.
+- **Prompt:** (new session)
+
+```
+Create a synthetic dataset for the ML part of CampusMarket (week 5, task B1).
+
+1. New console project ml/CampusMarket.ML.DatasetGenerator (net10.0, no NuGet packages), added to CampusMarket.sln.
+   It writes ml/data/listings.csv. Use new Random(42) so every run produces exactly the same file.
+2. CSV: UTF-8, header Title,Description,Category,Condition,Price,IsSpam, standard CSV quoting (quotes around text, "" for a quote inside).
+   3000 rows, about 10% spam.
+3. Values must match our domain exactly:
+   - Category: Textbook, Notes, Electronics, LabEquipment, Other (names from Domain/Listings/Category.cs)
+   - Condition: New, Good, Worn (Domain/Listings/Condition.cs)
+   - Title: 3 to 100 characters (Listing.MaxTitleLength); Description: empty in about 15% of rows, otherwise at most 1000 characters (Listing.MaxDescriptionLength)
+   - Price: whole lei, always > 0
+4. Realistic Romanian student listings (mix of text with and without diacritics, some typos and uppercase):
+   - Textbook: manuals for real subjects and years (Analiză matematică, POO, Baze de date, Fizică, Anatomie...), editions, authors
+   - Notes: course notes, exam summaries, solved problems, per subject and year
+   - Electronics: laptops, calculators (Casio fx-991EX...), headphones, monitors, keyboards, phones
+   - LabEquipment: lab coats, goggles, multimeters, breadboards, Arduino kits, dissection kits
+   - Other: bikes, desk lamps, chairs, dorm items, books that are not textbooks
+5. Price: a base range per category and item type (a laptop costs much more than a mouse), multiplied by condition
+   (New 1.0, Good 0.7, Worn 0.45), plus random noise of +/-15%. The price must be learnable from category, condition and title words.
+6. Hard examples (about 10%), so the category model cannot reach 100% from a single word:
+   notes for an electronics course ("Notițe Electronică digitală" is Notes), a textbook about computers is Textbook,
+   an Arduino kit sold for a course could be LabEquipment, etc.
+7. Spam (IsSpam = true): off-platform contact ("scrie-mi pe WhatsApp 07..", "link în bio", Telegram), easy money
+   ("câștigă 500 lei pe zi"), fake giveaways, all caps, repeated "!!!", prices of 1 leu or absurdly high.
+   Most spam is in Other, but about a third is disguised in normal categories with a normal-looking title and the spam only in the description.
+   Phone numbers must be obviously fake (07xx xxx xxx) and no real names, links or brands of real people.
+8. ml/data/README.md: says clearly that the data is synthetic and generated, the columns, the rules above in short,
+   and how to regenerate it (dotnet run --project ml/CampusMarket.ML.DatasetGenerator).
+9. Run it, commit nothing. Show me: row count, rows per Category, per Condition, spam percentage, min/avg/max price per Category,
+   10 random rows, and run it twice to prove the file is identical (compare hashes).
+10. SonarQube: the generator is a dev tool, not app code. Add ml/** to the coverage exclusions where the other exclusions are configured,
+    and add it with its reason to the "Coverage exclusions" list in README.md.
+Do not change anything in src/ or tests/. Do not commit or push.
+```
+
+- **Follow-up prompt:** `Show the same price statistics (min / avg / max per Category, and per Category + Condition) only for rows with IsSpam = false. Then show 3 non-spam examples per Category with their price. Do not change any file.`
+- **Result:** 3000 rows, 300 spam (10.00%); the same file on two runs (same SHA-256). Non-spam prices: Notes 5–53 lei, Textbook 17–188, LabEquipment 8–364, Other 10–1403, Electronics 28–5022; the averages follow New > Good > Worn (Textbook 90 / 64 / 39, Electronics 963 / 710 / 529). No change in src/ or tests/.
+- **Problems seen:** none.
+
+
+
