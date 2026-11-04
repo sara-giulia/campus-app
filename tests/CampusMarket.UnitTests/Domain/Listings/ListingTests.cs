@@ -452,4 +452,176 @@ public class ListingTests
         result.Error.Code.Should().Be("Reservation.NotActive");
         result.Error.Message.Should().Be("Only an active reservation can be cancelled.");
     }
+
+    [Fact]
+    public void Given_ReservedListing_When_ConfirmingSaleBeforeExpiry_Then_BecomesSoldAndReservationCompleted()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        var versionBefore = listing.Version;
+
+        var result = listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Sold);
+        listing.Version.Should().Be(versionBefore + 1);
+        reservation.Status.Should().Be(ReservationStatus.Completed);
+    }
+
+    [Fact]
+    public void Given_ReservedListing_When_ConfirmingSaleOneSecondBeforeExpiry_Then_Succeeds()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+
+        var result = listing.ConfirmSale(reservation.Id, Now.AddHours(48).AddSeconds(-1));
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Sold);
+        reservation.Status.Should().Be(ReservationStatus.Completed);
+    }
+
+    [Fact]
+    public void Given_ReservedListing_When_ConfirmingSaleWithUnknownReservationId_Then_ReturnsReservationNotFound()
+    {
+        var listing = ActiveListing();
+        listing.Reserve(Guid.NewGuid(), Now);
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var result = listing.ConfirmSale(Guid.NewGuid(), Now.AddHours(1));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.NotFound);
+        result.Error.Code.Should().Be("Reservation.NotFound");
+        result.Error.Message.Should().Be("Reservation not found.");
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_ListingWithCancelledReservation_When_ConfirmingSale_Then_ReturnsReservationNotActive()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.CancelReservation(reservation.Id);
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var result = listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Reservation.NotActive");
+        result.Error.Message.Should().Be("Only an active reservation can be completed.");
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_SoldListing_When_ConfirmingSaleAgain_Then_ReturnsReservationNotActive()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var result = listing.ConfirmSale(reservation.Id, Now.AddHours(2));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Reservation.NotActive");
+        result.Error.Message.Should().Be("Only an active reservation can be completed.");
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_ReservedListing_When_ConfirmingSaleAtExactExpiry_Then_ReturnsReservationExpired()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var result = listing.ConfirmSale(reservation.Id, Now.AddHours(48));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Reservation.Expired");
+        result.Error.Message.Should().Be("The reservation has expired.");
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_SoldListing_When_UpdatingDetailsWithValidData_Then_ReturnsListingSoldAndDoesNotChange()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+        var titleBefore = listing.Title;
+        var categoryBefore = listing.Category;
+        var conditionBefore = listing.Condition;
+        var priceBefore = listing.Price.Amount;
+        var versionBefore = listing.Version;
+
+        var result = listing.UpdateDetails("New title", Category.Electronics, Condition.New, 50m);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.Sold");
+        result.Error.Message.Should().Be("A sold listing cannot be changed.");
+        listing.Title.Should().Be(titleBefore);
+        listing.Category.Should().Be(categoryBefore);
+        listing.Condition.Should().Be(conditionBefore);
+        listing.Price.Amount.Should().Be(priceBefore);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_SoldListing_When_UpdatingDetailsWithEmptyTitle_Then_ReturnsListingSoldBeforeTitleCheck()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+
+        var result = listing.UpdateDetails("", Category.Textbook, Condition.Good, 25m);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.Sold");
+        result.Error.Message.Should().Be("A sold listing cannot be changed.");
+    }
+
+    [Fact]
+    public void Given_SoldListing_When_Publishing_Then_ReturnsNotDraftError()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+
+        var result = listing.Publish();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.NotDraft");
+        result.Error.Message.Should().Be("Only a draft listing can be published.");
+    }
+
+    [Fact]
+    public void Given_SoldListing_When_Reserving_Then_ReturnsNotActiveError()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+
+        var result = listing.Reserve(Guid.NewGuid(), Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.NotActive");
+        result.Error.Message.Should().Be("Only an active listing can be reserved.");
+    }
 }

@@ -139,6 +139,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
+| Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
 | Auth | `Register` | `POST /api/v1/auth/register` | everyone | 201 + `Location`, 400, 409 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
@@ -227,7 +228,9 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Reservation.LimitReached` | 400 | the buyer already has 3 active reservations |
 | `Reservation.NotFound` | 404 | the listing has no reservation with that id |
 | `Reservation.NotAllowed` | 403 | you cancel a reservation and you are not the buyer, the seller or an Admin |
-| `Reservation.NotActive` | 400 | you cancel a reservation that is not active |
+| `Reservation.NotActive` | 400 | you cancel or confirm a reservation that is not active |
+| `Reservation.Expired` | 400 | you confirm a reservation past its 48-hour expiry |
+| `Listing.Sold` | 400 | you change a listing that has already been sold |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.

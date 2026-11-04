@@ -567,6 +567,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** none.
 - **Change to SKILL.md:** none.
 
+### Run 14, skill v16 (Feature: Confirm sale)
+
+- **Why a new run:** A1 added Reservation.Complete, Listing.ConfirmSale, the Listing.Sold check in UpdateDetails and the ConfirmSale handler.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md, section "Feature: Confirm sale (Sara)". Unit tests already exist: keep them and add only what this section asks. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v16, commit ad2e9f5; run by Sara Matasel
+- **Result:** 21 new tests: 2 in ReservationTests (Complete), 10 in ListingTests (ConfirmSale before and exactly at the 48 h expiry, unknown, cancelled and already completed reservation, a sold listing cannot be updated, published or reserved), 9 in the new ConfirmSaleHandlerTests (seller and Admin succeed, buyer and another member get Listing.NotOwner, 404 before 403, 403 before the reservation check, expired reservation). Every failure test checks the code, the exact message, SaveCount 0 and UpdateCount 0. 250/250 unit tests pass.
+- **Problems seen:** coverage was 99.8%: Listing.ConfirmSale checked "reservation not Active" itself and then again through Reservation.Complete(), so the failure branch after Complete() could never run. The explicit check was removed from Listing.cs (same behaviour: IsExpired is false for a reservation that is not active, and Complete() returns the same Reservation.NotActive error). After that: coverage 100% lines and branches, all tests still pass.
+- **Change to SKILL.md:** none.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -782,6 +791,15 @@ saved.Should().BeEquivalentTo(listing);
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Price suggestion (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results. Do not commit or push.` (new session)
 - **Skill version:** v9 (new section "Feature: Price suggestion"); run by Sara Matasel
 - **Result:** 6 new tests in Listings/SuggestPriceTests with the real price-regression.zip: laptop New → 200 with a whole price ≥ 1; the laptop is priced higher than worn course notes; no token → 401; empty title → 400 Listing.TitleEmpty; description of 1001 characters → 400 Listing.DescriptionTooLong; unknown condition "Used" → 400. Every test checks that no listing was saved. All tests pass: 10 architecture, 229 unit, 4 ML, 95 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none.
+
+### Run 12, skill v11 (Feature: Confirm sale)
+
+- **Why a new run:** A1 added POST /api/v1/listings/{id}/reservations/{reservationId}/confirm and the Listing.Sold rule.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Confirm sale (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v11, commit ad2e9f5; run by Sara Matasel
+- **Result:** 12 new tests in Listings/ConfirmSaleTests: the seller confirms (204, listing Sold, Version + 1, reservation Completed), the buyer's reservations list shows Completed, Admin 204, buyer and another member 403, no token 401, unknown listing and unknown reservation 404, confirming twice 400 Reservation.NotActive, a reservation made 49 h ago 400 Reservation.Expired, PUT on a sold listing 400 Listing.Sold, reserving a sold listing 400 Listing.NotActive. Every test checks the database. 376 tests pass (10 architecture, 250 unit, 4 ML, 112 integration).
 - **Problems seen:** none.
 - **Change to SKILL.md:** none.
 
@@ -1094,4 +1112,58 @@ course notes Worn) and list every file you changed. Do not change existing tests
     - `PROMPTS.md` (this entry)
 - **Problems seen:**
     1. The first scratchpad consumer of `price-regression.zip` only referenced `Microsoft.ML` and threw `FileNotFoundException: 'Microsoft.ML.FastTree'` on load — the same failure the API would have hit at first request. Fixed by adding `Microsoft.ML.FastTree` to `CampusMarket.Api.csproj` too (it was only added to the training project at first, where the task's "add Microsoft.ML.FastTree with the same version as Microsoft.ML" bullet pointed).
+
+## confirm-sale
+
+Week 5, task A1 (confirm a sale). Feature slice, built with the `cqrs` skill and the shape of the existing reservation slices. Run by Sara Matasel.
+
+### Run 1
+
+- **Prompt:**
+
+```
+Week 5, task A1: confirm a sale. Follow our cqrs skill (.claude/skills/cqrs) and the style of the existing reservation slices
+(PublishListing, ReserveListing, CancelReservation). Use the empty folder Features/Listings/ConfirmSale/ (remove its .gitkeep).
+
+1. Domain (read Listing.cs and Reservation.cs first):
+   - Reservation.Complete(): internal, like Cancel(). Only an Active reservation can be completed, otherwise
+     Error.Validation("Reservation.NotActive", ...) with the same message style as Cancel. Sets Status = Completed.
+   - Listing.ConfirmSale(Guid reservationId, DateTimeOffset currentTime):
+     reservation not on this listing -> Error.NotFound("Reservation.NotFound", "Reservation not found.") (same as CancelReservation);
+     reservation not Active -> the error from Complete() (Reservation.NotActive);
+     reservation expired (reservation.IsExpired(currentTime)) -> Error.Validation("Reservation.Expired", "The reservation has expired.");
+     then reservation.Complete(), Status = ListingStatus.Sold, Version++.
+     A listing has at most one active reservation (Reserve needs an Active listing and sets it to Reserved), so there are
+     no other active reservations to cancel; write this in a short comment.
+   - Listing.UpdateDetails: replace the comment about ConfirmSale with the real check: a Sold listing cannot be changed ->
+     Error.Validation("Listing.Sold", "A sold listing cannot be changed.").
+2. Slice Features/Listings/ConfirmSale/: ConfirmSaleCommand(ListingId, ReservationId, RequesterId, IsAdmin), handler with
+   IListingRepository, IUnitOfWork and TimeProvider. Order: 404 Listing.NotFound, then 403 Listing.NotOwner (only the seller
+   or an Admin can confirm, the buyer cannot), then the domain errors from ConfirmSale, then repository.Update and one CommitAsync.
+   Endpoint: POST /api/v1/listings/{id:guid}/reservations/{reservationId:guid}/confirm, RequireAuthorization,
+   204 on success, 404 / 403 (JSON, like the other endpoints) / 400. Map it in ListingsEndpoints.cs.
+3. No migration should be needed (Completed and Sold already exist); check with dotnet ef migrations has-pending-model-changes.
+4. Postman, in the Reservations folder: "Confirm sale (204)" after a reservation is made, then "Confirm sale again (400)"
+   and "Update a sold listing (400 Listing.Sold)". README: the endpoint in the table, Listing.Sold and Reservation.Expired in
+   the error codes, and the lifecycle Draft -> Active -> Reserved -> Sold. PROMPTS.md: add this prompt under a new section
+   "## confirm-sale", Run 1.
+Do not write unit or integration tests yet (we generate them with the skills next). Do not change existing tests.
+Run dotnet build and dotnet test (existing tests must pass), list every file you changed. Do not commit or push.
+```
+
+- **Skill version:** `cqrs` v4 (last skill change in `.claude/skills/cqrs/SKILL.md`); the slice itself is hand-written, not generated by a skill.
+- **Result:** `dotnet build` finishes with 0 errors and 0 warnings. `dotnet ef migrations has-pending-model-changes` answers "No changes have been made to the model since the last migration." `dotnet test` passes **343/343** (229 unit + 100 integration + 10 architecture + 4 ML), unchanged from before the slice.
+- **Files changed:**
+    - `src/CampusMarket.Api/Domain/Listings/Reservation.cs` (new `internal Result<Reservation> Complete()` next to `Cancel`, with the same `Reservation.NotActive` message style)
+    - `src/CampusMarket.Api/Domain/Listings/Listing.cs` (new `ConfirmSale(Guid reservationId, DateTimeOffset currentTime)` and a `Listing.Sold` guard at the top of `UpdateDetails` replacing the "will be added later" comment)
+    - `src/CampusMarket.Api/Features/Listings/ConfirmSale/ConfirmSaleCommand.cs` (new)
+    - `src/CampusMarket.Api/Features/Listings/ConfirmSale/ConfirmSaleHandler.cs` (new; order is 404 Listing.NotFound → 403 Listing.NotOwner → domain errors → `repository.Update` → one `CommitAsync`)
+    - `src/CampusMarket.Api/Features/Listings/ConfirmSale/ConfirmSaleEndpoint.cs` (new; `POST /api/v1/listings/{id:guid}/reservations/{reservationId:guid}/confirm`, `RequireAuthorization`, maps `NotFound`/`Forbidden`/`Validation` like the other reservation endpoints)
+    - `src/CampusMarket.Api/Features/Listings/ConfirmSale/.gitkeep` (removed)
+    - `src/CampusMarket.Api/Features/Listings/ListingsEndpoints.cs` (mapped `ConfirmSaleEndpoint`)
+    - `postman/CampusMarket.postman_collection.json` (new requests at the end of the `Reservations` folder: three setup requests on a fresh listing — `Setup: create listing for confirm sale (201)`, `Setup: publish listing for confirm sale (204)`, `Setup: reserve listing for confirm sale (201)` — then the required `Confirm sale (204)`, `Confirm sale again (400)` and `Update a sold listing (400 Listing.Sold)`; two new collection variables `saleListingId` and `saleReservationId`)
+    - `README.md` (new `ConfirmSale` row in the "Implemented so far" table; `Reservation.NotActive` wording extended to "cancel or confirm", and new `Reservation.Expired` and `Listing.Sold` rows in the error-codes table — the `Draft -> Active -> Reserved -> Sold` lifecycle is already in the state diagram)
+    - `PROMPTS.md` (this entry)
+- **Problems seen:**
+    1. The task says to put the three Confirm sale requests "in the Reservations folder" **after a reservation is made**, but the only reservation in that folder (`reservationId`) is already cancelled by the end of the existing flow, and running Confirm sale on the main `listingId` would set its status to `Sold` and break the later `Update listing - valid (204)` request in the `UpdateListing` folder. Fixed by scoping the confirm-sale sequence to a brand-new listing (new `saleListingId`/`saleReservationId` variables) at the end of the `Reservations` folder, so the main `listingId` lifecycle used by `UpdateListing` and `DeleteListing` is untouched.
 
