@@ -10,28 +10,28 @@ var rng = new Random(42);
 var rows = Generator.Generate(rng).ToList();
 
 var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-using (var writer = new StreamWriter(outputPath, append: false, utf8NoBom))
+await using (var writer = new StreamWriter(outputPath, append: false, utf8NoBom))
 {
     writer.NewLine = "\n";
-    writer.WriteLine("Title,Description,Category,Condition,Price,IsSpam");
+    await writer.WriteLineAsync("Title,Description,Category,Condition,Price,IsSpam");
     foreach (var row in rows)
     {
-        writer.Write(Quote(row.Title));
-        writer.Write(',');
-        writer.Write(Quote(row.Description));
-        writer.Write(',');
-        writer.Write(row.Category);
-        writer.Write(',');
-        writer.Write(row.Condition);
-        writer.Write(',');
-        writer.Write(row.Price.ToString(CultureInfo.InvariantCulture));
-        writer.Write(',');
-        writer.Write(row.IsSpam ? "true" : "false");
-        writer.Write('\n');
+        await writer.WriteAsync(Quote(row.Title));
+        await writer.WriteAsync(',');
+        await writer.WriteAsync(Quote(row.Description));
+        await writer.WriteAsync(',');
+        await writer.WriteAsync(row.Category.ToString());
+        await writer.WriteAsync(',');
+        await writer.WriteAsync(row.Condition.ToString());
+        await writer.WriteAsync(',');
+        await writer.WriteAsync(row.Price.ToString(CultureInfo.InvariantCulture));
+        await writer.WriteAsync(',');
+        await writer.WriteAsync(row.IsSpam ? "true" : "false");
+        await writer.WriteAsync('\n');
     }
 }
 
-var bytes = File.ReadAllBytes(outputPath);
+var bytes = await File.ReadAllBytesAsync(outputPath);
 var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 Console.WriteLine($"Wrote {rows.Count} rows to {outputPath}");
 Console.WriteLine($"File size: {bytes.Length} bytes");

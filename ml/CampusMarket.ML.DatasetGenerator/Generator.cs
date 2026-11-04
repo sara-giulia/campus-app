@@ -224,7 +224,7 @@ public static class Generator
         return description;
     }
 
-    private static void Shuffle<T>(IList<T> list, Random rng)
+    private static void Shuffle<T>(List<T> list, Random rng)
     {
         for (var i = list.Count - 1; i > 0; i--)
         {
