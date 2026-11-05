@@ -242,6 +242,17 @@ Validation errors of the data itself (empty title, price 0, invalid email, short
 3. Mihai has 48 hours to pick it up. If nothing happens, the reservation expires and the listing becomes `Active` again.
 4. When they meet, Ana confirms the sale. The listing becomes `Sold` and can no longer be reserved.
 
+### Reservation expiry
+
+A background job sweeps the database periodically and expires every active reservation whose 48 h window is over: the reservation's status becomes `Expired` and the listing goes back to `Active`, so another buyer can reserve it. The sweep is a system job, not a user action; it has no HTTP endpoint.
+
+Two settings under `ReservationExpiry` in `appsettings.json` control the job:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | Register the background service. Integration tests set it to `false` so the job never runs during the other tests. |
+| `Interval` | `00:05:00` | How often the sweep runs (any `TimeSpan`). |
+
 ## 4. Domain model
 
 ```mermaid
