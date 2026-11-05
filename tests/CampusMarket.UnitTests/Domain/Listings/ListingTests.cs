@@ -624,4 +624,114 @@ public class ListingTests
         result.Error.Code.Should().Be("Listing.NotActive");
         result.Error.Message.Should().Be("Only an active listing can be reserved.");
     }
+
+    [Fact]
+    public void Given_ReservedListing_When_ExpiringOneSecondBeforeExpiry_Then_ReturnsZeroAndNothingChanges()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        var versionBefore = listing.Version;
+
+        var expired = listing.ExpireReservations(Now.AddHours(48).AddSeconds(-1));
+
+        expired.Should().Be(0);
+        listing.Status.Should().Be(ListingStatus.Reserved);
+        listing.Version.Should().Be(versionBefore);
+        reservation.Status.Should().Be(ReservationStatus.Active);
+    }
+
+    [Fact]
+    public void Given_ReservedListing_When_ExpiringAtExactExpiry_Then_ReservationExpiresAndListingBecomesActive()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        var versionBefore = listing.Version;
+
+        var expired = listing.ExpireReservations(Now.AddHours(48));
+
+        expired.Should().Be(1);
+        reservation.Status.Should().Be(ReservationStatus.Expired);
+        listing.Status.Should().Be(ListingStatus.Active);
+        listing.Version.Should().Be(versionBefore + 1);
+    }
+
+    [Fact]
+    public void Given_ListingWithCancelledReservation_When_Expiring_Then_ReturnsZeroAndNothingChanges()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.CancelReservation(reservation.Id);
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var expired = listing.ExpireReservations(Now.AddHours(48));
+
+        expired.Should().Be(0);
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+        reservation.Status.Should().Be(ReservationStatus.Cancelled);
+    }
+
+    [Fact]
+    public void Given_SoldListing_When_Expiring_Then_ReturnsZeroAndNothingChanges()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var expired = listing.ExpireReservations(Now.AddHours(48));
+
+        expired.Should().Be(0);
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+        reservation.Status.Should().Be(ReservationStatus.Completed);
+    }
+
+    [Fact]
+    public void Given_DraftListingWithNoReservations_When_Expiring_Then_ReturnsZeroAndNothingChanges()
+    {
+        var listing = DraftListing();
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var expired = listing.ExpireReservations(Now.AddHours(48));
+
+        expired.Should().Be(0);
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_ReservedListing_When_ExpiringTwice_Then_SecondCallReturnsZero()
+    {
+        var listing = ActiveListing();
+        listing.Reserve(Guid.NewGuid(), Now);
+        listing.ExpireReservations(Now.AddHours(48));
+        var statusBefore = listing.Status;
+        var versionBefore = listing.Version;
+
+        var expired = listing.ExpireReservations(Now.AddHours(48));
+
+        expired.Should().Be(0);
+        listing.Status.Should().Be(statusBefore);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_ListingWithExpiredReservation_When_AnotherBuyerReserves_Then_Succeeds()
+    {
+        var listing = ActiveListing();
+        listing.Reserve(Guid.NewGuid(), Now);
+        listing.ExpireReservations(Now.AddHours(48));
+        var otherBuyerId = Guid.NewGuid();
+
+        var result = listing.Reserve(otherBuyerId, Now.AddHours(48));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.MemberId.Should().Be(otherBuyerId);
+        listing.Status.Should().Be(ListingStatus.Reserved);
+        listing.Reservations.Should().HaveCount(2);
+    }
 }

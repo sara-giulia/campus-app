@@ -576,6 +576,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** coverage was 99.8%: Listing.ConfirmSale checked "reservation not Active" itself and then again through Reservation.Complete(), so the failure branch after Complete() could never run. The explicit check was removed from Listing.cs (same behaviour: IsExpired is false for a reservation that is not active, and Complete() returns the same Reservation.NotActive error). After that: coverage 100% lines and branches, all tests still pass.
 - **Change to SKILL.md:** none.
 
+### Run 15, skill v17 (Feature: Reservation expiry)
+
+- **Why a new run:** A4 added Reservation.Expire, Listing.ExpireReservations and the ExpireReservations handler used by the background job.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md, section "Feature: Reservation expiry (Sara)". Unit tests already exist: keep them and add only what this section asks. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v17, commit 6c1a3bf; run by Sara Matasel
+- **Result:** 13 new tests: Reservation.Expire, Listing.ExpireReservations (one second before and exactly at the 48 h expiry, cancelled and sold reservations, a draft listing, calling it twice, another buyer can reserve after expiry) and the new ExpireReservationsHandlerTests (no listings, one expired among others, two expired with one commit, nothing expired). 263/263 unit tests pass.
+- **Problems seen:** The fix (diagnosed in a separate Claude Code session, then applied there): GetAllAsync now tracks the listings, with a comment explaining why. All tests pass: 10 architecture, 263 unit, 4 ML, 115 integration.
+- - **Change to SKILL.md:** none.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -801,6 +810,15 @@ saved.Should().BeEquivalentTo(listing);
 - **Skill version:** v11, commit ad2e9f5; run by Sara Matasel
 - **Result:** 12 new tests in Listings/ConfirmSaleTests: the seller confirms (204, listing Sold, Version + 1, reservation Completed), the buyer's reservations list shows Completed, Admin 204, buyer and another member 403, no token 401, unknown listing and unknown reservation 404, confirming twice 400 Reservation.NotActive, a reservation made 49 h ago 400 Reservation.Expired, PUT on a sold listing 400 Listing.Sold, reserving a sold listing 400 Listing.NotActive. Every test checks the database. 376 tests pass (10 architecture, 250 unit, 4 ML, 112 integration).
 - **Problems seen:** none.
+- **Change to SKILL.md:** none.
+
+### Run 13, skill v12 (Feature: Reservation expiry)
+
+- **Why a new run:** A4 added the ReservationExpiryService background job, which is turned off in the normal test factory.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Reservation expiry (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v12, commit 6c1a3bf; run by Sara Matasel
+- **Result:** 3 new tests in Listings/ReservationExpiryTests: with the job on (interval 200 ms) only the expired reservation becomes Expired and its listing Active with Version + 1; after that another member can reserve the listing (201); with the job off, an expired reservation stays Active in the database but GET /members/me/reservations shows it as Expired.
+- **Problems seen:** the run stopped with 2 failing tests and reported a real bug: EfListingRepository.GetAllAsync used AsNoTracking, the handler changed those untracked listings, and on save EF Core used the new Version as the original one, so the UPDATE affected 0 rows (DbUpdateConcurrencyException) and the job never expired anything. The skill forbids changing src/, so the fix was made by hand: GetAllAsync now tracks the listings, with a comment explaining why. After the fix all tests pass: 10 architecture, 263 unit, 4 ML, 115 integration.
 - **Change to SKILL.md:** none.
 
 ## code-review
