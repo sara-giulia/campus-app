@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Domain.Members;
@@ -36,5 +37,8 @@ public sealed class JwtTokenService(IOptions<JwtOptions> options, TimeProvider t
 
         return (new JsonWebTokenHandler().CreateToken(descriptor), expiresAt);
     }
-}
 
+    // 64 random bytes = 128 hex characters
+    public string CreateRefreshToken() =>
+        Convert.ToHexString(RandomNumberGenerator.GetBytes(64));
+}

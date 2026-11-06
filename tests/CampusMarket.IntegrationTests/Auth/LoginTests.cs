@@ -27,6 +27,7 @@ public sealed class LoginTests : IntegrationTestBase
         var member = BuildMemberWithPassword("ana@student.ro", "secret12");
         await SeedAsync(member);
         var request = new LoginRequest("ana@student.ro", "secret12");
+        var before = DateTimeOffset.UtcNow;
 
         // Act
         var response = await Client.PostAsJsonAsync("/api/v1/auth/login", request, Json);
@@ -37,9 +38,19 @@ public sealed class LoginTests : IntegrationTestBase
         var body = await response.Content.ReadFromJsonAsync<LoginResponse>(Json);
         body!.Token.Should().NotBeNullOrWhiteSpace();
         body.ExpiresAt.Should().BeAfter(CreatedAt);
+        body.RefreshToken.Should().NotBeNullOrWhiteSpace();
+        body.ExpiresAt.Should().BeOnOrAfter(before.AddMinutes(15))
+            .And.BeOnOrBefore(DateTimeOffset.UtcNow.AddMinutes(15));
 
         var saved = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync());
         saved.Id.Should().Be(member.Id);
+
+        var tokens = await QueryDbAsync(db => db.Set<RefreshToken>().AsNoTracking()
+            .Where(t => t.MemberId == member.Id).ToListAsync());
+        tokens.Should().ContainSingle();
+        tokens[0].TokenHash.Should().Be(RefreshToken.Hash(body.RefreshToken));
+        tokens[0].TokenHash.Should().NotBe(body.RefreshToken);
+        tokens[0].RevokedAt.Should().BeNull();
     }
 
     [Fact]

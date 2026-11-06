@@ -1,5 +1,7 @@
 using CampusMarket.Api.Features.Auth.Register;
 using CampusMarket.Api.Features.Auth.Login;
+using CampusMarket.Api.Features.Auth.Refresh;
+using CampusMarket.Api.Features.Auth.Logout;
 
 namespace CampusMarket.Api.Features.Auth;
 
@@ -11,6 +13,8 @@ public static class AuthEndpoints
 
         RegisterEndpoint.Map(group);
         LoginEndpoint.Map(group);
+        RefreshEndpoint.Map(group);
+        LogoutEndpoint.Map(group);
 
         return app;
     }

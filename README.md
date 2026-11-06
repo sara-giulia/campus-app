@@ -154,6 +154,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
 | Auth | `Register` | `POST /api/v1/auth/register` | everyone | 201 + `Location`, 400, 409 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
+| Auth | `Refresh` | `POST /api/v1/auth/refresh` | anyone with a valid refresh token | 200, 401 `Auth.InvalidRefreshToken` |
+| Auth | `Logout` | `POST /api/v1/auth/logout` | anyone with a valid refresh token | 204, 401 `Auth.InvalidRefreshToken` |
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
@@ -217,10 +219,14 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 
 ### Authentication
 
-1. `POST /api/v1/auth/register` with `{ "name", "email", "password", "confirmPassword" }`. The password needs at least 8 characters and `confirmPassword` must be exactly the same. Every new account has the role `Student`.2. `POST /api/v1/auth/login` with `{ "email", "password" }` returns `{ "token", "expiresAt" }`. The token is valid for 60 minutes.
-3. Send it on every protected request: `Authorization: Bearer <token>`.
+1. `POST /api/v1/auth/register` with `{ "name", "email", "password", "confirmPassword" }`. The password needs at least 8 characters and `confirmPassword` must be exactly the same. Every new account has the role `Student`.
+2. `POST /api/v1/auth/login` with `{ "email", "password" }` returns `{ "token", "expiresAt", "refreshToken" }`. The access token is valid for 15 minutes, the refresh token for 7 days.
+3. Send the access token on every protected request: `Authorization: Bearer <token>`.
+4. When the access token expires, `POST /api/v1/auth/refresh` with `{ "refreshToken" }` returns a new `{ "token", "expiresAt", "refreshToken" }`, without the password. The old refresh token stops working (rotation), so always keep the new one.
+5. `POST /api/v1/auth/logout` with `{ "refreshToken" }` cancels the refresh token (204). After that it can no longer be used.
 
 - Passwords are stored only as a hash, never returned.
+- Refresh tokens are long random strings (64 bytes from `RandomNumberGenerator`). Only their SHA-256 hash is stored, so a copy of the database cannot be used to log in. An unknown, expired, already used or cancelled refresh token gets the same 401 `Auth.InvalidRefreshToken`.
 - A wrong email and a wrong password get the same 401 `Auth.InvalidCredentials`, so nobody can find out which emails have an account.
 - Login allows 5 attempts per minute from the same IP, then 429.
 - Roles: `Student` and `Admin`. In the Development environment an Admin account is created at startup from `Seed:AdminEmail` / `Seed:AdminPassword` in `appsettings.Development.json`. The JWT key is also there, for development only.
@@ -232,6 +238,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Auth.WeakPassword` | 400 | the password has fewer than 8 characters |
 | `Auth.InvalidCredentials` | 401 | wrong email or password (same answer for both) |
 | `Auth.PasswordsDoNotMatch` | 400 | `confirmPassword` is not the same as `password` |
+| `Auth.InvalidRefreshToken` | 401 | the refresh token is unknown, expired, already used by a refresh, or cancelled by logout |
 | `Member.EmailTaken` | 409 | another member already uses the email |
 | `Member.NotFound` | 404 | no member with that id, also when the buyer of a reservation does not exist |
 | `Member.NotOwner` | 403 | you change or delete a profile that is not yours |
