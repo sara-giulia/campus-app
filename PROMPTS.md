@@ -1025,6 +1025,24 @@ Skill v5 written by Sara Matasel, run by Ancuța Ilenei.
 - **Problems found:** reported only, not fixed in this PR.
 - **Commits:** skill 742806e; review output in REVIEW.md
 
+### v5 → v6: the same repository must give the same table
+
+- **Why a new version:** v5 did not report the two v3 rows (`Reservation.cs:32`, `ListingTests.cs:289`), although they were still in the code (see run 5, "Problems seen"). Issue #47.
+
+#### Change to SKILL.md (v5 → v6) and why
+
+| # | v5 (before) | v6 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about earlier reviews. | *"Then read `REVIEW.md`, if it exists. For every row of an earlier review, open the file and check whether the problem is still in the code … If it is, report it again in this table."* | A problem that is still in the code must stay in the table, whatever the new checks find. |
+| 2 | One checklist, done in any order. | *"Do the review in two passes … 1. the checklist items below except requirements, for every file; 2. the requirements check against the README. The second pass only adds rows."* | In v5 the requirements check took the attention of the run and the old checklist items were skipped. |
+| 3 | **domain invariants:** public setters, public constructors, invalid states, collections changed from outside. | Also: *"Does a child entity (for example a `Reservation` inside a `Listing`) have a public method that changes its state, so a caller can skip the parent and break the parent's rules?"* | `Reservation.Cancel()` was found by v3 but not by v5, because no checklist item asked for it. |
+
+- **Written by:** Diana Preutu
+- **Check run:** v6 run on `c4191e6`, the commit v5 reviewed (a separate `git worktree` with the v6 SKILL.md copied in, new Claude Code session), with the same prompt as run 5: `Use the code-review skill in .claude/skills/code-review/SKILL.md to review this repository. Follow the skill exactly. Do not edit any file. Give me only the output the skill asks for.` Run by Diana Preutu.
+- **Result:** `Found 9 problems: 5 Major, 4 Minor.` Both v3 rows are back: `Reservation.cs:32` (row 1, `Cancel()` is public) and `ListingTests.cs:289` (row 7, the test name does not match its Arrange). The other rows repeat v5: no 409 on concurrent update, max 3 reservations, buyer-only cancel, owner-only publish, `ListingTests.cs:240`, `LoginTests.cs:68`, plus `AspNetPasswordHasher.cs:10` without `_`. No file changed.
+- **Known limit:** v6 gave 9 rows where v5 gave 14 on the same code; it did not repeat v5 rows 2-4, 8, 9, 10 and 12. At `c4191e6`, `REVIEW.md` held only the v3 rows, so v6 could re-check only those. On the current `main`, `REVIEW.md` holds every earlier row, so the next run re-checks the v5 rows too.
+- **Commits:** skill cb61e43
+
 ---
 
 ## architecture-testing

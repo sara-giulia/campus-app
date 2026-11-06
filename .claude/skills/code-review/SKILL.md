@@ -10,6 +10,7 @@ Read the code of the repository and report the problems you find. You only read.
 ## What to look at
 
 - First read the project's own rules: `README.md` and every `.claude/skills/*/SKILL.md`. They say what the app must do and which conventions the team chose. Something these rules explicitly allow is not a problem.
+- Then read `REVIEW.md`, if it exists. For every row of an earlier review, open the file and check whether the problem is still in the code (the line may have moved). If it is, report it again in this table. An earlier row is never a reason to skip a problem: it is fixed only when the code changes.
 - `src/`: the slices in `Features/`, the domain, the infrastructure, `Program.cs`.
 - `tests/`: the unit tests and the integration tests.
 - Skip generated files: `bin/`, `obj/`, `coverage-report/`, `TestResults/`, `Migrations/`.
@@ -18,9 +19,16 @@ Read the code of the repository and report the problems you find. You only read.
 
 Open every file in the folders above, one by one, and go through this checklist. Do not stop after the first problems you find: the same repository must give the same table every time.
 
+Do the review in two passes, in this order, and finish the first before starting the second:
+
+1. the checklist items below except **requirements**, for every file;
+2. the **requirements** check against the README.
+
+The second pass only adds rows. It never replaces or shortens the rows from the first pass.
+
 - **slice boundaries**: does a slice folder use a type from another slice folder? Does an endpoint call a repository, a DbContext or the domain directly, or contain an `if` on data?
 - **CQRS violations**: does a query handler call Add, Update, Delete or `CommitAsync`? Does a command handler forget `CommitAsync`? Does a handler call another handler?
-- **domain invariants**: does an entity have a public setter or a public constructor? Can a factory or method put the entity in an invalid state? Can a caller change a collection from outside?
+- **domain invariants**: does an entity have a public setter or a public constructor? Can a factory or method put the entity in an invalid state? Can a caller change a collection from outside?  Does a child entity (for example a `Reservation` inside a `Listing`) have a public method that changes its state, so a caller can skip the parent and break the parent's rules?
 - **test quality**, for every test method: does the name of the test match what the Arrange really sets up and what is asserted (for `Given_When_Then` names, check each part)? Does the test assert anything? Does it contain `if`, a loop, `DateTime.Now` or `Thread.Sleep`? Does it share state with other tests?
 - **naming**: do classes, methods and private fields follow the same convention as the rest of the project (compare with at least two other files)?
 - **requirements**: for every business rule written in the README (use cases, columns like "rules" or "constraints", words like *unique*, *must*, *only*, *at most*), find the code that enforces it. If no code enforces it, it is a problem: report it as **domain invariants**, at the line of the handler or domain method where the check is missing, and quote the README rule in `Problem`.
