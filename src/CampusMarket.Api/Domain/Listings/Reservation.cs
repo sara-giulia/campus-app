@@ -51,6 +51,17 @@ public sealed class Reservation
         return this;
     }
 
+    // Internal: only Listing.ExpireReservations may expire, so the listing's Status and Version stay in sync.
+    internal Result<Reservation> Expire()
+    {
+        if (Status != ReservationStatus.Active)
+            return Result<Reservation>.Failure(Error.Validation("Reservation.NotActive", "Only an active reservation can expire."));
+
+        Status = ReservationStatus.Expired;
+
+        return this;
+    }
+
     public bool IsExpired(DateTimeOffset currentTime)
     {
         return Status == ReservationStatus.Active && currentTime >= ExpiresAt;

@@ -142,6 +142,13 @@ public sealed class LoginTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.TooManyRequests);
+        problem.Code.Should().Be("Request.TooManyRequests");
+        problem.Instance.Should().Be("/api/v1/auth/login");
+        problem.TraceId.Should().NotBeEmpty();
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(1);

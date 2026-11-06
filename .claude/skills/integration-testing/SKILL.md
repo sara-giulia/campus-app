@@ -529,4 +529,65 @@ Rules for this feature:
 - Read 400/403/404 bodies into `Error` and check `Code` and `Type`; for 401 only the status code.
 - Every test checks the database at the end.
 
+## Feature: Reservation expiry (Sara)
 
+Production code (read it before generating):
+- `Infrastructure/Background/ReservationExpiryService.cs`: a `BackgroundService` that runs `ExpireReservationsCommand` every `ReservationExpiry:Interval` in a new DI scope. It is registered only when `ReservationExpiry:Enabled` is true.
+- `CampusMarketApiFactory` sets `ReservationExpiry:Enabled` to `false`, so the job never runs in the other tests. Do not change the factory or `IntegrationTestBase`.
+
+File: `Listings/ReservationExpiryTests.cs`, class `ReservationExpiryTests : IntegrationTestBase`.
+
+Test host: to turn the job on in one test, start a second copy of the API on the same database with `Factory.WithWebHostBuilder(builder => { builder.UseSetting("ReservationExpiry:Enabled", "true"); builder.UseSetting("ReservationExpiry:Interval", "00:00:00.200"); })`, the same way the Admin seed tests do. The copy starts at its first `CreateClient()`; dispose it with `await using`.
+
+Arrange: seed the seller, the buyers and listings published and reserved with `SeedAsync`. The API uses the real clock: an expired reservation is reserved 49 hours in the past, a valid one 1 hour in the past.
+
+Tests to add:
+- With the job on, one expired and one valid reservation → poll the database every 100 ms, for at most 5 seconds, until the expired reservation is `Expired`; then: that listing is `Active` with `Version` + 1, and the valid reservation is still `Active` on a `Reserved` listing. Fail with a clear message when 5 seconds pass.
+- After the job expired the reservation, another member reserves the listing → 201.
+- With the job off (the normal factory), an expired reservation stays `Active` in the database, but the buyer's `GET /api/v1/members/me/reservations` shows it as `Expired` (computed when it is read).
+
+Rules for this feature:
+- Never use a fixed `Task.Delay` as the assertion: poll the database with a timeout.
+- Every test checks the database at the end.
+
+
+
+## Feature: Error handling (Anca)
+
+This feature changes facts from section 4 and from the feature sections above. Answers that ASP.NET writes by itself, which had an empty body until now, are now **ProblemDetails** (`Content-Type: application/problem+json`). Read `Infrastructure/ErrorHandling/` and `Program.cs` before generating.
+
+| Where the error comes from | Body |
+|---|---|
+| a handler (`Result` failure: 400, 403 `*.NotOwner`, 404, 409 `Member.EmailTaken`) | **unchanged**: `{ code, message, type }`, read into `Error` |
+| no token (401), the `Admin` policy (the 403 of `CreateMember`), an unknown route (404), a known route with the wrong HTTP method (405), JSON that cannot be read, such as an unknown enum value (400), the login rate limit (429) | ProblemDetails with `status`, `title`, `instance` (the request path), `traceId` and `code`: `Auth.Unauthorized`, `Auth.Forbidden`, `Route.NotFound`, `Request.MethodNotAllowed`, `Request.Invalid`, `Request.TooManyRequests` |
+| `DbUpdateConcurrencyException` | 409 ProblemDetails, `code` `Concurrency.Conflict` |
+| any other exception | 500 ProblemDetails, `code` `Server.Error`, `detail` `"An unexpected error occurred."`, never the exception message |
+
+The rules "401 always has an empty body" and "for 401 (and the 403 of `CreateMember`, and the 400 of an unknown enum) check only the status code" in the sections above no longer hold: this section replaces them.
+
+Helpers to add in `Infrastructure/` of the test project:
+- `ProblemResponse.cs`: `public sealed record ProblemResponse(int Status, string Title, string Instance, string Code, string TraceId);`, read with `ReadFromJsonAsync<ProblemResponse>(Json)`.
+- `ConcurrentEditUnitOfWork.cs`: implements `IUnitOfWork`, gets `CampusMarketDbContext` in its constructor. In `CommitAsync` it first runs `await db.Database.ExecuteSqlRawAsync("UPDATE Listings SET Version = Version + 1", ct)` (another user changed the row a moment earlier), then returns `await db.SaveChangesAsync(ct)`, so EF Core's own `Version` check throws a real `DbUpdateConcurrencyException`.
+- `ThrowingUnitOfWork.cs`: implements `IUnitOfWork`; `CommitAsync` throws `new InvalidOperationException("secret: Data Source=prod.db")`.
+- To use one of them in a test, create the client in the Arrange: `var client = Factory.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddScoped<IUnitOfWork, ConcurrentEditUnitOfWork>())).CreateClient();`, log it in with the same `Authorization: Bearer` header that `AuthenticateAs` sets (`TestTokens.Create(...)`), and send the one HTTP call with it. `SeedAsync` and `QueryDbAsync` keep working: both clients use the same in-memory database.
+
+Every ProblemDetails test checks: the status code; `response.Content.Headers.ContentType!.MediaType` is `application/problem+json`; `Status` and `Code`; `Instance` is the request path; `TraceId` is not empty; then the database.
+
+Update the existing tests (do not delete or rename any; keep their database checks):
+- every no-token test (`Given_NoToken_...` in `CreateListingTests`, `UpdateListingTests`, `DeleteListingTests`, `PublishListingTests`, `ReserveListingTests`, `CancelReservationTests`, `ConfirmSaleTests`, `CreateMemberTests`, `UpdateMemberTests`, `DeleteMemberTests`, `GetMyReservationsTests`, `SuggestPriceTests`): instead of the empty body, check the ProblemDetails with `code` `Auth.Unauthorized`.
+- `CreateMemberTests`, a student → 403: ProblemDetails with `code` `Auth.Forbidden`.
+- `LoginTests`, the 429 test: ProblemDetails with `code` `Request.TooManyRequests`.
+- `SuggestPriceTests`, the unknown condition `"Used"`: ProblemDetails with `code` `Request.Invalid`.
+
+Tests to add, in a new file `ErrorHandling/ErrorHandlingTests.cs` (fixed `SellerId` and `OtherStudentId` as in the other classes):
+- `GET /api/v1/does-not-exist` → 404 ProblemDetails `Route.NotFound`, `Instance` `/api/v1/does-not-exist`.
+- `DELETE /api/v1/listings` (the route exists only for GET and POST) → 405 ProblemDetails `Request.MethodNotAllowed`.
+- Logged in as `SellerId`, `POST /api/v1/listings` with `"category": "Banana"` → 400 ProblemDetails `Request.Invalid`; no listing saved.
+- A seeded draft of `SellerId`, client with `ConcurrentEditUnitOfWork`, the seller publishes it → 409 ProblemDetails `Concurrency.Conflict`; in the database the listing is still `Draft` and its `Version` is 2 (only the other user's change was saved).
+- A seeded draft, client with `ThrowingUnitOfWork`, the seller publishes it → 500 ProblemDetails `Server.Error`, `detail` `"An unexpected error occurred."`, and the raw body does not contain `"secret"`; the listing is still `Draft` with `Version` 1.
+- Handler errors keep their format: `OtherStudentId` publishes the seller's draft → 403, `Content-Type` media type is `application/json` (not `problem+json`), body read into `Error` with `Code` `Listing.NotOwner` and `Type` `Forbidden`; listing unchanged.
+
+Rules for this feature:
+- Never assert the `title` or `type` text of a ProblemDetails: ASP.NET writes them.
+- The fakes live only in `tests/CampusMarket.IntegrationTests/Infrastructure/`; never replace `IUnitOfWork` in `CampusMarketApiFactory` for all tests.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.

@@ -5,6 +5,7 @@ using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Features.Listings;
 using CampusMarket.Api.Features.Members;
+using CampusMarket.Api.Infrastructure.Background;
 using CampusMarket.Api.Infrastructure.ML;
 using CampusMarket.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -77,6 +78,16 @@ public static class CampusMarketSetup
         });
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
+
+        // Background reservation expiry: registered only when enabled, so tests and
+        // scenarios that need a quiet host can turn it off through configuration.
+        services.AddOptions<ReservationExpiryOptions>()
+            .Bind(configuration.GetSection(ReservationExpiryOptions.SectionName));
+
+        var expiryOptions = configuration.GetSection(ReservationExpiryOptions.SectionName)
+            .Get<ReservationExpiryOptions>() ?? new ReservationExpiryOptions();
+        if (expiryOptions.Enabled)
+            services.AddHostedService<ReservationExpiryService>();
 
         // Enums are sent as text in JSON ("Active"), not as numbers (1)
         services.ConfigureHttpJsonOptions(options =>

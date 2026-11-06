@@ -23,7 +23,16 @@ public sealed class GetMyReservationsTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.Unauthorized);
+        problem.Code.Should().Be("Auth.Unauthorized");
+        problem.Instance.Should().Be("/api/v1/members/me/reservations");
+        problem.TraceId.Should().NotBeEmpty();
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
     }
 
     [Fact]
