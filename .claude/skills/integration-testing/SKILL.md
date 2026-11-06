@@ -591,3 +591,39 @@ Rules for this feature:
 - Never assert the `title` or `type` text of a ProblemDetails: ASP.NET writes them.
 - The fakes live only in `tests/CampusMarket.IntegrationTests/Infrastructure/`; never replace `IUnitOfWork` in `CampusMarketApiFactory` for all tests.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Refresh token and logout (Carina)
+
+Endpoints (`Features/Auth/`): `POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout`, both with the body `{ "refreshToken" }`. They are public: never use `AuthenticateAs` in these tests, because the refresh token itself is the proof. Login now also returns `refreshToken`.
+
+| Slice | Success | Failures |
+|---|---|---|
+| Login | 200 `{ token, expiresAt, refreshToken }` | 401, 429 (unchanged) |
+| Refresh | 200 `{ token, expiresAt, refreshToken }` with a new refresh token | 401 `Auth.InvalidRefreshToken`, type `Validation` |
+| Logout | 204, empty body | 401 `Auth.InvalidRefreshToken`, type `Validation` |
+
+The database stores only the SHA-256 hash, in the table `RefreshTokens` (entity `RefreshToken` with `MemberId`, `TokenHash`, `CreatedAt`, `ExpiresAt`, `RevokedAt`). `RefreshToken.Hash(plainToken)` gives the stored value.
+
+Arrange:
+- Seed the member with `BuildMemberWithPassword` (as in `LoginTests`) and the token with `RefreshToken.Create(member.Id, "plain-refresh-token", ...)` through `SeedAsync`. Never call `/auth/login` to get a refresh token in the refresh or logout tests.
+- The API uses the real clock, so build the token times from `DateTimeOffset.UtcNow`: active = created now; expired = created 8 days ago; revoked = created now and `Revoke(DateTimeOffset.UtcNow)` before `SeedAsync`.
+- The access token lasts 15 minutes. Read `var before = DateTimeOffset.UtcNow;` in the Arrange and, after the call, check that `expiresAt` is between `before.AddMinutes(15)` and `DateTimeOffset.UtcNow.AddMinutes(15)`. This window is the only allowed use of the real clock in an assertion.
+
+Files and tests (status, body, then the database):
+- `Auth/LoginTests.cs`: in `Given_ValidCredentials_When_LoggingIn_Then_Returns200WithToken`, also check a non-empty `refreshToken`, `expiresAt` inside the 15-minute window, and in the database exactly one `RefreshToken` for the member with `TokenHash` = `RefreshToken.Hash(body.RefreshToken)` (so the plain token is not stored) and `RevokedAt` null. Change nothing else in the existing tests.
+- `Auth/RefreshTests.cs` (new):
+    - active token → 200, non-empty `token`, a `refreshToken` different from the one sent, `expiresAt` inside the 15-minute window; in the database the old token has `RevokedAt` set and the member has exactly 2 tokens, the new one with `TokenHash` = `RefreshToken.Hash(body.RefreshToken)` and `RevokedAt` null.
+    - revoked (already used) token → 401 `Auth.InvalidRefreshToken`; still exactly 1 token, unchanged.
+    - expired token → 401; still exactly 1 token, `RevokedAt` still null.
+    - unknown token (only the member is seeded) → 401; 0 tokens.
+    - empty string → 401; 0 tokens.
+    - a token whose member does not exist (seed only the token) → 401; the token is not revoked.
+- `Auth/LogoutTests.cs` (new):
+    - active token → 204, empty body; in the database `RevokedAt` is set.
+    - token already revoked → 401 `Auth.InvalidRefreshToken`; the token is unchanged.
+    - unknown token → 401; 0 tokens.
+    - empty string → 401.
+
+Rules for this feature:
+- Read every 401 body into `Error` and check `Code` and `Type`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
