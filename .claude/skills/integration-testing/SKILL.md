@@ -718,3 +718,27 @@ Rules for this feature:
 - Never assert an exact spam probability from the real model: only that it is between 0.5 and 1 for the spam example.
 - Read 400/404/409 bodies into `Error` and check `Code` and `Type`; 401 and 403 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Seller reviews (Anca)
+
+Endpoints:
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/reviews`, body `{ rating, comment? }` | the buyer of the sold listing (the reviewer is the user in the token) | 201, body `{ id, listingId, sellerId, rating, comment, createdAt }`, `Location` ends with `/api/v1/members/{sellerId}/reviews` | 404 `Listing.NotFound`; 404 `Member.NotFound`; 400 `Review.SaleNotCompleted`, `Review.InvalidRating`, `Review.CommentTooLong`; 403 `Review.NotBuyer` (any other member, also the seller; body is our `Error`, not ProblemDetails); 409 `Review.AlreadyExists`; 401 |
+| `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone (no token needed) | 200 `{ memberId, averageRating, reviewCount, items, count, page, pageSize }`; each item `{ id, listingId, reviewerId, rating, comment, createdAt }`, newest first; `averageRating` is null when there are no reviews | 400 `Reviews.InvalidPage`, `Reviews.InvalidPageSize`; 404 `Member.NotFound` |
+
+Read `Features/Reviews/`, `Domain/Reviews/` and `Infrastructure/Persistence/Configurations/ReviewConfiguration.cs` before generating. The `Reviews` table has foreign keys to `Listings` and to `Members` twice (seller and reviewer), all with cascade delete, and a unique index on `ListingId`. So the seller **and** the buyer must be seeded as members.
+
+Files: `Reviews/AddReviewTests.cs`, `Reviews/GetMemberReviewsTests.cs`, same base class and login helper as the other classes. Read the bodies into `AddReviewResponse` and `GetMemberReviewsResponse` from `Features/Reviews/`.
+
+Arrange: seed the seller and the buyer with `Member.Create(...).Value`; a sold listing is `Listing.Create(seller.Id, ...).Value`, `Publish()`, `var reservation = listing.Reserve(buyer.Id, CreatedAt).Value`, `listing.ConfirmSale(reservation.Id, CreatedAt)`. Log in as the buyer with `AuthenticateAs(buyer.Id)`. A review is `Review.Create(buyer.Id, listing, rating, comment, createdAt).Value` with a fixed `createdAt` (for example `CreatedAt.AddHours(1)`), seeded together with the members and the listing in one `SeedAsync`.
+
+Tests to add (status, body, then the database through `db.Set<Review>()`):
+- `AddReviewTests`: the buyer of a sold listing, rating 5 and a comment → 201 with the listing id, the seller id, 5, the trimmed comment, and `Location`; one review saved with this listing, seller, reviewer and rating; without a comment → 201 and `comment` null; the same listing again (seed the review first) → 409 `Review.AlreadyExists`, still one review; a listing that is only reserved → 400 `Review.SaleNotCompleted`; rating 0 → 400 `Review.InvalidRating`; another member (seed them) → 403 `Review.NotBuyer` with `Type` `Forbidden`; the seller → 403 `Review.NotBuyer`; unknown listing → 404 `Listing.NotFound`; logged in as a member that is not in the database → 404 `Member.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`. No review saved in any failure.
+- `GetMemberReviewsTests`: no token, a seller with ratings 5 and 4 → 200, `averageRating` 4.5, `reviewCount` 2, newest first, every field of the items checked; a seller with no reviews → 200, `averageRating` null, `reviewCount` 0, empty `items`; reviews of another seller are not returned; three reviews with `?page=2&pageSize=2` → one item, `count` 1, `reviewCount` 3; `?page=0` → 400 `Reviews.InvalidPage`; `?pageSize=101` → 400 `Reviews.InvalidPageSize`; an unknown member → 404 `Member.NotFound`. The database is unchanged after every call.
+- Cascade, in `AddReviewTests`: the seller deletes the sold listing (`DELETE /api/v1/listings/{id}` logged in as the seller) → 204, and its review is gone from the database.
+
+Rules for this feature:
+- Read 400/403/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
