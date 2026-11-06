@@ -1,12 +1,17 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Reports;
 
 namespace CampusMarket.Api.Features.Listings.PublishListing;
 
 public sealed class PublishListingHandler(
     IListingRepository repository,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    ISpamDetector spamDetector,
+    IReportRepository reports,
+    TimeProvider timeProvider)
     : ICommandHandler<PublishListingCommand, Guid>
 {
     public async Task<Result<Guid>> HandleAsync(
@@ -26,6 +31,12 @@ public sealed class PublishListingHandler(
 
         if (published.IsFailure)
             return Result<Guid>.Failure(published.Error);
+
+        // The listing is public from now on, so the spam model checks it once. A suspicious listing
+        // stays published but gets an automatic report, so Admins see it in the moderation list.
+        var spam = spamDetector.Check(listing.Title, listing.Description, listing.Price.Amount);
+        if (spam.IsSpam)
+            await reports.AddAsync(Report.CreateAutomatic(listing.Id, spam.Probability, timeProvider.GetUtcNow()), ct);
 
         repository.Update(listing);
         await unitOfWork.CommitAsync(ct);

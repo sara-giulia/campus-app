@@ -164,6 +164,26 @@ public sealed class Listing
         return this;
     }
 
+    // Only an Admin hides a listing (Features/Moderation/HideListing). A hidden listing is not in the search,
+    // cannot be reserved, reported or added to favorites. A reserved listing loses its active reservation.
+    public Result<Listing> Hide()
+    {
+        if (Status == ListingStatus.Hidden)
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.AlreadyHidden", "The listing is already hidden."));
+        if (Status is not (ListingStatus.Active or ListingStatus.Reserved))
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.CannotHide", "Only an active or reserved listing can be hidden."));
+
+        // A Reserved listing has exactly one active reservation (see Reserve).
+        _reservations.FirstOrDefault(r => r.Status == ReservationStatus.Active)?.Cancel();
+
+        Status = ListingStatus.Hidden;
+        Version++;
+
+        return this;
+    }
+
     // Checks the details shared by Create and UpdateDetails.
     // On success it returns the validated price, so the caller does not create Money twice.
     private static Result<Money> ValidateDetails(string? title, string? description, Category category, Condition condition, decimal price)    {
