@@ -803,6 +803,30 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none.
 
+### Run 13, skill v12 (Feature: Error handling)
+
+- **Why a new version:** A5 added a global exception handler and ProblemDetails. The 401, the 403 of the `Admin` policy, the 404 of an unknown route, the 400 of unreadable JSON and the 429 of the login limit now have a ProblemDetails body instead of an empty one, and a `DbUpdateConcurrencyException` is now 409 instead of 500. 12 existing tests that checked an empty body failed, and the new code had no tests.
+
+#### Change to SKILL.md (v11 → v12) and why
+
+| # | v11 (before) | v12 (after) | Why |
+|---|---|---|---|
+| 1 | *"401 always has an empty body"*; for 401 and the 403 of `CreateMember` *"check only the status code"* | New section *"Feature: Error handling (Anca)"* with a table of which errors keep `{ code, message, type }` (the handlers) and which are ProblemDetails (ASP.NET and exceptions), and *"this section replaces them"* | The old rules are in other people's sections, already logged; they are overridden here instead of being edited. |
+| 2 | — | Helpers `ProblemResponse`, `ConcurrentEditUnitOfWork` (raises `Version` with SQL right before the save) and `ThrowingUnitOfWork`, used through `Factory.WithWebHostBuilder` in one test only | Two requests rarely collide in a test; this makes EF Core throw a real `DbUpdateConcurrencyException` every time. |
+| 3 | — | The list of existing tests to update and the 6 new tests in `ErrorHandling/ErrorHandlingTests.cs` (404, 405, 400, 409, 500 without the exception message, 403 from a handler still in the old format) | Without it Claude would only fix the 12 failing tests and leave the new branches untested (Sonar checks `Infrastructure/` too). |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, update the ones the "Feature: Error handling (Anca)" section asks to update, and add the tests from that section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v12, commit 6d8b7bb (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** 6 new tests in `ErrorHandling/ErrorHandlingTests.cs`, 3 new helpers in `Infrastructure/`, 15 existing tests updated in 13 files (12 no-token tests, the student 403 of `CreateMember`, the 429 of `LoginTests`, the unknown condition of `SuggestPriceTests`). No test deleted or renamed, nothing changed in `src/`. Build 0 errors, 0 warnings; 382 tests pass (10 architecture, 250 unit, 4 ML, 118 integration), the integration tests three times in a row. Coverage of `Infrastructure/ErrorHandling/` from the integration tests: 56/56 lines, 17/17 branches.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. `ProblemResponse` has no `Detail`, but the 500 test must check `detail`; the run read it from the raw JSON with `JsonDocument`.
+    2. `GetMyReservationsTests` had no database check in its no-token test, and the 404/405 tests have nothing to check; the run added a "0 listings" check.
+    3. `AuthenticateAs` only sets the header on the base `Client`; for the second client the run set `Authorization: Bearer TestTokens.Create(SellerId)` by hand, as the section says.
+    4. The section does not say to dispose the factory from `WithWebHostBuilder`; the run used `await using`, as the Admin seed section does.
+    5. Sections 1 and 10 of the skill are out of date (errors only Validation/NotFound/Conflict, "both test projects" while there are four).
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 6d8b7bb; generated code 33c179b
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -1167,3 +1191,21 @@ Run dotnet build and dotnet test (existing tests must pass), list every file you
 - **Problems seen:**
     1. The task says to put the three Confirm sale requests "in the Reservations folder" **after a reservation is made**, but the only reservation in that folder (`reservationId`) is already cancelled by the end of the existing flow, and running Confirm sale on the main `listingId` would set its status to `Sold` and break the later `Update listing - valid (204)` request in the `UpdateListing` folder. Fixed by scoping the confirm-sale sequence to a brand-new listing (new `saleListingId`/`saleReservationId` variables) at the end of the `Reservations` folder, so the main `listingId` lifecycle used by `UpdateListing` and `DeleteListing` is untouched.
 
+## error-handling
+
+Week 5, task A5 (global exception handler + ProblemDetails). Infrastructure code, no new slice. Written step by step by Ancuța Ilenei in one Claude Code session (no skill covers this part); the tests were generated afterwards with the integration-testing skill (Run 13 above).
+
+### Run 1
+
+- **Prompts:** the code was built in small steps, each one explained before writing it: (1) `Infrastructure/ErrorHandling/GlobalExceptionHandler.cs`, an `IExceptionHandler`; (2) `ErrorHandlingExtensions.AddCampusMarketErrorHandling`, with `AddProblemDetails` and `AddExceptionHandler`; (3) the middleware order in `Program.cs`; (4) a manual check of every error type against the running API.
+- **Decision:** only the answers that do not come from a handler become ProblemDetails. The handler errors keep `{ code, message, type }`, because changing them would touch every endpoint (also the ones other people were working on this week) and 16 integration test files, and the task keeps A5 inside `Infrastructure/ErrorHandling/` and `Program.cs`. Every body still has a `code`: ProblemDetails get one in the same style (`Auth.Unauthorized`, `Concurrency.Conflict`, ...).
+- **Result:**
+    - `GlobalExceptionHandler`: `DbUpdateConcurrencyException` → 409 `Concurrency.Conflict`; `BadHttpRequestException` → its own status (400) `Request.Invalid`; anything else → 500 `Server.Error` with a fixed message, the real exception only in the log.
+    - `AddCampusMarketErrorHandling`: every ProblemDetails gets `instance`, `traceId` and a `code` (`TryAdd`, so the code set by the exception handler is kept).
+    - `Program.cs`: `UseExceptionHandler`, `UseStatusCodePages`, then `UseAuthentication`, `UseAuthorization` and `UseRateLimiter`. Authentication and authorization had to be called explicitly: added automatically, they run before our middleware and their 401/403 stay without a body.
+    - Checked by hand on the running API: 401, 403 (Admin policy), 404, 400 (`"category": "Banana"`), 429 and a handler 400 (`Money.Invalid`, unchanged). Before the tests were updated, 12 integration tests failed, all of them checks of an empty 401/403 body.
+    - README: new section "Error format", the 409 in the use case table and in "Key flows". Postman: the two no-token requests check the ProblemDetails, and a new folder `Errors` with 404, 405, 400 and 403.
+- **Problems seen:**
+    1. In Development, ASP.NET throws `BadHttpRequestException` for JSON it cannot read. The first version of the handler only knew `DbUpdateConcurrencyException`, so `"category": "Banana"` would have become 500 instead of 400; fixed before the first run by mapping it to its own status code.
+    2. A 409 could not be produced by sending two reservations in parallel by hand (the requests arrive one after the other locally, the second gets 400 `Listing.NotActive`); the integration test makes the conflict happen on purpose instead.
+- **Commits:** code db40206; tests generated in 33c179b (see Run 13 of integration-testing)
