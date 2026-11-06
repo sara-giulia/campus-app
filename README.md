@@ -60,6 +60,7 @@ Unit tests: `dotnet test` from the repository root.
 - **Vertical slices** with hand-written **CQRS** handlers (commands and queries)
 - **Repository + Unit of Work** over **EF Core** with **SQLite**
 - `Result<T>` for expected errors (no exceptions for business rule violations)
+- A global exception handler that answers with **ProblemDetails** (see [Error format](#error-format))
 - `TimeProvider` for anything that depends on the clock
 - **xUnit** with hand-written fakes
 - **Postman** collections for API tests
@@ -113,7 +114,7 @@ flowchart LR
 | Publish listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | only the owner or an Admin; only from `Draft` |
 | Browse and filter listings | `GetListings` | `GET /api/v1/listings?category=&minPrice=&maxPrice=&page=&pageSize=` | only `Active` listings; paging |
 | View listing details | `GetListingById` | `GET /api/v1/listings/{id}` | 404 if missing |
-| Reserve listing | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | not own listing; only `Active` (so not sold); max 3 active; **409 on concurrent reservation** (planned, week 5) |
+| Reserve listing | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | not own listing; only `Active` (so not sold); max 3 active; **409 on concurrent reservation** (`Concurrency.Conflict`, see [Error format](#error-format)) |
 | Cancel reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin; only if active |
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
@@ -196,9 +197,9 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
-| 400 (from ASP.NET Core) | `category` is not one of the values above |
+| 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` is not one of the values above |
 
-Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors are returned as `{ "code", "message", "type" }`.
+Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
 
 ### Authentication
 
@@ -234,6 +235,40 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
+
+### Error format
+
+Every error body has a `code`. There are two shapes, depending on who answers:
+
+| Who answers | Shape | Examples |
+|---|---|---|
+| a handler (a business rule, `Result` failure) | `{ "code", "message", "type" }` | all the codes in the table above |
+| ASP.NET itself, or an exception nobody caught | ProblemDetails (`Content-Type: application/problem+json`) with `type`, `title`, `status`, `detail`, `instance`, `traceId` and `code` | see below |
+
+| Code | HTTP | When |
+|---|---|---|
+| `Auth.Unauthorized` | 401 | no token, or the token is invalid or expired |
+| `Auth.Forbidden` | 403 | the `Admin` policy refuses the user (`POST /api/v1/members` as a student) |
+| `Route.NotFound` | 404 | no endpoint at that URL |
+| `Request.MethodNotAllowed` | 405 | the URL exists, but not with that HTTP method |
+| `Request.Invalid` | 400 | the request cannot be read (bad JSON, unknown enum value such as `"category": "Banana"`) |
+| `Request.TooManyRequests` | 429 | more than 5 login attempts per minute |
+| `Concurrency.Conflict` | 409 | someone else saved the same listing at the same moment (`DbUpdateConcurrencyException`, see [Key flows](#5-key-flows)) |
+| `Server.Error` | 500 | any other exception; the details go only to the log, never to the client |
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "The data was changed by another request at the same time. Load it again and retry.",
+  "instance": "/api/v1/listings/42/reservations",
+  "code": "Concurrency.Conflict",
+  "traceId": "00-6f1c...-01"
+}
+```
+
+The code is in `Infrastructure/ErrorHandling/`: `GlobalExceptionHandler` turns exceptions into ProblemDetails, and `AddCampusMarketErrorHandling` adds `code`, `instance` and `traceId` to every ProblemDetails. In `Program.cs`, `UseExceptionHandler` and `UseStatusCodePages` come before authentication, authorization and rate limiting, so the empty 401/403/429 answers get a body too.
 
 ### Example scenario: reserving a listing
 
@@ -342,7 +377,7 @@ Any other transition returns an error through `Result<T>` (for example "a sold l
 
 ### Hard rule: two buyers reserve the same listing at the same moment
 
-Optimistic concurrency: `Listing.Version` is a concurrency token in EF Core. Both requests read version 5; the first save changes it to 6; the second save finds that the row no longer has version 5, EF Core throws `DbUpdateConcurrencyException`, and the handler turns it into **409 Conflict**.
+Optimistic concurrency: `Listing.Version` is a concurrency token in EF Core. Both requests read version 5; the first save changes it to 6; the second save finds that the row no longer has version 5, EF Core throws `DbUpdateConcurrencyException`, and the global exception handler (`Infrastructure/ErrorHandling/GlobalExceptionHandler.cs`) turns it into **409 Conflict** with the code `Concurrency.Conflict`.
 
 ```mermaid
 sequenceDiagram
@@ -364,7 +399,7 @@ sequenceDiagram
     API-->>B: 409 Conflict
 ```
 
-We will test this with an integration test that runs two reservations in parallel against the same listing and checks that exactly one succeeds.
+Two requests rarely meet at exactly the same moment in a test, so the integration test (`ErrorHandling/ErrorHandlingTests.cs`) makes the conflict happen on purpose: a test unit of work changes the row's `Version` right before the save, EF Core throws a real `DbUpdateConcurrencyException`, and the test checks the 409 and that only the other change was saved.
 
 
 ## 6. Architecture
