@@ -18,6 +18,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using CampusMarket.Api.Domain.Favorites;
+using CampusMarket.Api.Features.Favorites;
 
 namespace CampusMarket.Api;
 
@@ -40,6 +42,7 @@ public static class CampusMarketSetup
         services.AddScoped<IListingRepository, EfListingRepository>();
         services.AddScoped<IMemberRepository, EfMemberRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IFavoriteRepository, EfFavoriteRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -147,6 +150,7 @@ public static class CampusMarketSetup
         api.MapListingsEndpoints();
         api.MapMembersEndpoints();
         api.MapAuthEndpoints();
+        api.MapFavoritesEndpoints();
 
         return app;
     }
