@@ -112,4 +112,18 @@ public class FavoriteTests
         second.IsSuccess.Should().BeTrue();
         first.Value.Id.Should().NotBe(second.Value.Id);
     }
+
+    [Fact]
+    public void Given_HiddenListing_When_Creating_Then_ReturnsListingNotAvailableError()
+    {
+        var listing = BuildPublishedListing();
+        listing.Hide();
+
+        var result = Favorite.Create(OtherMemberId, listing, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Favorite.ListingNotAvailable");
+        result.Error.Message.Should().Be("Only a published listing can be added to favorites.");
+    }
 }

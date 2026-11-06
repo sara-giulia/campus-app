@@ -651,6 +651,29 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 57316ee; generated code f98a859
 
+### Run 19, skill v21 (Feature: Spam and moderation)
+
+- **Why a new version:** B5 added the `Report` entity, `Listing.Hide()`, three moderation handlers, the spam check in `PublishListing` (new constructor) and the hidden listings in favorites. None of it had unit tests, and the existing `PublishListingHandlerTests` no longer built.
+
+#### Change to SKILL.md (v20 → v21) and why
+
+| # | v20 (before) | v21 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about reports or moderation. | New section *"Feature: Spam and moderation (Anca)"*: the rules of `Report.Create`, `Listing.Hide()`, the order of the checks in each handler, the fakes `FakeSpamDetector` and `FakeReportRepository`, and the list of tests per class. | Without it Claude would have to guess the order of the checks and the error codes. |
+| 2 | — | *"every `new PublishListingHandler(repository, unitOfWork)` becomes `new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now))` … Do not change what the existing tests assert"*. | The new constructor broke the old tests; the skill says exactly what may change in them. |
+| 3 | — | Boundaries and order: reason 500/501 with and without spaces, `PageSize` 100/101, ties ordered by `LastReportedAt` then `ListingId`, hidden listings left out of both lists. | The same kind of tests that kept the mutation score at 100% for favorites and the listing search. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Spam and moderation (Anca)" section (that section also says how to update the existing PublishListingHandlerTests, which currently do not compile). Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session)
+- **Skill version:** v21, commit b9967f5 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new fakes `FakeSpamDetector` and `FakeReportRepository`; new files `ReportTests` (18), `ReportListingHandlerTests` (10), `GetReportedListingsHandlerTests` (14), `HideListingHandlerTests` (4); added tests in `ListingTests` (+5), `FavoriteTests` (+1), `GetMyFavoritesHandlerTests` (+1), `PublishListingHandlerTests` (+2, and the new constructor in the 5 old ones, whose assertions did not change). Nothing changed in `src/`. All 389 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 945/945 lines, 334/334 branches. The report in `coverage-report/` was generated again.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. `ReportedListingItem.From` is in the response file, so the coverage filter (`*Handler.cs`) does not show it; it is tested through the handler.
+    2. The section does not give a type for `FakeSpamDetector.LastPrice`; the run used `decimal?`.
+    3. A favorite or a report cannot be created for a hidden listing, so the "hidden" tests create them on an active listing and call `Hide()` afterwards; the section only hints at it.
+    4. The failure checks for `PublishListing` (detector not called, no report) went into the three existing failure tests instead of new tests, as the change paragraph says.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill b9967f5; generated code ffc2895
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -993,6 +1016,28 @@ saved.Should().BeEquivalentTo(listing);
     2. Section 10 is still out of date (it speaks of two test projects; there are four now).
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 57316ee; generated code f98a859
+
+### Run 19, skill v18 (Feature: Spam and moderation)
+
+- **Why a new version:** B5 added three endpoints (`POST /api/v1/listings/{id}/reports`, `GET /api/v1/moderation/listings`, `POST /api/v1/moderation/listings/{id}/hide`), a `Reports` table with foreign keys to `Listings` and `Members`, the real spam model in `PublishListing` and the hidden listings in favorites. They had no integration tests.
+
+#### Change to SKILL.md (v17 → v18) and why
+
+| # | v17 (before) | v18 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about moderation. | New section *"Feature: Spam and moderation (Anca)"*: a table with the three requests, who may call them, their answers, the files and the list of tests. | Without it Claude would have to guess the routes, the Admin rule and the error codes. |
+| 2 | — | *"An Admin is logged in with `AuthenticateAs(id, "Admin")`"*, a 403 test as a student for both Admin endpoints, and the reporter **must be seeded**. | The Admin policy and the foreign key to `Members` are only visible over HTTP and in the database. |
+| 3 | — | `SpamOnPublishTests` with the real model: a spam draft gets an automatic report with a probability between 0.5 and 1, a normal one gets none. *"Never assert an exact spam probability."* | Proves the model is wired into publishing without tying the tests to one trained model. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Spam and moderation (Anca)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v18, commit b9967f5 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** four new files in `Moderation/`: `ReportListingTests` (8), `GetReportedListingsTests` (6 cases), `HideListingTests` (8), `SpamOnPublishTests` (2), plus one test in `Favorites/AddFavoriteTests` and one in `Favorites/GetMyFavoritesTests`. No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 596 tests pass (10 architecture, 389 unit, 13 ML, 184 integration), the integration tests three times in a row. The whole Postman collection was also run with `newman` on the running API: 116 requests, 229 assertions, 0 failures.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. "After hiding, `GET /api/v1/listings` does not return it" cannot be one test (one HTTP call per Act); the run seeded a hidden listing and called the search, which is a weak check because the search only returns `Active` listings anyway.
+    2. `Report.ReasonTooLong` is in the table but not in the list of tests, so it has no integration test (it is covered by the unit tests).
+    3. A report or a favorite cannot be created for a hidden listing, so the run created them on a published listing and called `Hide()` before seeding; the section does not say this.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill b9967f5; generated code ffc2895
 
 ## code-review
 
@@ -1357,6 +1402,50 @@ Do not change existing tests. Do not commit or push.
     4. SonarCloud showed 2.0% duplication on new code: the title and description checks of `SuggestCategoryHandler` were the same lines as in `SuggestPriceHandler` and `Listing`. Fixed by moving them into `Listing.ValidateText(title, description)`, used by `Listing`, `SuggestPrice` and `SuggestCategory`; the error codes, messages and order did not change, and all tests pass without changes.
 
 - **Commits:** code 2ec87e6; tests generated in f98a859 (see Run 18 of unit-testing and Run 18 of integration-testing)
+
+### Run 4
+
+- **Why:** B5, the third model and the moderation around it: `SpamTrainer`, the `spam-detection.zip` artefact, a new `Report` entity and `Features/Moderation/` (report a listing, the Admin list, hide a listing), `Listing.Hide()`, and the hidden listings in favorites that A3 left for this task. Written by Ancuța Ilenei with Claude Code.
+- **Prompt:** (new session)
+
+```
+Week 5, task B5: spam + moderation. Same ML structure as B3 and B4.
+1. Training: SpamTrainer : IModelTrainer, registered in Program.cs. Binary classification on IsSpam with all rows.
+   Features: Title and Description with FeaturizeText, Price in bins (spam has absurd prices). Metrics: accuracy, AUC,
+   F1, precision, recall. ModelFileName spam-detection.zip, saved and committed.
+2. API: ISpamDetector in Common/Moderation (no ML types), SpamDetector in Infrastructure/ML with PredictionEnginePool.
+3. Domain: Report in Domain/Reports (a member reports a listing with a reason; the spam model reports it on its own),
+   Listing.Hide() (only Active or Reserved; a reserved listing loses its reservation).
+4. Features/Moderation: POST /listings/{id}/reports (any member, once per listing), GET /moderation/listings
+   (Admins, one row per reported listing, paging), POST /moderation/listings/{id}/hide (Admins).
+   PublishListing asks the spam model and adds an automatic report when it says spam.
+5. Favorites: a hidden listing cannot be saved and is not in GET /me/favorites (left from A3).
+6. Migration AddReports. ML.Tests: SpamModelQualityTests (AUC and F1 over a bar, examples written by hand).
+7. No unit or integration tests yet (generated with the skills). README, Postman and PROMPTS.md.
+Do not change existing tests (except what the new constructor of PublishListingHandler needs, through the skill). Do not commit or push.
+```
+
+- **Decisions:**
+    - Automatic marking happens at publish: that is when a listing becomes public. A suspicious listing stays published but gets a report with no reporter and the spam probability, so an Admin decides; the model never hides anything by itself.
+    - The Admin list shows one row per listing (not one per report), the most reported first, and leaves hidden listings out, because they are already handled.
+    - A member reports a listing at most once (409 `Report.AlreadyExists`, plus a unique index on listing + reporter); the seller cannot report their own listing; only `Active` and `Reserved` listings can be reported, like what other members can see.
+    - Hiding a reserved listing cancels its reservation, so the buyer is not left waiting for a listing nobody can see.
+    - `GET /api/v1/listings/{id}` still returns a hidden listing, the same way it already returns drafts; the search, the favorites and reservations leave it out.
+- **Result:** `dotnet run --project ml/CampusMarket.ML.Training` prints for the spam model `Accuracy 1.000`, `AUC 1.000`, `F1 1.000`, `Precision 1.000`, `Recall 1.000`; the price and category models are unchanged and their `.zip` files were left as they were. Migration `AddReports` (only the new `Reports` table); `dotnet ef migrations has-pending-model-changes`: no changes. Checked by hand on the running API: a normal listing published without a report, a spam one published with an automatic report (0.97); report 201, again 409, own listing 400, empty reason 400, unknown listing 404, no token 401; the list as a student 403, `page=0` 400; hide 204, again 400, as a student 403, unknown 404; after hiding, the listing is gone from the list, the search and the favorites, and cannot be saved or reserved.
+- **Files changed:**
+    - `ml/CampusMarket.ML.Training/SpamTrainer.cs` (new) and `Program.cs` (registers `new SpamTrainer()`); `ml/models/spam-detection.zip` (new)
+    - `src/CampusMarket.Api/Common/Moderation/ISpamDetector.cs`; `Infrastructure/ML/SpamInput.cs`, `SpamPrediction.cs`, `SpamDetector.cs` (new); `MlServiceCollectionExtensions.cs` (the third `PredictionEnginePool`)
+    - `src/CampusMarket.Api/Domain/Reports/` (`Report`, `IReportRepository`), `Domain/Listings/Listing.cs` (`Hide()`), `Domain/Favorites/Favorite.cs` (refuses `Hidden`)
+    - `src/CampusMarket.Api/Infrastructure/Persistence/` (`ReportConfiguration`, `EfReportRepository`, `DbSet<Report>`), migration `AddReports`
+    - `src/CampusMarket.Api/Features/Moderation/` (`ReportListing`, `GetReportedListings`, `HideListing`, `ModerationEndpoints`); `Features/Listings/PublishListing/PublishListingHandler.cs` (spam check); `Features/Favorites/GetMyFavorites/GetMyFavoritesHandler.cs` (leaves hidden listings out)
+    - `src/CampusMarket.Api/CampusMarketSetup.cs` (two `using` lines, the repository and `MapModerationEndpoints`)
+    - `tests/CampusMarket.ML.Tests/SpamModelQualityTests.cs` (new)
+    - `README.md` (endpoints, error codes, a "Moderation" section, `Hidden` in the diagrams, "Spam detection model (B5)"), `postman/CampusMarket.postman_collection.json` (new `Moderation` folder with 17 requests and the variable `modListingId`), `PROMPTS.md`
+- **Problems seen:**
+    1. The scores are 1.000 because the dataset is synthetic, as for the category model. The quality bar is AUC 0.95 and F1 0.9.
+    2. Changing the constructor of `PublishListingHandler` broke the build of the existing `PublishListingHandlerTests`; they were updated by the unit-testing run (see Run 19), not by hand.
+    3. `ReportedListingItem.From` lives in the response file, like `MyFavoriteItem.From`, so it is outside the coverage and Stryker filters (`*Handler.cs`); its logic is tested through `GetReportedListingsHandler`.
+- **Commits:** code 21011ac; tests generated in ffc2895 (see Run 19 of unit-testing and Run 19 of integration-testing)
 
 ## confirm-sale
 

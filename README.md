@@ -130,6 +130,9 @@ flowchart LR
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
 | Get suggested price | `SuggestPrice` (AI) | `POST /api/v1/listings/price-suggestion` | suggestion only, never applied |
 | Get suggested category | `SuggestCategory` (AI) | `POST /api/v1/listings/category-suggestion` | suggestion only, the seller still picks the category |
+| Report a listing | `ReportListing` | `POST /api/v1/listings/{id}/reports` | not own listing; only `Active` or `Reserved`; at most once per member |
+| See reported listings | `GetReportedListings` | `GET /api/v1/moderation/listings` | Admins only; hidden listings left out |
+| Hide a listing | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only; only `Active` or `Reserved` |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -150,6 +153,9 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
 | Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1), 400, 401 |
+| Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
+| Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
+| Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
@@ -163,7 +169,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 
-GET endpoints are public, except `GET /api/v1/members/me/reservations` and `GET /api/v1/members/me/favorites`. POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public, except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites` and `GET /api/v1/moderation/listings` (Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -257,10 +263,17 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
 | `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
-| `Favorite.ListingNotAvailable` | 400 | the listing is still a draft |
+| `Favorite.ListingNotAvailable` | 400 | the listing is still a draft, or it was hidden by an Admin |
 | `Favorite.AlreadyExists` | 409 | the listing is already in your favorites |
 | `Favorite.NotFound` | 404 | you remove a listing that is not in your favorites |
 | `Favorites.InvalidPage`, `Favorites.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/members/me/favorites` (same rules as the listing search) |
+| `Report.OwnListing` | 400 | the seller reports their own listing |
+| `Report.ListingNotAvailable` | 400 | the listing is a draft, sold or hidden |
+| `Report.ReasonEmpty`, `Report.ReasonTooLong` | 400 | the reason is empty or longer than 500 characters |
+| `Report.AlreadyExists` | 409 | you have already reported this listing |
+| `Listing.AlreadyHidden` | 400 | an Admin hides a listing that is already hidden |
+| `Listing.CannotHide` | 400 | an Admin hides a draft or a sold listing |
+| `Moderation.InvalidPage`, `Moderation.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/moderation/listings` |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
@@ -336,6 +349,30 @@ A member saves listings to find them again later. The member is always the user 
 
 Favorites are stored in their own table (`Favorites`, migration `AddFavorites`), with a unique index on member + listing and foreign keys to `Members` and `Listings`: when a listing or a member is deleted, their favorites are deleted too.
 
+A listing hidden by an Admin cannot be saved (400 `Favorite.ListingNotAvailable`) and is left out of the list while it is hidden.
+
+### Moderation
+
+Members report listings, the spam model reports suspicious ones on its own, and Admins decide.
+
+- `POST /api/v1/listings/{id}/reports` with `{ "reason": "..." }` (1–500 characters): 201 with `{ id, listingId, createdAt }`. Any logged-in member can report an `Active` or `Reserved` listing of someone else, once (409 `Report.AlreadyExists`).
+- When a listing is published, the spam model (see [Machine learning](#machine-learning)) checks its title, description and price. A listing that looks like spam is still published, but gets an **automatic report** (no reporter, with the spam probability).
+- `GET /api/v1/moderation/listings?page=1&pageSize=20` (Admins only) lists the reported listings that are not hidden, one row per listing, the most reported first:
+
+```json
+{
+  "items": [ { "listingId": "...", "title": "BANI RAPIZI, SUNA ACUM!!!", "sellerId": "...", "status": "Active", "reportCount": 2, "flaggedAsSpam": true, "spamProbability": 0.97, "lastReportedAt": "2026-11-06T17:44:04+00:00", "reasons": [ "Asks for money on WhatsApp.", "Flagged automatically as spam." ] } ],
+  "count": 1,
+  "totalCount": 1,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+- `POST /api/v1/moderation/listings/{id}/hide` (Admins only): 204. The listing becomes `Hidden`: it leaves the search, the moderation list and the favorites lists, and it cannot be reserved, reported or saved. A reserved listing loses its active reservation. Only `Active` and `Reserved` listings can be hidden.
+
+Reports are stored in their own table (`Reports`, migration `AddReports`), with a unique index on listing + reporter and foreign keys to `Listings` and `Members` (cascade delete).
+
 ## 4. Domain model
 
 ```mermaid
@@ -378,6 +415,7 @@ classDiagram
         Active
         Reserved
         Sold
+        Hidden
     }
 
     class Condition {
@@ -403,7 +441,7 @@ classDiagram
     Reservation ..> ReservationStatus
 ```
 
-**Relationships:** a `Member` sells many `Listing`s (**one-to-many**, through `Listing.SellerId`). Members and listings are also connected **many-to-many** through the join entity `Reservation` (`MemberId` + `ListingId`): a member can reserve many listings, and a listing can have many reservations over time. A `Listing` owns its reservations and exposes them only as `IReadOnlyList<Reservation>`. `Favorite` is a second join entity between members and listings (`MemberId` + `ListingId`, at most one per pair).
+**Relationships:** a `Member` sells many `Listing`s (**one-to-many**, through `Listing.SellerId`). Members and listings are also connected **many-to-many** through the join entity `Reservation` (`MemberId` + `ListingId`): a member can reserve many listings, and a listing can have many reservations over time. A `Listing` owns its reservations and exposes them only as `IReadOnlyList<Reservation>`. `Favorite` is a second join entity between members and listings (`MemberId` + `ListingId`, at most one per pair). `Report` links a listing to the member who reported it (`ReporterId` is empty for the automatic reports of the spam model).
 
 **Value objects:** `Money` (amount > 0) and `Email` (normalized to lower case, one `@` with text before and after) are immutable records that can only be created through a factory returning `Result<T>`.
 
@@ -416,6 +454,8 @@ stateDiagram-v2
     Active --> Reserved : ReserveListing
     Reserved --> Active : CancelReservation / reservation expired (48h)
     Reserved --> Sold : ConfirmSale
+    Active --> Hidden : HideListing (Admin)
+    Reserved --> Hidden : HideListing (Admin)
     Sold --> [*]
 ```
 
@@ -662,5 +702,28 @@ one per task. Their `PredictionEnginePool` registrations live in
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
   on the same split and fails if the micro accuracy drops below 0.9, or if three
   listings written by hand (not in the CSV) get the wrong category.
+
+### Spam detection model (B5)
+
+- Trainer: `SpamTrainer` in `ml/CampusMarket.ML.Training`, binary classification
+  with SDCA logistic regression on all rows. Features: `Title` and `Description`
+  through `FeaturizeText`, and `Price` split into bins (spam often has absurd prices,
+  1 leu or tens of thousands). Label: `IsSpam`.
+- Metrics on the 20% hold-out (seed 42, all rows):
+
+  | Metric | Value |
+  |---|---|
+  | Accuracy | **1.000** |
+  | AUC | 1.000 |
+  | F1 score | 1.000 |
+
+  As for the category model, the scores are this high because the dataset is synthetic.
+- The saved model (`ml/models/spam-detection.zip`) is loaded by the API through
+  `PredictionEnginePool<SpamInput, SpamPrediction>`; `PublishListing` depends on
+  `ISpamDetector` (in `Common/Moderation/`) and adds an automatic report when the
+  model says spam (see [Moderation](#moderation)).
+- Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model on
+  the same split and fails if the AUC drops below 0.95 or the F1 score below 0.9, or
+  if four listings written by hand (two spam, two normal) are classified wrongly.
 
 ---

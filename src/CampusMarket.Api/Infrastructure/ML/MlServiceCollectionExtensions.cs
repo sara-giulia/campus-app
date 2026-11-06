@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.Categories;
+using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Common.Pricing;
 using Microsoft.Extensions.ML;
 
@@ -32,8 +33,13 @@ public static class MlServiceCollectionExtensions
 
         services.AddSingleton<ICategorySuggester, CategorySuggester>();
 
-        // Each future model (spam in B5) registers its own
-        // PredictionEnginePool here alongside the ones above.
+        services.AddPredictionEnginePool<SpamInput, SpamPrediction>()
+            .FromFile(
+                modelName: SpamDetector.ModelName,
+                filePath: Path.Combine(modelsPath, "spam-detection.zip"),
+                watchForChanges: true);
+
+        services.AddSingleton<ISpamDetector, SpamDetector>();
 
         return services;
     }
