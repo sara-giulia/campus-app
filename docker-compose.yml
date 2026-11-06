@@ -1,0 +1,6 @@
+services:
+  api:
+    build: .
+    ports:
+      - "5080:8080"
+    

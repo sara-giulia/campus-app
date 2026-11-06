@@ -82,6 +82,9 @@ public static class CampusMarketSetup
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+        // GET /health: the API is up and can reach the database.
+        services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
+        
         return services;
     }
 

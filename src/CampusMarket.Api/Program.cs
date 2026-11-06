@@ -7,6 +7,8 @@ builder.Services.AddCampusMarket(builder.Configuration);
 
 var app = builder.Build();
 
+app.MapHealthChecks("/health");
+
 app.EnsureCampusMarketDatabase();
 
 app.UseRateLimiter();
