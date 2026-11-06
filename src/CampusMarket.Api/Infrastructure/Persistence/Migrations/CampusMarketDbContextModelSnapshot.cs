@@ -212,6 +212,42 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("Reports", (string)null);
                 });
 
+            modelBuilder.Entity("CampusMarket.Api.Domain.Reviews.Review", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ListingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ReviewerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SellerId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId")
+                        .IsUnique();
+
+                    b.HasIndex("ReviewerId");
+
+                    b.HasIndex("SellerId");
+
+                    b.ToTable("Reviews", (string)null);
+                });
+
             modelBuilder.Entity("CampusMarket.Api.Domain.Favorites.Favorite", b =>
                 {
                     b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
@@ -248,6 +284,27 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ReporterId")
                         .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("CampusMarket.Api.Domain.Reviews.Review", b =>
+                {
+                    b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CampusMarket.Api.Domain.Listings.Listing", b =>

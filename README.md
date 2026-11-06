@@ -133,6 +133,8 @@ flowchart LR
 | Report a listing | `ReportListing` | `POST /api/v1/listings/{id}/reports` | not own listing; only `Active` or `Reserved`; at most once per member |
 | See reported listings | `GetReportedListings` | `GET /api/v1/moderation/listings` | Admins only; hidden listings left out |
 | Hide a listing | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only; only `Active` or `Reserved` |
+| Review the seller | `AddReview` | `POST /api/v1/listings/{id}/reviews` | only the buyer; only after the sale is confirmed; rating 1 to 5; once per sale |
+| See a member's reviews | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews` | public; newest first, with the average rating |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -156,6 +158,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
+| Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
+| Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
@@ -169,7 +173,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 
-GET endpoints are public, except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites` and `GET /api/v1/moderation/listings` (Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites` and `GET /api/v1/moderation/listings` (Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -274,6 +278,12 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Listing.AlreadyHidden` | 400 | an Admin hides a listing that is already hidden |
 | `Listing.CannotHide` | 400 | an Admin hides a draft or a sold listing |
 | `Moderation.InvalidPage`, `Moderation.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/moderation/listings` |
+| `Review.SaleNotCompleted` | 400 | the listing is not sold yet |
+| `Review.NotBuyer` | 403 | you review a sale and you are not its buyer (also the seller) |
+| `Review.InvalidRating` | 400 | the rating is not between 1 and 5 |
+| `Review.CommentTooLong` | 400 | the comment is longer than 500 characters |
+| `Review.AlreadyExists` | 409 | the sale has already been reviewed |
+| `Reviews.InvalidPage`, `Reviews.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/members/{id}/reviews` |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
@@ -373,6 +383,27 @@ Members report listings, the spam model reports suspicious ones on its own, and 
 
 Reports are stored in their own table (`Reports`, migration `AddReports`), with a unique index on listing + reporter and foreign keys to `Listings` and `Members` (cascade delete).
 
+### Seller reviews
+
+After a sale is confirmed, the buyer rates the seller once.
+
+- `POST /api/v1/listings/{id}/reviews` with `{ "rating": 5, "comment": "..." }`: 201 with `{ id, listingId, sellerId, rating, comment, createdAt }` and `Location` to the seller's reviews. Only the buyer of the confirmed sale can do it (403 `Review.NotBuyer` for anyone else, the seller included), only when the listing is `Sold` (400 `Review.SaleNotCompleted`), with a rating from 1 to 5 and an optional comment of at most 500 characters. One review per sale (409 `Review.AlreadyExists`).
+- `GET /api/v1/members/{id}/reviews?page=1&pageSize=20` is public and shows the member's reviews as a seller, newest first, with the average of all their ratings (two decimals, `null` when there are none):
+
+```json
+{
+  "memberId": "...",
+  "averageRating": 4.5,
+  "reviewCount": 2,
+  "items": [ { "id": "...", "listingId": "...", "reviewerId": "...", "rating": 4, "comment": null, "createdAt": "2026-11-06T18:57:06+00:00" } ],
+  "count": 1,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+Reviews are stored in their own table (`Reviews`, migration `AddReviews`), with a unique index on the listing (one sale, one review) and foreign keys to `Listings` and to `Members` for the seller and the reviewer (cascade delete).
+
 ## 4. Domain model
 
 ```mermaid
@@ -441,7 +472,7 @@ classDiagram
     Reservation ..> ReservationStatus
 ```
 
-**Relationships:** a `Member` sells many `Listing`s (**one-to-many**, through `Listing.SellerId`). Members and listings are also connected **many-to-many** through the join entity `Reservation` (`MemberId` + `ListingId`): a member can reserve many listings, and a listing can have many reservations over time. A `Listing` owns its reservations and exposes them only as `IReadOnlyList<Reservation>`. `Favorite` is a second join entity between members and listings (`MemberId` + `ListingId`, at most one per pair). `Report` links a listing to the member who reported it (`ReporterId` is empty for the automatic reports of the spam model).
+**Relationships:** a `Member` sells many `Listing`s (**one-to-many**, through `Listing.SellerId`). Members and listings are also connected **many-to-many** through the join entity `Reservation` (`MemberId` + `ListingId`): a member can reserve many listings, and a listing can have many reservations over time. A `Listing` owns its reservations and exposes them only as `IReadOnlyList<Reservation>`. `Favorite` is a second join entity between members and listings (`MemberId` + `ListingId`, at most one per pair). `Report` links a listing to the member who reported it (`ReporterId` is empty for the automatic reports of the spam model). `Review` links a sold listing to its seller and its buyer, with the rating.
 
 **Value objects:** `Money` (amount > 0) and `Email` (normalized to lower case, one `@` with text before and after) are immutable records that can only be created through a factory returning `Result<T>`.
 

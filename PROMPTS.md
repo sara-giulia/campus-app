@@ -674,6 +674,28 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill b9967f5; generated code ffc2895
 
+### Run 20, skill v22 (Feature: Seller reviews)
+
+- **Why a new version:** A2 added the `Review` entity and two handlers (`AddReview`, `GetMemberReviews`). They had no unit tests, and the Stryker config also mutates them.
+
+#### Change to SKILL.md (v21 → v22) and why
+
+| # | v21 (before) | v22 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about reviews. | New section *"Feature: Seller reviews (Anca)"*: the rules of `Review.Create`, the order of the checks in each handler, the new fake `FakeReviewRepository` (`Items`, `RejectAdd`) and the list of tests per class. | Without it Claude would have to guess who may review and in which order the errors come. |
+| 2 | — | How to build a sold listing (`Publish`, `Reserve`, `ConfirmSale`) and that the buyer is the member of the completed reservation; `Review.NotBuyer` is `Forbidden`, also for the seller. | The buyer is not a field of `Listing`; without this the tests would not know who is allowed. |
+| 3 | — | The average over **all** reviews, not only the page (three reviews, page 2 of size 2), 4.33 for 5, 4, 4, and paging checked before the member. | These are the places where a wrong average or a wrong order would go unnoticed. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Seller reviews (Anca)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session)
+- **Skill version:** v22, commit 4764342 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new fake `Fakes/FakeReviewRepository.cs` and three new test files: `ReviewTests` (21), `AddReviewHandlerTests` (9), `GetMemberReviewsHandlerTests` (13). No existing test changed, nothing changed in `src/`. All 432 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 1024/1024 lines, 356/356 branches. The report in `coverage-report/` was generated again.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. For "another member → `Review.NotBuyer`" the other member must also be in `FakeMemberRepository`, because the handler checks `Member.NotFound` first; the section does not say so.
+    2. The section names fixed ids (`SellerId`, `BuyerId`) and also asks for `member.Id`; the run used `member.Id` for the member that must exist and the fixed id only for the "unknown member" tests.
+    3. Draft, active and reserved → `Review.SaleNotCompleted` became three tests instead of a `[Theory]`, because each needs a different arrange.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 4764342; generated code 1d76998
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1038,6 +1060,27 @@ saved.Should().BeEquivalentTo(listing);
     3. A report or a favorite cannot be created for a hidden listing, so the run created them on a published listing and called `Hide()` before seeding; the section does not say this.
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill b9967f5; generated code ffc2895
+
+### Run 20, skill v19 (Feature: Seller reviews)
+
+- **Why a new version:** A2 added `POST /api/v1/listings/{id}/reviews` and `GET /api/v1/members/{id}/reviews`, and a `Reviews` table with foreign keys to `Listings` and twice to `Members`. They had no integration tests.
+
+#### Change to SKILL.md (v18 → v19) and why
+
+| # | v18 (before) | v19 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about reviews. | New section *"Feature: Seller reviews (Anca)"*: a table with the two requests, who may call them, their answers, the files and the list of tests. | Without it Claude would have to guess the routes, who may review and the error codes. |
+| 2 | — | The seller **and** the buyer must be seeded, and how to build a sold listing (`Publish`, `Reserve`, `ConfirmSale`). | Two foreign keys to `Members`; a token alone is not enough, as for favorites. |
+| 3 | — | `GET .../reviews` without a token, the average over all reviews, and the cascade test (the seller deletes the sold listing → the review is gone). | Proves the endpoint is public and the `OnDelete(Cascade)` of the configuration, which no unit test can see. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Seller reviews (Anca)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v19, commit 4764342 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** two new files in `Reviews/`: `AddReviewTests` (11, with the cascade test) and `GetMemberReviewsTests` (7). No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 657 tests pass (10 architecture, 432 unit, 13 ML, 202 integration), the integration tests three times in a row. The whole Postman collection was also run with `newman` on the running API: 129 requests, 252 assertions, 0 failures.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. `Review.CommentTooLong` is in the table but not in the list of tests, so it has no integration test (it is covered by the unit tests).
+    2. The section asks for a seeded seller, so the fixed `SellerId` of the other sections is not used here; the run used `seller.Id`.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 4764342; generated code 1d76998
 
 ## code-review
 
@@ -1602,3 +1645,19 @@ Week 5, task A3 (favorites). New entity and three slices, written by Ancuța Ile
 - **Problems seen:**
     1. The first version also refused hidden listings and hid them in the list. No code can make a listing `Hidden` yet, so those branches were removed before the tests and moved to B5.
 - **Commits:** code 91b81a2; tests generated in 25c29b8 (see Run 16 of unit-testing and Run 16 of integration-testing)
+
+## reviews
+
+Week 5, task A2 (seller reviews). New entity and two slices, written by Ancuța Ilenei with Claude Code in the shape of the existing slices (`cqrs` skill conventions, paging copied from `GetMyFavorites`); the tests were generated afterwards with the unit-testing (Run 20) and integration-testing (Run 20) skills.
+
+### Run 1
+
+- **Prompt:** `A2: Review entity in Domain/Reviews and the feature in Features/Reviews. After a completed sale the buyer rates the seller from 1 to 5, once. GET /members/{id}/reviews shows the reviews and the average. Write it in the style of the existing slices, do not write tests yet (they are generated with the skills), and run the existing tests.`
+- **Decisions:**
+    - `POST /api/v1/listings/{id}/reviews`: the review belongs to one sale, and a listing is sold at most once, so "once" means one review per listing (409 `Review.AlreadyExists`, plus a unique index on `ListingId`). The reviewer is the user in the token.
+    - Only the member of the completed reservation (the buyer) can review: anyone else, the seller included, gets 403 `Review.NotBuyer`, like the other "not yours" errors. A listing that is not `Sold` gets 400 `Review.SaleNotCompleted`.
+    - An optional comment of at most 500 characters; empty or blank is stored as `null`, like the listing description.
+    - `GET /api/v1/members/{id}/reviews` is public, like the other GET endpoints, and returns 404 for an unknown member. `averageRating` is over all the reviews (not only the page), with two decimals, and `null` when there are none.
+    - Foreign keys from `Reviews` to `Listings` and to `Members` (seller and reviewer), all with cascade delete.
+- **Result:** `Domain/Reviews/` (`Review`, `IReviewRepository`), `Infrastructure/Persistence/` (`ReviewConfiguration`, `EfReviewRepository`, `DbSet<Review>`), migration `AddReviews`, `Features/Reviews/` (`AddReview`, `GetMemberReviews`, `ReviewsEndpoints`), three lines in `CampusMarketSetup.cs`. `dotnet ef migrations has-pending-model-changes`: no changes. Build 0 errors, 0 warnings; the existing 596 tests pass. Checked by hand on the running API (on a separate database): before the sale 400, another member 403, the seller 403, rating 0 and 6 400, comment of 501 characters 400, the buyer 201 with `Location`, again 409, unknown listing 404, no token 401; the seller's reviews without a token 200 with the average 4.5 for ratings 5 and 4, `page=0` 400, `pageSize=101` 400, unknown member 404, and page 2 of size 1 still gives the average over both. README: endpoints, error codes and a "Seller reviews" section. Postman: a new `Reviews` folder with 13 requests.
+- **Commits:** code 452f178; tests generated in 1d76998 (see Run 20 of unit-testing and Run 20 of integration-testing)

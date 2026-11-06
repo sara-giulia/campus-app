@@ -300,6 +300,7 @@ var assemblies = [
       { "name": "CampusMarket.Api.Domain.Members.Member", "rp": "CampusMarket.Api_Member.html", "cl": 56, "ucl": 0, "cal": 56, "tl": 100, "cb": 18, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Domain.Members.RefreshToken", "rp": "CampusMarket.Api_RefreshToken.html", "cl": 21, "ucl": 0, "cal": 21, "tl": 43, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Domain.Reports.Report", "rp": "CampusMarket.Api_Report.html", "cl": 41, "ucl": 0, "cal": 41, "tl": 66, "cb": 12, "tb": 12, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CampusMarket.Api.Domain.Reviews.Review", "rp": "CampusMarket.Api_Review.html", "cl": 37, "ucl": 0, "cal": 37, "tl": 60, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Auth.Login.LoginHandler", "rp": "CampusMarket.Api_LoginHandler.html", "cl": 23, "ucl": 0, "cal": 23, "tl": 42, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Auth.Logout.LogoutHandler", "rp": "CampusMarket.Api_LogoutHandler.html", "cl": 16, "ucl": 0, "cal": 16, "tl": 30, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Auth.Refresh.RefreshHandler", "rp": "CampusMarket.Api_RefreshHandler.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 44, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -328,6 +329,8 @@ var assemblies = [
       { "name": "CampusMarket.Api.Features.Moderation.GetReportedListings.GetReportedListingsHandler", "rp": "CampusMarket.Api_GetReportedListingsHandler.html", "cl": 28, "ucl": 0, "cal": 28, "tl": 46, "cb": 8, "tb": 8, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Moderation.HideListing.HideListingHandler", "rp": "CampusMarket.Api_HideListingHandler.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 30, "cb": 4, "tb": 4, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Moderation.ReportListing.ReportListingHandler", "rp": "CampusMarket.Api_ReportListingHandler.html", "cl": 29, "ucl": 0, "cal": 29, "tl": 52, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CampusMarket.Api.Features.Reviews.AddReview.AddReviewHandler", "rp": "CampusMarket.Api_AddReviewHandler.html", "cl": 29, "ucl": 0, "cal": 29, "tl": 52, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CampusMarket.Api.Features.Reviews.GetMemberReviews.GetMemberReviewsHandler", "rp": "CampusMarket.Api_GetMemberReviewsHandler.html", "cl": 29, "ucl": 0, "cal": 29, "tl": 47, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
     ]},
 ];
 
@@ -341,6 +344,12 @@ var riskHotspotMetrics = [
 ];
 
 var riskHotspots = [
+  {
+    "assembly": "CampusMarket.Api", "class": "CampusMarket.Api.Domain.Reviews.Review", "reportPath": "CampusMarket.Api_Review.html", "methodName": "CampusMarket.Api.Domain.Common.Result\u00601\u003CCampusMarket.Api.Domain.Reviews.Review\u003E CampusMarket.Api.Domain.Reviews.Review::Create(System.Guid,CampusMarket.Api.Domain.Listings.Listing,System.Int32,System.String,System.DateTimeOffset)", "methodShortName": "Create(...)", "fileIndex": 0, "line": 25,
+    "metrics": [
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
+    ]},
   {
     "assembly": "CampusMarket.Api", "class": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "reportPath": "CampusMarket.Api_GetListingsHandler.html", "methodName": "HandleAsync()", "methodShortName": "HandleAsync()", "fileIndex": 0, "line": 12,
     "metrics": [
