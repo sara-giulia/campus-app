@@ -1354,6 +1354,7 @@ Do not change existing tests. Do not commit or push.
     1. The accuracy is 1.000 because the dataset is synthetic and each category has its own words. The quality bar was set at 0.9 so that a retrain on a changed dataset does not fail for small differences.
     2. There is no clothing category, so "Hanorac facultate, mărimea M" gets `LabEquipment` (0.82). It is only a suggestion; noted in the README.
     3. In Git Bash, `curl -d` with diacritics sent the body in the wrong encoding and the API answered 400 `Request.Invalid`; sent from a UTF-8 file, the same body gives 200. Not a bug in the API.
+    4. SonarCloud showed 2.0% duplication on new code: the title and description checks of `SuggestCategoryHandler` were the same lines as in `SuggestPriceHandler` and `Listing`. Fixed by moving them into `Listing.ValidateText(title, description)`, used by `Listing`, `SuggestPrice` and `SuggestCategory`; the error codes, messages and order did not change, and all tests pass without changes.
 
 - **Commits:** code 2ec87e6; tests generated in f98a859 (see Run 18 of unit-testing and Run 18 of integration-testing)
 
