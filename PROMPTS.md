@@ -845,6 +845,27 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 6d8b7bb; generated code 33c179b
 
+### Run 15, skill v14 (Feature: Health check)
+
+- **Why a new version:** the Docker PR added `GET /health`, and the review asked for tests. The endpoint had none.
+
+#### Change to SKILL.md (v13 → v14) and why
+
+| # | v13 (before) | v14 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about `/health`; section 1 says every route is under `/api/v1`. | New section *"Feature: Health check (Sara)"*: `GET /health` is outside `/api/v1`, needs no login and answers 200 with the plain text `Healthy`. | Without it Claude would look for the endpoint under `/api/v1` and read the body as JSON. |
+| 2 | — | Three tests: no token → 200 `Healthy`, a student token → 200 `Healthy`, `GET /api/v1/health` → 404 ProblemDetails `Route.NotFound`. *"Do not try to make the database unreachable; the 503 case is not tested."* | Proves the endpoint is public and not part of the versioned API, without breaking the shared in-memory database. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Health check (Sara)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v14, commit 56fdb10 (section written by Ancuța Ilenei for the Docker PR of Sara Matasel, with Claude Code; run in a new session)
+- **Result:** new file `Health/HealthCheckTests.cs` with the 3 tests, each also checking that the database still has 0 listings and 0 members. No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 401 tests pass (10 architecture, 263 unit, 4 ML, 124 integration), the integration tests three times in a row.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. The section does not name the student id; the run used a fixed `StudentId` (`22222222-...`).
+    2. Sections 1 and 10 of the skill are out of date (all routes under `/api/v1`, "both test projects").
+    3. Not from this run: `ReservationExpiryTests.Given_JobExpiredTheReservation_When_AnotherMemberReserves_Then_Returns201` failed once in about ten runs with 500. The expiry job keeps running every 200 ms during the Act and shares the one in-memory SQLite connection with the request. Reported to Sara, not changed here.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 56fdb10; generated code c1eebb4
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -1279,3 +1300,17 @@ Week 5, task A5 (global exception handler + ProblemDetails). Infrastructure code
     1. In Development, ASP.NET throws `BadHttpRequestException` for JSON it cannot read. The first version of the handler only knew `DbUpdateConcurrencyException`, so `"category": "Banana"` would have become 500 instead of 400; fixed before the first run by mapping it to its own status code.
     2. A 409 could not be produced by sending two reservations in parallel by hand (the requests arrive one after the other locally, the second gets 400 `Listing.NotActive`); the integration test makes the conflict happen on purpose instead.
 - **Commits:** code db40206; tests generated in 33c179b (see Run 14 of integration-testing)
+
+## docker
+
+Backlog task (Docker + docker-compose + health checks). Dockerfile, `docker-compose.yml`, `.dockerignore` and the `/health` endpoint written by Sara Matasel; the review asked for the README, Postman, the tests and this entry, which were added by Ancuța Ilenei on the same branch.
+
+### Run 1
+
+- **What:** a two-stage `Dockerfile` (SDK image to publish, ASP.NET image to run) that fails the build when `ml-models/price-regression.zip` is missing; `docker-compose.yml` with port `5080:8080` and `ASPNETCORE_ENVIRONMENT=Development`; `AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>()` and `MapHealthChecks("/health")`.
+- **Review changes:** the first version ran as root and set `Development` in the image, and Sonar failed on the Dockerfile. Fixed by running as the image's non-root user (`USER $APP_UID`), with the SQLite file in `/app/data` that this user can write to, and by moving `Development` to `docker-compose.yml`.
+- **Added after the review:** README ("With Docker" under "How to run", `/health` in the endpoint table), Postman (folder `Health` with `GET /health`), integration tests generated with the integration-testing skill (see the "Health check" run of integration-testing), and this entry. `main` was merged into the branch first, so the tests run against the error handling of A5.
+- **Problems seen:**
+    1. There is no volume in `docker-compose.yml`, so the database is lost when the container is removed; written in the README.
+    2. Running the image without `docker-compose` uses `Production`, which has no JWT key; written in the README that the container is a local demo.
+- **Commits:** code 956ebe8, 1ae3ae9; README and Postman 516d3b2; skill 56fdb10; tests c1eebb4
