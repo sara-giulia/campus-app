@@ -13,6 +13,7 @@ public sealed class CampusMarketDbContext : DbContext
 
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Member> Members => Set<Member>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Favorite> Favorites => Set<Favorite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

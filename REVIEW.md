@@ -53,3 +53,14 @@ Found 14 problems: 0 Critical, 10 Major, 4 Minor.
 - **11–14:** the lines and names are exact.
 - **Not reported again:** the two v3 rows above (`Reservation.cs:32` and `ListingTests.cs:289`) are still in the code, but v5 did not report them (see `PROMPTS.md`, code-review run 5). They are fixed this week in the ownership PR.
 
+### Status after week 5
+
+Checked on `main` at fb7da30 (issue #47):
+
+- **Row 11:** fixed. The 401 login tests (wrong password, invalid email, empty password, and also unknown email) check the database with `QueryDbAsync`.
+- **Row 12:** fixed. The tests are named `...CheckingExpirationAtExpiry...` (`ReservationTests.cs:57` and `:67`), which matches what they check.
+- **Row 13:** fixed. The test is named `Given_ActiveListing_When_ReservingWithEmptyBuyerId_Then_ReturnsValidationError` (`ListingTests.cs:390`).
+- **Row 14 and the v3 row about `Member.cs:9`:** decided as a team: private instance fields use `_camelCase` (README, "Code conventions"). No private instance field in `src/` is left without `_`. `static readonly` fields keep PascalCase (`InvalidCredentials`, `NoUser`), as usual in C#.
+- **v3 rows 1 and 2:** fixed. `Reservation.Cancel()` is `internal` (`Reservation.cs:33`), and the test is named `Given_ListingWithCancelledReservation_When_CancellingItAgain_...` (`ListingTests.cs:442`).
+- **Why v5 missed the two v3 rows:** the requirements check took the attention of the run, the checklist had no question for a public method on a child entity, and the skill never re-checked earlier rows. Fixed in code-review v6 (commit cb61e43), see `PROMPTS.md`.
+

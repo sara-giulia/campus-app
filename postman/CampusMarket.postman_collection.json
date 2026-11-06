@@ -155,7 +155,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200\", () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set(\"token\", pm.response.json().token);"
+                  "pm.test(\"has a refresh token\", () => pm.expect(pm.response.json().refreshToken).to.be.a(\"string\").and.not.be.empty);",
+                  "pm.collectionVariables.set(\"token\", pm.response.json().token);",
+                  "pm.collectionVariables.set(\"refreshToken\", pm.response.json().refreshToken);"
                 ]
               }
             }
@@ -355,6 +357,251 @@
                 "exec": [
                   "pm.test(\"200\", () => pm.response.to.have.status(200));",
                   "pm.collectionVariables.set(\"otherToken\", pm.response.json().token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh (200)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"new access token and a different refresh token\", () => {",
+                  "  pm.expect(body.token).to.be.a(\"string\").and.not.be.empty;",
+                  "  pm.expect(body.refreshToken).to.be.a(\"string\").and.not.eql(pm.collectionVariables.get(\"refreshToken\"));",
+                  "});",
+                  "pm.collectionVariables.set(\"usedRefreshToken\", pm.collectionVariables.get(\"refreshToken\"));",
+                  "pm.collectionVariables.set(\"refreshToken\", body.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh - same token again (401)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{usedRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code Auth.InvalidRefreshToken\", () => pm.expect(pm.response.json().code).to.eql(\"Auth.InvalidRefreshToken\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (204)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh - after logout (401)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code Auth.InvalidRefreshToken\", () => pm.expect(pm.response.json().code).to.eql(\"Auth.InvalidRefreshToken\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout - unknown token (401)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"not-a-real-refresh-token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code Auth.InvalidRefreshToken\", () => pm.expect(pm.response.json().code).to.eql(\"Auth.InvalidRefreshToken\"));"
                 ]
               }
             }
@@ -4057,6 +4304,14 @@
     },
     {
       "key": "favListingId",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "usedRefreshToken",
       "value": ""
     }
   ]

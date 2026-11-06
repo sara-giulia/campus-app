@@ -23,10 +23,8 @@ using CampusMarket.Api.Features.Favorites;
 
 namespace CampusMarket.Api;
 
-/// <summary>
 /// The whole app setup in one place. Program.cs uses it to run the API,
 /// and the API tests use it to start the same API on a free port.
-/// </summary>
 public static class CampusMarketSetup
 {
     public static IServiceCollection AddCampusMarket(this IServiceCollection services, IConfiguration configuration)
@@ -41,6 +39,7 @@ public static class CampusMarketSetup
 
         services.AddScoped<IListingRepository, EfListingRepository>();
         services.AddScoped<IMemberRepository, EfMemberRepository>();
+        services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IFavoriteRepository, EfFavoriteRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();

@@ -428,6 +428,55 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`.
 - Never use real time: `Now` is fixed.
 
+## Feature: Refresh token and logout (Carina)
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/RefreshToken.cs`: `RefreshToken.Create(memberId, token, now)` stores only `Hash(token)` (SHA-256, 64 upper-case hex characters), never the token itself; `ExpiresAt = now + Lifetime` (7 days). `IsActive(now)` is true when `RevokedAt` is null and `now < ExpiresAt`. `Revoke(now)` sets `RevokedAt` only the first time. `RefreshToken.Invalid` is a `Validation` error with code `Auth.InvalidRefreshToken` and message `The refresh token is not valid.`
+- `Domain/Members/IRefreshTokenRepository.cs`: `Add`, `GetByHashAsync`, `Update`.
+- `Common/Auth/ITokenService.cs`: new method `CreateRefreshToken()`.
+- `Features/Auth/Login/LoginHandler.cs`: the constructor now also takes `IRefreshTokenRepository`, `IUnitOfWork` and `TimeProvider`, after the three old parameters. On success it creates one refresh token, adds it and calls `CommitAsync` once. `LoginResponse` has a new field `RefreshToken`.
+- `Features/Auth/Refresh/RefreshHandler.cs`, in this order: empty or whitespace token → `Invalid`; no token with that hash → `Invalid`; token not active (revoked or expired) → `Invalid`; member not found → `Invalid`; otherwise it revokes the old token, calls `Update`, adds a new token for the same member, creates the access token and calls `CommitAsync` once.
+- `Features/Auth/Logout/LogoutHandler.cs`: empty token, unknown token or token not active → `Invalid`; otherwise `Revoke(now)`, `Update`, one `CommitAsync`, and it returns the token's `Id`.
+
+Fakes (hand-written, in `Fakes/`):
+- `FakeTokenService`: add `CreateRefreshToken()`, which returns `"refresh-1"`, `"refresh-2"`, ... from a counter, and a public `RefreshTokenCount`. Do not change `CreateToken`.
+- New `FakeRefreshTokenRepository`: `Items` (`Dictionary<Guid, RefreshToken>` by `Id`); `Add` stores; `GetByHashAsync` returns the item with the same `TokenHash`, or null; `Update` stores and increments a public `UpdateCount`.
+
+Update the existing tests (do not delete any):
+- `Features/Auth/Login/LoginHandlerTests.cs`: every `new LoginHandler(...)` also gets `new FakeRefreshTokenRepository()`, `new FakeUnitOfWork()` and `new FixedTimeProvider(Now)` at the end, so the tests keep testing what they tested before.
+
+Tests to add:
+- `Domain/Members/RefreshTokenTests.cs` (new):
+  - `Create` → `MemberId` and `CreatedAt` as given, `ExpiresAt` = `Now.AddDays(7)`, `RevokedAt` null, `Id` not empty, `TokenHash` = `RefreshToken.Hash(token)` and different from the token.
+  - `Hash`: the same text gives the same hash; two different texts give different hashes; the hash matches `^[0-9A-F]{64}$`.
+  - `IsActive`: true one second before `ExpiresAt`; false exactly at `ExpiresAt`; false after `Revoke`.
+  - `Revoke` called twice: `RevokedAt` keeps the first time.
+  - `RefreshToken.Invalid`: code, message and type.
+- `LoginHandlerTests` (add to the same file):
+  - valid credentials → `RefreshToken` in the response is `"refresh-1"`; the repository has exactly one token, with `MemberId` = the member's id, `TokenHash` = `RefreshToken.Hash("refresh-1")`, `CreatedAt` = `Now`, `ExpiresAt` = `Now.AddDays(7)`; `SaveCount` 1.
+  - wrong password → no token stored, `RefreshTokenCount` 0, `SaveCount` 0.
+- `Features/Auth/Refresh/RefreshHandlerTests.cs` (new):
+  - active token → success: `Token` = `"token-{member.Id}"`, `ExpiresAt` = `FakeTokenService.ExpiresAt`, `RefreshToken` = `"refresh-1"`; the old token has `RevokedAt` = `Now`; the repository has 2 tokens, and the new one belongs to the same member, has `TokenHash` = `RefreshToken.Hash("refresh-1")` and is active; `UpdateCount` 1; `SaveCount` 1.
+  - `""` and `"   "` (`[Theory]`) → `Invalid`, `SaveCount` 0.
+  - unknown token → `Invalid`, repository unchanged, `SaveCount` 0.
+  - revoked token → `Invalid`, no new token, `SaveCount` 0.
+  - a token created exactly 7 days before `Now` → `Invalid` (it expires at that moment); a token created 7 days minus 1 second before `Now` → success.
+  - a token of a member that is not in `FakeMemberRepository` → `Invalid`, the token is not revoked, `SaveCount` 0.
+  - rotation: the Arrange uses the token once with the handler (success); the Act uses the same token again with the same handler and fakes → `Invalid`.
+- `Features/Auth/Logout/LogoutHandlerTests.cs` (new):
+  - active token → success, returns the token's `Id`, `RevokedAt` = `Now`, `UpdateCount` 1, `SaveCount` 1.
+  - `""` and `"   "` (`[Theory]`) → `Invalid`, `SaveCount` 0.
+  - unknown token → `Invalid`, `SaveCount` 0.
+  - token already revoked → `Invalid`, `RevokedAt` unchanged, `SaveCount` 0.
+  - expired token → `Invalid`, `SaveCount` 0.
+
+Rules for this feature:
+- Arrange: create tokens with `RefreshToken.Create(...)` and put them straight into `FakeRefreshTokenRepository.Items`. Never call `LoginHandler` to get a token for the refresh or logout tests.
+- Every error assertion checks `Type`, `Code` and `Message`.
+- Never use real time: `Now` is a fixed `DateTimeOffset`, given to `FixedTimeProvider`.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Category suggestion (Anca)
 
 Production code (read it before generating):
