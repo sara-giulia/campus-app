@@ -105,6 +105,33 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task Given_FavoriteOfHiddenListing_When_GettingMyFavorites_Then_ItIsNotReturned()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish();
+        var favorite = Favorite.Create(member.Id, listing, CreatedAt.AddHours(1)).Value;
+        listing.Hide();
+        await SeedAsync(member, listing, favorite);
+        AuthenticateAs(member.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/favorites");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyFavoritesResponse>(Json);
+        body!.Items.Should().BeEmpty();
+        body.Count.Should().Be(0);
+        body.TotalCount.Should().Be(0);
+
+        var saved = await QueryDbAsync(db => db.Set<Favorite>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(favorite);
+    }
+
+    [Fact]
     public async Task Given_ThreeFavorites_When_GettingSecondPageOfTwo_Then_Returns200WithOldest()
     {
         // Arrange

@@ -271,4 +271,29 @@ public class GetMyFavoritesHandlerTests
         favorites.Items.Should().BeEmpty();
         listings.Items.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Given_FavoriteOfHiddenListing_When_Handling_Then_IsNotReturnedNorCounted()
+    {
+        var active = BuildPublishedListing("Active book");
+        var hidden = BuildPublishedListing("Hidden book");
+        var listings = new FakeListingRepository();
+        listings.Items[active.Id] = active;
+        listings.Items[hidden.Id] = hidden;
+        var favorites = new FakeFavoriteRepository();
+        favorites.Items.Add(Favorite.Create(MemberId, active, Now.AddHours(-2)).Value);
+        favorites.Items.Add(Favorite.Create(MemberId, hidden, Now.AddHours(-1)).Value);
+        hidden.Hide();
+        var handler = new GetMyFavoritesHandler(favorites, listings);
+        var query = new GetMyFavoritesQuery(MemberId);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.ListingId).Should().Equal(active.Id);
+        result.Value.Count.Should().Be(1);
+        result.Value.TotalCount.Should().Be(1);
+        favorites.Items.Should().HaveCount(2);
+        listings.Items.Should().HaveCount(2);
+    }
 }

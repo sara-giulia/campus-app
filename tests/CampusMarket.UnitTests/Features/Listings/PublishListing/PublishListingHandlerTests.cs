@@ -1,5 +1,7 @@
+using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Listings.PublishListing;
 using CampusMarket.UnitTests.Fakes;
 
@@ -24,7 +26,9 @@ public class PublishListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new PublishListingHandler(repository, unitOfWork);
+        var spamDetector = new FakeSpamDetector();
+        var reports = new FakeReportRepository();
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
         var command = new PublishListingCommand(listing.Id, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -44,7 +48,9 @@ public class PublishListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new PublishListingHandler(repository, unitOfWork);
+        var spamDetector = new FakeSpamDetector();
+        var reports = new FakeReportRepository();
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
         var command = new PublishListingCommand(listing.Id, AdminId, true);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -63,7 +69,9 @@ public class PublishListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new PublishListingHandler(repository, unitOfWork);
+        var spamDetector = new FakeSpamDetector();
+        var reports = new FakeReportRepository();
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
         var command = new PublishListingCommand(listing.Id, OtherMemberId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -75,6 +83,8 @@ public class PublishListingHandlerTests
         listing.Status.Should().Be(ListingStatus.Draft);
         listing.Version.Should().Be(1);
         unitOfWork.SaveCount.Should().Be(0);
+        spamDetector.CallCount.Should().Be(0);
+        reports.Items.Should().BeEmpty();
     }
 
     [Fact]
@@ -82,7 +92,9 @@ public class PublishListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new PublishListingHandler(repository, unitOfWork);
+        var spamDetector = new FakeSpamDetector();
+        var reports = new FakeReportRepository();
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
         var unknownId = Guid.NewGuid();
         var command = new PublishListingCommand(unknownId, SellerId, false);
 
@@ -93,6 +105,8 @@ public class PublishListingHandlerTests
         result.Error.Code.Should().Be("Listing.NotFound");
         result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
+        spamDetector.CallCount.Should().Be(0);
+        reports.Items.Should().BeEmpty();
     }
 
     [Fact]
@@ -103,7 +117,9 @@ public class PublishListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new PublishListingHandler(repository, unitOfWork);
+        var spamDetector = new FakeSpamDetector();
+        var reports = new FakeReportRepository();
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
         var command = new PublishListingCommand(listing.Id, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -114,5 +130,55 @@ public class PublishListingHandlerTests
         result.Error.Message.Should().Be("Only a draft listing can be published.");
         listing.Status.Should().Be(ListingStatus.Active);
         unitOfWork.SaveCount.Should().Be(0);
+        spamDetector.CallCount.Should().Be(0);
+        reports.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_DetectorSaysNotSpam_When_Publishing_Then_ChecksListingOnceAndAddsNoReport()
+    {
+        var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now, "Second edition").Value;
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var spamDetector = new FakeSpamDetector();
+        var reports = new FakeReportRepository();
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var command = new PublishListingCommand(listing.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        spamDetector.CallCount.Should().Be(1);
+        spamDetector.LastTitle.Should().Be("Algebra book");
+        spamDetector.LastDescription.Should().Be("Second edition");
+        spamDetector.LastPrice.Should().Be(25m);
+        reports.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_DetectorSaysSpam_When_Publishing_Then_PublishesAndAddsOneAutomaticReport()
+    {
+        var listing = BuildDraftListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var spamDetector = new FakeSpamDetector { Result = new SpamCheck(true, 0.97) };
+        var reports = new FakeReportRepository();
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var command = new PublishListingCommand(listing.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Active);
+        reports.Items.Should().ContainSingle();
+        reports.Items[0].IsAutomatic.Should().BeTrue();
+        reports.Items[0].ListingId.Should().Be(listing.Id);
+        reports.Items[0].Reason.Should().Be(Report.AutomaticReason);
+        reports.Items[0].SpamProbability.Should().Be(0.97);
+        reports.Items[0].CreatedAt.Should().Be(Now);
+        unitOfWork.SaveCount.Should().Be(1);
     }
 }

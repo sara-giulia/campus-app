@@ -734,4 +734,83 @@ public class ListingTests
         listing.Status.Should().Be(ListingStatus.Reserved);
         listing.Reservations.Should().HaveCount(2);
     }
+
+    [Fact]
+    public void Given_ActiveListing_When_Hiding_Then_ListingIsHiddenAndVersionIncrements()
+    {
+        var listing = ActiveListing();
+        var versionBefore = listing.Version;
+
+        var result = listing.Hide();
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Hidden);
+        listing.Version.Should().Be(versionBefore + 1);
+    }
+
+    [Fact]
+    public void Given_ReservedListing_When_Hiding_Then_ReservationIsCancelledAndListingIsHidden()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        var versionBefore = listing.Version;
+
+        var result = listing.Hide();
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Hidden);
+        reservation.Status.Should().Be(ReservationStatus.Cancelled);
+        listing.Version.Should().Be(versionBefore + 1);
+    }
+
+    [Fact]
+    public void Given_DraftListing_When_Hiding_Then_ReturnsCannotHideAndNothingChanges()
+    {
+        var listing = DraftListing();
+        var versionBefore = listing.Version;
+
+        var result = listing.Hide();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CannotHide");
+        result.Error.Message.Should().Be("Only an active or reserved listing can be hidden.");
+        listing.Status.Should().Be(ListingStatus.Draft);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_SoldListing_When_Hiding_Then_ReturnsCannotHideAndNothingChanges()
+    {
+        var listing = ActiveListing();
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+        listing.ConfirmSale(reservation.Id, Now.AddHours(1));
+        var versionBefore = listing.Version;
+
+        var result = listing.Hide();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CannotHide");
+        result.Error.Message.Should().Be("Only an active or reserved listing can be hidden.");
+        listing.Status.Should().Be(ListingStatus.Sold);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_HiddenListing_When_Hiding_Then_ReturnsAlreadyHiddenAndNothingChanges()
+    {
+        var listing = ActiveListing();
+        listing.Hide();
+        var versionBefore = listing.Version;
+
+        var result = listing.Hide();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.AlreadyHidden");
+        result.Error.Message.Should().Be("The listing is already hidden.");
+        listing.Status.Should().Be(ListingStatus.Hidden);
+        listing.Version.Should().Be(versionBefore);
+    }
 }
