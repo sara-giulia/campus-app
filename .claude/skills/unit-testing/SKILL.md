@@ -383,3 +383,22 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`.
 - Never use real time: `Now` is fixed, the handler gets it through `FixedTimeProvider`.
 
+## Feature: Reservation expiry (Sara)
+
+Production code (read it before generating):
+- `Domain/Listings/Reservation.cs`: `internal Expire()`: only an `Active` reservation becomes `Expired`, otherwise `Reservation.NotActive`. Tests may call it directly (`InternalsVisibleTo`).
+- `Domain/Listings/Listing.cs`: `ExpireReservations(currentTime)` returns 0 or 1. When the active reservation `IsExpired(currentTime)`: the reservation becomes `Expired`, the listing `Active` again, `Version` + 1, and it returns 1. Otherwise nothing changes and it returns 0.
+- `Features/Listings/ExpireReservations/`: `ExpireReservationsCommand()` (a system job, no requester); the handler gets every listing, calls `ExpireReservations(now)`, calls `repository.Update` only for the listings that changed, one `CommitAsync` only when at least one changed, and returns the number expired.
+
+Files: `Domain/Listings/ReservationTests.cs` and `ListingTests.cs` (add to them), `Features/Listings/ExpireReservations/ExpireReservationsHandlerTests.cs` (new).
+
+Arrange: a reserved listing is `Listing.Create(...).Value`, `Publish()`, then `Reserve(BuyerId, Now)`; it expires at `Now` + 48 h. Fixed, named ids: `SellerId`, `BuyerId`, `OtherBuyerId`.
+
+Tests to add:
+- `Reservation.Expire()`: an active reservation → `Expired`; a cancelled one → `Reservation.NotActive` with the exact message, status unchanged.
+- `Listing.ExpireReservations`: at `Now` + 48 h minus 1 second → 0, listing `Reserved`, `Version` unchanged; at exactly `Now` + 48 h → 1, reservation `Expired`, listing `Active`, `Version` + 1; a cancelled or a completed (sold) reservation → 0, nothing changed; a draft listing with no reservations → 0; calling it twice → the second call returns 0; after expiry another buyer (`OtherBuyerId`) can reserve the listing.
+- Handler: no listings → 0, `SaveCount` 0, `UpdateCount` 0; one expired, one still valid and one draft listing → 1, `UpdateCount` 1, `SaveCount` 1, only the expired one changed; two expired → 2, `UpdateCount` 2, `SaveCount` 1 (one commit for all); nothing expired → 0, `SaveCount` 0, `UpdateCount` 0. The clock comes from `FixedTimeProvider`.
+
+Rules for this feature:
+- Never use real time: `Now` is fixed.
+- Failure tests check `ErrorType`, the exact `Error.Code` and the exact `Error.Message`.

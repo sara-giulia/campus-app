@@ -130,6 +130,21 @@ public sealed class Listing
         return this;
     }
 
+    // A listing has at most one active reservation (Reserve needs an Active listing and sets it to Reserved).
+    // Returns the number of reservations that were expired (0 or 1).
+    public int ExpireReservations(DateTimeOffset currentTime)
+    {
+        var active = _reservations.FirstOrDefault(r => r.Status == ReservationStatus.Active);
+        if (active is null || !active.IsExpired(currentTime))
+            return 0;
+
+        active.Expire();
+        Status = ListingStatus.Active;
+        Version++;
+
+        return 1;
+    }
+
     public Result<Listing> CancelReservation(Guid reservationId)
     {
         var reservation = _reservations.FirstOrDefault(r => r.Id == reservationId);

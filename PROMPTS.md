@@ -576,6 +576,15 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** coverage was 99.8%: Listing.ConfirmSale checked "reservation not Active" itself and then again through Reservation.Complete(), so the failure branch after Complete() could never run. The explicit check was removed from Listing.cs (same behaviour: IsExpired is false for a reservation that is not active, and Complete() returns the same Reservation.NotActive error). After that: coverage 100% lines and branches, all tests still pass.
 - **Change to SKILL.md:** none.
 
+### Run 15, skill v17 (Feature: Reservation expiry)
+
+- **Why a new run:** A4 added Reservation.Expire, Listing.ExpireReservations and the ExpireReservations handler used by the background job.
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md, section "Feature: Reservation expiry (Sara)". Unit tests already exist: keep them and add only what this section asks. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v17, commit 6c1a3bf; run by Sara Matasel
+- **Result:** 13 new tests: Reservation.Expire, Listing.ExpireReservations (one second before and exactly at the 48 h expiry, cancelled and sold reservations, a draft listing, calling it twice, another buyer can reserve after expiry) and the new ExpireReservationsHandlerTests (no listings, one expired among others, two expired with one commit, nothing expired). 263/263 unit tests pass.
+- **Problems seen:** The fix (diagnosed in a separate Claude Code session, then applied there): GetAllAsync now tracks the listings, with a comment explaining why. All tests pass: 10 architecture, 263 unit, 4 ML, 115 integration.
+- - **Change to SKILL.md:** none.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -803,20 +812,29 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none.
 
-### Run 13, skill v12 (Feature: Error handling)
+### Run 13, skill v12 (Feature: Reservation expiry)
+
+- **Why a new run:** A4 added the ReservationExpiryService background job, which is turned off in the normal test factory.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md, section "Feature: Reservation expiry (Sara)". Integration tests already exist: keep them and add only what this section asks. Follow the skill exactly. Then run all tests and tell me the results and every file you changed. Do not commit or push.` (new session)
+- **Skill version:** v12, commit 6c1a3bf; run by Sara Matasel
+- **Result:** 3 new tests in Listings/ReservationExpiryTests: with the job on (interval 200 ms) only the expired reservation becomes Expired and its listing Active with Version + 1; after that another member can reserve the listing (201); with the job off, an expired reservation stays Active in the database but GET /members/me/reservations shows it as Expired.
+- **Problems seen:** the run stopped with 2 failing tests and reported a real bug: EfListingRepository.GetAllAsync used AsNoTracking, the handler changed those untracked listings, and on save EF Core used the new Version as the original one, so the UPDATE affected 0 rows (DbUpdateConcurrencyException) and the job never expired anything. The skill forbids changing src/, so the fix was made by hand: GetAllAsync now tracks the listings, with a comment explaining why. After the fix all tests pass: 10 architecture, 263 unit, 4 ML, 115 integration.
+- **Change to SKILL.md:** none.
+
+### Run 14, skill v13 (Feature: Error handling)
 
 - **Why a new version:** A5 added a global exception handler and ProblemDetails. The 401, the 403 of the `Admin` policy, the 404 of an unknown route, the 400 of unreadable JSON and the 429 of the login limit now have a ProblemDetails body instead of an empty one, and a `DbUpdateConcurrencyException` is now 409 instead of 500. 12 existing tests that checked an empty body failed, and the new code had no tests.
 
-#### Change to SKILL.md (v11 → v12) and why
+#### Change to SKILL.md (v12 → v13) and why
 
-| # | v11 (before) | v12 (after) | Why |
+| # | v12 (before) | v13 (after) | Why |
 |---|---|---|---|
 | 1 | *"401 always has an empty body"*; for 401 and the 403 of `CreateMember` *"check only the status code"* | New section *"Feature: Error handling (Anca)"* with a table of which errors keep `{ code, message, type }` (the handlers) and which are ProblemDetails (ASP.NET and exceptions), and *"this section replaces them"* | The old rules are in other people's sections, already logged; they are overridden here instead of being edited. |
 | 2 | — | Helpers `ProblemResponse`, `ConcurrentEditUnitOfWork` (raises `Version` with SQL right before the save) and `ThrowingUnitOfWork`, used through `Factory.WithWebHostBuilder` in one test only | Two requests rarely collide in a test; this makes EF Core throw a real `DbUpdateConcurrencyException` every time. |
 | 3 | — | The list of existing tests to update and the 6 new tests in `ErrorHandling/ErrorHandlingTests.cs` (404, 405, 400, 409, 500 without the exception message, 403 from a handler still in the old format) | Without it Claude would only fix the 12 failing tests and leave the new branches untested (Sonar checks `Infrastructure/` too). |
 
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, update the ones the "Feature: Error handling (Anca)" section asks to update, and add the tests from that section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
-- **Skill version:** v12, commit 6d8b7bb (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Skill version:** v13, commit 6d8b7bb (committed as "v12"; renumbered because the reservation expiry PR made v12) (section written by Ancuța Ilenei with Claude Code; run in a new session)
 - **Result:** 6 new tests in `ErrorHandling/ErrorHandlingTests.cs`, 3 new helpers in `Infrastructure/`, 15 existing tests updated in 13 files (12 no-token tests, the student 403 of `CreateMember`, the 429 of `LoginTests`, the unknown condition of `SuggestPriceTests`). No test deleted or renamed, nothing changed in `src/`. Build 0 errors, 0 warnings; 382 tests pass (10 architecture, 250 unit, 4 ML, 118 integration), the integration tests three times in a row. Coverage of `Infrastructure/ErrorHandling/` from the integration tests: 56/56 lines, 17/17 branches.
 - **Problems seen (reported by the run, not fixed in the skill):**
     1. `ProblemResponse` has no `Detail`, but the 500 test must check `detail`; the run read it from the raw JSON with `JsonDocument`.
@@ -1191,6 +1209,58 @@ Run dotnet build and dotnet test (existing tests must pass), list every file you
 - **Problems seen:**
     1. The task says to put the three Confirm sale requests "in the Reservations folder" **after a reservation is made**, but the only reservation in that folder (`reservationId`) is already cancelled by the end of the existing flow, and running Confirm sale on the main `listingId` would set its status to `Sold` and break the later `Update listing - valid (204)` request in the `UpdateListing` folder. Fixed by scoping the confirm-sale sequence to a brand-new listing (new `saleListingId`/`saleReservationId` variables) at the end of the `Reservations` folder, so the main `listingId` lifecycle used by `UpdateListing` and `DeleteListing` is untouched.
 
+## reservation-expiry
+
+Week 5, task A4 (expire reservations automatically). Feature slice plus a hosted background service, built with the `cqrs` skill and the shape of the existing reservation slices. Run by Sara Matasel.
+
+### Run 1
+
+- **Prompt:**
+
+```
+Week 5, task A4: expire reservations automatically. Follow our cqrs skill (.claude/skills/cqrs) and the style of the
+reservation slices (ReserveListing, CancelReservation, ConfirmSale). Read Listing.cs and Reservation.cs first.
+
+1. Domain:
+   - Reservation.Expire(): internal, like Cancel() and Complete(). Only an Active reservation can expire,
+     otherwise Error.Validation("Reservation.NotActive", ...) in the same message style. Sets Status = Expired.
+   - Listing.ExpireReservations(DateTimeOffset currentTime): returns the number of reservations it expired (0 or 1,
+     a listing has at most one active reservation). For the active reservation where IsExpired(currentTime) is true:
+     Expire() it, set the listing back to Active and Version++. If nothing expired, change nothing and return 0.
+2. Command slice Features/Listings/ExpireReservations/: ExpireReservationsCommand (no requester, it is a system job),
+   handler with IListingRepository, IUnitOfWork and TimeProvider: GetAllAsync, call ExpireReservations on each listing,
+   repository.Update only for the listings that changed, one CommitAsync only when at least one changed.
+   It returns the number of expired reservations. No endpoint.
+3. Background service in Infrastructure (for example Infrastructure/Background/ReservationExpiryService.cs):
+   a BackgroundService that every Interval runs the command in a new DI scope (the handler is Scoped).
+   Use a PeriodicTimer built from the TimeProvider. Options "ReservationExpiry" with Enabled (default true) and
+   Interval (default 5 minutes), registered in CampusMarketSetup; register the hosted service only when Enabled.
+   Log how many reservations were expired; catch and log exceptions so one failed run does not stop the service.
+4. The integration test factory must set ReservationExpiry:Enabled to false, like it turns off the admin seed,
+   so the background service never runs during the other tests.
+5. GetMyReservations keeps showing IsExpired(now) as Expired (a reservation can be expired before the job runs).
+6. Architecture tests must stay green: the background service lives in Infrastructure, the handler in Features.
+7. README: a short "Reservation expiry" note (what the job does, the two settings, and that a listing becomes
+   Active again so others can reserve it). PROMPTS.md: a new section "## reservation-expiry", Run 1, with this prompt.
+Do not write unit or integration tests yet (we generate them with the skills next). Do not change existing tests
+except the factory setting in point 4. Run dotnet build and dotnet test, list every file you changed. Do not commit or push.
+```
+
+- **Skill version:** `cqrs` v4 (last skill change in `.claude/skills/cqrs/SKILL.md`); the slice and the background service are hand-written, not generated by a skill.
+- **Result:** `dotnet build` on the whole solution: 0 errors, 0 warnings. `dotnet test`: 215 unit + 10 architecture + 100 integration + 4 ML = 329 green, unchanged from before the slice.
+- **Files changed:**
+    - `src/CampusMarket.Api/Domain/Listings/Reservation.cs` (new `internal Result<Reservation> Expire()` next to `Cancel` and `Complete`, with the same `Reservation.NotActive` message style)
+    - `src/CampusMarket.Api/Domain/Listings/Listing.cs` (new `ExpireReservations(DateTimeOffset currentTime)` returning `int`; expires the active reservation when `IsExpired(now)` is true, sets `Status = Active` and `Version++`)
+    - `src/CampusMarket.Api/Features/Listings/ExpireReservations/ExpireReservationsCommand.cs` (new; empty command, no requester — it is a system job)
+    - `src/CampusMarket.Api/Features/Listings/ExpireReservations/ExpireReservationsHandler.cs` (new; `IListingRepository`, `IUnitOfWork` and `TimeProvider`; returns the count of expired reservations, calls `repository.Update` only for the listings that changed and `CommitAsync` only when at least one changed)
+    - `src/CampusMarket.Api/Infrastructure/Background/ReservationExpiryOptions.cs` (new; `Enabled` default `true`, `Interval` default 5 minutes, section `ReservationExpiry`)
+    - `src/CampusMarket.Api/Infrastructure/Background/ReservationExpiryService.cs` (new `BackgroundService`; `PeriodicTimer` built from `TimeProvider`, resolves the handler in a fresh `IServiceScope` on every tick, logs the number expired and catches exceptions so one failed run does not stop the service)
+    - `src/CampusMarket.Api/CampusMarketSetup.cs` (bind `ReservationExpiryOptions`, register `ReservationExpiryService` as a hosted service only when `Enabled`)
+    - `tests/CampusMarket.IntegrationTests/Infrastructure/CampusMarketApiFactory.cs` (new `builder.UseSetting("ReservationExpiry:Enabled", "false")`, next to the admin seed and JWT key overrides)
+    - `README.md` (new `### Reservation expiry` subsection under "Use cases" describing the job and the two `ReservationExpiry` settings)
+    - `PROMPTS.md` (this entry)
+- **Problems seen:** none.
+
 ## error-handling
 
 Week 5, task A5 (global exception handler + ProblemDetails). Infrastructure code, no new slice. Written step by step by Ancuța Ilenei in one Claude Code session (no skill covers this part); the tests were generated afterwards with the integration-testing skill (Run 13 above).
@@ -1208,4 +1278,4 @@ Week 5, task A5 (global exception handler + ProblemDetails). Infrastructure code
 - **Problems seen:**
     1. In Development, ASP.NET throws `BadHttpRequestException` for JSON it cannot read. The first version of the handler only knew `DbUpdateConcurrencyException`, so `"category": "Banana"` would have become 500 instead of 400; fixed before the first run by mapping it to its own status code.
     2. A 409 could not be produced by sending two reservations in parallel by hand (the requests arrive one after the other locally, the second gets 400 `Listing.NotActive`); the integration test makes the conflict happen on purpose instead.
-- **Commits:** code db40206; tests generated in 33c179b (see Run 13 of integration-testing)
+- **Commits:** code db40206; tests generated in 33c179b (see Run 14 of integration-testing)
