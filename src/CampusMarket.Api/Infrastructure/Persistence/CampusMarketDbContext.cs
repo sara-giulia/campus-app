@@ -12,7 +12,8 @@ public sealed class CampusMarketDbContext : DbContext
 
     public DbSet<Listing> Listings => Set<Listing>();
     public DbSet<Member> Members => Set<Member>();
-
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CampusMarketDbContext).Assembly);
