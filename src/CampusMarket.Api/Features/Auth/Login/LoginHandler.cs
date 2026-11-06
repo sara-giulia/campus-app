@@ -8,7 +8,10 @@ namespace CampusMarket.Api.Features.Auth.Login;
 public sealed class LoginHandler(
     IMemberRepository repository,
     IPasswordHasher passwordHasher,
-    ITokenService tokenService)
+    ITokenService tokenService,
+    IRefreshTokenRepository refreshTokens,
+    IUnitOfWork unitOfWork,
+    TimeProvider timeProvider)
     : ICommandHandler<LoginCommand, LoginResponse>
 {
     // Same error for a wrong email and a wrong password, so nobody can find out which emails exist.
@@ -29,7 +32,11 @@ public sealed class LoginHandler(
 
         var (token, expiresAt) = tokenService.CreateToken(member);
 
-        return new LoginResponse(token, expiresAt);
+        // Only the hash is saved; the plain refresh token is returned once, here.
+        var refreshToken = tokenService.CreateRefreshToken();
+        refreshTokens.Add(RefreshToken.Create(member.Id, refreshToken, timeProvider.GetUtcNow()));
+        await unitOfWork.CommitAsync(ct);
+
+        return new LoginResponse(token, expiresAt, refreshToken);
     }
 }
-
