@@ -9,9 +9,17 @@ public sealed class FakeTokenService : ITokenService
 
     public Member? LastMember { get; private set; }
 
+    public int RefreshTokenCount { get; private set; }
+
     public (string Token, DateTimeOffset ExpiresAt) CreateToken(Member member)
     {
         LastMember = member;
         return ($"token-{member.Id}", ExpiresAt);
+    }
+
+    public string CreateRefreshToken()
+    {
+        RefreshTokenCount++;
+        return $"refresh-{RefreshTokenCount}";
     }
 }

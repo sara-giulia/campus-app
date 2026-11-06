@@ -20,7 +20,7 @@ public class LoginHandlerTests
         repository.Items[member.Id] = member;
         var hasher = new FakePasswordHasher();
         var tokenService = new FakeTokenService();
-        var handler = new LoginHandler(repository, hasher, tokenService);
+        var handler = new LoginHandler(repository, hasher, tokenService, new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand("ada@ubb.ro", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -37,7 +37,7 @@ public class LoginHandlerTests
         var member = BuildRegisteredMember();
         var repository = new FakeMemberRepository();
         repository.Items[member.Id] = member;
-        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService());
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService(), new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand("  ADA@UBB.RO  ", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -52,7 +52,7 @@ public class LoginHandlerTests
     public async Task Given_InvalidEmailFormat_When_Handling_Then_ReturnsInvalidCredentials(string email)
     {
         var repository = new FakeMemberRepository();
-        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService());
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService(), new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand(email, "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -67,7 +67,7 @@ public class LoginHandlerTests
     public async Task Given_EmptyPassword_When_Handling_Then_ReturnsInvalidCredentials()
     {
         var repository = new FakeMemberRepository();
-        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService());
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService(), new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand("ada@ubb.ro", "");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -82,7 +82,7 @@ public class LoginHandlerTests
     public async Task Given_UnknownEmail_When_Handling_Then_ReturnsInvalidCredentials()
     {
         var repository = new FakeMemberRepository();
-        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService());
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService(), new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand("ghost@ubb.ro", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -99,7 +99,7 @@ public class LoginHandlerTests
         var member = Member.Create("Ada", "ada@ubb.ro", Now).Value;
         var repository = new FakeMemberRepository();
         repository.Items[member.Id] = member;
-        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService());
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService(), new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand("ada@ubb.ro", "secret12");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -117,7 +117,7 @@ public class LoginHandlerTests
         var repository = new FakeMemberRepository();
         repository.Items[member.Id] = member;
         var tokenService = new FakeTokenService();
-        var handler = new LoginHandler(repository, new FakePasswordHasher(), tokenService);
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), tokenService, new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand("ada@ubb.ro", "wrong-password");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -136,7 +136,7 @@ public class LoginHandlerTests
         var repository = new FakeMemberRepository();
         repository.Items[member.Id] = member;
         var hasher = new FakePasswordHasher();
-        var handler = new LoginHandler(repository, hasher, new FakeTokenService());
+        var handler = new LoginHandler(repository, hasher, new FakeTokenService(), new FakeRefreshTokenRepository(), new FakeUnitOfWork(), new FixedTimeProvider(Now));
         var command = new LoginCommand("ada@ubb.ro", "");
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -146,5 +146,52 @@ public class LoginHandlerTests
         result.Error.Code.Should().Be("Auth.InvalidCredentials");
         result.Error.Message.Should().Be("The email or the password is wrong.");
         hasher.VerifyCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ValidCredentials_When_Handling_Then_StoresOneRefreshTokenAndSavesOnce()
+    {
+        var member = BuildRegisteredMember();
+        var repository = new FakeMemberRepository();
+        repository.Items[member.Id] = member;
+        var refreshTokens = new FakeRefreshTokenRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), new FakeTokenService(), refreshTokens, unitOfWork, new FixedTimeProvider(Now));
+        var command = new LoginCommand("ada@ubb.ro", "secret12");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.RefreshToken.Should().Be("refresh-1");
+        refreshTokens.Items.Should().ContainSingle();
+        var stored = refreshTokens.Items.Values.Single();
+        stored.MemberId.Should().Be(member.Id);
+        stored.TokenHash.Should().Be(RefreshToken.Hash("refresh-1"));
+        stored.CreatedAt.Should().Be(Now);
+        stored.ExpiresAt.Should().Be(Now.AddDays(7));
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_WrongPassword_When_Handling_Then_StoresNoRefreshTokenAndDoesNotSave()
+    {
+        var member = BuildRegisteredMember();
+        var repository = new FakeMemberRepository();
+        repository.Items[member.Id] = member;
+        var tokenService = new FakeTokenService();
+        var refreshTokens = new FakeRefreshTokenRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new LoginHandler(repository, new FakePasswordHasher(), tokenService, refreshTokens, unitOfWork, new FixedTimeProvider(Now));
+        var command = new LoginCommand("ada@ubb.ro", "wrong-password");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Auth.InvalidCredentials");
+        result.Error.Message.Should().Be("The email or the password is wrong.");
+        refreshTokens.Items.Should().BeEmpty();
+        tokenService.RefreshTokenCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
     }
 }
