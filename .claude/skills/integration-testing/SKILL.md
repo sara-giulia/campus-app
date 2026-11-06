@@ -591,3 +591,18 @@ Rules for this feature:
 - Never assert the `title` or `type` text of a ProblemDetails: ASP.NET writes them.
 - The fakes live only in `tests/CampusMarket.IntegrationTests/Infrastructure/`; never replace `IUnitOfWork` in `CampusMarketApiFactory` for all tests.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Health check (Sara)
+
+Endpoint: `GET /health`, outside `/api/v1`, no login. `AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>()` in `CampusMarketSetup` and `app.MapHealthChecks("/health")` in `Program.cs`: it answers 200 with the plain text body `Healthy` when the API can reach the database (503 `Unhealthy` when it cannot). It is used by Docker; it reads nothing and writes nothing.
+
+File: `Health/HealthCheckTests.cs`, class `HealthCheckTests : IntegrationTestBase`.
+
+Tests to add:
+- No token → 200, `Content-Type` media type `text/plain`, body exactly `Healthy`; the database is unchanged (0 listings, 0 members).
+- With a student token (`AuthenticateAs(...)`) → still 200 `Healthy`: the endpoint does not depend on the user.
+- `GET /api/v1/health` → 404 ProblemDetails `Route.NotFound`: the health check is not part of the versioned API.
+
+Rules for this feature:
+- Read the body with `ReadAsStringAsync()`, never as JSON: the health check writes plain text.
+- Do not try to make the database unreachable; the 503 case is not tested.
