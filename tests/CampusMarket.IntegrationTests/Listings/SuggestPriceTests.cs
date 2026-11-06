@@ -81,6 +81,13 @@ public sealed class SuggestPriceTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.Unauthorized);
+        problem.Code.Should().Be("Auth.Unauthorized");
+        problem.Instance.Should().Be("/api/v1/listings/price-suggestion");
+        problem.TraceId.Should().NotBeEmpty();
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);
@@ -154,6 +161,13 @@ public sealed class SuggestPriceTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.BadRequest);
+        problem.Code.Should().Be("Request.Invalid");
+        problem.Instance.Should().Be("/api/v1/listings/price-suggestion");
+        problem.TraceId.Should().NotBeEmpty();
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);

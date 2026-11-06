@@ -71,7 +71,13 @@ public sealed class CreateMemberTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.Unauthorized);
+        problem.Code.Should().Be("Auth.Unauthorized");
+        problem.Instance.Should().Be("/api/v1/members");
+        problem.TraceId.Should().NotBeEmpty();
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(0);
@@ -89,7 +95,13 @@ public sealed class CreateMemberTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.Forbidden);
+        problem.Code.Should().Be("Auth.Forbidden");
+        problem.Instance.Should().Be("/api/v1/members");
+        problem.TraceId.Should().NotBeEmpty();
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(0);

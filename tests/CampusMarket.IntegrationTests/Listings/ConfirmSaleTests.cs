@@ -171,7 +171,13 @@ public sealed class ConfirmSaleTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.Unauthorized);
+        problem.Code.Should().Be("Auth.Unauthorized");
+        problem.Instance.Should().Be($"/api/v1/listings/{listing.Id}/reservations/{reservation.Id}/confirm");
+        problem.TraceId.Should().NotBeEmpty();
 
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking()
             .Include(l => l.Reservations).SingleAsync(l => l.Id == listing.Id));
