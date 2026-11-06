@@ -592,6 +592,47 @@ Rules for this feature:
 - The fakes live only in `tests/CampusMarket.IntegrationTests/Infrastructure/`; never replace `IUnitOfWork` in `CampusMarketApiFactory` for all tests.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Health check (Sara)
+
+Endpoint: `GET /health`, outside `/api/v1`, no login. `AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>()` in `CampusMarketSetup` and `app.MapHealthChecks("/health")` in `Program.cs`: it answers 200 with the plain text body `Healthy` when the API can reach the database (503 `Unhealthy` when it cannot). It is used by Docker; it reads nothing and writes nothing.
+
+File: `Health/HealthCheckTests.cs`, class `HealthCheckTests : IntegrationTestBase`.
+
+Tests to add:
+- No token → 200, `Content-Type` media type `text/plain`, body exactly `Healthy`; the database is unchanged (0 listings, 0 members).
+- With a student token (`AuthenticateAs(...)`) → still 200 `Healthy`: the endpoint does not depend on the user.
+- `GET /api/v1/health` → 404 ProblemDetails `Route.NotFound`: the health check is not part of the versioned API.
+
+Rules for this feature:
+- Read the body with `ReadAsStringAsync()`, never as JSON: the health check writes plain text.
+- Do not try to make the database unreachable; the 503 case is not tested.
+
+## Feature: Favorites (Anca)
+
+Endpoints, all under `/api/v1/members/me/favorites` and all need a login (the member is the user in the token):
+
+| Request | Success | Failures |
+|---|---|---|
+| `POST /api/v1/members/me/favorites/{listingId}` | 201, body `{ id, listingId, createdAt }`, `Location` ends with `/api/v1/members/me/favorites` | 404 `Listing.NotFound`; 404 `Member.NotFound` (the member in the token is not in the database); 400 `Favorite.OwnListing`; 400 `Favorite.ListingNotAvailable` (a draft); 409 `Favorite.AlreadyExists`; 401 |
+| `DELETE /api/v1/members/me/favorites/{listingId}` | 204, empty body | 404 `Favorite.NotFound` (also when only another member saved that listing); 401 |
+| `GET /api/v1/members/me/favorites?page=&pageSize=` | 200 `{ items, count, totalCount, page, pageSize }`; each item `{ listingId, title, category, condition, price, status, favoritedAt }`, newest first | 400 `Favorites.InvalidPage`, `Favorites.InvalidPageSize`; 401 |
+
+Read `Features/Favorites/` and `Infrastructure/Persistence/Configurations/FavoriteConfiguration.cs` before generating. The `Favorites` table has foreign keys to `Members` and `Listings` with cascade delete, so the member who saves a listing **must be seeded** (unlike the other features, a token alone is not enough), and deleting a listing deletes its favorites.
+
+Files: `Favorites/AddFavoriteTests.cs`, `Favorites/RemoveFavoriteTests.cs`, `Favorites/GetMyFavoritesTests.cs`, same base class and login helper as the other classes. Read the response bodies into `AddFavoriteResponse` and `GetMyFavoritesResponse` from `Features/Favorites/`.
+
+Arrange: seed the member with `Member.Create(...).Value` and log in with `AuthenticateAs(member.Id)`; a listing of the fixed `SellerId` is `Listing.Create(...).Value` then `Publish()`; a favorite is `Favorite.Create(member.Id, listing, createdAt).Value` with a fixed `createdAt` (for example `CreatedAt.AddHours(1)`), seeded together with the member and the listing in one `SeedAsync`.
+
+Tests to add (status, body, then the database through `db.Set<Favorite>()`):
+- `AddFavoriteTests`: a published listing → 201 with the listing id and `Location`, one favorite saved with this member and listing; the same listing twice (seed the favorite first) → 409 `Favorite.AlreadyExists`, still one favorite; a draft → 400 `Favorite.ListingNotAvailable`, no favorite; the seller (seed the seller as a member and create the listing with `seller.Id`) → 400 `Favorite.OwnListing`, no favorite; unknown listing → 404 `Listing.NotFound`; logged in as a member that is not in the database → 404 `Member.NotFound`, no favorite; no token → 401 ProblemDetails `Auth.Unauthorized`, no favorite.
+- `RemoveFavoriteTests`: a saved favorite → 204, empty body, the favorite is gone and the listing is still there; a listing the member never saved → 404 `Favorite.NotFound`; another member removes it (seed a second member, log in as them) → 404 `Favorite.NotFound`, the first member's favorite is still there; no token → 401 ProblemDetails `Auth.Unauthorized`, the favorite is still there.
+- `GetMyFavoritesTests`: no favorites → 200, `count` 0, `totalCount` 0, empty `items`; two favorites → newest first, every field of the items checked against the seeded listings and `favoritedAt` equal to the favorite's `CreatedAt`; another member's favorite is not returned; three favorites with `?page=2&pageSize=2` → one item (the oldest), `count` 1, `totalCount` 3, `page` 2, `pageSize` 2; `?page=0` → 400 `Favorites.InvalidPage`; `?pageSize=101` → 400 `Favorites.InvalidPageSize`; no token → 401 ProblemDetails `Auth.Unauthorized`. The database is unchanged after every call.
+- Cascade, in `RemoveFavoriteTests`: the seller deletes the listing (`DELETE /api/v1/listings/{id}` logged in as `SellerId`) → 204, and the member's favorite for it is gone from the database.
+
+Rules for this feature:
+- Read 400/404/409 bodies into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Refresh token and logout (Carina)
 
 Endpoints (`Features/Auth/`): `POST /api/v1/auth/refresh` and `POST /api/v1/auth/logout`, both with the body `{ "refreshToken" }`. They are public: never use `AuthenticateAs` in these tests, because the refresh token itself is the proof. Login now also returns `refreshToken`.

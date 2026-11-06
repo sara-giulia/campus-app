@@ -585,25 +585,48 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** The fix (diagnosed in a separate Claude Code session, then applied there): GetAllAsync now tracks the listings, with a comment explaining why. All tests pass: 10 architecture, 263 unit, 4 ML, 115 integration.
 - - **Change to SKILL.md:** none.
 
-### Run 16, skill v18 (Feature: Refresh token and logout)
+### Run 16, skill v18 (Feature: Favorites)
 
-- **Why a new version:** extra task 6 (refresh token + logout). The access token now lasts 15 minutes; login also returns a refresh token (64 random bytes, valid 7 days, only its SHA-256 hash is stored); `POST /auth/refresh` rotates it and `POST /auth/logout` revokes it. `ITokenService` got `CreateRefreshToken()` and `LoginHandler` got three new dependencies, so `FakeTokenService` and `LoginHandlerTests` no longer compiled, and the new domain class and the two new handlers had no tests.
+- **Why a new version:** A3 added the `Favorite` entity and three handlers (`AddFavorite`, `RemoveFavorite`, `GetMyFavorites`). They had no unit tests, and the Stryker config also mutates them.
 
 #### Change to SKILL.md (v17 → v18) and why
 
 | # | v17 (before) | v18 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about favorites. | New section *"Feature: Favorites (Anca)"*: the rules of `Favorite.Create`, the order of the checks in each handler, the new fake `FakeFavoriteRepository` (`Items`, `RejectAdd`, `DeleteCount`) and the list of tests per class. | Without it Claude would have to guess the order of the checks and which errors each handler returns. |
+| 2 | — | Boundaries and order: `PageSize` 100 → success, 0 and 101 → error, `Page` 0 → error; two favorites with the same `CreatedAt` ordered by `ListingId`; page 2 of 2 → the oldest only. | The same kind of tests killed the paging mutants of `GetListings`; without them the mutation score would drop. |
+| 3 | — | Removing another member's favorite → `Favorite.NotFound`, and that favorite is still there. | Proves that a member can only remove their own favorites. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Favorites (Anca)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session)
+- **Skill version:** v18, commit fa4e09a (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new fake `Fakes/FakeFavoriteRepository.cs` and four new test files: `FavoriteTests` (7), `AddFavoriteHandlerTests` (9), `RemoveFavoriteHandlerTests` (3), `GetMyFavoritesHandlerTests` (12 cases). No existing test changed, nothing changed in `src/`. All 294 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 727/727 lines, 256/256 branches. The report in `coverage-report/` was generated again.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. The message of `Favorite.Duplicate` contains the Id generated inside the domain, so it cannot be checked exactly; the run used `.Match("A favorite with id '*' already exists.")`, as `CreateListingHandlerTests` does for `Listing.Duplicate`.
+    2. The section names only `SellerId` and `OtherMemberId`; `RemoveFavorite` and `GetMyFavorites` also need the requester, so the run added a fixed `MemberId`.
+    3. "A favorite whose listing is missing" cannot happen in the database (cascade delete), but it is the branch the section asks for and it is covered.
+    4. `reportgenerator` is not installed; the run used `dotnet dnx dotnet-reportgenerator-globaltool`. Old files in `TestResults/` would have been merged into the report; the run moved them away first.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill fa4e09a; generated code 25c29b8
+
+### Run 17, skill v19 (Feature: Refresh token and logout)
+
+- **Why a new version:** extra task 6 (refresh token + logout). The access token now lasts 15 minutes; login also returns a refresh token (64 random bytes, valid 7 days, only its SHA-256 hash is stored); `POST /auth/refresh` rotates it and `POST /auth/logout` revokes it. `ITokenService` got `CreateRefreshToken()` and `LoginHandler` got three new dependencies, so `FakeTokenService` and `LoginHandlerTests` no longer compiled, and the new domain class and the two new handlers had no tests.
+
+#### Change to SKILL.md (v18 → v19) and why
+
+| # | v18 (before) | v19 (after) | Why |
 |---|---|---|---|
 | 1 | Nothing about refresh tokens. | New section *"Feature: Refresh token and logout (Carina)"*: the files to read, the order of the checks in `RefreshHandler` and `LogoutHandler`, a new `FakeRefreshTokenRepository`, `CreateRefreshToken()` in `FakeTokenService` (`"refresh-1"`, `"refresh-2"`, ...), and the test list for `RefreshToken`, `LoginHandler`, `RefreshHandler` and `LogoutHandler`. | Without it Claude would only fix the compile errors and miss the new branches. |
 | 2 | — | *"a token created exactly 7 days before `Now` → `Invalid`; ... 7 days minus 1 second before `Now` → success"* and *"`IsActive`: ... false exactly at `ExpiresAt`"*. | Tests both sides of the expiry boundary, so a `<` → `<=` mutant is killed. |
 | 3 | — | *"every `new LoginHandler(...)` also gets `new FakeRefreshTokenRepository()`, `new FakeUnitOfWork()` and `new FixedTimeProvider(Now)` at the end"*. | The existing login tests must compile and keep testing what they tested before. |
 
 - **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them, update the LoginHandlerTests that no longer compile, and add the fakes and tests from the "Feature: Refresh token and logout (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
-- **Skill version:** v18, commit 90e55b8; section written and run by Carina Coman
+- **Skill version:** v19, commit 90e55b8 (committed as "v18"; renumbered because the favorites PR made v18, and in the merge with main the section was added again after "Feature: Favorites (Anca)"); section written and run by Carina Coman
 - **Result:** `FakeTokenService` got `CreateRefreshToken()` and `RefreshTokenCount`; new `FakeRefreshTokenRepository`; the 8 existing `new LoginHandler(...)` calls in `LoginHandlerTests` were updated so they compile again (no test deleted or renamed). New tests: 2 in `LoginHandlerTests`, 10 in the new `Domain/Members/RefreshTokenTests.cs`, 10 test cases in `Features/Auth/Refresh/RefreshHandlerTests.cs` and 6 in `Features/Auth/Logout/LogoutHandlerTests.cs`. Every error assertion checks `Type`, `Code` and `Message`, and every test uses a fixed `Now`. Nothing changed in `src/`. 291/291 unit tests pass; coverage stays **100%**: `Domain/` 282/282 lines and 88/88 branches, handlers 421/421 lines and 162/162 branches.
 - **Problems seen:**
   1. `reportgenerator` is not installed on this machine, and Claude Code's auto mode blocked downloading it with `dnx dotnet-reportgenerator-globaltool` (the same tool problem as Runs 5 and 6). The run read the coverage numbers from `coverage.opencover.xml` instead. The HTML report was generated by hand afterwards with the README command (`dotnet tool install -g dotnet-reportgenerator-globaltool`, then `reportgenerator ...`), so the report tool version may differ from the previous report.
   2. A first attempt to write the three new test files with one long shell command failed (unterminated quote). Nothing was written; the run used its Write tool instead.
-- **Change to SKILL.md:** none after the run; v18 is the final version.
+- **Change to SKILL.md:** none after the run; v19 is the final version.
 - **Commits:** skill 90e55b8; generated code 733b2ab
 
 ## integration-testing
@@ -866,29 +889,71 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 6d8b7bb; generated code 33c179b
 
-### Run 15, skill v14 (Feature: Refresh token and logout)
+### Run 15, skill v14 (Feature: Health check)
 
-- **Why a new version:** extra task 6 (refresh token + logout). Login now also returns `refreshToken`, and `POST /auth/refresh` and `POST /auth/logout` are new public endpoints. The new table `RefreshTokens` (migration `AddRefreshTokens`) has to be checked through the DbContext: only the hash is stored, and refresh and logout set `RevokedAt`.
+- **Why a new version:** the Docker PR added `GET /health`, and the review asked for tests. The endpoint had none.
 
 #### Change to SKILL.md (v13 → v14) and why
 
 | # | v13 (before) | v14 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about `/health`; section 1 says every route is under `/api/v1`. | New section *"Feature: Health check (Sara)"*: `GET /health` is outside `/api/v1`, needs no login and answers 200 with the plain text `Healthy`. | Without it Claude would look for the endpoint under `/api/v1` and read the body as JSON. |
+| 2 | — | Three tests: no token → 200 `Healthy`, a student token → 200 `Healthy`, `GET /api/v1/health` → 404 ProblemDetails `Route.NotFound`. *"Do not try to make the database unreachable; the 503 case is not tested."* | Proves the endpoint is public and not part of the versioned API, without breaking the shared in-memory database. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Health check (Sara)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v14, commit 56fdb10 (section written by Ancuța Ilenei for the Docker PR of Sara Matasel, with Claude Code; run in a new session)
+- **Result:** new file `Health/HealthCheckTests.cs` with the 3 tests, each also checking that the database still has 0 listings and 0 members. No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 401 tests pass (10 architecture, 263 unit, 4 ML, 124 integration), the integration tests three times in a row.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. The section does not name the student id; the run used a fixed `StudentId` (`22222222-...`).
+    2. Sections 1 and 10 of the skill are out of date (all routes under `/api/v1`, "both test projects").
+    3. Not from this run: `ReservationExpiryTests.Given_JobExpiredTheReservation_When_AnotherMemberReserves_Then_Returns201` failed once in about ten runs with 500. The expiry job keeps running every 200 ms during the Act and shares the one in-memory SQLite connection with the request. Reported to Sara, not changed here.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 56fdb10; generated code c1eebb4
+
+### Run 16, skill v15 (Feature: Favorites)
+
+- **Why a new version:** A3 added three endpoints under `/api/v1/members/me/favorites` and a `Favorites` table with foreign keys to `Members` and `Listings`. They had no integration tests.
+
+#### Change to SKILL.md (v14 → v15) and why
+
+| # | v14 (before) | v15 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about favorites. | New section *"Feature: Favorites (Anca)"*: a table with the three requests, their success and failure answers, the files and the list of tests. | Without it Claude would have to guess the routes and the error codes. |
+| 2 | *"Members do not need to exist in the database to log in: the token is enough."* (Ownership) | *"the member who saves a listing **must be seeded** (unlike the other features, a token alone is not enough)"*, plus a test for a member that is not in the database → 404 `Member.NotFound`. | The foreign key to `Members` would make an unseeded member fail; the handler answers 404 before the save. |
+| 3 | — | The cascade test: the seller deletes the listing → the member's favorite is gone from the database. | Proves the `OnDelete(Cascade)` of the configuration, which no unit test can see. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Favorites (Anca)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v15, commit fa4e09a (committed as "v14"; renumbered because the Docker PR made v14) (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** three new files in `Favorites/`: `AddFavoriteTests` (7), `RemoveFavoriteTests` (5, with the cascade test), `GetMyFavoritesTests` (7 cases). No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 448 tests pass (10 architecture, 294 unit, 4 ML, 140 integration), the integration tests three times in a row. The whole Postman collection was also run with `newman` on the running API: 89 requests, 178 assertions, 0 failures.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. Sections 1 and 3 say the schema comes from `EnsureCreatedAsync()`, but the app already runs `Migrate()` at startup; it works either way.
+    2. Section 10 is out of date ("at least 20 tests", "both test projects", `git status` only in the test project).
+    3. The 409 test and the "member not in the database" test do not say which `createdAt` and which id to use; the run used `CreatedAt.AddHours(1)` and `OtherStudentId`.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill fa4e09a; generated code 25c29b8
+
+### Run 17, skill v16 (Feature: Refresh token and logout)
+
+- **Why a new version:** extra task 6 (refresh token + logout). Login now also returns `refreshToken`, and `POST /auth/refresh` and `POST /auth/logout` are new public endpoints. The new table `RefreshTokens` (migration `AddRefreshTokens`) has to be checked through the DbContext: only the hash is stored, and refresh and logout set `RevokedAt`.
+
+#### Change to SKILL.md (v15 → v16) and why
+
+| # | v15 (before) | v16 (after) | Why |
 |---|---|---|---|
 | 1 | Nothing about refresh tokens. | New section *"Feature: Refresh token and logout (Carina)"*: a table with the success and failure of each slice, the stored hash, the arrange rules and the test list for `LoginTests` (one existing test extended), `RefreshTests` and `LogoutTests`. | The endpoints are new, so Claude needs the contract to test it. |
 | 2 | *"Never assert on `CreatedAt` with `DateTime.Now` / `DateTimeOffset.UtcNow`"*. | *"Read `var before = DateTimeOffset.UtcNow;` in the Arrange and, after the call, check that `expiresAt` is between `before.AddMinutes(15)` and `DateTimeOffset.UtcNow.AddMinutes(15)`. This window is the only allowed use of the real clock in an assertion."* | The API uses the real clock, and a window around the call proves the 15 minutes without being flaky. |
 | 3 | — | *"Never call `/auth/login` to get a refresh token in the refresh or logout tests"*; tokens are seeded with `RefreshToken.Create(...)`. | Arrange data is seeded, not made by another endpoint, and login has a rate limit. |
 
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, extend Given_ValidCredentials in LoginTests and add RefreshTests and LogoutTests as the "Feature: Refresh token and logout (Carina)" section says. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
-- **Skill version:** v14, commit 0afb3d5; section written and run by Carina Coman
+- **Skill version:** v16, commit 0afb3d5 (committed as "v14"; renumbered because the health check and favorites PRs made v14 and v15, and in the merge with main the section was added again after "Feature: Favorites (Anca)"); section written and run by Carina Coman
 - **Result:** in `Auth/LoginTests.cs` only `Given_ValidCredentials_When_LoggingIn_Then_Returns200WithToken` changed: it also checks a non-empty `refreshToken`, `expiresAt` inside the 15-minute window, and exactly one `RefreshToken` in the database for the member, with `TokenHash` = `RefreshToken.Hash(body.RefreshToken)` (so the plain token is not stored) and `RevokedAt` null. New `Auth/RefreshTests.cs` with 6 tests (active token → 200, the old token revoked and the member has 2 tokens; revoked, expired, unknown and empty token, and a token whose member does not exist → 401 `Auth.InvalidRefreshToken`) and `Auth/LogoutTests.cs` with 4 tests (active token → 204 with `RevokedAt` set; revoked, unknown and empty token → 401). Members and tokens are seeded directly; no test calls `/auth/login` or uses `AuthenticateAs`. Nothing changed in `src/`. `dotnet build` 0 warnings, 0 errors; 131/131 integration tests three runs in a row; full run: 10 architecture, 291 unit, 4 ML, 131 integration.
 - **Problems seen:** none in the generated tests. The first full `dotnet test` had one failure in an existing test not touched by this run, in `Listings/ReservationExpiryTests` (job on, only the expired reservation becomes `Expired`). It waits for the background job, so it can fail when the machine is busy; it passed on its own, in the three integration runs and in the final full run. A single flaky failure was also seen on `main` before this branch. Reported to the team, not fixed here.
-- **Change to SKILL.md:** none after the run; v14 is the final version.
+- **Change to SKILL.md:** none after the run; v16 is the final version.
 - **Commits:** skill 0afb3d5; generated code 6db4020
 
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
-
 ### Run 1, skill v1 (our repository)
 
 - **Prompt:** `Use the code-review skill in .claude/skills/code-review/SKILL.md to review this repository. Follow the skill exactly. Do not edit any file. Give me only the output the skill asks for.`
@@ -1319,3 +1384,34 @@ Week 5, task A5 (global exception handler + ProblemDetails). Infrastructure code
     1. In Development, ASP.NET throws `BadHttpRequestException` for JSON it cannot read. The first version of the handler only knew `DbUpdateConcurrencyException`, so `"category": "Banana"` would have become 500 instead of 400; fixed before the first run by mapping it to its own status code.
     2. A 409 could not be produced by sending two reservations in parallel by hand (the requests arrive one after the other locally, the second gets 400 `Listing.NotActive`); the integration test makes the conflict happen on purpose instead.
 - **Commits:** code db40206; tests generated in 33c179b (see Run 14 of integration-testing)
+
+## docker
+
+Backlog task (Docker + docker-compose + health checks). Dockerfile, `docker-compose.yml`, `.dockerignore` and the `/health` endpoint written by Sara Matasel; the review asked for the README, Postman, the tests and this entry, which were added by Ancuța Ilenei on the same branch.
+
+### Run 1
+
+- **What:** a two-stage `Dockerfile` (SDK image to publish, ASP.NET image to run) that fails the build when `ml-models/price-regression.zip` is missing; `docker-compose.yml` with port `5080:8080` and `ASPNETCORE_ENVIRONMENT=Development`; `AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>()` and `MapHealthChecks("/health")`.
+- **Review changes:** the first version ran as root and set `Development` in the image, and Sonar failed on the Dockerfile. Fixed by running as the image's non-root user (`USER $APP_UID`), with the SQLite file in `/app/data` that this user can write to, and by moving `Development` to `docker-compose.yml`.
+- **Added after the review:** README ("With Docker" under "How to run", `/health` in the endpoint table), Postman (folder `Health` with `GET /health`), integration tests generated with the integration-testing skill (see the "Health check" run of integration-testing), and this entry. `main` was merged into the branch first, so the tests run against the error handling of A5.
+- **Problems seen:**
+    1. There is no volume in `docker-compose.yml`, so the database is lost when the container is removed; written in the README.
+    2. Running the image without `docker-compose` uses `Production`, which has no JWT key; written in the README that the container is a local demo.
+- **Commits:** code 956ebe8, 1ae3ae9; README and Postman 516d3b2; skill 56fdb10; tests c1eebb4
+
+## favorites
+
+Week 5, task A3 (favorites). New entity and three slices, written by Ancuța Ilenei with Claude Code in the shape of the existing slices (`cqrs` skill conventions, paging copied from `GetListings`); the tests were generated afterwards with the unit-testing (Run 16) and integration-testing skills.
+
+### Run 1
+
+- **Prompt:** `A3: Favorite entity in Domain/Favorites and the feature in Features/Favorites: add, remove and GET /me/favorites with paging. Write it in the style of the existing slices, do not write tests yet (they are generated with the skills), and run the existing tests.`
+- **Decisions:**
+    - Routes under `/api/v1/members/me/favorites`, next to `/members/me/reservations`; the member is always the user in the token, so there is no 403 case. Own group `FavoritesEndpoints`, mapped in `CampusMarketSetup`, so `MembersEndpoints.cs` is not touched.
+    - `POST .../{listingId}` → 201 with `Location` to the list, like `ReserveListing`; `DELETE .../{listingId}` → 204. A listing is saved at most once (409 `Favorite.AlreadyExists`, plus a unique index on member + listing). The seller cannot save their own listing and a draft cannot be saved, like the reservation rules.
+    - Foreign keys from `Favorites` to `Listings` and `Members` with cascade delete, so deleting a listing or a member removes its favorites.
+    - Hidden listings are not handled yet: nothing can hide a listing before B5, so those branches could not be tested. B5 adds them together with `Listing.Hide()`.
+- **Result:** `Domain/Favorites/` (`Favorite`, `IFavoriteRepository`), `Infrastructure/Persistence/` (`FavoriteConfiguration`, `EfFavoriteRepository`, `DbSet<Favorite>`), migration `AddFavorites`, `Features/Favorites/` (`AddFavorite`, `RemoveFavorite`, `GetMyFavorites`, `FavoritesEndpoints`), two lines in `CampusMarketSetup.cs`. `dotnet ef migrations has-pending-model-changes`: no changes. Build 0 errors, 0 warnings; the existing 398 tests pass. Checked by hand on the running API: draft 400, 201, again 409, own listing 400, unknown listing 404, list 200, page 0 400, no token 401, remove 204, again 404, and deleting the listing removes the favorite from the database. README: endpoints, error codes and a "Favorites" section. Postman: a new `Favorites` folder with 13 requests and the variable `favListingId`.
+- **Problems seen:**
+    1. The first version also refused hidden listings and hid them in the list. No code can make a listing `Hidden` yet, so those branches were removed before the tests and moved to B5.
+- **Commits:** code 91b81a2; tests generated in 25c29b8 (see Run 16 of unit-testing and Run 16 of integration-testing)

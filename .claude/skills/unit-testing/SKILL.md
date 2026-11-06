@@ -403,6 +403,31 @@ Rules for this feature:
 - Never use real time: `Now` is fixed.
 - Failure tests check `ErrorType`, the exact `Error.Code` and the exact `Error.Message`.
 
+## Feature: Favorites (Anca)
+
+Production code (read it before generating):
+- `Domain/Favorites/Favorite.cs`: `Favorite.Create(memberId, listing, createdAt)`: `Guid.Empty` member → `Favorite.MemberEmpty`; the member is the listing's seller → `Favorite.OwnListing`; the listing is `Draft` → `Favorite.ListingNotAvailable`; otherwise a favorite with a new `Id`, the member, `listing.Id` and `createdAt`. `Active`, `Reserved` and `Sold` listings can all be saved.
+- `Domain/Favorites/IFavoriteRepository.cs`: `AddAsync` (false = duplicate Id), `GetAsync(memberId, listingId)` (null when the member has not saved that listing), `GetByMemberAsync(memberId)`, `Delete(favorite)`.
+- `Features/Favorites/AddFavorite/`: `AddFavoriteCommand(MemberId, ListingId)`. Order in the handler: 404 `Listing.NotFound`, 404 `Member.NotFound`, the domain errors of `Favorite.Create`, 409 `Favorite.AlreadyExists` (the member already saved this listing), 409 `Favorite.Duplicate` (`AddAsync` returned false), then one `CommitAsync`. Returns `AddFavoriteResponse(Id, ListingId, CreatedAt)`.
+- `Features/Favorites/RemoveFavorite/`: `RemoveFavoriteCommand(MemberId, ListingId)`. No favorite of this member for this listing → 404 `Favorite.NotFound`; otherwise `Delete` and one `CommitAsync`, returns the listing id.
+- `Features/Favorites/GetMyFavorites/`: `GetMyFavoritesQuery(MemberId, Page = 1, PageSize = 20)`, `MaxPageSize` 100. `Page` < 1 → `Favorites.InvalidPage`; `PageSize` < 1 or > 100 → `Favorites.InvalidPageSize`. Only the member's favorites whose listing exists, newest first (`CreatedAt` descending, then `ListingId`), then paged. `Count` = items on the page, `TotalCount` = all matching favorites.
+
+New fake `Fakes/FakeFavoriteRepository.cs`, built like `FakeListingRepository`: implements `IFavoriteRepository` over a `List<Favorite>` exposed as `Items`; `RejectAdd` (bool, default false: `AddAsync` returns false without storing); `DeleteCount` that counts `Delete` calls. `GetAsync` and `GetByMemberAsync` read `Items`; `GetByMemberAsync` returns a snapshot (`ToList()`).
+
+Files: `Domain/Favorites/FavoriteTests.cs`, `Features/Favorites/AddFavorite/AddFavoriteHandlerTests.cs`, `Features/Favorites/RemoveFavorite/RemoveFavoriteHandlerTests.cs`, `Features/Favorites/GetMyFavorites/GetMyFavoritesHandlerTests.cs` (all new).
+
+Arrange: a published listing is `Listing.Create(SellerId, ...).Value` then `Publish()`; a reserved one also `Reserve(OtherMemberId, Now)`. A favorite in the fake is `Favorite.Create(memberId, listing, createdAt).Value`, with `createdAt` chosen by the test (for example `Now.AddHours(-2)`) to control the order. For `AddFavorite` the member must exist in `FakeMemberRepository`: create it with `Member.Create(...)` and use its `member.Id`. Fixed, named ids for the rest: `SellerId`, `OtherMemberId`. `Now` is fixed and reaches the handler through `FixedTimeProvider`.
+
+Tests to add:
+- `Favorite.Create`: a published listing of someone else → success with a non-empty `Id`, the member id, `listing.Id` and `createdAt`; `Guid.Empty` member → `Favorite.MemberEmpty`; the seller → `Favorite.OwnListing`; a draft → `Favorite.ListingNotAvailable`; a reserved listing → success; a sold listing (published, reserved, `ConfirmSale`) → success. Two calls give two different `Id`s.
+- `AddFavoriteHandler`: success → the response has the favorite's `Id`, the listing id and `Now`, one favorite in the fake with this member and listing, `SaveCount` 1; unknown listing → NotFound `Listing.NotFound`; unknown member → NotFound `Member.NotFound`; unknown listing and unknown member together → `Listing.NotFound` (the listing is checked first); the seller → `Favorite.OwnListing`; a draft → `Favorite.ListingNotAvailable`; the member already saved this listing → Conflict `Favorite.AlreadyExists`, still exactly one favorite; the same member saving another listing → success (two favorites); `RejectAdd = true` → Conflict `Favorite.Duplicate`. In every failure `SaveCount` 0 and nothing new in the fake.
+- `RemoveFavoriteHandler`: success → returns the listing id, the favorite is gone from the fake, `DeleteCount` 1, `SaveCount` 1; no favorite for this listing → NotFound `Favorite.NotFound`; another member's favorite for the same listing → NotFound `Favorite.NotFound` and that favorite is still in the fake. In every failure `DeleteCount` 0 and `SaveCount` 0.
+- `GetMyFavoritesHandler`: no favorites → empty `Items`, `Count` 0, `TotalCount` 0; two favorites of the member → newest first, each item has the listing's id, title, category, condition, price (`Price.Amount`), status and the favorite's `CreatedAt` as `FavoritedAt`; two favorites with the same `CreatedAt` → ordered by `ListingId`; another member's favorites are not returned; a favorite whose listing is not in `FakeListingRepository` is not returned and not counted; three favorites with `Page` 2 and `PageSize` 2 → one item (the oldest), `Count` 1, `TotalCount` 3, `Page` 2, `PageSize` 2; `Page` 1 and `PageSize` 1 → the newest only; `PageSize` 100 → success; `Page` 0 → `Favorites.InvalidPage`; `PageSize` 0 and 101 → `Favorites.InvalidPageSize`; the default query (only `MemberId`) → `Page` 1, `PageSize` 20. The fakes are unchanged after every call.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`.
+- Never use real time: `Now` is fixed.
+
 ## Feature: Refresh token and logout (Carina)
 
 Production code (written by hand, read it before generating):
