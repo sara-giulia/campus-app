@@ -585,6 +585,25 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** The fix (diagnosed in a separate Claude Code session, then applied there): GetAllAsync now tracks the listings, with a comment explaining why. All tests pass: 10 architecture, 263 unit, 4 ML, 115 integration.
 - - **Change to SKILL.md:** none.
 
+### Run 16, skill v18 (Feature: Refresh token and logout)
+
+- **Why a new version:** extra task 6 (refresh token + logout). The access token now lasts 15 minutes; login also returns a refresh token (64 random bytes, valid 7 days, only its SHA-256 hash is stored); `POST /auth/refresh` rotates it and `POST /auth/logout` revokes it. `ITokenService` got `CreateRefreshToken()` and `LoginHandler` got three new dependencies, so `FakeTokenService` and `LoginHandlerTests` no longer compiled, and the new domain class and the two new handlers had no tests.
+
+#### Change to SKILL.md (v17 → v18) and why
+
+| # | v17 (before) | v18 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about refresh tokens. | New section *"Feature: Refresh token and logout (Carina)"*: the files to read, the order of the checks in `RefreshHandler` and `LogoutHandler`, a new `FakeRefreshTokenRepository`, `CreateRefreshToken()` in `FakeTokenService` (`"refresh-1"`, `"refresh-2"`, ...), and the test list for `RefreshToken`, `LoginHandler`, `RefreshHandler` and `LogoutHandler`. | Without it Claude would only fix the compile errors and miss the new branches. |
+| 2 | — | *"a token created exactly 7 days before `Now` → `Invalid`; ... 7 days minus 1 second before `Now` → success"* and *"`IsActive`: ... false exactly at `ExpiresAt`"*. | Tests both sides of the expiry boundary, so a `<` → `<=` mutant is killed. |
+| 3 | — | *"every `new LoginHandler(...)` also gets `new FakeRefreshTokenRepository()`, `new FakeUnitOfWork()` and `new FixedTimeProvider(Now)` at the end"*. | The existing login tests must compile and keep testing what they tested before. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them, update the LoginHandlerTests that no longer compile, and add the fakes and tests from the "Feature: Refresh token and logout (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v18, commit 90e55b8; section written by Carina Coman, run by TODO
+- **Result:** TODO
+- **Problems seen:** TODO
+- **Change to SKILL.md:** none after the run; v18 is the final version.
+- **Commits:** skill 90e55b8; generated code TODO
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -844,6 +863,25 @@ saved.Should().BeEquivalentTo(listing);
     5. Sections 1 and 10 of the skill are out of date (errors only Validation/NotFound/Conflict, "both test projects" while there are four).
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 6d8b7bb; generated code 33c179b
+
+### Run 15, skill v14 (Feature: Refresh token and logout)
+
+- **Why a new version:** extra task 6 (refresh token + logout). Login now also returns `refreshToken`, and `POST /auth/refresh` and `POST /auth/logout` are new public endpoints. The new table `RefreshTokens` (migration `AddRefreshTokens`) has to be checked through the DbContext: only the hash is stored, and refresh and logout set `RevokedAt`.
+
+#### Change to SKILL.md (v13 → v14) and why
+
+| # | v13 (before) | v14 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about refresh tokens. | New section *"Feature: Refresh token and logout (Carina)"*: a table with the success and failure of each slice, the stored hash, the arrange rules and the test list for `LoginTests` (one existing test extended), `RefreshTests` and `LogoutTests`. | The endpoints are new, so Claude needs the contract to test it. |
+| 2 | *"Never assert on `CreatedAt` with `DateTime.Now` / `DateTimeOffset.UtcNow`"*. | *"Read `var before = DateTimeOffset.UtcNow;` in the Arrange and, after the call, check that `expiresAt` is between `before.AddMinutes(15)` and `DateTimeOffset.UtcNow.AddMinutes(15)`. This window is the only allowed use of the real clock in an assertion."* | The API uses the real clock, and a window around the call proves the 15 minutes without being flaky. |
+| 3 | — | *"Never call `/auth/login` to get a refresh token in the refresh or logout tests"*; tokens are seeded with `RefreshToken.Create(...)`. | Arrange data is seeded, not made by another endpoint, and login has a rate limit. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, extend Given_ValidCredentials in LoginTests and add RefreshTests and LogoutTests as the "Feature: Refresh token and logout (Carina)" section says. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v14, commit 0afb3d5; section written by Carina Coman, run by TODO
+- **Result:** TODO
+- **Problems seen:** TODO
+- **Change to SKILL.md:** none after the run; v14 is the final version.
+- **Commits:** skill 0afb3d5; generated code TODO
 
 ## code-review
 
