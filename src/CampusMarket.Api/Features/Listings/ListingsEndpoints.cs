@@ -8,6 +8,7 @@ using CampusMarket.Api.Features.Listings.ReserveListing;
 using CampusMarket.Api.Features.Listings.CancelReservation;
 using CampusMarket.Api.Features.Listings.ConfirmSale;
 using CampusMarket.Api.Features.Listings.SuggestPrice;
+using CampusMarket.Api.Features.Listings.SuggestCategory;
 
 namespace CampusMarket.Api.Features.Listings;
 
@@ -27,6 +28,7 @@ public static class ListingsEndpoints
         CancelReservationEndpoint.Map(group);
         ConfirmSaleEndpoint.Map(group);
         SuggestPriceEndpoint.Map(group);
+        SuggestCategoryEndpoint.Map(group);
 
         return app;
     }

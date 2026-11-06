@@ -26,7 +26,8 @@ Console.WriteLine($"Test rows:  {testCount}");
 
 var trainers = new List<IModelTrainer>
 {
-    new PriceTrainer()
+    new PriceTrainer(),
+    new CategoryTrainer()
 };
 
 foreach (var trainer in trainers)

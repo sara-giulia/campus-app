@@ -2299,6 +2299,202 @@
               ]
             }
           ]
+        },
+        {
+          "name": "SuggestCategory",
+          "item": [
+            {
+              "name": "Category suggestion - laptop (200)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/category-suggestion",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "category-suggestion"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Laptop Lenovo ThinkPad T480, i5 + 16GB RAM\",\n  \"description\": \"Laptop folosit la cursuri, bateria tine 4 ore.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"The laptop is suggested as Electronics\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.category).to.eql(\"Electronics\");",
+                      "  pm.expect(body.confidence).to.be.within(0, 1);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Category suggestion - course notes (200)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/category-suggestion",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "category-suggestion"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Notite Analiza matematica anul 1\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"The notes are suggested as Notes\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.category).to.eql(\"Notes\");",
+                      "  pm.expect(body.confidence).to.be.within(0, 1);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Category suggestion - empty title (400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/category-suggestion",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "category-suggestion"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"   \"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Listing.TitleEmpty\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.TitleEmpty\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Category suggestion - no token (401)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/category-suggestion",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "category-suggestion"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Laptop Dell\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                      "pm.test(\"Error code is Auth.Unauthorized\", () => pm.expect(pm.response.json().code).to.eql(\"Auth.Unauthorized\"));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     },
