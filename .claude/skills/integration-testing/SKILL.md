@@ -632,3 +632,23 @@ Tests to add (status, body, then the database through `db.Set<Favorite>()`):
 Rules for this feature:
 - Read 400/404/409 bodies into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Category suggestion (Anca)
+
+Endpoint: `POST /api/v1/listings/category-suggestion`, needs a logged-in user, body `{ title, description? }`, returns `200 { category, confidence }` (`category` is one of the `Category` names as a string, `confidence` is between 0 and 1). It is a query: nothing is saved.
+
+The integration tests use the **real** model `category-classification.zip`, which the API project copies to the output folder `ml-models/`. Do not replace `ICategorySuggester` in the test factory. Read the body into `SuggestCategoryResponse` from `Features/Listings/SuggestCategory/`.
+
+File: `Listings/SuggestCategoryTests.cs`, using the same base class and the same login helper as the other listing tests (`SuggestPriceTests` is the closest example).
+
+Tests to add:
+- Logged in, a laptop (`"Laptop Lenovo ThinkPad T480, i5, 16GB RAM"`, description `"Bateria tine 4 ore."`) → 200, `category` is `Electronics`, `confidence` between 0 and 1.
+- Course notes (`"Notite Analiza matematica anul 1"`, no description) → 200, `category` is `Notes`.
+- No token → 401 ProblemDetails `Auth.Unauthorized`.
+- Empty title (`"   "`) → 400 `Listing.TitleEmpty`; description of 1001 characters → 400 `Listing.DescriptionTooLong`.
+- After any of these requests, the database still has 0 listings.
+
+Rules for this feature:
+- Never assert an exact confidence: the model can be retrained. Only assert the category for the two clear examples and that the confidence is between 0 and 1.
+- Read 400 bodies into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.

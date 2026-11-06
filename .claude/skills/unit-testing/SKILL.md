@@ -427,3 +427,27 @@ Tests to add:
 Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`.
 - Never use real time: `Now` is fixed.
+
+## Feature: Category suggestion (Anca)
+
+Production code (read it before generating):
+- `Common/Categories/ICategorySuggester.cs`: `CategorySuggestion Suggest(string title, string? description)`, where `CategorySuggestion(Category Category, double Confidence)`. The real implementation (`Infrastructure/ML/CategorySuggester.cs`) uses the ML model; unit tests never use it.
+- `Features/Listings/SuggestCategory/SuggestCategoryQuery.cs` and `SuggestCategoryHandler.cs`: a query handler (no `IUnitOfWork`). Validation order: description longer than `Listing.MaxDescriptionLength` after trim `Listing.DescriptionTooLong`, empty title `Listing.TitleEmpty`, title longer than `Listing.MaxTitleLength` after trim `Listing.TitleTooLong` (the same codes and messages as `SuggestPrice`). Then it calls the suggester once with the **trimmed** title and the description unchanged, and returns `SuggestCategoryResponse(Category, Confidence)` with the suggester's values.
+
+New fake in `Fakes/` (hand-written, no mocking library):
+- `FakeCategorySuggester : ICategorySuggester`: returns the public property `Suggestion` (default `new CategorySuggestion(Category.Electronics, 0.87)`), counts calls in `CallCount`, and remembers `LastTitle` and `LastDescription`.
+
+File: `Features/Listings/SuggestCategory/SuggestCategoryHandlerTests.cs`.
+
+Tests to add:
+- Valid query (title `"  Laptop Dell Latitude  "`, a description) → success, `Category` and `Confidence` equal the fake's `Suggestion`; `CallCount` 1; `LastTitle` is `"Laptop Dell Latitude"` (trimmed); the description is passed unchanged.
+- The fake set to `new CategorySuggestion(Category.Notes, 0.5)` → the response has `Notes` and `0.5` (the handler does not pick its own values).
+- Description `null` → success, `LastDescription` is `null`.
+- Description of 1001 characters → `Listing.DescriptionTooLong`; exactly 1000 → success; 1000 characters with spaces around → success (the length is checked after trim).
+- Title `""` and `"   "` (`[Theory]`) → `Listing.TitleEmpty`; 101 characters → `Listing.TitleTooLong`; exactly 100 → success; 100 characters with spaces around → success.
+- Order of the checks: description too long **and** empty title → `Listing.DescriptionTooLong`.
+
+Rules for this feature:
+- In every failure test: `ErrorType.Validation`, the exact `Error.Code` **and** the exact `Error.Message` from the handler, and `CallCount` 0 (the model is never asked when the input is invalid).
+- Build the expected messages for the length errors from `Listing.MaxDescriptionLength` and `Listing.MaxTitleLength`, the same way the handler does.
+- Never use the real `CategorySuggester` or a `.zip` model in unit tests.
