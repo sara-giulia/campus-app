@@ -193,19 +193,28 @@ public sealed class Listing
         if (!Enum.IsDefined(condition))
             return Result<Money>.Failure(
                 Error.Validation("Listing.ConditionInvalid", "Unknown condition."));
-       
-        if (description is not null && description.Trim().Length > MaxDescriptionLength)
-            return Result<Money>.Failure(
-                Error.Validation("Listing.DescriptionTooLong", $"Description must have at most {MaxDescriptionLength} characters."));
-        
-        if (string.IsNullOrWhiteSpace(title))
-            return Result<Money>.Failure(
-                Error.Validation("Listing.TitleEmpty", "Title must not be empty."));
-        if (title.Trim().Length > MaxTitleLength)
-            return Result<Money>.Failure(
-                Error.Validation("Listing.TitleTooLong", $"Title must have at most {MaxTitleLength} characters."));
+
+        var textError = ValidateText(title, description);
+        if (textError is not null)
+            return Result<Money>.Failure(textError);
 
         return Money.Create(price);
+    }
+
+    // The title and description rules, in one place. The suggestion endpoints (price, category)
+    // use them too, so a caller gets the same errors there as when creating a listing.
+    // Returns null when both are valid.
+    public static Error? ValidateText(string? title, string? description)
+    {
+        if (description is not null && description.Trim().Length > MaxDescriptionLength)
+            return Error.Validation("Listing.DescriptionTooLong", $"Description must have at most {MaxDescriptionLength} characters.");
+
+        if (string.IsNullOrWhiteSpace(title))
+            return Error.Validation("Listing.TitleEmpty", "Title must not be empty.");
+        if (title.Trim().Length > MaxTitleLength)
+            return Error.Validation("Listing.TitleTooLong", $"Title must have at most {MaxTitleLength} characters.");
+
+        return null;
     }
     
     // An empty or blank description is stored as null, so "no description" has only one form.
