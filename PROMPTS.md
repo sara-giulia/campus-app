@@ -608,6 +608,28 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill fa4e09a; generated code 25c29b8
 
+### Run 17, skill v19 (Feature: Category suggestion)
+
+- **Why a new version:** B4 added the `SuggestCategory` query handler behind `ICategorySuggester`. It had no unit tests.
+
+#### Change to SKILL.md (v18 → v19) and why
+
+| # | v18 (before) | v19 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about category suggestion. | New section *"Feature: Category suggestion (Anca)"*: the order of the checks, the new fake `FakeCategorySuggester` (`Suggestion`, `CallCount`, `LastTitle`, `LastDescription`) and the list of tests. | Without it Claude would have to guess the order of the checks and what the fake returns. |
+| 2 | — | A test with the fake set to `Notes` / `0.5`. | Proves the handler returns the suggester's values and does not use a fixed answer. |
+| 3 | — | `CallCount` 0 in every failure test, and the boundaries 100/101 and 1000/1001 with and without spaces. | The same checks as in "Price suggestion (Sara)"; they kill the mutants on the length checks and on the trim. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Category suggestion (Anca)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results and the coverage for Domain/ and the handlers.` (new session)
+- **Skill version:** v19, commit 57316ee (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new fake `Fakes/FakeCategorySuggester.cs` and `Features/Listings/SuggestCategory/SuggestCategoryHandlerTests.cs` (11 tests, 12 cases). No existing test changed, nothing changed in `src/`. All 306 unit tests pass. Coverage of `Domain/` and the handlers stays **100%**: 747/747 lines, 266/266 branches; `SuggestCategoryHandler` 20/20 lines, 10/10 branches. The report in `coverage-report/` was generated again.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. The section says the messages are "the same as SuggestPrice" but does not write them out; the run took them from the handler.
+    2. The folder layout at the top of the skill is out of date ("10 handlers", and the newer fakes are not listed).
+    3. `reportgenerator` is not installed; the run used `dotnet dnx dotnet-reportgenerator-globaltool` and moved the old `TestResults/` folder away first. The skill does not say to empty `coverage-report/` before generating it again.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 57316ee; generated code f98a859
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -910,6 +932,27 @@ saved.Should().BeEquivalentTo(listing);
     3. The 409 test and the "member not in the database" test do not say which `createdAt` and which id to use; the run used `CreatedAt.AddHours(1)` and `OtherStudentId`.
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill fa4e09a; generated code 25c29b8
+
+### Run 17, skill v16 (Feature: Category suggestion)
+
+- **Why a new version:** B4 added `POST /api/v1/listings/category-suggestion`, served by the real `category-classification.zip` model. It had no integration tests.
+
+#### Change to SKILL.md (v15 → v16) and why
+
+| # | v15 (before) | v16 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about category suggestion. | New section *"Feature: Category suggestion (Anca)"*: the request, the answers, the file and the list of tests, with the real model (no fake in the factory). | Without it Claude would have to guess the route, the body and the error codes. |
+| 2 | — | *"Never assert an exact confidence"*; only the category of two clear examples and a confidence between 0 and 1. | The model can be retrained; an exact value would break the tests for no reason. |
+| 3 | — | The 401 is checked as ProblemDetails, the 400s as `Error`, and the database still has 0 listings. | The same rules as the other sections since the error handling task (A5). |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Category suggestion (Anca)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v16, commit 57316ee (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** one new file `Listings/SuggestCategoryTests.cs` (5 tests). No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 472 tests pass (10 architecture, 306 unit, 8 ML, 148 integration), the integration tests three times in a row. The whole Postman collection was also run with `newman` on the running API: 94 requests, 188 assertions, 0 failures.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. The section says `category` is a string; in JSON it is, but `SuggestCategoryResponse` has the `Category` enum, so the tests compare with `Category.Electronics` and `Category.Notes`.
+    2. Section 10 is still out of date (it speaks of two test projects; there are four now).
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 57316ee; generated code f98a859
 
 ## code-review
 
@@ -1220,6 +1263,42 @@ course notes Worn) and list every file you changed. Do not change existing tests
     - `PROMPTS.md` (this entry)
 - **Problems seen:**
     1. The first scratchpad consumer of `price-regression.zip` only referenced `Microsoft.ML` and threw `FileNotFoundException: 'Microsoft.ML.FastTree'` on load — the same failure the API would have hit at first request. Fixed by adding `Microsoft.ML.FastTree` to `CampusMarket.Api.csproj` too (it was only added to the training project at first, where the task's "add Microsoft.ML.FastTree with the same version as Microsoft.ML" bullet pointed).
+
+### Run 3
+
+- **Why:** B3 added the price model; B4 adds the second one, category classification, the same way: one new trainer, the `category-classification.zip` artefact, a `SuggestCategory` slice behind an `ICategorySuggester` interface, and a quality test that guards the model in CI. Written by Ancuța Ilenei with Claude Code.
+- **Prompt:** (new session)
+
+```
+Week 5, task B4: category suggestion, built the same way as Sara's price suggestion (B3).
+1. Training: CategoryTrainer : IModelTrainer, registered in Program.cs. Only non-spam rows. Features: Title and
+   Description with FeaturizeText; label Category; a multiclass trainer (SDCA maximum entropy). Metrics on the test
+   split: micro and macro accuracy and log loss. ModelFileName category-classification.zip, saved and committed.
+2. API: POST /api/v1/listings/category-suggestion, RequireAuthorization, body { title, description? }, a query
+   (no IUnitOfWork), the same validation and error codes as SuggestPrice, response { category, confidence }
+   with confidence between 0 and 1. The handler depends on ICategorySuggester in Common/Categories/, the
+   implementation uses PredictionEnginePool and lives in Infrastructure/ML.
+3. ML.Tests: CategoryModelQualityTests on the same non-spam split, micro accuracy >= 0.9, plus a few listings
+   written by hand that are not in the CSV.
+4. No unit or integration tests for the slice yet (generated with the skills). README, Postman and PROMPTS.md.
+Do not change existing tests. Do not commit or push.
+```
+
+- **Result:** `dotnet run --project ml/CampusMarket.ML.Training` prints for the category model `Micro accuracy 1.000`, `Macro accuracy 1.000`, `Log loss 0.014`; the price model metrics are unchanged (R² 0.830), and `price-regression.zip` was left as it was. Build 0 errors, 0 warnings; all existing tests pass, plus 4 new ML tests (8 in `CampusMarket.ML.Tests`). Checked by hand on the running API: a ThinkPad laptop → `Electronics` 0.99, "Notițe Analiză matematică" → `Notes` 1, empty title 400 `Listing.TitleEmpty`, description of 1001 characters 400 `Listing.DescriptionTooLong`, no token 401.
+- **Files changed:**
+    - `ml/CampusMarket.ML.Training/CategoryTrainer.cs` (new) and `Program.cs` (registers `new CategoryTrainer()`)
+    - `ml/models/category-classification.zip` (new committed artefact)
+    - `src/CampusMarket.Api/Common/Categories/ICategorySuggester.cs` (new, with the `CategorySuggestion` record)
+    - `src/CampusMarket.Api/Infrastructure/ML/CategoryInput.cs`, `CategoryPrediction.cs`, `CategorySuggester.cs` (new) and `MlServiceCollectionExtensions.cs` (the second `PredictionEnginePool` and the `ICategorySuggester` singleton)
+    - `src/CampusMarket.Api/Features/Listings/SuggestCategory/` (request, query, response, handler, endpoint) and `ListingsEndpoints.cs` (one line)
+    - `tests/CampusMarket.ML.Tests/CategoryModelQualityTests.cs` (new)
+    - `README.md`, `postman/CampusMarket.postman_collection.json` (new `SuggestCategory` folder with 4 requests), `PROMPTS.md`
+- **Problems seen:**
+    1. The accuracy is 1.000 because the dataset is synthetic and each category has its own words. The quality bar was set at 0.9 so that a retrain on a changed dataset does not fail for small differences.
+    2. There is no clothing category, so "Hanorac facultate, mărimea M" gets `LabEquipment` (0.82). It is only a suggestion; noted in the README.
+    3. In Git Bash, `curl -d` with diacritics sent the body in the wrong encoding and the API answered 400 `Request.Invalid`; sent from a UTF-8 file, the same body gives 200. Not a bug in the API.
+
+- **Commits:** code 2ec87e6; tests generated in f98a859 (see Run 17 of unit-testing and Run 17 of integration-testing)
 
 ## confirm-sale
 
