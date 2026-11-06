@@ -8,7 +8,11 @@ RUN test -f /app/ml-models/price-regression.zip
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=build /app .
-# Development: uses the dev JWT key and the seeded admin (demo container, not production)
-ENV ASPNETCORE_ENVIRONMENT=Development
+# The SQLite file lives in a folder the non-root user can write to
+RUN mkdir /app/data && chown $APP_UID /app/data
+ENV ConnectionStrings__CampusMarket="Data Source=/app/data/campusmarket.db"
+# Run as the non-root user that the .NET images provide
+USER $APP_UID
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "CampusMarket.Api.dll"]
+
