@@ -529,4 +529,26 @@ Rules for this feature:
 - Read 400/403/404 bodies into `Error` and check `Code` and `Type`; for 401 only the status code.
 - Every test checks the database at the end.
 
+## Feature: Reservation expiry (Sara)
+
+Production code (read it before generating):
+- `Infrastructure/Background/ReservationExpiryService.cs`: a `BackgroundService` that runs `ExpireReservationsCommand` every `ReservationExpiry:Interval` in a new DI scope. It is registered only when `ReservationExpiry:Enabled` is true.
+- `CampusMarketApiFactory` sets `ReservationExpiry:Enabled` to `false`, so the job never runs in the other tests. Do not change the factory or `IntegrationTestBase`.
+
+File: `Listings/ReservationExpiryTests.cs`, class `ReservationExpiryTests : IntegrationTestBase`.
+
+Test host: to turn the job on in one test, start a second copy of the API on the same database with `Factory.WithWebHostBuilder(builder => { builder.UseSetting("ReservationExpiry:Enabled", "true"); builder.UseSetting("ReservationExpiry:Interval", "00:00:00.200"); })`, the same way the Admin seed tests do. The copy starts at its first `CreateClient()`; dispose it with `await using`.
+
+Arrange: seed the seller, the buyers and listings published and reserved with `SeedAsync`. The API uses the real clock: an expired reservation is reserved 49 hours in the past, a valid one 1 hour in the past.
+
+Tests to add:
+- With the job on, one expired and one valid reservation → poll the database every 100 ms, for at most 5 seconds, until the expired reservation is `Expired`; then: that listing is `Active` with `Version` + 1, and the valid reservation is still `Active` on a `Reserved` listing. Fail with a clear message when 5 seconds pass.
+- After the job expired the reservation, another member reserves the listing → 201.
+- With the job off (the normal factory), an expired reservation stays `Active` in the database, but the buyer's `GET /api/v1/members/me/reservations` shows it as `Expired` (computed when it is read).
+
+Rules for this feature:
+- Never use a fixed `Task.Delay` as the assertion: poll the database with a timeout.
+- Every test checks the database at the end.
+
+
 

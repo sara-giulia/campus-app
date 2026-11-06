@@ -19,9 +19,10 @@ public sealed class EfListingRepository(CampusMarketDbContext db) : IListingRepo
             .Include(l => l.Reservations)
             .FirstOrDefaultAsync(l => l.Id == id, ct);
 
+    // Tracked on purpose: the reservation expiry job changes the listings it reads here,
+    // and EF Core needs the original Version for the concurrency check when it saves.
     public async Task<IReadOnlyList<Listing>> GetAllAsync(CancellationToken ct = default) =>
         await db.Listings
-            .AsNoTracking()
             .Include(l => l.Reservations)
             .ToListAsync(ct);
 
