@@ -688,3 +688,33 @@ Rules for this feature:
 - Never assert an exact confidence: the model can be retrained. Only assert the category for the two clear examples and that the confidence is between 0 and 1.
 - Read 400 bodies into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Spam and moderation (Anca)
+
+Endpoints:
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/reports`, body `{ reason }` | any logged-in member (the reporter is the user in the token) | 201, body `{ id, listingId, createdAt }`, no `Location` | 404 `Listing.NotFound`; 404 `Member.NotFound`; 400 `Report.OwnListing`, `Report.ListingNotAvailable`, `Report.ReasonEmpty`, `Report.ReasonTooLong`; 409 `Report.AlreadyExists`; 401 |
+| `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200 `{ items, count, totalCount, page, pageSize }`; each item `{ listingId, title, sellerId, status, reportCount, flaggedAsSpam, spamProbability, lastReportedAt, reasons }` | 400 `Moderation.InvalidPage`, `Moderation.InvalidPageSize`; 401; 403 |
+| `POST /api/v1/moderation/listings/{listingId}/hide` | Admins only | 204, empty body | 404 `Listing.NotFound`; 400 `Listing.AlreadyHidden`, `Listing.CannotHide`; 401; 403 |
+
+Also: `POST /api/v1/listings/{id}/publish` now runs the **real** spam model (`spam-detection.zip`, copied to `ml-models/`). A listing that looks like spam is still published (204) but gets an automatic report (`ReporterId` null, `SpamProbability` set). Do not replace `ISpamDetector` in the test factory. A hidden listing cannot be added to favorites (400 `Favorite.ListingNotAvailable`) and is not in `GET /api/v1/members/me/favorites`.
+
+Read `Features/Moderation/`, `Domain/Reports/` and `Infrastructure/Persistence/Configurations/ReportConfiguration.cs` before generating. The `Reports` table has foreign keys to `Listings` and `Members` with cascade delete, so the member who reports **must be seeded** (like favorites). An Admin is logged in with `AuthenticateAs(id, "Admin")` from `IntegrationTestBase`; the admin does not need to be in the database.
+
+Files: `Moderation/ReportListingTests.cs`, `Moderation/GetReportedListingsTests.cs`, `Moderation/HideListingTests.cs`, `Moderation/SpamOnPublishTests.cs` (new), and one test added to `Favorites/AddFavoriteTests.cs` and one to `Favorites/GetMyFavoritesTests.cs`. Read the bodies into the response records from `Features/Moderation/`.
+
+Arrange: a published listing of the fixed `SellerId` is `Listing.Create(...).Value` then `Publish()`; a hidden one also `Hide()`. A user report is `Report.Create(member.Id, listing, "reason", createdAt).Value`, an automatic one `Report.CreateAutomatic(listing.Id, 0.9, createdAt)`, with a fixed `createdAt`, seeded together with the member and the listing in one `SeedAsync`.
+
+Tests to add (status, body, then the database through `db.Set<Report>()` and `db.Set<Listing>()`):
+- `ReportListingTests`: a published listing → 201 with the listing id, one report saved with this reporter and the trimmed reason; the same member again (seed the report first) → 409 `Report.AlreadyExists`, still one report; the seller → 400 `Report.OwnListing`; a draft → 400 `Report.ListingNotAvailable`; reason `"   "` → 400 `Report.ReasonEmpty`; unknown listing → 404 `Listing.NotFound`; logged in as a member that is not in the database → 404 `Member.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`. No report is saved in any failure.
+- `GetReportedListingsTests`: as Admin, a listing with two user reports and another with one automatic report → 200, the first has `reportCount` 2 and `flaggedAsSpam` false, the second `flaggedAsSpam` true and `spamProbability` 0.9; a hidden listing with reports is not in the list; `?page=0` → 400 `Moderation.InvalidPage`; `?pageSize=101` → 400 `Moderation.InvalidPageSize`; as a student → 403 ProblemDetails `Auth.Forbidden`; no token → 401 ProblemDetails `Auth.Unauthorized`.
+- `HideListingTests`: as Admin, a published listing → 204, the listing in the database is `Hidden`; a reserved listing → 204, `Hidden`, and its reservation is `Cancelled`; a hidden listing → 400 `Listing.AlreadyHidden`; a draft → 400 `Listing.CannotHide`; unknown listing → 404 `Listing.NotFound`; as a student (even the seller) → 403 ProblemDetails `Auth.Forbidden`, the listing is unchanged; no token → 401. After hiding, `GET /api/v1/listings` does not return it.
+- `SpamOnPublishTests` (real model): the seller publishes a spam draft (title `"BANI RAPIZI, SUNA ACUM!!!"`, description `"Metoda sigura de castig online!!! Suna la 0739 465 387."`, `Other`, price 1) → 204, the listing is `Active` and one report exists for it with `ReporterId` null and `SpamProbability` between 0.5 and 1; a normal draft (`"Manual Algebra liniara, editia 2"`, `"Putin folosit, fara sublinieri."`, `Textbook`, price 40) → 204 and no report.
+- Favorites: adding a hidden listing → 400 `Favorite.ListingNotAvailable`, no favorite; a saved favorite whose listing is hidden (seed it hidden) is not in `GET /api/v1/members/me/favorites` (`totalCount` 0).
+
+Rules for this feature:
+- Never assert an exact spam probability from the real model: only that it is between 0.5 and 1 for the spam example.
+- Read 400/404/409 bodies into `Error` and check `Code` and `Type`; 401 and 403 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
