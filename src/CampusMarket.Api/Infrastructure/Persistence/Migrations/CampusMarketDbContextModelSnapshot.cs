@@ -17,6 +17,30 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
+            modelBuilder.Entity("CampusMarket.Api.Domain.Favorites.Favorite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ListingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId");
+
+                    b.HasIndex("MemberId", "ListingId")
+                        .IsUnique();
+
+                    b.ToTable("Favorites", (string)null);
+                });
+
             modelBuilder.Entity("CampusMarket.Api.Domain.Listings.Listing", b =>
                 {
                     b.Property<Guid>("Id")
@@ -122,6 +146,21 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Members", (string)null);
+                });
+
+            modelBuilder.Entity("CampusMarket.Api.Domain.Favorites.Favorite", b =>
+                {
+                    b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("CampusMarket.Api.Domain.Listings.Reservation", b =>

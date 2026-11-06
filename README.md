@@ -144,8 +144,11 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
 | Auth | `Register` | `POST /api/v1/auth/register` | everyone | 201 + `Location`, 400, 409 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
+| Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
+| Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
+| Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 
-GET endpoints are public, except `GET /api/v1/members/me/reservations`. POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public, except `GET /api/v1/members/me/reservations` and `GET /api/v1/members/me/favorites`. POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -233,6 +236,11 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Reservation.Expired` | 400 | you confirm a reservation past its 48-hour expiry |
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
+| `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
+| `Favorite.ListingNotAvailable` | 400 | the listing is still a draft |
+| `Favorite.AlreadyExists` | 409 | the listing is already in your favorites |
+| `Favorite.NotFound` | 404 | you remove a listing that is not in your favorites |
+| `Favorites.InvalidPage`, `Favorites.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/members/me/favorites` (same rules as the listing search) |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
@@ -287,6 +295,26 @@ Two settings under `ReservationExpiry` in `appsettings.json` control the job:
 |---|---|---|
 | `Enabled` | `true` | Register the background service. Integration tests set it to `false` so the job never runs during the other tests. |
 | `Interval` | `00:05:00` | How often the sweep runs (any `TimeSpan`). |
+
+### Favorites
+
+A member saves listings to find them again later. The member is always the user in the token, so nobody can see or change someone else's favorites.
+
+- `POST /api/v1/members/me/favorites/{listingId}` saves a listing: 201 with `{ id, listingId, createdAt }`. A listing is saved at most once (409 `Favorite.AlreadyExists`), the seller cannot save their own listing (400 `Favorite.OwnListing`) and a draft cannot be saved (400 `Favorite.ListingNotAvailable`). Active, reserved and sold listings can be saved.
+- `DELETE /api/v1/members/me/favorites/{listingId}` removes it: 204, or 404 `Favorite.NotFound`.
+- `GET /api/v1/members/me/favorites?page=1&pageSize=20` lists them, newest first, with the same paging rules as the listing search (`page` from 1, `pageSize` from 1 to 100, default 20):
+
+```json
+{
+  "items": [ { "listingId": "...", "title": "Calculus textbook", "category": "Textbook", "condition": "Good", "price": 40, "status": "Active", "favoritedAt": "2026-11-06T09:15:34+00:00" } ],
+  "count": 1,
+  "totalCount": 1,
+  "page": 1,
+  "pageSize": 20
+}
+```
+
+Favorites are stored in their own table (`Favorites`, migration `AddFavorites`), with a unique index on member + listing and foreign keys to `Members` and `Listings`: when a listing or a member is deleted, their favorites are deleted too.
 
 ## 4. Domain model
 
@@ -355,7 +383,7 @@ classDiagram
     Reservation ..> ReservationStatus
 ```
 
-**Relationships:** a `Member` sells many `Listing`s (**one-to-many**, through `Listing.SellerId`). Members and listings are also connected **many-to-many** through the join entity `Reservation` (`MemberId` + `ListingId`): a member can reserve many listings, and a listing can have many reservations over time. A `Listing` owns its reservations and exposes them only as `IReadOnlyList<Reservation>`.
+**Relationships:** a `Member` sells many `Listing`s (**one-to-many**, through `Listing.SellerId`). Members and listings are also connected **many-to-many** through the join entity `Reservation` (`MemberId` + `ListingId`): a member can reserve many listings, and a listing can have many reservations over time. A `Listing` owns its reservations and exposes them only as `IReadOnlyList<Reservation>`. `Favorite` is a second join entity between members and listings (`MemberId` + `ListingId`, at most one per pair).
 
 **Value objects:** `Money` (amount > 0) and `Email` (normalized to lower case, one `@` with text before and after) are immutable records that can only be created through a factory returning `Result<T>`.
 
