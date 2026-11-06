@@ -1,3 +1,4 @@
+using CampusMarket.Api.Common.Categories;
 using CampusMarket.Api.Common.Pricing;
 using Microsoft.Extensions.ML;
 
@@ -23,8 +24,16 @@ public static class MlServiceCollectionExtensions
 
         services.AddSingleton<IPriceSuggester, PriceSuggester>();
 
-        // Each future model (category in B4, spam in B5) registers its own
-        // PredictionEnginePool here alongside the price one above.
+        services.AddPredictionEnginePool<CategoryInput, CategoryPrediction>()
+            .FromFile(
+                modelName: CategorySuggester.ModelName,
+                filePath: Path.Combine(modelsPath, "category-classification.zip"),
+                watchForChanges: true);
+
+        services.AddSingleton<ICategorySuggester, CategorySuggester>();
+
+        // Each future model (spam in B5) registers its own
+        // PredictionEnginePool here alongside the ones above.
 
         return services;
     }

@@ -129,6 +129,7 @@ flowchart LR
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
 | Get suggested price | `SuggestPrice` (AI) | `POST /api/v1/listings/price-suggestion` | suggestion only, never applied |
+| Get suggested category | `SuggestCategory` (AI) | `POST /api/v1/listings/category-suggestion` | suggestion only, the seller still picks the category |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -148,6 +149,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
+| Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1), 400, 401 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
@@ -612,7 +614,7 @@ Retrain the models (no error if no trainer has been registered yet):
 dotnet run --project ml/CampusMarket.ML.Training
 ```
 
-The concrete models (price in B3, category in B4, spam in B5) are added later,
+The concrete models (price in B3, category in B4, spam in B5) are added
 one per task. Their `PredictionEnginePool` registrations live in
 `src/CampusMarket.Api/Infrastructure/ML/`.
 
@@ -635,5 +637,30 @@ one per task. Their `PredictionEnginePool` registrations live in
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
   on the same split and fails if R² drops below 0.8, or if, for the same title,
   `Condition = New` is not priced higher than `Condition = Worn`.
+
+### Category suggestion model (B4)
+
+- Trainer: `CategoryTrainer` in `ml/CampusMarket.ML.Training`, multiclass
+  classification with SDCA maximum entropy on the non-spam rows only. Features:
+  `Title` and `Description` through `FeaturizeText`, concatenated. Label: `Category`.
+- Metrics on the 20% hold-out (seed 42, non-spam rows):
+
+  | Metric | Value |
+  |---|---|
+  | Micro accuracy | **1.000** |
+  | Macro accuracy | 1.000 |
+  | Log loss | 0.014 |
+
+  The accuracy is this high because the dataset is synthetic: every category uses
+  its own words in the title. Real listings would score lower.
+- The saved model (`ml/models/category-classification.zip`) is loaded by the API
+  through `PredictionEnginePool<CategoryInput, CategoryPrediction>`; the
+  `SuggestCategory` slice depends on `ICategorySuggester` (in `Common/Categories/`).
+  The confidence is the highest class probability, rounded to two decimals.
+- There is no category for items like clothes, so the model always picks the
+  closest of the five; it is only a suggestion and the seller can change it.
+- Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
+  on the same split and fails if the micro accuracy drops below 0.9, or if three
+  listings written by hand (not in the CSV) get the wrong category.
 
 ---

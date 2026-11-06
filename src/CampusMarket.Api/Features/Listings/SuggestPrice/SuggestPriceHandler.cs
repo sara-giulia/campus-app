@@ -29,16 +29,6 @@ public sealed class SuggestPriceHandler(IPriceSuggester suggester)
         if (!Enum.IsDefined(query.Condition))
             return Error.Validation("Listing.ConditionInvalid", "Unknown condition.");
 
-        if (query.Description is not null && query.Description.Trim().Length > Listing.MaxDescriptionLength)
-            return Error.Validation("Listing.DescriptionTooLong",
-                $"Description must have at most {Listing.MaxDescriptionLength} characters.");
-
-        if (string.IsNullOrWhiteSpace(query.Title))
-            return Error.Validation("Listing.TitleEmpty", "Title must not be empty.");
-        if (query.Title.Trim().Length > Listing.MaxTitleLength)
-            return Error.Validation("Listing.TitleTooLong",
-                $"Title must have at most {Listing.MaxTitleLength} characters.");
-
-        return null;
+        return Listing.ValidateText(query.Title, query.Description);
     }
 }
