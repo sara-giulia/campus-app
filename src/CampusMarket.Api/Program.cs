@@ -9,6 +9,8 @@ builder.Services.AddCampusMarketErrorHandling();
 
 var app = builder.Build();
 
+app.MapHealthChecks("/health");
+
 app.EnsureCampusMarketDatabase();
 
 // Order matters: a middleware only sees what runs after it.

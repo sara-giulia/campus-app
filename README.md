@@ -11,6 +11,16 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 
 Unit tests: `dotnet test` from the repository root.
 
+### With Docker
+
+1. `docker compose up --build` from the repository root. The API listens on `http://localhost:5080` (port 8080 inside the container).
+2. Check that it runs: `GET http://localhost:5080/health` answers `200 Healthy`.
+3. In Postman, set the `baseUrl` collection variable to `http://localhost:5080` and run the collection.
+
+- `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
+- The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container; there is no volume, so the data is gone when the container is removed (`docker compose down`).
+- The image build fails if the trained price model `ml-models/price-regression.zip` was not copied.
+
 ---
 
 ## Table of contents
@@ -147,6 +157,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
+| Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 
 GET endpoints are public, except `GET /api/v1/members/me/reservations` and `GET /api/v1/members/me/favorites`. POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 

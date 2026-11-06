@@ -868,20 +868,41 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 6d8b7bb; generated code 33c179b
 
-### Run 15, skill v14 (Feature: Favorites)
+### Run 15, skill v14 (Feature: Health check)
 
-- **Why a new version:** A3 added three endpoints under `/api/v1/members/me/favorites` and a `Favorites` table with foreign keys to `Members` and `Listings`. They had no integration tests.
+- **Why a new version:** the Docker PR added `GET /health`, and the review asked for tests. The endpoint had none.
 
 #### Change to SKILL.md (v13 → v14) and why
 
 | # | v13 (before) | v14 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about `/health`; section 1 says every route is under `/api/v1`. | New section *"Feature: Health check (Sara)"*: `GET /health` is outside `/api/v1`, needs no login and answers 200 with the plain text `Healthy`. | Without it Claude would look for the endpoint under `/api/v1` and read the body as JSON. |
+| 2 | — | Three tests: no token → 200 `Healthy`, a student token → 200 `Healthy`, `GET /api/v1/health` → 404 ProblemDetails `Route.NotFound`. *"Do not try to make the database unreachable; the 503 case is not tested."* | Proves the endpoint is public and not part of the versioned API, without breaking the shared in-memory database. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Health check (Sara)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v14, commit 56fdb10 (section written by Ancuța Ilenei for the Docker PR of Sara Matasel, with Claude Code; run in a new session)
+- **Result:** new file `Health/HealthCheckTests.cs` with the 3 tests, each also checking that the database still has 0 listings and 0 members. No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 401 tests pass (10 architecture, 263 unit, 4 ML, 124 integration), the integration tests three times in a row.
+- **Problems seen (reported by the run, not fixed in the skill):**
+    1. The section does not name the student id; the run used a fixed `StudentId` (`22222222-...`).
+    2. Sections 1 and 10 of the skill are out of date (all routes under `/api/v1`, "both test projects").
+    3. Not from this run: `ReservationExpiryTests.Given_JobExpiredTheReservation_When_AnotherMemberReserves_Then_Returns201` failed once in about ten runs with 500. The expiry job keeps running every 200 ms during the Act and shares the one in-memory SQLite connection with the request. Reported to Sara, not changed here.
+- **Change to SKILL.md:** none after the run.
+- **Commits:** skill 56fdb10; generated code c1eebb4
+
+### Run 16, skill v15 (Feature: Favorites)
+
+- **Why a new version:** A3 added three endpoints under `/api/v1/members/me/favorites` and a `Favorites` table with foreign keys to `Members` and `Listings`. They had no integration tests.
+
+#### Change to SKILL.md (v14 → v15) and why
+
+| # | v14 (before) | v15 (after) | Why |
 |---|---|---|---|
 | 1 | Nothing about favorites. | New section *"Feature: Favorites (Anca)"*: a table with the three requests, their success and failure answers, the files and the list of tests. | Without it Claude would have to guess the routes and the error codes. |
 | 2 | *"Members do not need to exist in the database to log in: the token is enough."* (Ownership) | *"the member who saves a listing **must be seeded** (unlike the other features, a token alone is not enough)"*, plus a test for a member that is not in the database → 404 `Member.NotFound`. | The foreign key to `Members` would make an unseeded member fail; the handler answers 404 before the save. |
 | 3 | — | The cascade test: the seller deletes the listing → the member's favorite is gone from the database. | Proves the `OnDelete(Cascade)` of the configuration, which no unit test can see. |
 
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Favorites (Anca)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
-- **Skill version:** v14, commit fa4e09a (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Skill version:** v15, commit fa4e09a (committed as "v14"; renumbered because the Docker PR made v14) (section written by Ancuța Ilenei with Claude Code; run in a new session)
 - **Result:** three new files in `Favorites/`: `AddFavoriteTests` (7), `RemoveFavoriteTests` (5, with the cascade test), `GetMyFavoritesTests` (7 cases). No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 448 tests pass (10 architecture, 294 unit, 4 ML, 140 integration), the integration tests three times in a row. The whole Postman collection was also run with `newman` on the running API: 89 requests, 178 assertions, 0 failures.
 - **Problems seen (reported by the run, not fixed in the skill):**
     1. Sections 1 and 3 say the schema comes from `EnsureCreatedAsync()`, but the app already runs `Migrate()` at startup; it works either way.
@@ -1325,6 +1346,20 @@ Week 5, task A5 (global exception handler + ProblemDetails). Infrastructure code
     2. A 409 could not be produced by sending two reservations in parallel by hand (the requests arrive one after the other locally, the second gets 400 `Listing.NotActive`); the integration test makes the conflict happen on purpose instead.
 - **Commits:** code db40206; tests generated in 33c179b (see Run 14 of integration-testing)
 
+## docker
+
+Backlog task (Docker + docker-compose + health checks). Dockerfile, `docker-compose.yml`, `.dockerignore` and the `/health` endpoint written by Sara Matasel; the review asked for the README, Postman, the tests and this entry, which were added by Ancuța Ilenei on the same branch.
+
+### Run 1
+
+- **What:** a two-stage `Dockerfile` (SDK image to publish, ASP.NET image to run) that fails the build when `ml-models/price-regression.zip` is missing; `docker-compose.yml` with port `5080:8080` and `ASPNETCORE_ENVIRONMENT=Development`; `AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>()` and `MapHealthChecks("/health")`.
+- **Review changes:** the first version ran as root and set `Development` in the image, and Sonar failed on the Dockerfile. Fixed by running as the image's non-root user (`USER $APP_UID`), with the SQLite file in `/app/data` that this user can write to, and by moving `Development` to `docker-compose.yml`.
+- **Added after the review:** README ("With Docker" under "How to run", `/health` in the endpoint table), Postman (folder `Health` with `GET /health`), integration tests generated with the integration-testing skill (see the "Health check" run of integration-testing), and this entry. `main` was merged into the branch first, so the tests run against the error handling of A5.
+- **Problems seen:**
+    1. There is no volume in `docker-compose.yml`, so the database is lost when the container is removed; written in the README.
+    2. Running the image without `docker-compose` uses `Production`, which has no JWT key; written in the README that the container is a local demo.
+- **Commits:** code 956ebe8, 1ae3ae9; README and Postman 516d3b2; skill 56fdb10; tests c1eebb4
+
 ## favorites
 
 Week 5, task A3 (favorites). New entity and three slices, written by Ancuța Ilenei with Claude Code in the shape of the existing slices (`cqrs` skill conventions, paging copied from `GetListings`); the tests were generated afterwards with the unit-testing (Run 16) and integration-testing skills.
@@ -1340,4 +1375,4 @@ Week 5, task A3 (favorites). New entity and three slices, written by Ancuța Ile
 - **Result:** `Domain/Favorites/` (`Favorite`, `IFavoriteRepository`), `Infrastructure/Persistence/` (`FavoriteConfiguration`, `EfFavoriteRepository`, `DbSet<Favorite>`), migration `AddFavorites`, `Features/Favorites/` (`AddFavorite`, `RemoveFavorite`, `GetMyFavorites`, `FavoritesEndpoints`), two lines in `CampusMarketSetup.cs`. `dotnet ef migrations has-pending-model-changes`: no changes. Build 0 errors, 0 warnings; the existing 398 tests pass. Checked by hand on the running API: draft 400, 201, again 409, own listing 400, unknown listing 404, list 200, page 0 400, no token 401, remove 204, again 404, and deleting the listing removes the favorite from the database. README: endpoints, error codes and a "Favorites" section. Postman: a new `Favorites` folder with 13 requests and the variable `favListingId`.
 - **Problems seen:**
     1. The first version also refused hidden listings and hid them in the list. No code can make a listing `Hidden` yet, so those branches were removed before the tests and moved to B5.
-- **Commits:** code 91b81a2; tests generated in 25c29b8 (see Run 16 of unit-testing and Run 15 of integration-testing)
+- **Commits:** code 91b81a2; tests generated in 25c29b8 (see Run 16 of unit-testing and Run 16 of integration-testing)
