@@ -1025,6 +1025,22 @@ Skill v5 written by Sara Matasel, run by Ancuța Ilenei.
 - **Problems found:** reported only, not fixed in this PR.
 - **Commits:** skill 742806e; review output in REVIEW.md
 
+### v5 → v6: the same repository must give the same table
+
+- **Why a new version:** v5 did not report the two v3 rows (`Reservation.cs:32`, `ListingTests.cs:289`), although they were still in the code (see run 5, "Problems seen"). Issue #47.
+
+#### Change to SKILL.md (v5 → v6) and why
+
+| # | v5 (before) | v6 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about earlier reviews. | *"Then read `REVIEW.md`, if it exists. For every row of an earlier review, open the file and check whether the problem is still in the code … If it is, report it again in this table."* | A problem that is still in the code must stay in the table, whatever the new checks find. |
+| 2 | One checklist, done in any order. | *"Do the review in two passes … 1. the checklist items below except requirements, for every file; 2. the requirements check against the README. The second pass only adds rows."* | In v5 the requirements check took the attention of the run and the old checklist items were skipped. |
+| 3 | **domain invariants:** public setters, public constructors, invalid states, collections changed from outside. | Also: *"Does a child entity (for example a `Reservation` inside a `Listing`) have a public method that changes its state, so a caller can skip the parent and break the parent's rules?"* | `Reservation.Cancel()` was found by v3 but not by v5, because no checklist item asked for it. |
+
+- **Written by:** Diana Preutu
+- **Check run:** to be added. v6 has to be run on `c4191e6` (the commit v5 reviewed, where the two v3 problems were still in the code) to show that it now reports them.
+- **Commits:** skill cb61e43
+
 ---
 
 ## architecture-testing
