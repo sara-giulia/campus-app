@@ -44,5 +44,22 @@ jobs:
         
       - name: End analysis
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
-        
-        
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image and wait until the container is healthy
+        run: docker compose up -d --build --wait --wait-timeout 120
+
+      - name: Check /health
+        run: curl -fs http://localhost:5080/health
+
+      - name: Container logs
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop and remove the container and the volume
+        if: always()
+        run: docker compose down -v
