@@ -92,9 +92,11 @@ public static class CampusMarketSetup
         services.AddOptions<ReservationExpiryOptions>()
             .Bind(configuration.GetSection(ReservationExpiryOptions.SectionName));
 
-        var expiryOptions = configuration.GetSection(ReservationExpiryOptions.SectionName)
-            .Get<ReservationExpiryOptions>() ?? new ReservationExpiryOptions();
-        if (expiryOptions.Enabled)
+        // Same default as ReservationExpiryOptions.Enabled when the setting is missing.
+        var expiryEnabled = configuration.GetValue(
+            $"{ReservationExpiryOptions.SectionName}:{nameof(ReservationExpiryOptions.Enabled)}",
+            new ReservationExpiryOptions().Enabled);
+        if (expiryEnabled)
             services.AddHostedService<ReservationExpiryService>();
 
         // Enums are sent as text in JSON ("Active"), not as numbers (1)

@@ -38,8 +38,9 @@ public sealed class ReservationExpiryService(
 
             try
             {
-                if (!await timer.WaitForNextTickAsync(stoppingToken))
-                    break;
+                // It returns false only after the timer is disposed, which happens when this method
+                // ends; the loop stops through the cancellation below.
+                await timer.WaitForNextTickAsync(stoppingToken);
             }
             catch (OperationCanceledException)
             {
