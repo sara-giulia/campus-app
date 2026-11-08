@@ -6,7 +6,11 @@ using CampusMarket.Api.Features.Auth.Login;
 using CampusMarket.Api.Infrastructure.Auth;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CampusMarket.IntegrationTests.Auth;
 
@@ -163,6 +167,80 @@ public sealed class LoginTests : IntegrationTestBase
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_FiveAttemptsFromOneIp_When_LoggingInFromAnotherIp_Then_Returns200()
+    {
+        // Arrange
+        var member = BuildMemberWithPassword("ana@student.ro", "secret12");
+        await SeedAsync(member);
+        await using var app = WithRemoteIp();
+        var client = app.CreateClient();
+        await ExhaustLoginRateLimitFromIpAsync(client, "10.0.0.1", new LoginRequest("ana@student.ro", "wrong-password"));
+        var request = LoginFromIp("10.0.0.2", new LoginRequest("ana@student.ro", "secret12"));
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<LoginResponse>(Json);
+        body!.Token.Should().NotBeNullOrWhiteSpace();
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_FiveAttemptsFromOneIp_When_LoggingInAgainFromTheSameIp_Then_Returns429()
+    {
+        // Arrange
+        var member = BuildMemberWithPassword("ana@student.ro", "secret12");
+        await SeedAsync(member);
+        await using var app = WithRemoteIp();
+        var client = app.CreateClient();
+        await ExhaustLoginRateLimitFromIpAsync(client, "10.0.0.1", new LoginRequest("ana@student.ro", "wrong-password"));
+        var request = LoginFromIp("10.0.0.1", new LoginRequest("ana@student.ro", "secret12"));
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Status.Should().Be((int)HttpStatusCode.TooManyRequests);
+        problem.Code.Should().Be("Request.TooManyRequests");
+        problem.Instance.Should().Be("/api/v1/auth/login");
+        problem.TraceId.Should().NotBeEmpty();
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(1);
+    }
+
+    // Starts a copy of the API that reads the remote IP from the X-Test-Remote-Ip header.
+    private WebApplicationFactory<Program> WithRemoteIp() =>
+        Factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+                services.AddSingleton<IStartupFilter, TestRemoteIpStartupFilter>()));
+
+    private static HttpRequestMessage LoginFromIp(string ip, LoginRequest login)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+        {
+            Content = JsonContent.Create(login, options: Json)
+        };
+        request.Headers.Add(TestRemoteIpStartupFilter.HeaderName, ip);
+        return request;
+    }
+
+    private static async Task ExhaustLoginRateLimitFromIpAsync(HttpClient client, string ip, LoginRequest login)
+    {
+        for (var i = 0; i < 5; i++)
+            await client.SendAsync(LoginFromIp(ip, login));
     }
 
     private async Task ExhaustLoginRateLimitAsync(LoginRequest request)
