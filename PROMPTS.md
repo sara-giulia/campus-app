@@ -1082,6 +1082,47 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
+### Run 21, skill v20 (Feature: Whole project coverage)
+
+- **Why a new version:** SonarCloud measures the coverage of the whole API, not only `Domain/` and the handlers (the team's final step). After all the tests, 8 files still had uncovered lines: the `AddAsync` duplicate check of the five EF repositories, the 409 of `CreateListingEndpoint`, the rate limit partition and the failed admin seed in `CampusMarketSetup.cs`, and the error paths of `ReservationExpiryService`. None of them can be reached with a normal request.
+
+#### Change to SKILL.md (v19 → v20) and why
+
+| # | v19 (before) | v20 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the lines Sonar still showed. | New section *"Feature: Whole project coverage (Anca)"*: for each uncovered line, the production code, the fake or setting needed, and the tests to add. | Without it Claude would not know which lines are missing or how to reach code that no request can reach. |
+| 2 | — | Fakes through `WithWebHostBuilder` + `ConfigureTestServices`: a listing repository whose `AddAsync` returns false, a hasher with an empty hash, a fake expiry handler, a startup filter that sets the request IP, a logger provider that keeps the logs. | The same way `ThrowingUnitOfWork` is used; the factory and the base class stay unchanged. |
+| 3 | Section 3 said the schema is created by `EnsureCreatedAsync()`; section 10 said "both test projects". | The schema is created by `Migrate()` at startup and `EnsureCreatedAsync()` does nothing; "all four test projects". | Both were out of date. |
+
+- **Code changed by hand before the run:** two branches that can never run. `CampusMarketSetup.cs`: `Get<ReservationExpiryOptions>() ?? new ...` replaced by `GetValue("ReservationExpiry:Enabled", default)`, same behaviour. `ReservationExpiryService.cs`: `if (!await timer.WaitForNextTickAsync(...)) break;` became `await timer.WaitForNextTickAsync(...)`, because it returns false only after the timer is disposed, which happens when the method ends.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Whole project coverage (Anca)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session; it was also asked to run the integration tests three times and list the lines still uncovered when the coverage of all test projects is merged)
+- **Skill version:** v20, commit a62a6b4 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** 17 new tests. New: `Infrastructure/RepositoryTests` (10), `Infrastructure/ReservationExpiryServiceTests` (3) and five helpers in `Infrastructure/` (`DuplicateIdListingRepository`, `EmptyHashPasswordHasher`, `TestRemoteIpStartupFilter`, `CapturingLoggerProvider`, `FakeExpireReservationsHandler`). Added: one test in `CreateListingTests` (409 `Listing.Duplicate`), two in `LoginTests` (another IP has its own limit, the same IP gets 429), one in `SeedAdminTests` (empty hash → no admin). No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 674 tests pass (10 architecture, 432 unit, 13 ML, 219 integration). No uncovered line or branch left in the merged coverage (`Program.cs`, `ml/` and migrations excluded, as in the CI).
+- **Problems seen (reported by the run):**
+    1. The section contradicted two general rules: section 7 forbids calling repositories from a test, section 6 says the Act is one HTTP call. The run followed the section.
+    2. The section said `AddScoped` for every fake, but `IPasswordHasher` is a singleton; the run registered the fake as a singleton.
+    3. Section 10 says `git status` lists only `tests/`, but the two hand changes in `src/` are listed too.
+    4. One full `dotnet test` out of about 25 runs (the run's, then 11 integration-only and 10 full runs checked afterwards) had one failed integration test; it could not be repeated and its name was not kept. Probably the known flaky `ReservationExpiryTests` test.
+- **Change to SKILL.md after the run:** the rules of the section now say that it is the only exception to sections 6 and 7, that a fake keeps the lifetime of the real service, and that the section goes with the two changes in `src/`.
+- **Commits:** skill a62a6b4; generated code 2872870
+
+### Run 22, skill v21 (CA1859 rule)
+
+- **Why a new version:** after PR #71, SonarCloud reported one issue in the generated tests: CA1859 on `ReservationExpiryServiceTests.ServiceErrors`, which was declared as `IReadOnlyList<...>` but always returns `.ToList()`.
+
+#### Change to SKILL.md (v20 → v21) and why
+
+| # | v20 (before) | v21 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about analyzer warnings. | Section 7: a private helper returns its concrete type (`List<T>`, not `IReadOnlyList<T>`); after generating, build with a SARIF log and check that the test files have no CA or IDE diagnostic. | Sonar imports these Roslyn suggestions as issues, but `dotnet build` does not show them, so the run could not see them. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them all. SonarCloud reports CA1859 on ReservationExpiryServiceTests.cs line 47. Apply the new rule in section 7 to the existing integration tests: fix that helper and any other helper that breaks the same rule. Do not change test names, assertions or behaviour.` (new session)
+- **Skill version:** v21, commit TODO (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** one line changed: `ServiceErrors` returns `List<CapturingLoggerProvider.Entry>`. No other helper broke the rule (the other interface return types are public members of interfaces). The SARIF log of the test project has no diagnostics. 674 tests pass, the integration tests three times in a row.
+- **Problems seen:** the rule says "the new test files"; when it is applied to existing tests it should mean the whole test project, which is what the run checked.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill TODO; generated code TODO
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -1678,3 +1719,31 @@ Week 5, task A2 (seller reviews). New entity and two slices, written by Ancuța 
     - Foreign keys from `Reviews` to `Listings` and to `Members` (seller and reviewer), all with cascade delete.
 - **Result:** `Domain/Reviews/` (`Review`, `IReviewRepository`), `Infrastructure/Persistence/` (`ReviewConfiguration`, `EfReviewRepository`, `DbSet<Review>`), migration `AddReviews`, `Features/Reviews/` (`AddReview`, `GetMemberReviews`, `ReviewsEndpoints`), three lines in `CampusMarketSetup.cs`. `dotnet ef migrations has-pending-model-changes`: no changes. Build 0 errors, 0 warnings; the existing 596 tests pass. Checked by hand on the running API (on a separate database): before the sale 400, another member 403, the seller 403, rating 0 and 6 400, comment of 501 characters 400, the buyer 201 with `Location`, again 409, unknown listing 404, no token 401; the seller's reviews without a token 200 with the average 4.5 for ratings 5 and 4, `page=0` 400, `pageSize=101` 400, unknown member 404, and page 2 of size 1 still gives the average over both. README: endpoints, error codes and a "Seller reviews" section. Postman: a new `Reviews` folder with 13 requests.
 - **Commits:** code 452f178; tests generated in 1d76998 (see Run 20 of unit-testing and Run 20 of integration-testing)
+
+## full-coverage
+
+Team final step: 100% coverage of the whole project in SonarCloud, not only of `Domain/` and the handlers. Done by Ancuța Ilenei with Claude Code; the tests were generated with the integration-testing skill (Run 21).
+
+### Run 1
+
+- **Prompt:** `Sonar shows these files below 100% (ReservationExpiryService, the five Ef*Repository, CreateListingEndpoint, CampusMarketSetup). Take the latest main and fix everything.`
+- **How:** all four test projects run with coverage, the opencover reports merged with a small script that prints every line and branch not covered in any of them (the same list as Sonar). For each line: a test when the code can run, a change when it can never run.
+- **Code changes:** two, same behaviour:
+    - `CampusMarketSetup.cs`: `configuration.GetSection(...).Get<ReservationExpiryOptions>() ?? new ReservationExpiryOptions()` → `configuration.GetValue("ReservationExpiry:Enabled", new ReservationExpiryOptions().Enabled)`. The `??` side ran only when the section is missing, which never happens in the tests.
+    - `ReservationExpiryService.cs`: `if (!await timer.WaitForNextTickAsync(stoppingToken)) break;` → `await timer.WaitForNextTickAsync(stoppingToken);`. `WaitForNextTickAsync` returns false only after the timer is disposed, and the timer is disposed only when the method ends, so the `break` could never run. The loop still ends through the cancellation.
+- **Result:** after Run 21 of integration-testing, no uncovered line or branch in the merged reports; 674 tests pass.
+- **Problems seen:**
+    1. The duplicate checks in the `Ef*Repository.AddAsync` methods and the 409 of `CreateListingEndpoint` cannot be reached over HTTP, because the domain always creates a new `Guid`. They are tested on the repositories and with a fake repository instead of being removed, since the handlers and their unit tests use the `false` result.
+- **Commits:** code 878ee4c; tests generated in 2872870 (see Run 21 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `Sonar shows 3 issues and 98.9% coverage on main, and one issue on PR #71. Update everything and fix it so Sonar shows no issue and 100%.`
+- **How:** Sonar's issues here are Roslyn suggestions (`roslyn` tag), which `dotnet build` does not print. Every project was built with `-p:ErrorLog=<file>.sarif%2Cversion=2.1` and the SARIF files read: the same 4 issues as Sonar (3 on main, 1 on the PR). `main` (with #70) was merged into the branch first.
+- **Result:**
+    - `ReservationExpiryService.cs`, CA1873 twice (a log argument is evaluated even when the level is off): the four log calls became `[LoggerMessage]` source-generated methods (`LogStarted`, `LogRunException`, `LogRunFailed`, `LogExpired`), which check the level first. Same messages, the tests that read the logs still pass.
+    - `ml/.../PriceTrainer.cs`, CA1859: the trained model is declared as `ITransformer`, the type `IModelTrainer` returns, so `Evaluate(ITransformer)` is no longer flagged. The `// NOSONAR` comment above `Evaluate` was removed: it was on another line than the issue, and Roslyn issues are not suppressed by `NOSONAR`.
+    - `ReservationExpiryServiceTests.cs`, CA1859: fixed by the skill (Run 22 of integration-testing).
+    - Coverage: with the coverage of all test projects merged, the only lines left were the `Down()` methods of the EF Core migrations, which never run (the app only applies migrations). `**/Migrations/**` was added to `sonar.coverage.exclusions` in the CI, next to `Program.cs` and `ml/**`, and written in the README under "Coverage exclusions".
+    - The SARIF logs still show CA1861 in two migrations; those files are generated by EF Core and Sonar does not report them.
+- **Commits:** code TODO; tests generated in TODO (see Run 22 of integration-testing)

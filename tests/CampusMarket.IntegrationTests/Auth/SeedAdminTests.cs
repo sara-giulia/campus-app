@@ -6,7 +6,10 @@ using CampusMarket.Api.Infrastructure.Auth;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CampusMarket.IntegrationTests.Auth;
 
@@ -116,6 +119,29 @@ public sealed class SeedAdminTests : IntegrationTestBase
     {
         // Arrange
         await using var seeded = WithAdminSeed("admin@campus.test", adminPassword: "");
+        var client = seeded.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).Should().Be("CampusMarket API is running");
+
+        var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_HasherReturnsEmptyHash_When_StartingTheApp_Then_SeedsNothing()
+    {
+        // Arrange
+        await using var seeded = WithAdminSeed("admin@campus.test").WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IPasswordHasher>();
+                services.AddSingleton<IPasswordHasher, EmptyHashPasswordHasher>();
+            }));
         var client = seeded.CreateClient();
 
         // Act

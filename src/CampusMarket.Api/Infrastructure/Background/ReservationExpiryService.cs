@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace CampusMarket.Api.Infrastructure.Background;
 
-public sealed class ReservationExpiryService(
+public sealed partial class ReservationExpiryService(
     IServiceScopeFactory scopeFactory,
     IOptions<ReservationExpiryOptions> options,
     TimeProvider timeProvider,
@@ -16,8 +16,7 @@ public sealed class ReservationExpiryService(
         var interval = options.Value.Interval;
         using var timer = new PeriodicTimer(interval, timeProvider);
 
-        logger.LogInformation(
-            "ReservationExpiryService started; running every {Interval}.", interval);
+        LogStarted(logger, interval);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -33,13 +32,14 @@ public sealed class ReservationExpiryService(
             catch (Exception ex)
             {
                 // Catch so one failed run does not stop the service.
-                logger.LogError(ex, "ReservationExpiryService run failed.");
+                LogRunException(logger, ex);
             }
 
             try
             {
-                if (!await timer.WaitForNextTickAsync(stoppingToken))
-                    break;
+                // It returns false only after the timer is disposed, which happens when this method
+                // ends; the loop stops through the cancellation below.
+                await timer.WaitForNextTickAsync(stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -59,16 +59,25 @@ public sealed class ReservationExpiryService(
 
         if (result.IsFailure)
         {
-            var error = result.Error;
-            logger.LogError(
-                "ReservationExpiryService run failed: {Code} {Message}",
-                error.Code, error.Message);
+            LogRunFailed(logger, result.Error.Code, result.Error.Message);
             return;
         }
 
         var expired = result.Value;
         if (expired > 0)
-            logger.LogInformation(
-                "ReservationExpiryService expired {Count} reservation(s).", expired);
+            LogExpired(logger, expired);
     }
+
+    // Source-generated log methods: the arguments are only formatted when the log level is enabled.
+    [LoggerMessage(Level = LogLevel.Information, Message = "ReservationExpiryService started; running every {Interval}.")]
+    private static partial void LogStarted(ILogger logger, TimeSpan interval);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "ReservationExpiryService run failed.")]
+    private static partial void LogRunException(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "ReservationExpiryService run failed: {Code} {Message}")]
+    private static partial void LogRunFailed(ILogger logger, string code, string message);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "ReservationExpiryService expired {Count} reservation(s).")]
+    private static partial void LogExpired(ILogger logger, int count);
 }

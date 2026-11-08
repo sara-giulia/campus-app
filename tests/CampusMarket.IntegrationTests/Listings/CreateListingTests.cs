@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
@@ -6,7 +7,10 @@ using CampusMarket.Api.Features.Listings.CreateListing;
 using CampusMarket.Api.Features.Listings.GetListingById;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CampusMarket.IntegrationTests.Listings;
 
@@ -164,6 +168,35 @@ public sealed class CreateListingTests : IntegrationTestBase
         problem.Code.Should().Be("Auth.Unauthorized");
         problem.Instance.Should().Be("/api/v1/listings");
         problem.TraceId.Should().NotBeEmpty();
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_RepositoryReportsDuplicateId_When_CreatingListing_Then_Returns409AndSavesNothing()
+    {
+        // Arrange
+        await using var app = Factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IListingRepository>();
+                services.AddScoped<IListingRepository, DuplicateIdListingRepository>();
+            }));
+        var client = app.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", TestTokens.Create(SellerId));
+        var request = new CreateListingRequest("Manual POO", Category.Textbook, Condition.Good, 50m);
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/v1/listings", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.Duplicate");
+        error.Type.Should().Be(ErrorType.Conflict);
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);

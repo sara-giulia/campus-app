@@ -30,7 +30,8 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
                 "CategoryEncoded", "ConditionEncoded", "TitleFeatures", "DescriptionFeatures"))
             .Append(mlContext.Regression.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features"));
 
-        var model = pipeline.Fit(trainNonSpam);
+        // ITransformer, the type that IModelTrainer returns for every model
+        ITransformer model = pipeline.Fit(trainNonSpam);
 
         var metrics = Evaluate(mlContext, model, testNonSpam);
         var text =
@@ -58,7 +59,6 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
         return mlContext.Data.LoadFromEnumerable(rows);
     }
 
-    // NOSONAR: ITransformer keeps IModelTrainer the same for every model
     private PriceMetrics Evaluate(MLContext mlContext, ITransformer model, IDataView test)
     {
         var scored = model.Transform(test);
