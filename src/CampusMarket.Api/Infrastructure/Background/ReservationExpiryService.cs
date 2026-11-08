@@ -59,14 +59,16 @@ public sealed class ReservationExpiryService(
 
         if (result.IsFailure)
         {
+            var error = result.Error;
             logger.LogError(
                 "ReservationExpiryService run failed: {Code} {Message}",
-                result.Error.Code, result.Error.Message);
+                error.Code, error.Message);
             return;
         }
 
-        if (result.Value > 0)
+        var expired = result.Value;
+        if (expired > 0)
             logger.LogInformation(
-                "ReservationExpiryService expired {Count} reservation(s).", result.Value);
+                "ReservationExpiryService expired {Count} reservation(s).", expired);
     }
 }
