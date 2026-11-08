@@ -1644,7 +1644,7 @@ Follow-up of Run 1, asked by Sara Matasel after the week 5 tasks were merged; wr
 - **Problems seen:**
     1. Docker Desktop needs WSL 2, which was not installed on the laptop (`wsl --install --no-distribution` and a restart first).
     2. Running the image without `docker-compose` still uses `Production`, which has no JWT key (problem 2 of Run 1, unchanged).
-- **Commits:** code TODO; PROMPTS TODO
+- **Commits:** code 61782f9
 
 ## favorites
 
