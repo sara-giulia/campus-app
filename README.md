@@ -660,6 +660,8 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 - `ml/**`: dev tools for the AI module (synthetic dataset generator), not app code shipped by the API.
 
+SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
+
 ---
 
 ## Machine learning
