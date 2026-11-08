@@ -78,7 +78,7 @@ public partial class Program { }
 - SQLite `DataSource=:memory:` keeps the database in RAM. It lives only while its connection is open: when the connection closes, the database is gone.
 - So the factory opens one `SqliteConnection` itself, keeps it open for the whole test, and gives that same connection to EF Core. It closes it when the factory is disposed.
 - xUnit creates a new instance of the test class for every test. `IntegrationTestBase` creates a new factory (so a new connection and a new empty database) in `InitializeAsync` and disposes it in `DisposeAsync`. No test sees the data of another test, and the order of the tests does not matter.
-- The schema is created with `Database.EnsureCreatedAsync()` right after the factory starts.
+- The schema is created by the app itself: at startup `Program.cs` calls `EnsureCampusMarketDatabase()`, which runs `Database.Migrate()` on the open connection. The `EnsureCreatedAsync()` call in `IntegrationTestBase` then finds the tables already there and does nothing; keep it.
 
 `Infrastructure/CampusMarketApiFactory.cs`
 
@@ -325,7 +325,7 @@ exists.Should().BeFalse();
 ## 10. Check after generating
 
 - `dotnet build` finishes with 0 errors and 0 warnings.
-- `dotnet test` passes for both test projects.
+- `dotnet test` passes for all four test projects (unit, integration, ML, architecture).
 - `dotnet test tests/CampusMarket.IntegrationTests` passes three runs in a row (no flaky tests).
 - There are at least 20 tests, and every slice of the 10 has at least two.
 - Every test checks the status code, the body (or that it is empty) and the database.
@@ -742,3 +742,41 @@ Tests to add (status, body, then the database through `db.Set<Review>()`):
 Rules for this feature:
 - Read 400/403/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Whole project coverage (Anca)
+
+SonarCloud measures the coverage of the whole API (only `Program.cs`, `ml/**` and the migrations are left out), not only of `Domain/` and the handlers. After every test project runs, these lines are still not covered. Add the tests below and nothing else; keep every existing test.
+
+Production code (read it before generating):
+- `Infrastructure/Persistence/Ef*Repository.cs` (`EfListingRepository`, `EfMemberRepository`, `EfFavoriteRepository`, `EfReportRepository`, `EfReviewRepository`): `AddAsync` returns `false` without adding when an entity with the same `Id` is already in the database, otherwise it adds it (saved at the next `SaveChangesAsync`) and returns `true`. The domain always creates a new `Guid`, so no HTTP request can reach the `false` branch.
+- `Features/Listings/CreateListing/CreateListingEndpoint.cs`: maps `ErrorType.Conflict` (`Listing.Duplicate`, when `IListingRepository.AddAsync` returns `false`) to 409, everything else to 400.
+- `CampusMarketSetup.cs`:
+    - the `login` rate limit policy: 5 requests per minute per partition; the partition is `context.Connection.RemoteIpAddress?.ToString() ?? "unknown"`. The test server leaves `RemoteIpAddress` null, so every existing test uses the `"unknown"` partition.
+    - `SeedAdmin`: after the email check it calls `Member.Register("Admin", email, hasher.Hash(password), ...)` and returns without saving when it fails (for example an empty hash: `Member.PasswordRequired`).
+- `Infrastructure/Background/ReservationExpiryService.cs`: every `ReservationExpiry:Interval` it resolves `ICommandHandler<ExpireReservationsCommand, int>` in a new scope and runs it. A failed `Result` is logged with `LogError` ("ReservationExpiryService run failed: {Code} {Message}") and the service keeps running; an exception is logged with `LogError(ex, "ReservationExpiryService run failed.")` and the service keeps running; an `OperationCanceledException` while the host is stopping ends the loop without an error log.
+
+Test host:
+- Never change `CampusMarketApiFactory` or `IntegrationTestBase`. Every special setup goes through `Factory.WithWebHostBuilder(...)` in the test class (a copy of the API on the same in-memory database, started at its first `CreateClient()`, disposed with `await using`), the same way `SeedAdminTests` and `ReservationExpiryTests` do.
+- Replace a service with `builder.ConfigureTestServices(services => { services.RemoveAll<T>(); services.AddScoped<T, Fake>(); })`. New fakes go in `Infrastructure/` of the test project, next to `ThrowingUnitOfWork`, one class per file, with a one-line comment that says what they do.
+- To give a request an IP address, register an `IStartupFilter` (`Infrastructure/TestRemoteIpStartupFilter.cs`) that adds a first middleware: when the request has the header `X-Test-Remote-Ip`, it sets `context.Connection.RemoteIpAddress = IPAddress.Parse(value)`.
+- To read the logs of the background service, register a hand-written `ILoggerProvider` (`Infrastructure/CapturingLoggerProvider.cs`) with `builder.ConfigureLogging(logging => logging.AddProvider(provider))`. It keeps every entry (category, `LogLevel`, formatted message, exception) in a thread-safe list that the test can read.
+- Background service tests: `UseSetting("ReservationExpiry:Enabled", "true")` and `UseSetting("ReservationExpiry:Interval", "00:00:00.100")`, and replace `ICommandHandler<ExpireReservationsCommand, int>` with a fake (`Infrastructure/FakeExpireReservationsHandler.cs`) whose behaviour is set by the test: return a failure (`Error.Validation("Test.Failure", "Run failed on purpose.")`), throw `InvalidOperationException("Run failed on purpose.")`, or wait with `Task.Delay(Timeout.Infinite, ct)`. The fake counts its calls (thread-safe) and has a `TaskCompletionSource` that completes at the first call. Register it as a singleton instance so the test reads the same object.
+
+Files and tests to add:
+- `Infrastructure/RepositoryTests.cs`, class `RepositoryTests : IntegrationTestBase`. For each of the five repositories: seed one entity with `SeedAsync`, then in a new scope create the repository over the scoped `CampusMarketDbContext` and call `AddAsync` with the same entity instance loaded from that context (or a new instance with the same `Id`) → `false`; then `SaveChangesAsync` and the table still has exactly one row with that `Id`. Also one test per repository where a new entity → `true` and after `SaveChangesAsync` it is in the database. Build the entities the same way the other test classes do (members, a published listing, `Favorite.Create`, `Report.Create`, `Review.Create` on a sold listing). Act is the `AddAsync` call; there is no HTTP request in this class.
+- `Listings/CreateListingTests.cs` (add one test): `IListingRepository` replaced by `Infrastructure/DuplicateIdListingRepository.cs` (delegates every method to `new EfListingRepository(db)`, except `AddAsync`, which returns `false`) → `POST /api/v1/listings` with a valid body → 409, body read into `Error` with `Code` `Listing.Duplicate` and `Type` `Conflict`; no listing in the database.
+- `Auth/LoginTests.cs` (add one test): with `TestRemoteIpStartupFilter`, five login attempts with `X-Test-Remote-Ip: 10.0.0.1` (the helper may loop, like `ExhaustLoginRateLimitAsync`), then the Act: one login with `X-Test-Remote-Ip: 10.0.0.2` and the right password → 200 with a token (another IP has its own limit). A second test: the sixth attempt from `10.0.0.1` → 429 ProblemDetails `Request.TooManyRequests`. Both check the member count at the end.
+- `Auth/SeedAdminTests.cs` (add one test): `WithAdminSeed("admin@campus.test")` plus `IPasswordHasher` replaced by `Infrastructure/EmptyHashPasswordHasher.cs` (`Hash` returns `""`, `Verify` returns `false`) → `GET /` → 200 with the body `CampusMarket API is running`; no member saved.
+- `Infrastructure/ReservationExpiryServiceTests.cs`, class `ReservationExpiryServiceTests : IntegrationTestBase`:
+    - the handler returns a failure → poll (every 50 ms, at most 5 s) until the fake was called at least twice; there is an `Error` log entry of category `CampusMarket.Api.Infrastructure.Background.ReservationExpiryService` whose message contains `Test.Failure` and `Run failed on purpose.`.
+    - the handler throws → poll until it was called at least twice; there is an `Error` entry with the `InvalidOperationException` and the message `ReservationExpiryService run failed.`.
+    - the handler waits until it is cancelled → wait for its first call (at most 5 s), then dispose the copy of the API → the dispose finishes without an exception, the fake was called exactly once, and there is no `Error` entry from the service.
+    - every test also checks that the database is unchanged (no listings, no reservations), because the fake handler never touches it.
+
+Rules for this feature:
+- Never use a fixed `Task.Delay` as the assertion: poll with a timeout, as in "Feature: Reservation expiry (Sara)", and fail with a clear message when the time passes.
+- This section is the only exception to two general rules: `RepositoryTests` calls the repositories directly (section 7 forbids it elsewhere), and `RepositoryTests` and `ReservationExpiryServiceTests` have no HTTP call (section 6). There the Act is the `AddAsync` call, starting the copy of the API and polling, or disposing the copy.
+- Register a replacement with the same lifetime as the real service in `CampusMarketSetup.cs` (for example `IPasswordHasher` is a singleton).
+- This section goes with two changes in `src/` made by hand before the run (`CampusMarketSetup.cs` reads `ReservationExpiry:Enabled` with `GetValue`, and `ReservationExpiryService.cs` no longer checks the result of `WaitForNextTickAsync`), so the section 10 check on `git status` also lists those two files.
+- Never change `src/`. If a line is still not covered after these tests, stop and report which one.
+- Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
