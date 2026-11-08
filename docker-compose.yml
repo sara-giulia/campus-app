@@ -6,4 +6,9 @@ services:
     environment:
       # Local demo only: dev JWT key and the seeded admin
       ASPNETCORE_ENVIRONMENT: Development
-      
+    volumes:
+      # The SQLite database survives "docker compose down"; "down -v" removes it
+      - campusmarket-data:/app/data
+
+volumes:
+  campusmarket-data:

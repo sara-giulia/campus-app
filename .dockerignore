@@ -7,3 +7,9 @@ TestResults
 coverage-report
 mutation-report
 **/*.db
+tests
+postman
+.postman
+.github
+.claude
+*.log

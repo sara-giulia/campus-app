@@ -14,12 +14,14 @@ Unit tests: `dotnet test` from the repository root.
 ### With Docker
 
 1. `docker compose up --build` from the repository root. The API listens on `http://localhost:5080` (port 8080 inside the container).
-2. Check that it runs: `GET http://localhost:5080/health` answers `200 Healthy`.
+2. Check that it runs: `docker compose ps` shows `healthy`, and `GET http://localhost:5080/health` answers `200 Healthy`.
 3. In Postman, set the `baseUrl` collection variable to `http://localhost:5080` and run the collection.
 
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
-- The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container; there is no volume, so the data is gone when the container is removed (`docker compose down`).
-- The image build fails if the trained price model `ml-models/price-regression.zip` was not copied.
+- The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container, on the named volume `campusmarket-data`, so the data is kept after `docker compose down`. `docker compose down -v` also removes the volume and starts from an empty database.
+- The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
+- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) was not copied to `ml-models/`.
+- CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
 ---
 
