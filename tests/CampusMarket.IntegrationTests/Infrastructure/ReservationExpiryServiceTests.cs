@@ -44,7 +44,7 @@ public sealed class ReservationExpiryServiceTests : IntegrationTestBase
         return handler.Calls >= calls;
     }
 
-    private IReadOnlyList<CapturingLoggerProvider.Entry> ServiceErrors() =>
+    private List<CapturingLoggerProvider.Entry> ServiceErrors() =>
         _logs.Entries.Where(e => e.Category == ServiceCategory && e.Level == LogLevel.Error).ToList();
 
     private async Task DatabaseShouldBeEmptyAsync()
