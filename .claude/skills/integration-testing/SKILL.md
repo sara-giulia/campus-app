@@ -230,6 +230,7 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 - Never edit `.claude/skills/` (this skill included) or `PROMPTS.md`. If something in this skill is wrong, missing or out of date, stop and report it; do not fix the skill yourself.
 - Never commit or push; report the results.
 - Never edit `postman/`, `.github/`, or anything in `tests/CampusMarket.UnitTests`.
+- Never declare a private helper with an interface return type when it always returns one concrete type (for example `IReadOnlyList<T>` for a method that returns `.ToList()`): return the concrete type (`List<T>`). SonarCloud reports it as CA1859. After generating, build with `-p:ErrorLog=<file>.sarif%2Cversion=2.1` and check that the new test files have no CA or IDE diagnostic.
 
 ## 8. Old API tests
 
