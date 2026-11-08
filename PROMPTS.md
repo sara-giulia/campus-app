@@ -1629,6 +1629,23 @@ Backlog task (Docker + docker-compose + health checks). Dockerfile, `docker-comp
     2. Running the image without `docker-compose` uses `Production`, which has no JWT key; written in the README that the container is a local demo.
 - **Commits:** code 956ebe8, 1ae3ae9; README and Postman 516d3b2; skill 56fdb10; tests c1eebb4
 
+### Run 2
+
+Follow-up of Run 1, asked by Sara Matasel after the week 5 tasks were merged; written by Ancuța Ilenei with Claude Code. No C# code changes, so no skill runs.
+
+- **Prompt:** `Look at the latest main and finish the Docker part: what is still missing after the first Docker PR.`
+- **What:**
+    - `docker-compose.yml`: a named volume `campusmarket-data` on `/app/data`, so the SQLite database is kept after `docker compose down` (problem 1 of Run 1). The volume takes the owner of `/app/data` from the image, so the non-root user can still write to it.
+    - `Dockerfile`: the build checks all three models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`), not only the price one; B4 and B5 added two models and a missing one would only fail at the first request. A `HEALTHCHECK` on `/health` (curl installed in the runtime image, with `--no-install-recommends` and the apt lists removed), so Docker shows the container as `healthy` or `unhealthy`.
+    - `.dockerignore`: `tests`, `postman`, `.postman`, `.github`, `.claude` and `*.log` are not sent to the build, the API project does not need them.
+    - CI: a new `docker` job in `build.yml` that runs `docker compose up -d --build --wait` (it waits until the health check says `healthy`), calls `/health`, prints the logs if something failed and removes the container and the volume.
+    - README: "With Docker" describes the volume, the health check, the three models and the CI job.
+- **Result:** checked locally with Docker Desktop: `docker compose up -d --build --wait` → the container is `healthy`; it runs as the `app` user and `/app/ml-models` has the three models. A member registered before `docker compose down` can still log in after `up` (the database is on the volume). On an empty volume (`down -v`), the whole Postman collection run with newman against `http://localhost:5080`: 129 requests, 252 assertions, 0 failed.
+- **Problems seen:**
+    1. Docker Desktop needs WSL 2, which was not installed on the laptop (`wsl --install --no-distribution` and a restart first).
+    2. Running the image without `docker-compose` still uses `Production`, which has no JWT key (problem 2 of Run 1, unchanged).
+- **Commits:** code TODO; PROMPTS TODO
+
 ## favorites
 
 Week 5, task A3 (favorites). New entity and three slices, written by Ancuța Ilenei with Claude Code in the shape of the existing slices (`cqrs` skill conventions, paging copied from `GetListings`); the tests were generated afterwards with the unit-testing (Run 16) and integration-testing skills.
