@@ -1096,7 +1096,7 @@ saved.Should().BeEquivalentTo(listing);
 
 - **Code changed by hand before the run:** two branches that can never run. `CampusMarketSetup.cs`: `Get<ReservationExpiryOptions>() ?? new ...` replaced by `GetValue("ReservationExpiry:Enabled", default)`, same behaviour. `ReservationExpiryService.cs`: `if (!await timer.WaitForNextTickAsync(...)) break;` became `await timer.WaitForNextTickAsync(...)`, because it returns false only after the timer is disposed, which happens when the method ends.
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Whole project coverage (Anca)" section. Follow the skill exactly, including the "Never do" list. When you finish, run dotnet build and dotnet test and tell me the results.` (new session; it was also asked to run the integration tests three times and list the lines still uncovered when the coverage of all test projects is merged)
-- **Skill version:** v20, commit TODO (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Skill version:** v20, commit a62a6b4 (section written by Ancuța Ilenei with Claude Code; run in a new session)
 - **Result:** 17 new tests. New: `Infrastructure/RepositoryTests` (10), `Infrastructure/ReservationExpiryServiceTests` (3) and five helpers in `Infrastructure/` (`DuplicateIdListingRepository`, `EmptyHashPasswordHasher`, `TestRemoteIpStartupFilter`, `CapturingLoggerProvider`, `FakeExpireReservationsHandler`). Added: one test in `CreateListingTests` (409 `Listing.Duplicate`), two in `LoginTests` (another IP has its own limit, the same IP gets 429), one in `SeedAdminTests` (empty hash → no admin). No existing test changed, nothing changed in `src/`. Build 0 errors, 0 warnings; 674 tests pass (10 architecture, 432 unit, 13 ML, 219 integration). No uncovered line or branch left in the merged coverage (`Program.cs`, `ml/` and migrations excluded, as in the CI).
 - **Problems seen (reported by the run):**
     1. The section contradicted two general rules: section 7 forbids calling repositories from a test, section 6 says the Act is one HTTP call. The run followed the section.
@@ -1104,6 +1104,23 @@ saved.Should().BeEquivalentTo(listing);
     3. Section 10 says `git status` lists only `tests/`, but the two hand changes in `src/` are listed too.
     4. One full `dotnet test` out of about 25 runs (the run's, then 11 integration-only and 10 full runs checked afterwards) had one failed integration test; it could not be repeated and its name was not kept. Probably the known flaky `ReservationExpiryTests` test.
 - **Change to SKILL.md after the run:** the rules of the section now say that it is the only exception to sections 6 and 7, that a fake keeps the lifetime of the real service, and that the section goes with the two changes in `src/`.
+- **Commits:** skill a62a6b4; generated code 2872870
+
+### Run 22, skill v21 (CA1859 rule)
+
+- **Why a new version:** after PR #71, SonarCloud reported one issue in the generated tests: CA1859 on `ReservationExpiryServiceTests.ServiceErrors`, which was declared as `IReadOnlyList<...>` but always returns `.ToList()`.
+
+#### Change to SKILL.md (v20 → v21) and why
+
+| # | v20 (before) | v21 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about analyzer warnings. | Section 7: a private helper returns its concrete type (`List<T>`, not `IReadOnlyList<T>`); after generating, build with a SARIF log and check that the test files have no CA or IDE diagnostic. | Sonar imports these Roslyn suggestions as issues, but `dotnet build` does not show them, so the run could not see them. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them all. SonarCloud reports CA1859 on ReservationExpiryServiceTests.cs line 47. Apply the new rule in section 7 to the existing integration tests: fix that helper and any other helper that breaks the same rule. Do not change test names, assertions or behaviour.` (new session)
+- **Skill version:** v21, commit TODO (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** one line changed: `ServiceErrors` returns `List<CapturingLoggerProvider.Entry>`. No other helper broke the rule (the other interface return types are public members of interfaces). The SARIF log of the test project has no diagnostics. 674 tests pass, the integration tests three times in a row.
+- **Problems seen:** the rule says "the new test files"; when it is applied to existing tests it should mean the whole test project, which is what the run checked.
+- **Change to SKILL.md after the run:** none.
 - **Commits:** skill TODO; generated code TODO
 
 ## code-review
@@ -1717,4 +1734,16 @@ Team final step: 100% coverage of the whole project in SonarCloud, not only of `
 - **Result:** after Run 21 of integration-testing, no uncovered line or branch in the merged reports; 674 tests pass.
 - **Problems seen:**
     1. The duplicate checks in the `Ef*Repository.AddAsync` methods and the 409 of `CreateListingEndpoint` cannot be reached over HTTP, because the domain always creates a new `Guid`. They are tested on the repositories and with a fake repository instead of being removed, since the handlers and their unit tests use the `false` result.
-- **Commits:** code TODO; tests generated in TODO (see Run 21 of integration-testing)
+- **Commits:** code 878ee4c; tests generated in 2872870 (see Run 21 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `Sonar shows 3 issues and 98.9% coverage on main, and one issue on PR #71. Update everything and fix it so Sonar shows no issue and 100%.`
+- **How:** Sonar's issues here are Roslyn suggestions (`roslyn` tag), which `dotnet build` does not print. Every project was built with `-p:ErrorLog=<file>.sarif%2Cversion=2.1` and the SARIF files read: the same 4 issues as Sonar (3 on main, 1 on the PR). `main` (with #70) was merged into the branch first.
+- **Result:**
+    - `ReservationExpiryService.cs`, CA1873 twice (a log argument is evaluated even when the level is off): the four log calls became `[LoggerMessage]` source-generated methods (`LogStarted`, `LogRunException`, `LogRunFailed`, `LogExpired`), which check the level first. Same messages, the tests that read the logs still pass.
+    - `ml/.../PriceTrainer.cs`, CA1859: the trained model is declared as `ITransformer`, the type `IModelTrainer` returns, so `Evaluate(ITransformer)` is no longer flagged. The `// NOSONAR` comment above `Evaluate` was removed: it was on another line than the issue, and Roslyn issues are not suppressed by `NOSONAR`.
+    - `ReservationExpiryServiceTests.cs`, CA1859: fixed by the skill (Run 22 of integration-testing).
+    - Coverage: with the coverage of all test projects merged, the only lines left were the `Down()` methods of the EF Core migrations, which never run (the app only applies migrations). `**/Migrations/**` was added to `sonar.coverage.exclusions` in the CI, next to `Program.cs` and `ml/**`, and written in the README under "Coverage exclusions".
+    - The SARIF logs still show CA1861 in two migrations; those files are generated by EF Core and Sonar does not report them.
+- **Commits:** code TODO; tests generated in TODO (see Run 22 of integration-testing)
