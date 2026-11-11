@@ -781,3 +781,20 @@ Rules for this feature:
 - This section goes with two changes in `src/` made by hand before the run (`CampusMarketSetup.cs` reads `ReservationExpiry:Enabled` with `GetValue`, and `ReservationExpiryService.cs` no longer checks the result of `WaitForNextTickAsync`), so the section 10 check on `git status` also lists those two files.
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+
+## Feature: Condition filter (Carina)
+
+Endpoint: `GET /api/v1/listings?condition=...` (`New`, `Good` or `Worn`), public, no `AuthenticateAs`. Only `Active` listings are returned, as before.
+
+File: `Listings/GetListingsTests.cs` (add to it, keep every existing test).
+
+Arrange: seed published listings (`listing.Publish()` before `SeedAsync`) with the same `SellerId`, one in `Good` and one in `Worn` condition, each with its own fixed `CreatedAt`.
+
+Tests to add (status, body, then the database still has the seeded listings):
+- `?condition=Good` → 200, only the Good listing, `totalCount` 1.
+- `?condition=Banana` → 400. ASP.NET Core rejects it before the handler runs, so check only the status code.
+
+Rules for this feature:
+- Build the query string exactly as a client would send it, in the URL of `Client.GetAsync`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
