@@ -1123,6 +1123,25 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill TODO; generated code TODO
 
+### Run 24, skill v23 (Feature: API documentation)
+
+- **Why a new version:** task 8 (issue #74). The API got an OpenAPI document (`/openapi/v1.json`) and a documentation page (`/scalar`), both only in Development. The new endpoint had no test.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the API documentation. | New section *"Feature: API documentation (Carina)"*: the production code (`AddOpenApi`, and `MapOpenApi` and `MapScalarApiReference` only in Development; the test host runs in Development), the new file and one test. | The document is a new endpoint, and Claude needs to know that it exists only in Development. |
+| 2 | Every test checks the database (section 4). | *"The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of 'Feature: Error handling (Anca)' do."* | Keeps the status, body and database checks without inventing data. |
+| 3 | — | *"Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document."* | The test only has to prove that the paths are listed; a typed OpenAPI model would need a new package. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the test from the "Feature: API documentation (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v23, commit 0e90f1e (numbered after the condition filter PR, #72, which makes v22); section written and run by Carina Coman
+- **Result:** new file `Infrastructure/OpenApiTests.cs`, class `OpenApiTests : IntegrationTestBase`, with one test, `Given_DevelopmentEnvironment_When_GettingOpenApiDocument_Then_Returns200WithApiPaths`: `GET /openapi/v1.json` → 200, content type `application/json`, the body (read as text) contains `/api/v1/listings` and `/api/v1/auth/login`, and the database still has 0 listings. No existing test changed, nothing changed in `src/`. `dotnet build` 0 warnings, 0 errors (built with the SARIF error log, no CA or IDE diagnostics); integration tests 220/220 three runs in a row; full run: 10 architecture, 432 unit, 13 ML, 220 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 0e90f1e; generated code 5cd4f6c
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
