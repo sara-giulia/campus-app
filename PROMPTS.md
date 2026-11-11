@@ -696,6 +696,24 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
+### Run 22, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). New slices `GetMyProfile` (`GET /api/v1/members/me`) and `UpdateMyProfile` (`PUT /api/v1/members/me`, only the name changes) without tests.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile of the logged-in member. | New section *"Feature: My profile (Carina)"*: what each handler does, how to build the members (`Member.Register` with `FakePasswordHasher`, Student or Admin), and 6 tests. | Without it Claude would have to guess the order of the checks and what the response contains. |
+| 2 | — | *"`member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same"* + a test that checks the email after the update. | Proves that the profile update can never change the email. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v24, commit f197c2c (numbered after the condition filter PR, #72, which makes v23); section written and run by Carina Coman
+- **Result:** 6 new tests in two new files: `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs` (a Student with its id, name, lower-case email, role and `CreatedAt`, the repository unchanged; an Admin → role `"Admin"`; unknown id → `Member.NotFound`) and `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs` (a valid name with spaces → trimmed, email unchanged, `UpdateCount` 1, `SaveCount` 1; a 1-character name → `Member.InvalidName`, name unchanged, `UpdateCount` 0, `SaveCount` 0; unknown id → `Member.NotFound`, `SaveCount` 0). Every error checks type, code and the exact message. No existing test, fake or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1045/1045 lines and 362/362 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill f197c2c; generated code b9461db
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1122,6 +1140,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the rule says "the new test files"; when it is applied to existing tests it should mean the whole test project, which is what the run checked.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill TODO; generated code TODO
+
+### Run 25, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). `GET /api/v1/members/me` and `PUT /api/v1/members/me` are new endpoints that need a token.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile endpoints. | New section *"Feature: My profile (Carina)"*: a table with the success and failures of both endpoints, which errors are ProblemDetails (401) and which keep `{ code, message, type }` (400, 404), and 6 tests. | The endpoints are new, so Claude needs the contract to test them. |
+| 2 | — | *"the raw body ... does not contain `password`"* and *"in the database the member has the new name and the old email"*. | Proves that the response never shows the password hash and that the update cannot change the email. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v24, commit e28342c (numbered after the condition filter and API documentation PRs, #72 and #74, which make v22 and v23); section written and run by Carina Coman
+- **Result:** new file `Members/MyProfileTests.cs` with 6 tests: logged in → GET 200 with id, name, lower-case email, role `Student` and `createdAt`, no `password` in the raw body; a token of a member that is not in the database → 404 `Member.NotFound`; no token → GET 401 and PUT 401 (ProblemDetails `Auth.Unauthorized`), member unchanged; a valid name → 204, new name and old email in the database; a 1-character name → 400 `Member.InvalidName`, member unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no CA or IDE diagnostics; 10 architecture, 438 unit and 13 ML tests pass; the 6 new tests pass in every run.
+- **Problems seen:** the existing `ReservationExpiryTests` (job on) failed in 2 of 4 integration runs with `SqliteException: SQLite Error 5: 'database is locked'`, so the "three runs in a row" check did not pass. The test was not touched by this run: the expiry job and the test use the same in-memory SQLite connection at the same time. Reported to the team, not fixed here.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill e28342c; generated code 35d92a4
 
 ## code-review
 
