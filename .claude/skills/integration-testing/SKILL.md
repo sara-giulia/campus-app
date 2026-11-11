@@ -781,3 +781,17 @@ Rules for this feature:
 - This section goes with two changes in `src/` made by hand before the run (`CampusMarketSetup.cs` reads `ReservationExpiry:Enabled` with `GetValue`, and `ReservationExpiryService.cs` no longer checks the result of `WaitForNextTickAsync`), so the section 10 check on `git status` also lists those two files.
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+
+## Feature: API documentation (Carina)
+
+Production code: `services.AddOpenApi()` in `CampusMarketSetup.AddCampusMarket`; in `Program.cs`, only when `app.Environment.IsDevelopment()`: `app.MapOpenApi()` (the document at `/openapi/v1.json`) and `app.MapScalarApiReference()` (the page at `/scalar`). The test host runs in the Development environment, so both are mapped in the tests.
+
+File: `Infrastructure/OpenApiTests.cs` (new), class `OpenApiTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /openapi/v1.json` → 200, a JSON content type, and the body contains `/api/v1/listings` and `/api/v1/auth/login`. Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document.
+- The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of "Feature: Error handling (Anca)" do.
+
+Rules for this feature:
+- Do not change `Program.cs`, `CampusMarketSetup.cs` or the test factory.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
