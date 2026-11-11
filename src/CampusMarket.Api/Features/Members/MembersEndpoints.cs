@@ -4,6 +4,7 @@ using CampusMarket.Api.Features.Members.GetMemberById;
 using CampusMarket.Api.Features.Members.GetMembers;
 using CampusMarket.Api.Features.Members.UpdateMember;
 using CampusMarket.Api.Features.Members.GetMyReservations;
+using CampusMarket.Api.Features.Members.GetPublicProfile;
 
 namespace CampusMarket.Api.Features.Members;
 
@@ -19,6 +20,7 @@ public static class MembersEndpoints
         UpdateMemberEndpoint.Map(group);
         DeleteMemberEndpoint.Map(group);
         GetMyReservationsEndpoint.Map(group);
+        GetPublicProfileEndpoint.Map(group);
 
         return app;
     }
