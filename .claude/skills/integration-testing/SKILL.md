@@ -781,3 +781,29 @@ Rules for this feature:
 - This section goes with two changes in `src/` made by hand before the run (`CampusMarketSetup.cs` reads `ReservationExpiry:Enabled` with `GetValue`, and `ReservationExpiryService.cs` no longer checks the result of `WaitForNextTickAsync`), so the section 10 check on `git status` also lists those two files.
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+
+## Feature: My profile (Carina)
+
+Endpoints (`Features/Members/GetMyProfile/`, `Features/Members/UpdateMyProfile/`), both need a token ("me" is the member in the token):
+
+| Slice | Route | Success | Failures |
+|---|---|---|---|
+| GetMyProfile | `GET /api/v1/members/me` | 200 `{ id, name, email, role, createdAt }` | 401; 404 `Member.NotFound` (the member in the token does not exist) |
+| UpdateMyProfile | `PUT /api/v1/members/me` with `{ "name" }` | 204, empty body | 401; 400 `Member.InvalidName`; 404 `Member.NotFound` |
+
+The 401 is a ProblemDetails answer: check it as "Feature: Error handling (Anca)" says. The 400 and 404 come from the handlers and keep `{ code, message, type }`: read them into `Error` and check `Code` and `Type`.
+
+File: `Members/MyProfileTests.cs` (new), class `MyProfileTests : IntegrationTestBase`.
+
+Arrange: seed the member with `SeedAsync` (`Member.Create(...).Value`, fixed `CreatedAt`) and log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database):
+- logged in → GET 200 with my `id`, `name`, `email` (lower case) and `role` `"Student"`; the raw body (`ReadAsStringAsync`, compared in lower case) does not contain `password`; the member is unchanged in the database.
+- logged in as a member that is not in the database (`AuthenticateAs` with a fixed id that was never seeded) → GET 404 `Member.NotFound`.
+- no token → GET 401 and PUT 401 (two tests); the seeded member is unchanged.
+- PUT with a valid new name → 204, empty body; in the database the member has the new name and the old email.
+- PUT with a 1-character name → 400 `Member.InvalidName`, type `Validation`; the member is unchanged.
+
+Rules for this feature:
+- Fixed ids and times; never compare to `DateTime.Now`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
