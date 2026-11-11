@@ -184,6 +184,7 @@ GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except 
 | Parameter | Meaning | Default |
 |---|---|---|
 | `category` | `Textbook`, `Notes`, `Electronics`, `LabEquipment` or `Other` | all categories |
+| `condition` | `New`, `Good` or `Worn` | all conditions |
 | `minPrice` | lowest price, inclusive | no limit |
 | `maxPrice` | highest price, inclusive | no limit |
 | `search` | text in the title, upper and lower case ignored | no search |
@@ -227,7 +228,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
-| 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` is not one of the values above |
+| 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
 Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
 
