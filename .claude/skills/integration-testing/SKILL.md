@@ -781,3 +781,25 @@ Rules for this feature:
 - This section goes with two changes in `src/` made by hand before the run (`CampusMarketSetup.cs` reads `ReservationExpiry:Enabled` with `GetValue`, and `ReservationExpiryService.cs` no longer checks the result of `WaitForNextTickAsync`), so the section 10 check on `git status` also lists those two files.
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+
+## Feature: Public profile (Carina)
+
+Endpoint: `GET /api/v1/members/{id}/profile` (`Features/Members/GetPublicProfile/`). Public: never use `AuthenticateAs` in these tests.
+- 200: `{ id, name, memberSince, averageRating, reviewCount, activeListings: [ { id, title, price } ] }`. No email and no role.
+- 404 `Member.NotFound` from the handler, with `{ code, message, type }` (read it into `Error`, check `Code` and `Type`).
+- An id that is not a Guid (`/members/abc/profile`) does not match the route → 404; check only the status.
+
+File (new): `Members/PublicProfileTests.cs`, class `PublicProfileTests : IntegrationTestBase`.
+
+Arrange: seed with `SeedAsync`, fixed ids and times.
+- The seller: `Member.Create(...).Value`. Its listings: `Listing.Create(sellerId, ...)`, published with `Publish()` for an `Active` one, left as is for a `Draft`.
+- For a review: a sold listing (`Publish()`, `Reserve(buyer.Id, CreatedAt)`, `ConfirmSale(reservation.Id, CreatedAt)`) and `Review.Create(buyer.Id, soldListing, rating, null, CreatedAt).Value`; seed the buyer, the listing and the review together.
+
+Tests to add (status, body, then the database):
+- a seller with one Active and one Draft listing → 200; `activeListings` has only the Active one (its id, title and price); the right `name`; `reviewCount` 0 and `averageRating` null; the raw body (`ReadAsStringAsync`) does not contain the seller's email; the database is unchanged.
+- a seller with one sold listing reviewed with rating 4 → 200, `averageRating` 4, `reviewCount` 1, `activeListings` empty.
+- unknown id → 404 `Member.NotFound`, type `NotFound`; the seeded data is unchanged.
+- `/api/v1/members/abc/profile` → 404 (status only).
+
+Rules for this feature:
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
