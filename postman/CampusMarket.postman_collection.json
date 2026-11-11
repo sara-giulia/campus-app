@@ -663,7 +663,8 @@
                       "  pm.expect(body.version).to.eql(1);",
                       "  pm.expect(body.description).to.eql(\"Looks almost new, no highlights.\");",
                       "});",
-                      "pm.collectionVariables.set(\"listingId\", pm.response.json().id);"
+                      "pm.collectionVariables.set(\"listingId\", pm.response.json().id);",
+                      "pm.collectionVariables.set(\"sellerId\", pm.response.json().sellerId);"
                     ]
                   }
                 }
@@ -3168,6 +3169,96 @@
                       "pm.test(\"Every email is valid text\", () => {",
                       "  pm.response.json().items.forEach(i => pm.expect(i.email).to.include(\"@\"));",
                       "});"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "PublicProfile",
+          "item": [
+            {
+              "name": "Public profile - seller (200)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/{{sellerId}}/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "{{sellerId}}",
+                    "profile"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test(\"It is the seller's profile\", () => {",
+                      "  pm.expect(body.id).to.eql(pm.collectionVariables.get(\"sellerId\"));",
+                      "  pm.expect(body.name).to.eql(\"Ana Popescu\");",
+                      "  pm.expect(body.activeListings).to.be.an(\"array\");",
+                      "});",
+                      "pm.test(\"No email and no role (public data only)\", () => {",
+                      "  pm.expect(body).to.not.have.property(\"email\");",
+                      "  pm.expect(body).to.not.have.property(\"role\");",
+                      "  pm.expect(pm.response.text()).to.not.include(pm.collectionVariables.get(\"studentEmail\"));",
+                      "});",
+                      "pm.test(\"Sold and deleted listings are not shown\", () => {",
+                      "  const ids = body.activeListings.map(l => l.id);",
+                      "  pm.expect(ids).to.not.include(pm.collectionVariables.get(\"saleListingId\"));",
+                      "  pm.expect(ids).to.not.include(pm.collectionVariables.get(\"listingId\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Public profile - unknown member (404)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/00000000-0000-0000-0000-000000000001/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "00000000-0000-0000-0000-000000000001",
+                    "profile"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                      "pm.test(\"Error code is Member.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Member.NotFound\"));"
                     ]
                   }
                 }
@@ -5717,6 +5808,10 @@
     },
     {
       "key": "reviewSellerId",
+      "value": ""
+    },
+    {
+      "key": "sellerId",
       "value": ""
     }
   ]
