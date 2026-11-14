@@ -696,6 +696,18 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
+### Skill update v22 → v23 (coverage-report is local only)
+
+| What | Before (v22) | After (v23) |
+|---|---|---|
+| Coverage report in Git (section "Coverage") | *"Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`."* | *"The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either."* |
+| Check after generating | *"`git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing."* | removed |
+
+- **Why:** the generated HTML report changed in almost every PR (new timestamps on every class page), so PRs carried dozens of files that nobody reviews, and they conflicted at every merge. `coverage-report/` is now in `.gitignore` and removed from the repository in the same PR (`git rm -r --cached`). The old rule asked to commit the report, so it contradicted `.gitignore`, and the next run would have tried to commit it again.
+- **Who:** Carina Coman, at Sara Matasel's request (edit only, no generation)
+- **Commit:** `9b8d5be` (the `.gitignore` change and the removal of the folder are in the commit "chore: stop tracking coverage-report" of the same PR)
+
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
