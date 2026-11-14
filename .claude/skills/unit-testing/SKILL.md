@@ -68,8 +68,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
 - Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"`
 - Target: 100% line and branch coverage for every file in the report (all of `Domain/` and every handler).
-- Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`.
-- After generating, check that Git sees the report: `git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing.
+- The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either.
 - When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
 - Everything that is not in the report is outside the target. This is the single list of exclusions (the README copies it word for word):
   - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
