@@ -798,3 +798,10 @@ Rules for this feature:
 - Build the query string exactly as a client would send it, in the URL of `Client.GetAsync`.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Sorting (Diana)
+
+File: `Listings/GetListingsTests.cs` (add to it).
+
+Tests to add:
+- `?sort=price_asc` → 200, prices in ascending order.
+- `?sort=abc` → 400 `Listings.InvalidSort`.

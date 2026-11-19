@@ -577,4 +577,14 @@ Rules for this feature:
 - The handler is a query handler: the repository content is unchanged after every call.
 - Never use real time; every `createdAt` is a fixed `DateTimeOffset`.
 
+## Feature: Sorting (Diana)
 
+Production code: `GetListingsHandler`, `GetListingsQuery.Sort` (null, "newest", "price_asc", "price_desc").
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it).
+
+Tests to add:
+- three Active listings priced 30, 10, 20 → `price_asc` gives 10, 20, 30; `price_desc` gives 30, 20, 10.
+- `newest` and no sort → newest `CreatedAt` first (same as before).
+- two listings with the same price → ordered by `Id` ascending.
+- `Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message.
