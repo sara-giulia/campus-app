@@ -20,6 +20,7 @@ public static class GetListingsEndpoint
         decimal? maxPrice,
         string? search,
         Condition? condition,
+        string? sort,
         int? page,
         int? pageSize,
         CancellationToken ct)
@@ -31,7 +32,8 @@ public static class GetListingsEndpoint
             search,
             page ?? GetListingsQuery.DefaultPage,
             pageSize ?? GetListingsQuery.DefaultPageSize,
-            condition);
+            condition,
+            sort);
 
         var result = await handler.HandleAsync(query, ct);
 

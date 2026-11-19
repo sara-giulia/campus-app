@@ -10,11 +10,13 @@ public sealed record GetListingsQuery(
     string? Search = null,
     int Page = GetListingsQuery.DefaultPage,
     int PageSize = GetListingsQuery.DefaultPageSize,
-    Condition? Condition = null) : IQuery<GetListingsResponse>
+    Condition? Condition = null,
+    string? Sort = null) : IQuery<GetListingsResponse>
 {
     public const int DefaultPage = 1;
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
+    public static readonly string[] AllowedSorts = ["newest", "price_asc", "price_desc"];
 }
     
 
