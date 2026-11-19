@@ -8,5 +8,6 @@ public interface IModelTrainer
 
     string ModelFileName { get; }
 
-    (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView testData);
+    // train fits the model, validation is for choosing settings, test is used once for the final metrics.
+    (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData);
 }

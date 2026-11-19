@@ -11,7 +11,7 @@ public sealed class SpamTrainer : IModelTrainer
 
     public string ModelFileName => "spam-detection.zip";
 
-    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView testData)
+    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
     {
         // The label is IsSpam itself, so the saved model does not need an IsSpam column at prediction time.
         var pipeline = mlContext.Transforms.Text.FeaturizeText("TitleFeatures", nameof(ListingRow.Title))
