@@ -796,3 +796,14 @@ File: `Listings/CreateListingTests.cs` (add to it).
 
 Tests to add:
 - POST a listing with price 200000 → 400 `Money.TooHigh`, nothing saved.
+
+## Feature: Correlation id (Diana)
+
+Production code: `Infrastructure/Logging/CorrelationIdMiddleware.cs`, registered first in `Program.cs`.
+
+File: `Infrastructure/CorrelationIdTests.cs` (new), class `CorrelationIdTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /api/v1/listings` without the header → the response has `X-Correlation-Id`, not empty, and it is a valid Guid.
+- the same request with `X-Correlation-Id: test-123` → the response header is exactly `test-123`.
+- an error response (`GET /api/v1/listings/{random guid}` → 404) also has the header.
