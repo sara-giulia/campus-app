@@ -782,6 +782,14 @@ Rules for this feature:
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
 
+## Feature: Minimum category confidence (Diana)
+
+File: `Listings/SuggestCategoryTests.cs` (add to it).
+
+Tests to add:
+- title "Banana", description "Am de vandut o banana buna" → 200, `category` is null, `confidence` below 0.7.
+- title "Notite Analiza matematica, an I" → 200, `category` is "Notes".
+
 ## Feature: Maximum price (Diana)
 
 File: `Listings/CreateListingTests.cs` (add to it).
