@@ -3,6 +3,7 @@ using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace CampusMarket.Api.Features.Listings.CreateListing;
 
@@ -19,6 +20,7 @@ public static class CreateListingEndpoint
         CreateListingRequest request,
         ClaimsPrincipal user,
         ICommandHandler<CreateListingCommand, CreateListingResponse> handler,
+        IOutputCacheStore cache,
         CancellationToken ct)
     {
         var command = new CreateListingCommand(
@@ -32,6 +34,8 @@ public static class CreateListingEndpoint
                 ErrorType.Conflict => TypedResults.Conflict(result.Error),
                 _ => TypedResults.BadRequest(result.Error)
             };
+
+        await ListingsCache.ClearAsync(cache, ct);
 
         return TypedResults.CreatedAtRoute(
             result.Value, "GetListingById", new { id = result.Value.Id });

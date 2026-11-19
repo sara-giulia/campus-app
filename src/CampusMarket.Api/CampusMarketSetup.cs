@@ -105,6 +105,7 @@ public static class CampusMarketSetup
 
         // GET /health: the API is up and can reach the database.
         services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
+        services.AddOutputCache();
         
         return services;
     }

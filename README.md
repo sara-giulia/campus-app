@@ -204,6 +204,10 @@ Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search
 }
 ```
 
+### Listings cache
+
+`GET /api/v1/listings` is cached for 30 seconds per query string. Every successful change of a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide) clears the cache, so the next search sees it at once. The reservation expiry job changes listings without going through an endpoint, so its changes can appear up to 30 seconds later, which is acceptable.
+
 A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 
 ```json

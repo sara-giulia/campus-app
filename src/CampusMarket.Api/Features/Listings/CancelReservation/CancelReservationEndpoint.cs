@@ -3,6 +3,7 @@ using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace CampusMarket.Api.Features.Listings.CancelReservation;
 
@@ -20,6 +21,7 @@ public static class CancelReservationEndpoint
         Guid reservationId,
         ClaimsPrincipal user,
         ICommandHandler<CancelReservationCommand, Guid> handler,
+        IOutputCacheStore cache,
         CancellationToken ct)
     {
         var command = new CancelReservationCommand(id, reservationId, user.GetMemberId(), user.IsAdmin());
@@ -33,6 +35,8 @@ public static class CancelReservationEndpoint
                 ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };
+
+        await ListingsCache.ClearAsync(cache, ct);
 
         return TypedResults.NoContent();
     }
