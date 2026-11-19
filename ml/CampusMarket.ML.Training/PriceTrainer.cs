@@ -17,7 +17,7 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
 
     public string ModelFileName => "price-regression.zip";
 
-    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView testData)
+    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
     {
         var trainNonSpam = PrepareData(mlContext, trainData);
         var testNonSpam = PrepareData(mlContext, testData);
