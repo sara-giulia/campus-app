@@ -1,9 +1,7 @@
 using CampusMarket.ML.Training;
 using Microsoft.ML;
 
-const int Seed = 2026;
-
-var mlContext = new MLContext(seed: Seed);
+var mlContext = new MLContext(seed: DatasetSplit.Seed);
 
 var mlDir = ResolveMlDirectory();
 var csvPath = Path.Combine(mlDir, "data", "listings.csv");
@@ -18,12 +16,7 @@ var data = mlContext.Data.LoadFromTextFile<ListingRow>(
     separatorChar: ',',
     allowQuoting: true);
 
-var firstSplit = mlContext.Data.TrainTestSplit(data, testFraction: 0.3, seed: Seed);
-var secondSplit = mlContext.Data.TrainTestSplit(firstSplit.TestSet, testFraction: 0.5, seed: Seed);
-
-var trainSet = firstSplit.TrainSet;
-var validationSet = secondSplit.TrainSet;
-var testSet = secondSplit.TestSet;
+var (trainSet, validationSet, testSet) = DatasetSplit.Split(mlContext, data);
 
 Console.WriteLine($"Train rows:      {Count(trainSet)}");
 Console.WriteLine($"Validation rows: {Count(validationSet)}");
