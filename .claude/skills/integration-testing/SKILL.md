@@ -789,3 +789,10 @@ File: `Listings/SuggestCategoryTests.cs` (add to it).
 Tests to add:
 - title "Banana", description "Am de vandut o banana buna" → 200, `category` is null, `confidence` below 0.7.
 - title "Notite Analiza matematica, an I" → 200, `category` is "Notes".
+
+## Feature: Maximum price (Diana)
+
+File: `Listings/CreateListingTests.cs` (add to it).
+
+Tests to add:
+- POST a listing with price 200000 → 400 `Money.TooHigh`, nothing saved.

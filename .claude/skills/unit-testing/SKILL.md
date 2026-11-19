@@ -573,3 +573,14 @@ Tests to add:
 - confidence exactly 0.7 → `Category` is the suggested one.
 - confidence 0.69 → `Category` is null, `Confidence` is still 0.69.
 - If existing tests use a confidence below 0.7 and expect a category, raise the fake's confidence in them to 0.9; change nothing else.
+
+## Feature: Maximum price (Diana)
+
+Production code: `Domain/Listings/Money.cs`, `Money.MaxAmount` = 100000.
+
+File: `Domain/Listings/MoneyTests.cs` (add to it).
+
+Tests to add:
+- exactly `Money.MaxAmount` → success.
+- `Money.MaxAmount + 0.01m` → `Validation`, code `Money.TooHigh`, exact message from the code.
+- `Listing.Create` with a price above the maximum → the same error.

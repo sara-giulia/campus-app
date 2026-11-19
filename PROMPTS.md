@@ -714,6 +714,25 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v27 is the final version.
 - **Commits:** skill dc876be; generated code 020f950
 
+### Run 26, skill v28 (Feature: Maximum price)
+
+- **Why a new version:** Week 6, task 2. `Money.Create` has a new branch: an amount above `Money.MaxAmount` (100000) returns `Money.TooHigh`. `Listing.Create` builds its price with `Money.Create`, so it gets the same rule. The new branch had no tests.
+
+#### Change to SKILL.md (v27 → v28) and why
+
+| # | v27 (before) | v28 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the maximum price. | New section *"Feature: Maximum price (Diana)"*: the file (`MoneyTests`, with one test added to `ListingTests`) and 3 tests. | Without it Claude would not know the limit, the error code or where the new tests go. |
+| 2 | — | *"exactly `Money.MaxAmount` → success"* and *"`Money.MaxAmount + 0.01m` → `Validation`, code `Money.TooHigh`, exact message from the code"*. | Proves both sides of the `>` check, not only a value far above the limit. |
+| 3 | — | *"`Listing.Create` with a price above the maximum → the same error"*. | Proves the rule reaches the listing, not only the value object. |
+
+- **Prompt:** `Run the unit-testing skill for the section "Feature: Maximum price (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v28, commit 0d26845 (section written and run by Diana Preutu with Claude Code)
+- **Result:** 3 new tests, nothing else changed in the tests and nothing in `src/` by the run: `MoneyTests` (exactly the maximum succeeds; maximum + 0.01 → `Money.TooHigh` with the exact message `Price must be at most 100000 lei.`) and `ListingTests` (`Listing.Create` above the maximum → the same error). 435/435 unit tests pass. The coverage report was not generated again in this run (it is not part of the PR).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v28 is the final version.
+- **Commits:** skill 0d26845; generated code c989e44
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1157,6 +1176,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v27 is the final version.
 - **Commits:** skill dc876be; generated code 020f950
+
+### Run 29, skill v28 (Feature: Maximum price)
+
+- **Why a new version:** Week 6, task 2. `POST /api/v1/listings` with a price above 100000 now answers 400 `Money.TooHigh`; no integration test covered it.
+
+#### Change to SKILL.md (v27 → v28) and why
+
+| # | v27 (before) | v28 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the maximum price. | New section *"Feature: Maximum price (Diana)"*: the file (`Listings/CreateListingTests.cs`, add to it) and one test: POST with price 200000 → 400 `Money.TooHigh`, nothing saved. | The error reaches the client as 400 with the `Error` body only if the endpoint maps it; a unit test cannot see that. |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Maximum price (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v28, commit 0d26845 (section written and run by Diana Preutu with Claude Code)
+- **Result:** One new test in `Listings/CreateListingTests.cs`: price 200000 → 400, `Money.TooHigh`, type `Validation`, the exact message, and the database still has no listing. No existing test or file in `src/` changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 435 unit, 13 ML, 220 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v28 is the final version.
+- **Commits:** skill 0d26845; generated code c989e44
 
 
 ## code-review
@@ -1797,3 +1833,25 @@ Follow-up of the category suggestion (Run 18 of unit-testing and Run 17 of integ
     - The endpoint and the route do not change; only the JSON field `category` can now be `null`.
 - **Result:** `SuggestCategoryResponse.Category` is `Category?`; the handler returns `null` below 0.7. Unit tests: one existing test raised from confidence 0.5 to 0.9 (nothing else changed in it), plus a `[Theory]` for 0.9 and exactly 0.7 and a test for 0.69 (`Category` null, `Confidence` 0.69). Integration tests: "Banana" gives 200 with `category` null and a confidence below 0.7; "Notite Analiza matematica, an I" gives 200 with `Notes`. README: the `SuggestCategory` row says `category` is null below 0.7. Build 0 errors, 0 warnings; all tests pass.
 - **Commits:** code 36cefd6; skill sections dc876be; tests generated in 020f950 (see Run 25 of unit-testing and Run 28 of integration-testing)
+
+## max-price
+
+Week 6, task 2 (maximum price). The production code is the one from the task list, applied by Diana Preutu with Claude Code; the tests were generated afterwards with the unit-testing (Run 26) and integration-testing (Run 29) skills.
+
+### Run 1
+
+- **Prompt:** `Do the whole task, exactly as written, then run the skills: replace Money.cs with the given code (MaxAmount = 100000, Money.TooHigh), add the Money.TooHigh row to the README error table, append the section "Feature: Maximum price (Diana)" to the unit-testing and integration-testing SKILL.md, then run both skills for that section, add only those tests and run dotnet test.`
+- **Decisions:**
+  - The limit is a constant on the value object, `Money.MaxAmount` = 100000, so `Listing.Create` and every other place that builds a price get the rule without any extra check.
+  - Exactly 100000 is allowed; above it the error is `Money.TooHigh` (Validation, 400), checked after `Money.Invalid`.
+- **Result:** `Domain/Listings/Money.cs`, README error table, the two skill sections. Tests generated: `MoneyTests` (exactly the maximum, maximum + 0.01), `ListingTests` (`Listing.Create` above the maximum), integration `CreateListingTests` (price 200000 → 400 `Money.TooHigh`, nothing saved). Build 0 errors; 435 unit, 220 integration, 10 architecture and 13 ML tests pass.
+- **Commits:** code eb8885b; skill sections 0d26845; tests generated in c989e44 (see Run 26 of unit-testing and Run 29 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `SonarCloud reports 80% coverage on new code for PR #82. Find out which new line or condition is not covered. Do NOT change any file, do NOT commit.` Then: `Do not add that test. Instead, in src/CampusMarket.Api/Domain/Listings/Money.cs change public const decimal MaxAmount = 100_000m; to public static readonly decimal MaxAmount = 100_000m; and add a short comment above it: a const decimal gets a static constructor that never runs, so the line stays uncovered. Run dotnet build and dotnet test, then run the tests with coverage like the CI and confirm every new line of Money.cs is covered.`
+- **Decisions:**
+  - The coverage reports of the CI command (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`) showed one uncovered new line: `public const decimal MaxAmount = 100_000m;`. The compiler gives a `const decimal` a static constructor, and every use of the constant is replaced by its value at compile time, so that constructor never runs, not even in the tests that use `Money.MaxAmount`.
+  - `static readonly` instead of `const`: the field is now read at run time by `Money.Create`, so the static constructor runs and the line is covered, without a test written only for coverage and without excluding the line in Sonar. The value, the name and every use stay the same (no test or other code needed a compile-time constant), and a comment above the field says why it is not `const`.
+- **Result:** `Money.MaxAmount` is `public static readonly decimal`. Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 222 integration tests pass. In both coverage reports of `CampusMarket.Api`, every sequence point and branch of `Money` is covered, including the static constructor (line 8, 1 visit) and both sides of `amount > MaxAmount`.
+- **Commits:** code 7e6a4c6

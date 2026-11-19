@@ -267,6 +267,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Reservation.NotActive` | 400 | you cancel or confirm a reservation that is not active |
 | `Reservation.Expired` | 400 | you confirm a reservation past its 48-hour expiry |
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
+| `Money.TooHigh` | 400 | the price is above 100000 lei |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
 | `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
 | `Favorite.ListingNotAvailable` | 400 | the listing is still a draft, or it was hidden by an Admin |
