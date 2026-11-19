@@ -561,3 +561,15 @@ Tests to add:
 Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`. Build the messages from `Review.MinRating`, `Review.MaxRating` and `Review.MaxCommentLength`, the same way the domain does. The message of `Review.Duplicate` contains the generated Id: use `.Match("A review with id '*' already exists.")`, as for `Favorite.Duplicate`.
 - Never use real time: `Now` is fixed.
+
+## Feature: Minimum category confidence (Diana)
+
+Production code: `Features/Listings/SuggestCategory/SuggestCategoryHandler.cs`, `MinConfidence` = 0.7; `SuggestCategoryResponse.Category` is now nullable.
+
+File: `Features/Listings/SuggestCategory/SuggestCategoryHandlerTests.cs` (add to it). The fake suggester returns a configurable confidence.
+
+Tests to add:
+- confidence 0.9 → `Category` is the suggested one.
+- confidence exactly 0.7 → `Category` is the suggested one.
+- confidence 0.69 → `Category` is null, `Confidence` is still 0.69.
+- If existing tests use a confidence below 0.7 and expect a category, raise the fake's confidence in them to 0.9; change nothing else.
