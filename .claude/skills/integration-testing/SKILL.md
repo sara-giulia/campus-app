@@ -781,3 +781,11 @@ Rules for this feature:
 - This section goes with two changes in `src/` made by hand before the run (`CampusMarketSetup.cs` reads `ReservationExpiry:Enabled` with `GetValue`, and `ReservationExpiryService.cs` no longer checks the result of `WaitForNextTickAsync`), so the section 10 check on `git status` also lists those two files.
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+
+## Feature: Minimum category confidence (Diana)
+
+File: `Listings/SuggestCategoryTests.cs` (add to it).
+
+Tests to add:
+- title "Banana", description "Am de vandut o banana buna" → 200, `category` is null, `confidence` below 0.7.
+- title "Notite Analiza matematica, an I" → 200, `category` is "Notes".
