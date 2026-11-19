@@ -324,6 +324,8 @@ Every error body has a `code`. There are two shapes, depending on who answers:
 
 The code is in `Infrastructure/ErrorHandling/`: `GlobalExceptionHandler` turns exceptions into ProblemDetails, and `AddCampusMarketErrorHandling` adds `code`, `instance` and `traceId` to every ProblemDetails. In `Program.cs`, `UseExceptionHandler` and `UseStatusCodePages` come before authentication, authorization and rate limiting, so the empty 401/403/429 answers get a body too.
 
+**Correlation id.** Every response has an `X-Correlation-Id` header. It is the value the client sent in the same header, or a new Guid when there is none, and it is written in every console log line of the request (`CorrelationId` in the log scope). The code is in `Infrastructure/Logging/CorrelationIdMiddleware.cs`, the first middleware in `Program.cs`, so error responses have the header too.
+
 ### Example scenario: reserving a listing
 
 1. Ana publishes "Calculus textbook, Good condition, 40 RON".

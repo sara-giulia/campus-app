@@ -1,5 +1,6 @@
 using CampusMarket.Api;
 using CampusMarket.Api.Infrastructure.ErrorHandling;
+using CampusMarket.Api.Infrastructure.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,8 @@ builder.Services.AddCampusMarket(builder.Configuration);
 builder.Services.AddCampusMarketErrorHandling();
 
 var app = builder.Build();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.MapHealthChecks("/health");
 
