@@ -4,7 +4,8 @@ namespace CampusMarket.Api.Domain.Listings;
 
 public sealed record Money
 {
-    public const decimal MaxAmount = 100_000m;
+    // Not const: a const decimal gets a static constructor that never runs, so the line stays uncovered.
+    public static readonly decimal MaxAmount = 100_000m;
 
     public decimal Amount { get; }
 
