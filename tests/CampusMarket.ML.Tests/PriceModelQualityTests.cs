@@ -13,8 +13,9 @@ namespace CampusMarket.ML.Tests;
 //    lower than or equal to a "Worn" one: condition must carry weight.
 public sealed class PriceModelQualityTests
 {
-    // dataset v2 is harder; raised again in the price v2 PR
-    private const double MinRSquared = 0.65;
+    // Evaluated on unseen item types (grouped split by TemplateId); grouped CV
+    // gives R² 0.44 ± 0.05. Raised again in the price v2 PR.
+    private const double MinRSquared = 0.3;
 
     [Fact]
     public void Model_reaches_the_r2_bar_on_the_non_spam_test_split()

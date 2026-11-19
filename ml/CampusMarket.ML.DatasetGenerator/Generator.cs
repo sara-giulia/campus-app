@@ -157,7 +157,7 @@ public sealed class Generator
         {
             var title = Spam.PickTitle(_rng);
             var condition = PickCondition();
-            var description = Spam.PickDescription(_rng);
+            var (description, descriptionIndex) = Spam.PickDescriptionWithIndex(_rng);
 
             int price;
             var trick = _rng.Next(3);
@@ -181,7 +181,7 @@ public sealed class Generator
                 Condition: condition,
                 Price: price,
                 IsSpam: true,
-                TemplateId: "spam-generic");
+                TemplateId: $"spam-{descriptionIndex:D2}");
         }
     }
 

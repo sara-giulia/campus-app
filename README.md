@@ -693,6 +693,66 @@ split and writes the trained models into `ml/models/`. The `.csproj` of the
 API copies every `ml/models/*.zip` to its output under `ml-models/`, so the
 API runs without training.
 
+The split is **group-aware by `TemplateId`** (`DatasetSplit`, seed `2026`): both
+`TrainTestSplit` cuts pass `samplingKeyColumnName = TemplateId`, so every row
+of an item type lands in exactly one of train / validation / test and the
+quality tests therefore evaluate on item types the model has never seen. Pure
+spam rows are grouped by their spam pattern (one `TemplateId` per spam
+description body, e.g. `spam-00` … `spam-11`), so the test set holds spam
+patterns the model has never seen. On top of that, `PriceTrainer` runs a
+**5-fold grouped cross-validation** on train + validation (test held out,
+same non-spam filter as the price evaluation) and reports R², MAE and RMSE as
+mean ± std — a tighter check of how well the model generalizes than a single
+hold-out split.
+
+### Baselines
+
+After training, the program prints a side-by-side table comparing each model
+against trivial baselines on the same test part (`DatasetSplit`, grouped by
+`TemplateId`). The model must beat the baselines on every metric; if it does
+not, it is not learning anything the baselines miss.
+
+Baselines (`ml/CampusMarket.ML.Training/Evaluation/Baselines.cs`):
+
+- **Price** (non-spam rows): predicts the mean price of the same
+  `Category × Condition` from the train part, falling back to the category
+  mean and then the global mean.
+- **Category** (non-spam rows):
+  - (a) always the most frequent class of the train part;
+  - (b) a short Romanian keyword rule
+    (`carte`/`manual`/`curs` → Textbook, `notite`/`rezumat` → Notes,
+    `laptop`/`telefon`/`casti` → Electronics,
+    `microscop`/`halat`/`pipeta` → LabEquipment, else Other).
+- **Spam** (all rows): the description or title contains a phone number, a
+  link, `whatsapp`/`telegram`, three or more exclamation marks, or the price
+  is `<= 5` lei.
+
+Last run (seed `2026`, 15% grouped test part):
+
+Price (non-spam, test):
+
+| Metric | Model (FastTree) | Baseline (mean by Category × Condition) |
+|---|---|---|
+| R² | **0.336** | 0.274 |
+| MAE | **323.47** lei | 345.44 lei |
+| RMSE | **666.78** lei | 697.05 lei |
+
+Category (non-spam, test):
+
+| Metric | Model (SDCA max entropy) | Most frequent class | Keyword rule |
+|---|---|---|---|
+| Micro accuracy | **0.853** | 0.281 | 0.519 |
+| Macro accuracy | **0.858** | 0.200 | 0.484 |
+
+Spam (all rows, test):
+
+| Metric | Model (SDCA logistic) | Rule baseline |
+|---|---|---|
+| Accuracy | **1.000** | 0.987 |
+| Precision | **1.000** | 0.667 |
+| Recall | 1.000 | 1.000 |
+| F1 score | **1.000** | 0.800 |
+
 ### Dataset v2
 
 - **Seed:** `const int Seed = 2026` in both the generator and the trainer, so
