@@ -15,7 +15,7 @@ public sealed class CategoryTrainer : IModelTrainer
 
     public string ModelFileName => "category-classification.zip";
 
-    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView testData)
+    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
     {
         var trainNonSpam = WithoutSpam(mlContext, trainData);
         var testNonSpam = WithoutSpam(mlContext, testData);
