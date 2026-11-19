@@ -28,7 +28,7 @@ public class SuggestCategoryHandlerTests
     [Fact]
     public async Task Given_SuggesterReturnsNotes_When_Handling_Then_ReturnsSuggesterCategoryAndConfidence()
     {
-        var suggester = new FakeCategorySuggester { Suggestion = new CategorySuggestion(Category.Notes, 0.5) };
+        var suggester = new FakeCategorySuggester { Suggestion = new CategorySuggestion(Category.Notes, 0.9) };
         var handler = new SuggestCategoryHandler(suggester);
         var query = new SuggestCategoryQuery("Algebra notes", "Handwritten, first semester");
 
@@ -36,7 +36,37 @@ public class SuggestCategoryHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Category.Should().Be(Category.Notes);
-        result.Value.Confidence.Should().Be(0.5);
+        result.Value.Confidence.Should().Be(0.9);
+    }
+
+    [Theory]
+    [InlineData(0.9)]
+    [InlineData(0.7)]
+    public async Task Given_ConfidenceAtOrAboveMinimum_When_Handling_Then_ReturnsSuggestedCategory(double confidence)
+    {
+        var suggester = new FakeCategorySuggester { Suggestion = new CategorySuggestion(Category.Notes, confidence) };
+        var handler = new SuggestCategoryHandler(suggester);
+        var query = new SuggestCategoryQuery("Algebra notes");
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Category.Should().Be(Category.Notes);
+        result.Value.Confidence.Should().Be(confidence);
+    }
+
+    [Fact]
+    public async Task Given_ConfidenceBelowMinimum_When_Handling_Then_ReturnsNullCategoryAndKeepsConfidence()
+    {
+        var suggester = new FakeCategorySuggester { Suggestion = new CategorySuggestion(Category.Notes, 0.69) };
+        var handler = new SuggestCategoryHandler(suggester);
+        var query = new SuggestCategoryQuery("Algebra notes");
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Category.Should().BeNull();
+        result.Value.Confidence.Should().Be(0.69);
     }
 
     [Fact]
