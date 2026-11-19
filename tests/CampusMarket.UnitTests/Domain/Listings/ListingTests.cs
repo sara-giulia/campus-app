@@ -124,6 +124,17 @@ public class ListingTests
     }
 
     [Fact]
+    public void Given_PriceAboveMaximum_When_Creating_Then_ReturnsValidationError()
+    {
+        var result = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, Money.MaxAmount + 0.01m, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Money.TooHigh");
+        result.Error.Message.Should().Be($"Price must be at most {Money.MaxAmount} lei.");
+    }
+
+    [Fact]
     public void Given_NoDescription_When_Creating_Then_DescriptionIsNull()
     {
         var result = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now);
