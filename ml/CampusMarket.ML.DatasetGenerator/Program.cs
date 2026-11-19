@@ -3,17 +3,27 @@ using System.Security.Cryptography;
 using System.Text;
 using CampusMarket.ML.DatasetGenerator;
 
-var outputPath = ResolveOutputPath();
+// Dataset v2 for CampusMarket. Fixed seed on purpose: the dataset must be reproducible across
+// developers and across CI runs; the Random is not used for security.
+const int Seed = 2026; // NOSONAR: deterministic dataset, not security
+
+var catalogDir = Catalog.ResolveDefaultCatalogDirectory();
+var outputPath = Path.Combine(Path.GetDirectoryName(catalogDir)!, "listings.csv");
 Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-var rng = new Random(42); // NOSONAR: fixed seed on purpose, the dataset must be reproducible; not used for security
-var rows = Generator.Generate(rng).ToList();
+Console.WriteLine($"Loading catalog from {catalogDir}");
+var items = Catalog.LoadAll(catalogDir);
+Console.WriteLine($"Loaded {items.Count} item types across {items.Select(i => i.Category).Distinct().Count()} categories.");
+
+var rng = new Random(Seed); // NOSONAR: fixed seed on purpose, the dataset must be reproducible
+var generator = new Generator(rng, items);
+var rows = generator.Generate().ToList();
 
 var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 await using (var writer = new StreamWriter(outputPath, append: false, utf8NoBom))
 {
     writer.NewLine = "\n";
-    await writer.WriteLineAsync("Title,Description,Category,Condition,Price,IsSpam");
+    await writer.WriteLineAsync("Title,Description,Category,Condition,Price,IsSpam,TemplateId");
     foreach (var row in rows)
     {
         await writer.WriteAsync(Quote(row.Title));
@@ -27,6 +37,8 @@ await using (var writer = new StreamWriter(outputPath, append: false, utf8NoBom)
         await writer.WriteAsync(row.Price.ToString(CultureInfo.InvariantCulture));
         await writer.WriteAsync(',');
         await writer.WriteAsync(row.IsSpam ? "true" : "false");
+        await writer.WriteAsync(',');
+        await writer.WriteAsync(Quote(row.TemplateId));
         await writer.WriteAsync('\n');
     }
 }
@@ -37,7 +49,7 @@ Console.WriteLine($"Wrote {rows.Count} rows to {outputPath}");
 Console.WriteLine($"File size: {bytes.Length} bytes");
 Console.WriteLine($"SHA256: {hash}");
 
-PrintStats(rows);
+PrintStats(generator, rows);
 
 static string Quote(string value)
 {
@@ -45,23 +57,15 @@ static string Quote(string value)
     return "\"" + escaped + "\"";
 }
 
-static string ResolveOutputPath()
+static void PrintStats(Generator generator, List<Row> rows)
 {
-    var baseDir = AppContext.BaseDirectory;
-    var dir = new DirectoryInfo(baseDir);
-    while (dir is not null && dir.Name != "CampusMarket.ML.DatasetGenerator")
+    Console.WriteLine();
+    Console.WriteLine("Item types per Category:");
+    foreach (var kv in generator.ItemTypeCountPerCategory().OrderBy(kv => kv.Key))
     {
-        dir = dir.Parent;
+        Console.WriteLine($"  {kv.Key,-12} {kv.Value}");
     }
-    if (dir?.Parent is null)
-    {
-        throw new InvalidOperationException("Could not locate the ml/ directory from " + baseDir);
-    }
-    return Path.Combine(dir.Parent.FullName, "data", "listings.csv");
-}
 
-static void PrintStats(List<Row> rows)
-{
     Console.WriteLine();
     Console.WriteLine("Rows per Category:");
     foreach (var group in rows.GroupBy(r => r.Category).OrderBy(g => g.Key))
@@ -81,6 +85,9 @@ static void PrintStats(List<Row> rows)
     Console.WriteLine();
     Console.WriteLine($"Spam rows: {spam} ({pct.ToString("F2", CultureInfo.InvariantCulture)}%)");
 
+    var distinctTemplates = rows.Select(r => r.TemplateId).Distinct().Count();
+    Console.WriteLine($"Distinct TemplateIds in CSV: {distinctTemplates}");
+
     Console.WriteLine();
     Console.WriteLine("Price per Category (min / avg / max, lei):");
     foreach (var group in rows.GroupBy(r => r.Category).OrderBy(g => g.Key))
@@ -93,12 +100,12 @@ static void PrintStats(List<Row> rows)
 
     Console.WriteLine();
     Console.WriteLine("10 random rows (deterministic Random(123)):");
-    var sampleRng = new Random(123); // NOSONAR: fixed seed on purpose, the sample printout must be reproducible; not used for security
+    var sampleRng = new Random(123); // NOSONAR: fixed seed on purpose, the sample printout must be reproducible
     var picks = Enumerable.Range(0, 10).Select(_ => rows[sampleRng.Next(rows.Count)]);
     foreach (var row in picks)
     {
         var description = row.Description.Length > 70 ? row.Description[..70] + "..." : row.Description;
-        Console.WriteLine($"  [{row.Category}/{row.Condition}/{row.Price} lei/spam={row.IsSpam}] {row.Title}");
+        Console.WriteLine($"  [{row.Category}/{row.Condition}/{row.Price} lei/spam={row.IsSpam}/{row.TemplateId}] {row.Title}");
         if (!string.IsNullOrEmpty(description))
         {
             Console.WriteLine($"      {description}");

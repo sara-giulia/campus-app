@@ -1,4 +1,7 @@
+using CampusMarket.ML.Training.Evaluation;
 using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.Trainers.FastTree;
 
 namespace CampusMarket.ML.Training;
 
@@ -9,6 +12,11 @@ namespace CampusMarket.ML.Training;
 // price space so the two variants can be compared directly. When LogLabel is true the
 // API undoes the transform with exp(score) - 1; the saved model itself has no custom
 // mapping, so it loads in the API without a registered contract.
+//
+// After the normal train / validation / test run, the trainer also runs a 5-fold
+// grouped cross-validation on train + validation (test is held out), using the same
+// pipeline and the same non-spam filter as the price evaluation. The mean ± std of
+// R², MAE and RMSE is appended to the reported metrics.
 public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
 {
     public bool LogLabel { get; } = logLabel;
@@ -22,7 +30,30 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
         var trainNonSpam = PrepareData(mlContext, trainData);
         var testNonSpam = PrepareData(mlContext, testData);
 
-        var pipeline = mlContext.Transforms.Categorical.OneHotEncoding("CategoryEncoded", nameof(ListingRow.Category))
+        var pipeline = BuildPipeline(mlContext);
+
+        // ITransformer, the type that IModelTrainer returns for every model
+        ITransformer model = pipeline.Fit(trainNonSpam);
+
+        var metrics = Evaluate(mlContext, model, testNonSpam);
+
+        var cvData = PrepareData(mlContext, trainData, validationData);
+        var cv = CrossValidation.Regression(mlContext, cvData, pipeline);
+
+        var text =
+            $"R²:   {metrics.R2:0.000}" + Environment.NewLine +
+            $"MAE:  {metrics.Mae:0.00} lei" + Environment.NewLine +
+            $"RMSE: {metrics.Rmse:0.00} lei" + Environment.NewLine +
+            $"5-fold grouped CV on train+validation (by TemplateId, non-spam):" + Environment.NewLine +
+            $"  {cv[0].Format("0.000")}" + Environment.NewLine +
+            $"  {cv[1].Format("0.00", "lei")}" + Environment.NewLine +
+            $"  {cv[2].Format("0.00", "lei")}";
+
+        return (model, text);
+    }
+
+    private static EstimatorChain<RegressionPredictionTransformer<FastTreeRegressionModelParameters>> BuildPipeline(MLContext mlContext) =>
+        mlContext.Transforms.Categorical.OneHotEncoding("CategoryEncoded", nameof(ListingRow.Category))
             .Append(mlContext.Transforms.Categorical.OneHotEncoding("ConditionEncoded", nameof(ListingRow.Condition)))
             .Append(mlContext.Transforms.Text.FeaturizeText("TitleFeatures", nameof(ListingRow.Title)))
             .Append(mlContext.Transforms.Text.FeaturizeText("DescriptionFeatures", nameof(ListingRow.Description)))
@@ -30,21 +61,10 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
                 "CategoryEncoded", "ConditionEncoded", "TitleFeatures", "DescriptionFeatures"))
             .Append(mlContext.Regression.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features"));
 
-        // ITransformer, the type that IModelTrainer returns for every model
-        ITransformer model = pipeline.Fit(trainNonSpam);
-
-        var metrics = Evaluate(mlContext, model, testNonSpam);
-        var text =
-            $"R²:   {metrics.R2:0.000}" + Environment.NewLine +
-            $"MAE:  {metrics.Mae:0.00} lei" + Environment.NewLine +
-            $"RMSE: {metrics.Rmse:0.00} lei";
-
-        return (model, text);
-    }
-
-    private IDataView PrepareData(MLContext mlContext, IDataView data)
+    private IDataView PrepareData(MLContext mlContext, params IDataView[] sources)
     {
-        var rows = mlContext.Data.CreateEnumerable<ListingRow>(data, reuseRowObject: false)
+        var rows = sources
+            .SelectMany(view => mlContext.Data.CreateEnumerable<ListingRow>(view, reuseRowObject: false))
             .Where(r => !r.IsSpam)
             .Select(r => new TrainingRow
             {
@@ -53,6 +73,7 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
                 Category = r.Category,
                 Condition = r.Condition,
                 Price = r.Price,
+                TemplateId = r.TemplateId,
                 Label = LogLabel ? MathF.Log(r.Price + 1f) : r.Price
             })
             .ToList();
@@ -103,6 +124,8 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
         public float Price { get; set; }
 
         public float Label { get; set; }
+
+        public string TemplateId { get; set; } = string.Empty;
     }
 
     private sealed class ScoredRow
