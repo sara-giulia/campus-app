@@ -561,3 +561,14 @@ Tests to add:
 Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`. Build the messages from `Review.MinRating`, `Review.MaxRating` and `Review.MaxCommentLength`, the same way the domain does. The message of `Review.Duplicate` contains the generated Id: use `.Match("A review with id '*' already exists.")`, as for `Favorite.Duplicate`.
 - Never use real time: `Now` is fixed.
+
+## Feature: Maximum price (Diana)
+
+Production code: `Domain/Listings/Money.cs`, `Money.MaxAmount` = 100000.
+
+File: `Domain/Listings/MoneyTests.cs` (add to it).
+
+Tests to add:
+- exactly `Money.MaxAmount` → success.
+- `Money.MaxAmount + 0.01m` → `Validation`, code `Money.TooHigh`, exact message from the code.
+- `Listing.Create` with a price above the maximum → the same error.
