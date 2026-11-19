@@ -1846,3 +1846,12 @@ Week 6, task 2 (maximum price). The production code is the one from the task lis
   - Exactly 100000 is allowed; above it the error is `Money.TooHigh` (Validation, 400), checked after `Money.Invalid`.
 - **Result:** `Domain/Listings/Money.cs`, README error table, the two skill sections. Tests generated: `MoneyTests` (exactly the maximum, maximum + 0.01), `ListingTests` (`Listing.Create` above the maximum), integration `CreateListingTests` (price 200000 → 400 `Money.TooHigh`, nothing saved). Build 0 errors; 435 unit, 220 integration, 10 architecture and 13 ML tests pass.
 - **Commits:** code eb8885b; skill sections 0d26845; tests generated in c989e44 (see Run 26 of unit-testing and Run 29 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `SonarCloud reports 80% coverage on new code for PR #82. Find out which new line or condition is not covered. Do NOT change any file, do NOT commit.` Then: `Do not add that test. Instead, in src/CampusMarket.Api/Domain/Listings/Money.cs change public const decimal MaxAmount = 100_000m; to public static readonly decimal MaxAmount = 100_000m; and add a short comment above it: a const decimal gets a static constructor that never runs, so the line stays uncovered. Run dotnet build and dotnet test, then run the tests with coverage like the CI and confirm every new line of Money.cs is covered.`
+- **Decisions:**
+  - The coverage reports of the CI command (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`) showed one uncovered new line: `public const decimal MaxAmount = 100_000m;`. The compiler gives a `const decimal` a static constructor, and every use of the constant is replaced by its value at compile time, so that constructor never runs, not even in the tests that use `Money.MaxAmount`.
+  - `static readonly` instead of `const`: the field is now read at run time by `Money.Create`, so the static constructor runs and the line is covered, without a test written only for coverage and without excluding the line in Sonar. The value, the name and every use stay the same (no test or other code needed a compile-time constant), and a comment above the field says why it is not `const`.
+- **Result:** `Money.MaxAmount` is `public static readonly decimal`. Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 222 integration tests pass. In both coverage reports of `CampusMarket.Api`, every sequence point and branch of `Money` is covered, including the static constructor (line 8, 1 visit) and both sides of `amount > MaxAmount`.
+- **Commits:** code 7e6a4c6
