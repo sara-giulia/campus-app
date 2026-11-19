@@ -1,5 +1,6 @@
 using System.Globalization;
 using CampusMarket.ML.Training;
+using CampusMarket.ML.Training.Evaluation;
 using Microsoft.ML;
 
 var mlContext = new MLContext(seed: DatasetSplit.Seed);
@@ -50,6 +51,8 @@ var trainers = new List<IModelTrainer>
     new SpamTrainer()
 };
 
+var trainedModels = new Dictionary<string, ITransformer>();
+
 foreach (var trainer in trainers)
 {
     Console.WriteLine();
@@ -62,7 +65,53 @@ foreach (var trainer in trainers)
     var modelPath = Path.Combine(modelsDir, trainer.ModelFileName);
     mlContext.Model.Save(model, data.Schema, modelPath);
     Console.WriteLine($"Saved model to {modelPath}");
+
+    trainedModels[trainer.ModelFileName] = model;
 }
+
+Console.WriteLine();
+Console.WriteLine("=== Baselines vs models (same test part) ===");
+
+var priceModel = trainedModels["price-regression.zip"];
+var categoryModel = trainedModels["category-classification.zip"];
+var spamModel = trainedModels["spam-detection.zip"];
+
+var priceModelMetrics = Baselines.EvaluatePriceModel(mlContext, priceModel, testSet);
+var priceBaseline = Baselines.Price(mlContext, trainSet, testSet);
+
+var categoryModelMetrics = Baselines.EvaluateCategoryModel(mlContext, categoryModel, testSet);
+var categoryMostFrequent = Baselines.CategoryMostFrequent(mlContext, trainSet, testSet);
+var categoryKeywords = Baselines.CategoryKeywords(mlContext, testSet);
+
+var spamModelMetrics = Baselines.EvaluateSpamModel(mlContext, spamModel, testSet);
+var spamBaseline = Baselines.Spam(mlContext, testSet);
+
+Console.WriteLine();
+Console.WriteLine("Price (non-spam, test):");
+Console.WriteLine("| Metric | Model (FastTree) | Baseline (mean by Category x Condition) |");
+Console.WriteLine("|---|---|---|");
+Console.WriteLine($"| R²   | {F3(priceModelMetrics.R2)} | {F3(priceBaseline.R2)} |");
+Console.WriteLine($"| MAE  | {F2(priceModelMetrics.Mae)} lei | {F2(priceBaseline.Mae)} lei |");
+Console.WriteLine($"| RMSE | {F2(priceModelMetrics.Rmse)} lei | {F2(priceBaseline.Rmse)} lei |");
+
+Console.WriteLine();
+Console.WriteLine("Category (non-spam, test):");
+Console.WriteLine("| Metric | Model (SDCA max entropy) | Most frequent class | Keyword rule |");
+Console.WriteLine("|---|---|---|---|");
+Console.WriteLine($"| Micro accuracy | {F3(categoryModelMetrics.MicroAccuracy)} | {F3(categoryMostFrequent.MicroAccuracy)} | {F3(categoryKeywords.MicroAccuracy)} |");
+Console.WriteLine($"| Macro accuracy | {F3(categoryModelMetrics.MacroAccuracy)} | {F3(categoryMostFrequent.MacroAccuracy)} | {F3(categoryKeywords.MacroAccuracy)} |");
+
+Console.WriteLine();
+Console.WriteLine("Spam (all rows, test):");
+Console.WriteLine("| Metric | Model (SDCA logistic) | Rule baseline |");
+Console.WriteLine("|---|---|---|");
+Console.WriteLine($"| Accuracy  | {F3(spamModelMetrics.Accuracy)} | {F3(spamBaseline.Accuracy)} |");
+Console.WriteLine($"| Precision | {F3(spamModelMetrics.Precision)} | {F3(spamBaseline.Precision)} |");
+Console.WriteLine($"| Recall    | {F3(spamModelMetrics.Recall)} | {F3(spamBaseline.Recall)} |");
+Console.WriteLine($"| F1 score  | {F3(spamModelMetrics.F1)} | {F3(spamBaseline.F1)} |");
+
+static string F3(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
+static string F2(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 
 int Count(IDataView view) =>
     mlContext.Data.CreateEnumerable<ListingRow>(view, reuseRowObject: false).Count();
