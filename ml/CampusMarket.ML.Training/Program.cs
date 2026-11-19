@@ -1,7 +1,9 @@
 using CampusMarket.ML.Training;
 using Microsoft.ML;
 
-var mlContext = new MLContext(seed: 42);
+const int Seed = 2026;
+
+var mlContext = new MLContext(seed: Seed);
 
 var mlDir = ResolveMlDirectory();
 var csvPath = Path.Combine(mlDir, "data", "listings.csv");
@@ -16,13 +18,16 @@ var data = mlContext.Data.LoadFromTextFile<ListingRow>(
     separatorChar: ',',
     allowQuoting: true);
 
-var split = mlContext.Data.TrainTestSplit(data, testFraction: 0.2, seed: 42);
+var firstSplit = mlContext.Data.TrainTestSplit(data, testFraction: 0.3, seed: Seed);
+var secondSplit = mlContext.Data.TrainTestSplit(firstSplit.TestSet, testFraction: 0.5, seed: Seed);
 
-var trainCount = mlContext.Data.CreateEnumerable<ListingRow>(split.TrainSet, reuseRowObject: false).Count();
-var testCount = mlContext.Data.CreateEnumerable<ListingRow>(split.TestSet, reuseRowObject: false).Count();
+var trainSet = firstSplit.TrainSet;
+var validationSet = secondSplit.TrainSet;
+var testSet = secondSplit.TestSet;
 
-Console.WriteLine($"Train rows: {trainCount}");
-Console.WriteLine($"Test rows:  {testCount}");
+Console.WriteLine($"Train rows:      {Count(trainSet)}");
+Console.WriteLine($"Validation rows: {Count(validationSet)}");
+Console.WriteLine($"Test rows:       {Count(testSet)}");
 
 var trainers = new List<IModelTrainer>
 {
@@ -36,7 +41,7 @@ foreach (var trainer in trainers)
     Console.WriteLine();
     Console.WriteLine($"=== {trainer.Name} ===");
 
-    var (model, metrics) = trainer.Train(mlContext, split.TrainSet, split.TestSet);
+    var (model, metrics) = trainer.Train(mlContext, trainSet, validationSet, testSet);
 
     Console.WriteLine(metrics);
 
@@ -44,6 +49,9 @@ foreach (var trainer in trainers)
     mlContext.Model.Save(model, data.Schema, modelPath);
     Console.WriteLine($"Saved model to {modelPath}");
 }
+
+int Count(IDataView view) =>
+    mlContext.Data.CreateEnumerable<ListingRow>(view, reuseRowObject: false).Count();
 
 static string ResolveMlDirectory()
 {
