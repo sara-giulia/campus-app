@@ -693,6 +693,18 @@ split and writes the trained models into `ml/models/`. The `.csproj` of the
 API copies every `ml/models/*.zip` to its output under `ml-models/`, so the
 API runs without training.
 
+The split is **group-aware by `TemplateId`** (`DatasetSplit`, seed `2026`): both
+`TrainTestSplit` cuts pass `samplingKeyColumnName = TemplateId`, so every row
+of an item type lands in exactly one of train / validation / test and the
+quality tests therefore evaluate on item types the model has never seen. Pure
+spam rows are grouped by their spam pattern (one `TemplateId` per spam
+description body, e.g. `spam-00` … `spam-11`), so the test set holds spam
+patterns the model has never seen. On top of that, `PriceTrainer` runs a
+**5-fold grouped cross-validation** on train + validation (test held out,
+same non-spam filter as the price evaluation) and reports R², MAE and RMSE as
+mean ± std — a tighter check of how well the model generalizes than a single
+hold-out split.
+
 ### Dataset v2
 
 - **Seed:** `const int Seed = 2026` in both the generator and the trainer, so
