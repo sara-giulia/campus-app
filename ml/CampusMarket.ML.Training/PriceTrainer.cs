@@ -1,5 +1,7 @@
 using CampusMarket.ML.Training.Evaluation;
 using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.Trainers.FastTree;
 
 namespace CampusMarket.ML.Training;
 
@@ -50,7 +52,7 @@ public sealed class PriceTrainer(bool logLabel = false) : IModelTrainer
         return (model, text);
     }
 
-    private IEstimator<ITransformer> BuildPipeline(MLContext mlContext) =>
+    private static EstimatorChain<RegressionPredictionTransformer<FastTreeRegressionModelParameters>> BuildPipeline(MLContext mlContext) =>
         mlContext.Transforms.Categorical.OneHotEncoding("CategoryEncoded", nameof(ListingRow.Category))
             .Append(mlContext.Transforms.Categorical.OneHotEncoding("ConditionEncoded", nameof(ListingRow.Condition)))
             .Append(mlContext.Transforms.Text.FeaturizeText("TitleFeatures", nameof(ListingRow.Title)))
