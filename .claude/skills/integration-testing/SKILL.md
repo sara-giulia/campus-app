@@ -781,3 +781,14 @@ Rules for this feature:
 - This section goes with two changes in `src/` made by hand before the run (`CampusMarketSetup.cs` reads `ReservationExpiry:Enabled` with `GetValue`, and `ReservationExpiryService.cs` no longer checks the result of `WaitForNextTickAsync`), so the section 10 check on `git status` also lists those two files.
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+
+## Feature: Listings cache (Diana)
+
+Production code: `GetListingsEndpoint` caches for 30 s with tag "listings"; `ListingsCache.ClearAsync` is called after every successful change of a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide).
+
+File: `Listings/ListingsCacheTests.cs` (new).
+
+Tests to add:
+- search, then create and publish a listing, then search again with the same query → the new listing is there.
+- search, then update a listing's title, then search again → the new title is there.
+- search, then reserve the listing, then search again → it is gone (no longer Active).
