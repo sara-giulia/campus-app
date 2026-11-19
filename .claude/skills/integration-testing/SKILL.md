@@ -796,3 +796,15 @@ File: `Listings/CreateListingTests.cs` (add to it).
 
 Tests to add:
 - POST a listing with price 200000 → 400 `Money.TooHigh`, nothing saved.
+
+## Feature: Live and ready health checks (Diana)
+
+Production code: `Infrastructure/ML/MlModelsHealthCheck.cs`; `/health/live` (no checks) and `/health/ready` (database + ML models) in `Program.cs`.
+
+File: `Infrastructure/HealthTests.cs` (new or add to it).
+
+Tests to add:
+- `/health/live` → 200, body "Healthy".
+- `/health/ready` → 200, body "Healthy" (the models are copied to the test output).
+- `/health` → 200 (unchanged).
+- If MlModelsHealthCheck has lines the HTTP tests cannot reach (the Unhealthy branch), add a test that calls CheckHealthAsync with a ModelsPath folder that does not exist → Unhealthy, message lists the missing files.
