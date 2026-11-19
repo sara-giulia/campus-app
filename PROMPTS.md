@@ -1194,6 +1194,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v28 is the final version.
 - **Commits:** skill 0d26845; generated code c989e44
 
+### Run 30, skill v29 (Feature: Correlation id)
+
+- **Why a new version:** every response now has an `X-Correlation-Id` header, set by a new middleware that runs before every other one. It is a behaviour of the whole pipeline (also on 404 and error answers), so only a real request can show it.
+
+#### Change to SKILL.md (v28 → v29) and why
+
+| # | v28 (before) | v29 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the correlation id. | New section *"Feature: Correlation id (Diana)"*: the file (`Infrastructure/CorrelationIdTests.cs`, new) and 3 tests: no header → a header that is a valid Guid; `X-Correlation-Id: test-123` → the same value; a 404 answer also has the header. | The three cases are the three paths of the middleware (new id, id from the client, id on an error answer). |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Correlation id (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v29, commit 1de3dc2 (section written and run by Diana Preutu with Claude Code)
+- **Result:** new file `Infrastructure/CorrelationIdTests.cs` with 3 tests: `GET /api/v1/listings` without the header → 200 and one `X-Correlation-Id` value that is not empty and is a Guid; the same request with `test-123` → the header is exactly `test-123`; `GET /api/v1/listings/{random Guid}` → 404 with the header. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 225 integration. With coverage like the CI, every line and branch of `CorrelationIdMiddleware` is covered by the integration tests (the unit test report has no hit, as expected).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v29 is the final version.
+- **Commits:** skill 1de3dc2; generated code 873dccb
+
 
 ## code-review
 
@@ -1855,3 +1872,18 @@ Week 6, task 2 (maximum price). The production code is the one from the task lis
   - `static readonly` instead of `const`: the field is now read at run time by `Money.Create`, so the static constructor runs and the line is covered, without a test written only for coverage and without excluding the line in Sonar. The value, the name and every use stay the same (no test or other code needed a compile-time constant), and a comment above the field says why it is not `const`.
 - **Result:** `Money.MaxAmount` is `public static readonly decimal`. Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 222 integration tests pass. In both coverage reports of `CampusMarket.Api`, every sequence point and branch of `Money` is covered, including the static constructor (line 8, 1 visit) and both sides of `amount > MaxAmount`.
 - **Commits:** code 7e6a4c6
+
+## correlation-id
+
+Week 6, observability (correlation id). Small middleware written by Diana Preutu with Claude Code from the task list; the tests were generated afterwards with the integration-testing skill (Run 30). There are no unit tests: the class is only a middleware, covered by the integration tests.
+
+### Run 1
+
+- **Prompt:** `New task on branch feature/correlation-id. Do it exactly as written: add Infrastructure/Logging/CorrelationIdMiddleware.cs, register it first in Program.cs, turn on IncludeScopes for the console logs in appsettings.json, add a note to the README, append the section "Feature: Correlation id (Diana)" to the integration-testing SKILL.md, run the skill, run the tests with coverage and log the run in PROMPTS.md. Do NOT commit, do NOT push.`
+- **Decisions:**
+  - The id is taken from `X-Correlation-Id` when the client sends one (so a client or a gateway can follow a request through the logs), otherwise it is a new Guid. It is put in the response header and in a logging scope (`CorrelationId`), so every log line of the request has it.
+  - The middleware is the first one in `Program.cs`, before the exception handler and `UseStatusCodePages`, so 401, 403, 404 and 500 answers also have the header.
+  - `Logging:Console:IncludeScopes` is `true` in `appsettings.json`: without it the console provider does not print scopes and the id would be in no log line.
+  - The value from the client is used as it is (no length or format check), as the task asked.
+- **Result:** `Infrastructure/Logging/CorrelationIdMiddleware.cs`, two lines in `Program.cs`, `Logging:Console:IncludeScopes` in `appsettings.json`, a "Correlation id" note in the README, the skill section and 3 integration tests. Build 0 errors, 0 warnings; 438 unit and 225 integration tests pass. Coverage like the CI: every new line and branch in `src/` is covered (`Program.cs` is excluded from the Sonar coverage in the CI).
+- **Commits:** code 46c62dd; skill section 1de3dc2; tests generated in 873dccb (see Run 30 of integration-testing)
