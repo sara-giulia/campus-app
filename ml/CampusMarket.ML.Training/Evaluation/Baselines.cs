@@ -10,7 +10,7 @@ namespace CampusMarket.ML.Training.Evaluation;
 //
 // The same metric records are also used by the test-set evaluation of the
 // trained models, so the table shows both sides in the same shape.
-public static class Baselines
+public static partial class Baselines
 {
     public sealed record PriceMetrics(double R2, double Mae, double Rmse);
 
@@ -92,23 +92,23 @@ public static class Baselines
         return Binary(actual, predicted);
     }
 
-    private static readonly Regex PhoneRegex =
-        new(@"(?:\d[\s\-\.]*){9,}", RegexOptions.Compiled);
+    [GeneratedRegex(@"(?:\d[\s\-\.]*){9,}", RegexOptions.Compiled, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex PhoneRegex();
 
-    private static readonly Regex LinkRegex =
-        new(@"(?:https?://|www\.|\blink\b)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    [GeneratedRegex(@"(?:https?://|www\.|\blink\b)", RegexOptions.Compiled | RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex LinkRegex();
 
-    private static readonly Regex ExclRegex =
-        new(@"!{3,}", RegexOptions.Compiled);
+    [GeneratedRegex(@"!{3,}", RegexOptions.Compiled, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex ExclRegex();
 
     private static bool IsSpamByRule(ListingRow r)
     {
         var text = (r.Title ?? string.Empty) + " " + (r.Description ?? string.Empty);
         var lower = text.ToLowerInvariant();
-        if (PhoneRegex.IsMatch(text)) return true;
-        if (LinkRegex.IsMatch(text)) return true;
+        if (PhoneRegex().IsMatch(text)) return true;
+        if (LinkRegex().IsMatch(text)) return true;
         if (lower.Contains("whatsapp") || lower.Contains("telegram")) return true;
-        if (ExclRegex.IsMatch(text)) return true;
+        if (ExclRegex().IsMatch(text)) return true;
         if (r.Price <= 5f) return true;
         return false;
     }
