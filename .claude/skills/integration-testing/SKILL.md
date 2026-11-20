@@ -801,9 +801,14 @@ Tests to add:
 
 Production code: `GetListingsEndpoint` caches for 30 s with tag "listings"; `ListingsCache.ClearAsync` is called after every successful change of a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide).
 
-File: `Listings/ListingsCacheTests.cs` (new).
+Important: the ASP.NET Core output cache does not store responses to requests that have an `Authorization` header. Every search in these tests is sent **without a token**; only the change (create, publish, update, reserve) is sent with a token.
+
+File: `Listings/ListingsCacheTests.cs` (replace its tests).
+
+Setup: every test starts with an empty cache: at the start, get `IOutputCacheStore` from `Factory.Services` and call `EvictByTagAsync(ListingsCache.Tag, ...)`, so the tests do not affect each other.
 
 Tests to add:
-- search, then create and publish a listing, then search again with the same query → the new listing is there.
-- search, then update a listing's title, then search again → the new title is there.
-- search, then reserve the listing, then search again → it is gone (no longer Active).
+- the cache is used: search without a token → change a published listing directly in the database (through the DbContext, no endpoint, for example its title) → the same search without a token still returns the old title.
+- search without a token → create a listing with a token → the same search without a token (the draft is not there, and this fills the cache) → publish with a token → the same search without a token → the new listing is there.
+- search without a token → update a listing's title with a token → the same search without a token → the new title is there.
+- search without a token → reserve the listing with a token → the same search without a token → it is gone (no longer Active).
