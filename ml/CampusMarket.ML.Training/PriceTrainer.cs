@@ -204,7 +204,7 @@ public sealed class PriceTrainer : IModelTrainer
         return new PriceMetricsDetailed(basic.R2, basic.Mae, basic.Rmse, mape, perCategory);
     }
 
-    private static IReadOnlyList<PriceMetrics> GroupedCrossValidation(
+    private static List<PriceMetrics> GroupedCrossValidation(
         MLContext mlContext,
         IReadOnlyList<TrainingRow> rows,
         PriceAlgorithm algorithm,
@@ -212,7 +212,7 @@ public sealed class PriceTrainer : IModelTrainer
         int folds)
     {
         var templateIds = rows.Select(r => r.TemplateId).Distinct().OrderBy(id => id, StringComparer.Ordinal).ToList();
-        var random = new Random(DatasetSplit.Seed);
+        var random = new Random(DatasetSplit.Seed); // NOSONAR: deterministic seeded shuffle for reproducible cross-validation, not security
         for (var i = templateIds.Count - 1; i > 0; i--)
         {
             var j = random.Next(i + 1);
