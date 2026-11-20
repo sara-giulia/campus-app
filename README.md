@@ -77,7 +77,7 @@ Unit tests: `dotnet test` from the repository root.
 - **xUnit** with hand-written fakes
 - **Postman** collections for API tests
 - **SonarQube Cloud** for code quality and coverage, with a quality gate of **100% coverage on new code**
-- **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`) for the AI module
+- **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`, `Microsoft.ML.LightGbm`) for the AI module
 
 ## 3. Use cases
 
@@ -731,11 +731,15 @@ Last run (seed `2026`, 15% grouped test part):
 
 Price (non-spam, test):
 
-| Metric | Model (FastTree) | Baseline (mean by Category × Condition) |
+| Metric | Model (FastTree on log1p(Price), picked by MAE on validation) | Baseline (mean by Category × Condition) |
 |---|---|---|
-| R² | **0.336** | 0.274 |
-| MAE | **323.47** lei | 345.44 lei |
-| RMSE | **666.78** lei | 697.05 lei |
+| R² | **0.451** | 0.274 |
+| MAE | **268.53** lei | 345.44 lei |
+| RMSE | **606.21** lei | 697.05 lei |
+| MAPE | **75.3%** | 179.6% |
+
+Details of the 6-candidate selection, the per-category MAE and the
+5-fold grouped CV are in [docs/ml/price.md](docs/ml/price.md).
 
 Category (non-spam, test):
 
@@ -804,23 +808,42 @@ registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
 
 ### Price suggestion model (B3)
 
-- Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, FastTree regression on
-  the non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
-  `Title` and `Description` through `FeaturizeText`. Label: `Price`.
-- Metrics on the 15% hold-out (seed 2026, non-spam rows):
+- Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, regression on the
+  non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
+  `Title` and `Description` through `FeaturizeText`.
+- **Model selection (price v2):** six candidates — three algorithms (`FastTree`,
+  `LightGbm`, `Sdca`) × two targets (`Price`, `log1p(Price)`) — are trained on
+  the train part and scored on the **validation** part only; the winner is
+  picked by MAE in lei, tie-broken by R². The winner is retrained on
+  train + validation and evaluated **once** on the test part (the saved
+  model). The current winner is **FastTree on `log1p(Price)`**: dampening the
+  heavy-tailed price distribution with `log1p` wins on MAE and MAPE even
+  when raw-target Sdca has a higher R². When the target is log-based, the
+  saved pipeline appends an `Expression` transform that maps `Score` back
+  to lei, so the API's `PriceSuggester` reads `Score` directly and does not
+  need to know which target won.
+- Test metrics on the 15% grouped hold-out (seed 2026, non-spam, unseen
+  `TemplateId`s):
 
   | Metric | Value |
   |---|---|
-  | R² | **0.713** |
-  | MAE | 143.48 lei |
-  | RMSE | 314.06 lei |
+  | R²   | **0.451** |
+  | MAE  | 268.53 lei |
+  | RMSE | 606.21 lei |
+  | MAPE | 75.3% |
 
+  5-fold grouped CV on train + validation: R² 0.449 ± 0.106,
+  MAE 164.95 ± 42.43 lei, RMSE 383.08 ± 113.76 lei. The six-candidate table,
+  the MAE per category and the "when not to trust the suggestion" notes are
+  in [docs/ml/price.md](docs/ml/price.md).
 - The saved model (`ml/models/price-regression.zip`) is loaded by the API through
   `PredictionEnginePool<PriceInput, PricePrediction>`; the `SuggestPrice` slice
   depends on `IPriceSuggester` (in `Common/Pricing/`) and never sees `Microsoft.ML`.
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on its own split (seed 42, 20%) and fails if R² drops below 0.8, or if, for
-  the same title, `Condition = New` is not priced higher than `Condition = Worn`.
+  on the shared grouped split and fails if R² on the test part drops below
+  **0.40** (winner's test R² − 0.05, rounded down to two decimals — see
+  `MinRSquared` and [docs/ml/price.md](docs/ml/price.md)), or if, for the
+  same title, `Condition = New` is not priced higher than `Condition = Worn`.
 
 ### Category suggestion model (B4)
 
