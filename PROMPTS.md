@@ -1212,6 +1212,25 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v31 is the final version.
 - **Commits:** skill 030e958; generated code 9f480ad
 
+### Run 33, skill v32 (Feature: Listings cache, review fix)
+
+- **Why a new version:** Sara's review on PR #84 found that the Run 32 tests did not test the cache. The ASP.NET Core output cache does not store a response to a request with an `Authorization` header, and those tests searched after `AuthenticateAs`, so every search went to the database and the tests would pass without `ListingsCache.ClearAsync`.
+
+#### Change to SKILL.md (v31 → v32) and why
+
+| # | v31 (before) | v32 (after) | Why |
+|---|---|---|---|
+| 1 | Section *"Feature: Listings cache (Diana)"*: file `Listings/ListingsCacheTests.cs` (new); 3 tests: *"search, then create and publish a listing, then search again with the same query"*, *"search, then update a listing's title, then search again"*, *"search, then reserve the listing, then search again"*. Nothing about tokens. | Same section with the note *"the ASP.NET Core output cache does not store responses to requests that have an `Authorization` header. Every search in these tests is sent **without a token**; only the change (create, publish, update, reserve) is sent with a token."*, and the file is *"(replace its tests)"*. | The old tests logged in before the first search, so the cache was never filled. |
+| 2 | No setup. | New *Setup*: every test starts by evicting the tag `ListingsCache.Tag` from `IOutputCacheStore` taken from `Factory.Services`. | The tests do not affect each other. |
+| 3 | 3 tests. | 4 tests: the 3 above, each with searches without a token (the create/publish one is *"search without a token → create a listing with a token → the same search without a token (the draft is not there, and this fills the cache) → publish with a token → the same search without a token → the new listing is there"*), and a new first one: search without a token → change a published listing in the database through the DbContext (no endpoint) → the same search still returns the old title. | A test that proves the cache is used; without it, the other three could pass with no cache at all. |
+
+- **Prompt:** `Run the integration-testing skill for "Feature: Listings cache (Diana)". Replace the old tests in Listings/ListingsCacheTests.cs with the ones the section describes. Run dotnet test. Then remove the ListingsCache.ClearAsync line from one endpoint (for example UpdateListingEndpoint), run only ListingsCacheTests and confirm the update test fails, then put the line back and confirm all pass again.`
+- **Skill version:** v32, commit a93eb36 (section written by Diana Preutu with Claude Code)
+- **Result:** `Listings/ListingsCacheTests.cs` now has 4 tests. Searches use an anonymous client (`Factory.CreateClient()`), changes use the logged-in `Client`; the title change in the first test is a SQL `UPDATE` through the DbContext. The create/publish test has a search between create and publish, because create already clears the cache and a single search before it could not show a missing clear in publish. Check: `ListingsCache.ClearAsync` was removed from `UpdateListingEndpoint`, `PublishListingEndpoint` and `ReserveListingEndpoint`, one at a time; each time exactly the matching test failed (update, publish, reserve) and the other 3 passed; with the lines back all 4 pass. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 226 integration.
+- **Problems seen:** the first build failed on missing `using` lines in the test file (`DependencyInjection`, `Persistence`); fixed in the test.
+- **Change to SKILL.md:** none after the run; v32 is the final version.
+- **Commits:** skill a93eb36; generated code 8631881
+
 
 ## code-review
 
@@ -1891,3 +1910,14 @@ Performance change on `GET /api/v1/listings`, written by Diana with Claude Code;
     1. The first build failed: `HideListingEndpoint` could not see `ListingsCache` (missing `using`).
     2. `ReservationExpiryTests.Given_JobOnWithExpiredAndValidReservations_...` failed once with a locked SQLite database; it passed in the three following runs and was not changed.
 - **Commits:** code f332e9d; skill section 030e958; tests generated in 9f480ad (see Run 32 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `Sara's review on PR #84: the listings cache tests do not test the cache. ASP.NET Core output cache does not store responses to requests with an Authorization header, and the tests search after AuthenticateAs, so they would pass without ClearAsync.` Then: replace the section "Feature: Listings cache (Diana)" in the skill, run the skill, and check that removing a `ClearAsync` line makes a test fail.
+- **Decisions:**
+    - No change to production code. The cache works; the tests were wrong. The output cache skips requests with an `Authorization` header, so the searches now use a client without a token and only the changes are sent with one.
+    - A new test changes a listing directly in the database and checks that the same search still returns the old title: this proves the cache is used, which the other three tests can only show together with the clearing.
+    - Each test first evicts the tag from `IOutputCacheStore`, as the review asked, so the tests never depend on each other.
+    - The check was done with `UpdateListingEndpoint`: one endpoint is enough to show that the test fails when the clearing is missing.
+- **Result:** `ListingsCacheTests.cs` has 4 tests. Without `ListingsCache.ClearAsync` in `UpdateListingEndpoint`, the update test fails (3 pass); with the line back, all 4 pass. Full run: 10 architecture, 438 unit, 13 ML, 226 integration, 0 warnings. `src/` unchanged (the line was put back).
+- **Commits:** skill section a93eb36; tests regenerated in 8631881 (see Run 33 of integration-testing)
