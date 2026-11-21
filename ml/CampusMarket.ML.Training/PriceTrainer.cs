@@ -34,7 +34,7 @@ public sealed class PriceTrainer : IModelTrainer
 
     public string ModelFileName => "price-regression.zip";
 
-    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
+    public TrainingResult Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
     {
         var trainRows = NonSpamRows(mlContext, trainData);
         var validationRows = NonSpamRows(mlContext, validationData);
@@ -81,7 +81,15 @@ public sealed class PriceTrainer : IModelTrainer
         var cv = GroupedCrossValidation(mlContext, trainPlusValidation, winner.Alg, winner.Tgt, folds: 5);
 
         var text = FormatMetrics(validationResults, winner, testMetrics, baselineMetrics, cv);
-        return (finalModel, text);
+        var algorithm = $"{winner.Alg} / {TargetLabel(winner.Tgt)}";
+        var structured = new Dictionary<string, double>(StringComparer.Ordinal)
+        {
+            ["mae"] = testMetrics.Mae,
+            ["mape"] = testMetrics.Mape,
+            ["r2"] = testMetrics.R2,
+            ["rmse"] = testMetrics.Rmse,
+        };
+        return new TrainingResult(finalModel, text, algorithm, structured);
     }
 
     public static IEstimator<ITransformer> BuildPipeline(MLContext mlContext, PriceAlgorithm algorithm, PriceTarget target)
@@ -97,11 +105,26 @@ public sealed class PriceTrainer : IModelTrainer
         pipeline = algorithm switch
         {
             PriceAlgorithm.FastTree => pipeline.Append(
-                mlContext.Regression.Trainers.FastTree(labelColumnName: "Label", featureColumnName: "Features")),
+                mlContext.Regression.Trainers.FastTree(new Microsoft.ML.Trainers.FastTree.FastTreeRegressionTrainer.Options
+                {
+                    LabelColumnName = "Label",
+                    FeatureColumnName = "Features",
+                    NumberOfThreads = 1,
+                })),
             PriceAlgorithm.LightGbm => pipeline.Append(
-                mlContext.Regression.Trainers.LightGbm(labelColumnName: "Label", featureColumnName: "Features")),
+                mlContext.Regression.Trainers.LightGbm(new Microsoft.ML.Trainers.LightGbm.LightGbmRegressionTrainer.Options
+                {
+                    LabelColumnName = "Label",
+                    FeatureColumnName = "Features",
+                    NumberOfThreads = 1,
+                })),
             PriceAlgorithm.Sdca => pipeline.Append(
-                mlContext.Regression.Trainers.Sdca(labelColumnName: "Label", featureColumnName: "Features")),
+                mlContext.Regression.Trainers.Sdca(new Microsoft.ML.Trainers.SdcaRegressionTrainer.Options
+                {
+                    LabelColumnName = "Label",
+                    FeatureColumnName = "Features",
+                    NumberOfThreads = 1,
+                })),
             _ => throw new ArgumentOutOfRangeException(nameof(algorithm), algorithm, "Unknown price algorithm."),
         };
 
