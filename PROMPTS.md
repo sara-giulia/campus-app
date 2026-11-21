@@ -1400,6 +1400,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v31 is the final version.
 - **Commits:** skill 0c22b8e; generated code 5498907
 
+### Run 33, skill v32 (Feature: Live and ready health checks)
+
+- **Why a new version:** `GET /health/live` (no checks) and `GET /health/ready` (database + the 3 ML models) were added next to `/health`; none had an integration test, and the Unhealthy branch of `MlModelsHealthCheck` cannot be reached over HTTP.
+
+#### Change to SKILL.md (v31 → v32) and why
+
+| # | v31 (before) | v32 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about `/health/live` and `/health/ready`. | New section *"Feature: Live and ready health checks (Diana)"*: the file (`Infrastructure/HealthTests.cs`) and 4 tests: `/health/live` → 200 `Healthy`; `/health/ready` → 200 `Healthy`; `/health` → 200; `CheckHealthAsync` with a `ModelsPath` that does not exist → Unhealthy, the message lists the 3 missing files. | The ready check depends on the models copied to the test output, which only a real request through the host proves; the Unhealthy branch is reached by calling the check directly. |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Live and ready health checks (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v32, commit e90123a (section written and run by Diana Preutu with Claude Code)
+- **Result:** 4 new tests in the new file `Infrastructure/HealthTests.cs`; the three HTTP tests check the status, the plain text body `Healthy` and that the database is still empty. The Unhealthy test calls `MlModelsHealthCheck.CheckHealthAsync` directly (no HTTP call, the only way to reach that branch) and checks the status and that the message names `price-regression.zip`, `category-classification.zip` and `spam-detection.zip`. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 226 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v32 is the final version.
+- **Commits:** skill e90123a; generated code 341a311
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -2148,3 +2165,15 @@ Weeks 6–7 (plan of Sara and Anca), Anca's first task: the skeleton of the web 
 - **Checks:** `npm run build` and `npm run lint` with no errors or warnings.
 - **Commits:** code and this entry in the same commit (the one that changes `frontend/src/api/config.ts`)
 
+## health-checks
+
+Liveness and readiness endpoints for the container. The production code is the one from the task, applied by Diana Preutu with Claude Code; the tests were generated afterwards with the integration-testing skill (Run 31).
+
+### Run 1
+
+- **Prompt:** `Do the whole task, exactly as written: add MlModelsHealthCheck, tag the database and ML checks "ready", map /health/live (no checks) and /health/ready, add both to the README endpoints table and to the Postman Health folder, append the section "Feature: Live and ready health checks (Diana)" to the integration-testing SKILL.md, then run the skill for that section, add only those tests and run dotnet test. Do not commit, push or run coverage.`
+- **Decisions:**
+  - `/health/live` runs no checks (`Predicate = _ => false`), so it answers 200 as long as the process runs; `/health/ready` runs only the checks tagged `ready` (database and `ml-models`). `/health` is unchanged and still runs every check.
+  - `MlModelsHealthCheck` reads `MlOptions.ModelsPath` and checks that the three model files exist, the same names `AddCampusMarketMl` loads. The names and the options matched the code, so nothing was renamed.
+- **Result:** `Infrastructure/ML/MlModelsHealthCheck.cs` (new), `CampusMarketSetup.cs`, `Program.cs`, README endpoints table, two Postman requests ("Health live (200)", "Health ready (200)"), the skill section, and 4 integration tests (see Run 33 of integration-testing). Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 226 integration tests pass.
+- **Commits:** code ab246dd; skill section e90123a; tests generated in 341a311 (see Run 33 of integration-testing)

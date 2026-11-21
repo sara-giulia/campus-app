@@ -1,5 +1,6 @@
 using CampusMarket.Api;
 using CampusMarket.Api.Infrastructure.ErrorHandling;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +22,8 @@ var app = builder.Build();
 app.ValidateCampusMarketProductionConfiguration();
 
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 
 app.EnsureCampusMarketDatabase();
 

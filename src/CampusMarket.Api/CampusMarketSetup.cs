@@ -123,7 +123,9 @@ public static class CampusMarketSetup
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         // GET /health: the API is up and can reach the database.
-        services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
+        services.AddHealthChecks()
+            .AddDbContextCheck<CampusMarketDbContext>(tags: ["ready"])
+            .AddCheck<MlModelsHealthCheck>("ml-models", tags: ["ready"]);
 
         // The web frontend runs on another origin (Vite on :5173 in development),
         // so the browser needs CORS. Only the origins in Cors:AllowedOrigins are allowed;

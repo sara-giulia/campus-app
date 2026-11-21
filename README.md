@@ -258,6 +258,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
+| Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
+| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 3 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) are present, 503 `Unhealthy` otherwise |
 
 GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
