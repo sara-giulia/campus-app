@@ -632,9 +632,11 @@ Tests to add:
 - new password of 7 characters → `Auth.WeakPassword`; exactly 8 characters → success (the boundary); empty → `Auth.WeakPassword`.
 - confirmation different → `Auth.PasswordsDoNotMatch`; `SaveCount` 0.
 - unknown member → `NotFound` `Member.NotFound`; `SaveCount` 0.
+- the `changed.IsFailure` branch of the handler: `FakePasswordHasher` never returns an empty hash, so add one small private class in `ChangePasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` and `Verify` returns `true` → `Validation` `Member.PasswordRequired` (from `Member.ChangePassword`); the hash is unchanged; `UpdateCount` 0; `SaveCount` 0. This extra hasher is allowed only for this test.
 
 Rules for this feature:
 - Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
 - Never use real time.
 - Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a branch of `ChangePasswordHandler` or `Member.ChangePassword` still cannot be reached with these fakes, stop and report it; do not remove code from `src/`.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
