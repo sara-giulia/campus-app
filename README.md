@@ -1059,9 +1059,10 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 
   | Metric | Value |
   |---|---|
-  | Micro accuracy | **0.935** |
-  | Macro accuracy | 0.928 |
-  | Log loss | 0.294 |
+  | Micro accuracy | **0.853** |
+  | Macro accuracy | 0.856 |
+  | Macro-F1 | 0.864 |
+  | Log loss | 0.473 |
 
   The accuracy is no longer saturated: dataset v2 adds label noise, overlapping
   vocabulary across categories and seller-style noise, so the model has to work
@@ -1073,9 +1074,10 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 - There is no category for items like clothes, so the model always picks the
   closest of the five; it is only a suggestion and the seller can change it.
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on its own split (seed 42, 20%) and fails if the micro accuracy drops below
-  0.9, or if three listings written by hand (not in the CSV) get the wrong
-  category.
+  on the same test part as training (`DatasetSplit`, grouped by `TemplateId`) and
+  fails if the micro accuracy drops below 0.8, the macro-F1 below 0.8 or the
+  calibration error (ECE) goes above 0.1, or if three listings written by hand
+  (not in the CSV) get the wrong category.
 
 ### Spam detection model (B5)
 
@@ -1100,8 +1102,60 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
   `ISpamDetector` (in `Common/Moderation/`) and adds an automatic report when the
   model says spam (see [Moderation](#moderation)).
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on its own split (seed 42, 20%) and fails if the AUC drops below 0.95 or the
-  F1 score below 0.9, or if four listings written by hand (two spam, two normal)
-  are classified wrongly.
+  on the same test part as training (`DatasetSplit`) and fails if the AUC drops
+  below 0.95, the F1 score below 0.9 or the PR-AUC below 0.95, or if four listings
+  written by hand (two spam, two normal) are classified wrongly.
+
+### Classification report (category and spam)
+
+`ml/CampusMarket.ML.Training/Evaluation/ClassificationReport.cs` evaluates the two
+classifiers on the test part and the training program prints it after each model.
+It works only on (true label, predicted label, probability) rows, so it can be
+reused on any data set:
+
+- **Category:** confusion matrix (rows = true, columns = predicted), precision,
+  recall and F1 per class, and **macro-F1**: the plain mean of the five F1 values,
+  so a small category (Notes) counts as much as a big one (Other).
+- **Spam:** TP / FP / TN / FN at the model's threshold (0.5), precision, recall,
+  F1 and **PR-AUC** (average precision). Spam is 10% of the data set and only
+  18 of the 711 test rows, so accuracy would look good even for a model that never
+  says spam; PR-AUC does not.
+- **Calibration:** the probabilities are cut into 10 equal bins and, for each bin,
+  the mean predicted probability is compared with how often it was really true
+  (for the category: how often the chosen class was right; for spam: how many
+  rows were really spam). **ECE** is the gap between the two, weighted by the
+  number of rows in each bin: 0 means "when it says 90%, it is right 90% of the
+  time".
+
+`macroF1` and `ece` (category) and `prAuc` and `ece` (spam) are also written in the
+`testMetrics` of the models' `.json` files. Last run (seed 2026, test part):
+
+| true \ predicted | Electronics | LabEquipment | Notes | Other | Textbook |
+|---|---|---|---|---|---|
+| Electronics | **132** | 1 | 0 | 20 | 2 |
+| LabEquipment | 3 | **98** | 2 | 27 | 1 |
+| Notes | 0 | 0 | **58** | 1 | 5 |
+| Other | 19 | 8 | 1 | **167** | 0 |
+| Textbook | 3 | 2 | 1 | 6 | **136** |
+
+| Class | Support | Precision | Recall | F1 |
+|---|---|---|---|---|
+| Electronics | 155 | 0.841 | 0.852 | 0.846 |
+| LabEquipment | 131 | 0.899 | 0.748 | 0.817 |
+| Notes | 64 | 0.935 | 0.906 | 0.921 |
+| Other | 195 | 0.756 | 0.856 | 0.803 |
+| Textbook | 148 | 0.944 | 0.919 | 0.932 |
+| **Macro-F1** | | | | **0.864** |
+
+Most mistakes go to and from `Other`: lab equipment and electronics described in
+general words end up there (27 and 20 rows), which is also why `LabEquipment` has
+the lowest recall. The category model is well calibrated (ECE **0.036**): in the
+0.9–1.0 bin (380 rows) it says 0.968 on average and is right 95.5% of the time;
+below 0.6 it is right only about half of the time, which is where a minimum
+confidence makes sense.
+
+Spam on the test part: TP 18, FP 0, TN 693, FN 0, precision, recall, F1 and PR-AUC
+all **1.000**, ECE **0.007**. The test part is saturated because the generated
+spam is easy to spot; the external set (above) is where spam is missed.
 
 ---
