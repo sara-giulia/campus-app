@@ -750,6 +750,27 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v28 is the final version.
 - **Commits:** skill 0d26845; generated code c989e44
 
+### Run 27, skill v29 (Feature: Change password)
+
+- **Why a new version:** task 11 (issue #101). New `Member.ChangePassword` and the slice `Features/Auth/ChangePassword/` (`POST /api/v1/auth/change-password`); the new domain method and the handler had no tests.
+
+#### Change to SKILL.md (v28 → v29) and why
+
+| # | v28 (before) | v29 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about changing the password. | New section *"Feature: Change password (Carina)"*: the order of the checks in `ChangePasswordHandler` (404, `Auth.InvalidCredentials`, `Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`), `Member.ChangePassword`, and the test list, with the 7/8-character boundary. | Without it Claude would have to guess the order of the checks and the exact messages. |
+| 2 | — | *"the `changed.IsFailure` branch ... add one small private class in `ChangePasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` ... This extra hasher is allowed only for this test."* (added after the first run) | `FakePasswordHasher` never returns an empty hash, so the branch could not be reached and the handler was not at 100%. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Change password (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed. Do not commit.` (new session)
+- **Skill version:** v29, commits e1cb9f3 and 9df3a7c (the second adds the private hasher rule after the first run); numbered after #77 and #79 (v24, v25), the skill update v26 and the entries on main up to v28; section written and run by Carina Coman
+- **Result:** `Domain/Members/MemberTests.cs`: 2 tests added (a hash is stored and the same instance is returned; `""` and `"   "` as a `[Theory]` → `Member.PasswordRequired`, hash unchanged). New `Features/Auth/ChangePassword/ChangePasswordHandlerTests.cs`: success (new fake hash stored, the member's id returned, `UpdateCount` 1, `SaveCount` 1); wrong current password and a member without a password → `Auth.InvalidCredentials`; 7 characters and `""` (`[Theory]`) → `Auth.WeakPassword`; exactly 8 characters → success; confirmation different → `Auth.PasswordsDoNotMatch`; unknown member → `Member.NotFound`; the `changed.IsFailure` branch with a private `EmptyHashPasswordHasher` → `Member.PasswordRequired`. Every error checks type, code and the exact message, and every failure checks `SaveCount` 0. 469/469 unit tests pass; `Member` and `ChangePasswordHandler` at 100%; total for `Domain/` and the handlers 99.7% lines (1159/1162) and 99.7% branches (393/394).
+- **Problems seen:**
+  1. The first run (same prompt) stopped and reported that the `changed.IsFailure` branch cannot be reached with `FakePasswordHasher`. Its output was discarded, rule 2 was added to the section (commit 9df3a7c) and the run was repeated in a new session.
+  2. `ConfirmSaleHandler.cs`, lines 72-75 (the `record.IsFailure` branch, from the price feedback loop, not from this feature) cannot be reached either: a listing price is always above 0. This is the only gap; reported to Sara, nothing changed in `src/`.
+  3. The run regenerated `coverage-report/`; it was restored to the version on main and not committed, because generated files do not go into PRs (see the skill update v25 → v26).
+- **Change to SKILL.md:** none after the second run; v29 is the final version.
+- **Commits:** skill e1cb9f3, 9df3a7c; generated code a19f159
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1228,6 +1249,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v28 is the final version.
 - **Commits:** skill 0d26845; generated code c989e44
 
+### Run 31, skill v30 (Feature: Change password)
+
+- **Why a new version:** task 11 (issue #101). `POST /api/v1/auth/change-password` is a new endpoint that needs a token; the change must be saved and must change how login behaves.
+
+#### Change to SKILL.md (v29 → v30) and why
+
+| # | v29 (before) | v30 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about changing the password. | New section *"Feature: Change password (Carina)"*: a table with the success and the failures, which errors are ProblemDetails (401) and which keep `{ code, message, type }` (400, 404), the arrange with a real hash and `AuthenticateAs`, and the test list. | The endpoint is new, so Claude needs the contract to test it. |
+| 2 | — | *"in the database `AspNetPasswordHasher.Verify` accepts the new password and rejects the old one"* and the login tests after a change (new password → 200, old → 401). | Proves that the new hash is really stored and used by login. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Change password (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results. Do not commit.` (new session)
+- **Skill version:** v30, commit 0c22b8e (numbered after the register rate limiting PR, issue #98, which makes v29); section written and run by Carina Coman
+- **Result:** new file `Auth/ChangePasswordTests.cs` with 8 tests: valid request → 204 and the stored hash verifies the new password, not the old one; after a change, login with the new password → 200 and with the old one → 401; wrong current password → 400 `Auth.InvalidCredentials`, hash unchanged; 7 characters → 400 `Auth.WeakPassword`; confirmation different → 400 `Auth.PasswordsDoNotMatch`; a token of a member that is not in the database → 404 `Member.NotFound`; no token → 401. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no CA or IDE diagnostics in the SARIF log; 469 unit, 10 architecture, 13 ML and 237 integration tests pass.
+- **Problems seen:** in the repeated integration runs one run had 1 failure out of 237. Run again by hand: the failing test is the existing `ReservationExpiryTests.Given_JobOnWithExpiredAndValidReservations_When_JobRuns_Then_ExpiresOnlyTheExpiredOne`, 1 failure in 4 runs, still flaky after #97. The 8 new tests passed in every run. Reported to Sara, not fixed here.
+- **Change to SKILL.md:** none after the run; v30 is the final version.
+- **Commits:** skill 0c22b8e; generated code 5498907
 
 ## code-review
 
