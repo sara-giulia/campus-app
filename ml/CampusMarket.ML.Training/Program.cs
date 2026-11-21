@@ -110,6 +110,9 @@ Console.WriteLine($"| Precision | {F3(spamModelMetrics.Precision)} | {F3(spamBas
 Console.WriteLine($"| Recall    | {F3(spamModelMetrics.Recall)} | {F3(spamBaseline.Recall)} |");
 Console.WriteLine($"| F1 score  | {F3(spamModelMetrics.F1)} | {F3(spamBaseline.F1)} |");
 
+var externalCsvPath = Path.Combine(mlDir, "data", "external.csv");
+ExternalEvaluation.Run(mlContext, externalCsvPath, modelsDir, trainSet, testSet);
+
 static string F3(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
 static string F2(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);
 

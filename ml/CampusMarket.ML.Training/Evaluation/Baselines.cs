@@ -93,13 +93,13 @@ public static partial class Baselines
     }
 
     [GeneratedRegex(@"(?:\d[\s\-\.]*){9,}", RegexOptions.Compiled, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex PhoneRegex();
+    internal static partial Regex PhoneRegex();
 
     [GeneratedRegex(@"(?:https?://|www\.|\blink\b)", RegexOptions.Compiled | RegexOptions.IgnoreCase, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex LinkRegex();
+    internal static partial Regex LinkRegex();
 
     [GeneratedRegex(@"!{3,}", RegexOptions.Compiled, matchTimeoutMilliseconds: 1000)]
-    private static partial Regex ExclRegex();
+    internal static partial Regex ExclRegex();
 
     private static bool IsSpamByRule(ListingRow r)
     {
