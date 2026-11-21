@@ -60,12 +60,17 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
 
         await SeedAsync(expiredBuyer, validBuyer, expiredListing, validListing);
 
-        await using var seeded = WithExpiryJob();
-        seeded.CreateClient();
-
-        // Act
-        var finalStatus = await WaitForReservationStatusAsync(
-            expiredReservation.Id, ReservationStatus.Expired, TimeSpan.FromSeconds(5));
+        // Act: start the job, wait until it has expired the stale reservation,
+        // then stop the host. The shared in-memory SQLite connection would
+        // otherwise be contended between further background ticks and the
+        // assertion-time reads below ("SQLite Error 5: database is locked").
+        ReservationStatus finalStatus;
+        await using (var seeded = WithExpiryJob())
+        {
+            seeded.CreateClient();
+            finalStatus = await WaitForReservationStatusAsync(
+                expiredReservation.Id, ReservationStatus.Expired, TimeSpan.FromSeconds(5));
+        }
 
         // Assert
         finalStatus.Should().Be(
@@ -99,20 +104,27 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
 
         await SeedAsync(firstBuyer, secondBuyer, listing);
 
-        await using var seeded = WithExpiryJob();
-        var client = seeded.CreateClient();
+        // Start the job, wait for the expiry, make the reservation POST through
+        // the same host, then stop it. Dispose before the final QueryDbAsync so
+        // the shared in-memory SQLite connection is no longer contended by
+        // further background ticks.
+        HttpResponseMessage response;
+        await using (var seeded = WithExpiryJob())
+        {
+            var client = seeded.CreateClient();
 
-        var finalStatus = await WaitForReservationStatusAsync(
-            staleReservation.Id, ReservationStatus.Expired, TimeSpan.FromSeconds(5));
-        finalStatus.Should().Be(
-            ReservationStatus.Expired,
-            "the background job must expire the stale reservation within 5 seconds");
+            var finalStatus = await WaitForReservationStatusAsync(
+                staleReservation.Id, ReservationStatus.Expired, TimeSpan.FromSeconds(5));
+            finalStatus.Should().Be(
+                ReservationStatus.Expired,
+                "the background job must expire the stale reservation within 5 seconds");
 
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", TestTokens.Create(secondBuyer.Id));
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", TestTokens.Create(secondBuyer.Id));
 
-        // Act
-        var response = await client.PostAsync($"/api/v1/listings/{listing.Id}/reservations", content: null);
+            // Act
+            response = await client.PostAsync($"/api/v1/listings/{listing.Id}/reservations", content: null);
+        }
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);

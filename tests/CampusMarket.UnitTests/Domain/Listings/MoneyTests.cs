@@ -27,4 +27,24 @@ public class MoneyTests
         result.Error.Code.Should().Be("Money.Invalid");
         result.Error.Message.Should().Be("Price must be greater than 0.");
     }
+
+    [Fact]
+    public void Given_AmountEqualToMaxAmount_When_Creating_Then_ReturnsMoneyWithThatAmount()
+    {
+        var result = Money.Create(Money.MaxAmount);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Amount.Should().Be(Money.MaxAmount);
+    }
+
+    [Fact]
+    public void Given_AmountAboveMaxAmount_When_Creating_Then_ReturnsValidationError()
+    {
+        var result = Money.Create(Money.MaxAmount + 0.01m);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Money.TooHigh");
+        result.Error.Message.Should().Be($"Price must be at most {Money.MaxAmount} lei.");
+    }
 }

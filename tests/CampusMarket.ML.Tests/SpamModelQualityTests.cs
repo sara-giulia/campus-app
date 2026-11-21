@@ -6,8 +6,8 @@ namespace CampusMarket.ML.Tests;
 
 // Quality bar for the saved spam-detection model (B5).
 //  - Loads ml/models/spam-detection.zip and ml/data/listings.csv.
-//  - Uses all rows (spam and not spam) and the same deterministic split as training
-//    (seed 42, test fraction 0.2).
+//  - Uses all rows (spam and not spam) and the same 70/15/15 split as training
+//    (see DatasetSplit in ml/CampusMarket.ML.Training), scoring the 15% test part.
 //  - Fails if the AUC on the test slice falls below 0.95 or the F1 score below 0.9.
 //  - Fails if listings written by hand (not in the CSV) are classified wrongly,
 //    or if the probability is not between 0 and 1.
@@ -19,7 +19,7 @@ public sealed class SpamModelQualityTests
     [Fact]
     public void Model_reaches_the_quality_bar_on_the_test_split()
     {
-        var mlContext = new MLContext(seed: 42);
+        var mlContext = new MLContext(seed: DatasetSplit.Seed);
         var model = LoadModel(mlContext);
         var testSet = LoadTestSplit(mlContext);
 
@@ -39,7 +39,7 @@ public sealed class SpamModelQualityTests
     [InlineData("Notițe Programare orientată pe obiecte", "Scrise de mână, cursurile și laboratoarele din anul 2.", 25f, false)]
     public void Classifies_listings_that_are_not_in_the_dataset(string title, string description, float price, bool expectedSpam)
     {
-        var mlContext = new MLContext(seed: 42);
+        var mlContext = new MLContext(seed: DatasetSplit.Seed);
         var engine = mlContext.Model.CreatePredictionEngine<SpamInput, SpamPrediction>(LoadModel(mlContext));
 
         var prediction = engine.Predict(new SpamInput { Title = title, Description = description, Price = price });
@@ -66,7 +66,8 @@ public sealed class SpamModelQualityTests
             separatorChar: ',',
             allowQuoting: true);
 
-        return mlContext.Data.TrainTestSplit(data, testFraction: 0.2, seed: 42).TestSet;
+        var (_, _, test) = DatasetSplit.Split(mlContext, data);
+        return test;
     }
 
     private sealed class SpamInput
