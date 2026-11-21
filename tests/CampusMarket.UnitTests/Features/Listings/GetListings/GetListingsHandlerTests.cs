@@ -522,4 +522,76 @@ public class GetListingsHandlerTests
         result.Value.TotalCount.Should().Be(3);
         repository.Items.Should().HaveCount(4);
     }
+
+    [Fact]
+    public async Task Given_ListingsWithDifferentConditions_When_FilteringByCondition_Then_ReturnsOnlyThatCondition()
+    {
+        var newBook = Listing.Create(Guid.NewGuid(), "New book", Category.Textbook, Condition.New, 10m, Now).Value;
+        newBook.Publish();
+        var goodBook = Listing.Create(Guid.NewGuid(), "Good book", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
+        goodBook.Publish();
+        var wornBook = Listing.Create(Guid.NewGuid(), "Worn book", Category.Textbook, Condition.Worn, 30m, Now.AddHours(2)).Value;
+        wornBook.Publish();
+        var repository = new FakeListingRepository();
+        repository.Items[newBook.Id] = newBook;
+        repository.Items[goodBook.Id] = goodBook;
+        repository.Items[wornBook.Id] = wornBook;
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery(Condition: Condition.Good);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(goodBook.Id);
+        result.Value.TotalCount.Should().Be(1);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_CategoryAndConditionTogether_When_Handling_Then_ReturnsOnlyMatchesBoth()
+    {
+        var goodTextbook = Listing.Create(Guid.NewGuid(), "Good textbook", Category.Textbook, Condition.Good, 10m, Now).Value;
+        goodTextbook.Publish();
+        var wornTextbook = Listing.Create(Guid.NewGuid(), "Worn textbook", Category.Textbook, Condition.Worn, 20m, Now.AddHours(1)).Value;
+        wornTextbook.Publish();
+        var goodCalculator = Listing.Create(Guid.NewGuid(), "Good calculator", Category.Electronics, Condition.Good, 30m, Now.AddHours(2)).Value;
+        goodCalculator.Publish();
+        var repository = new FakeListingRepository();
+        repository.Items[goodTextbook.Id] = goodTextbook;
+        repository.Items[wornTextbook.Id] = wornTextbook;
+        repository.Items[goodCalculator.Id] = goodCalculator;
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery(Category: Category.Textbook, Condition: Condition.Good);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(goodTextbook.Id);
+        result.Value.TotalCount.Should().Be(1);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_NoConditionFilter_When_Handling_Then_ReturnsEveryActiveListing()
+    {
+        var newBook = Listing.Create(Guid.NewGuid(), "New book", Category.Textbook, Condition.New, 10m, Now).Value;
+        newBook.Publish();
+        var goodBook = Listing.Create(Guid.NewGuid(), "Good book", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
+        goodBook.Publish();
+        var wornBook = Listing.Create(Guid.NewGuid(), "Worn book", Category.Textbook, Condition.Worn, 30m, Now.AddHours(2)).Value;
+        wornBook.Publish();
+        var repository = new FakeListingRepository();
+        repository.Items[newBook.Id] = newBook;
+        repository.Items[goodBook.Id] = goodBook;
+        repository.Items[wornBook.Id] = wornBook;
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery();
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(wornBook.Id, goodBook.Id, newBook.Id);
+        result.Value.TotalCount.Should().Be(3);
+        repository.Items.Should().HaveCount(3);
+    }
 }

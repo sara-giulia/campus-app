@@ -696,6 +696,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
+### Run 21, skill v23 (Feature: Condition filter)
+
+- **Why a new version:** task 1 (issue #72). `GET /api/v1/listings` got an optional `condition` filter (`New`, `Good`, `Worn`); the new branch in `GetListingsHandler` had no tests.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the condition filter. | New section *"Feature: Condition filter (Carina)"*: the file and three tests (condition alone, condition with category, no condition). | Covers the new filter and proves that the default behaviour did not change. |
+| 2 | — | *"`Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument"*. | Existing tests build the query by position; if the parameter were in the middle, a literal `0` meant for `Page` would silently become `Condition.New`. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Condition filter (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v23, commit 1be82be; section written and run by Carina Coman
+- **Result:** 3 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs` (`Given_ListingsWithDifferentConditions_When_FilteringByCondition_Then_ReturnsOnlyThatCondition`, a test for `Category` and `Condition` together, `Given_NoConditionFilter_When_Handling_Then_ReturnsEveryActiveListing`); the 37 existing tests in the file are unchanged. Each test seeds its own `FakeListingRepository`, sets `Condition` with a named argument and checks that the repository still has its 3 items. 435/435 unit tests pass; coverage stays **100%**: 1026/1026 lines and 358/358 branches (`Domain/` 11 classes, handlers 30). The report in `coverage-report/` was generated again. Nothing changed in `src/`.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 1be82be; generated code ab95b6d
 ### Run 25, skill v27 (Feature: Minimum category confidence)
 
 - **Why a new version:** `SuggestCategoryHandler` has a new rule: below `MinConfidence` (0.7) the response has `Category` null and keeps the confidence. `SuggestCategoryResponse.Category` is now nullable. The new branch had no tests, and one existing test used a confidence of 0.5 and expected a category.
@@ -1160,6 +1177,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill TODO; generated code TODO
 
+### Run 23, skill v22 (Feature: Condition filter)
+
+- **Why a new version:** task 1 (issue #72). The new `condition` query parameter has to be tested over HTTP, including the 400 that ASP.NET Core returns for an unknown value.
+
+#### Change to SKILL.md (v21 → v22) and why
+
+| # | v21 (before) | v22 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the condition filter. | New section *"Feature: Condition filter (Carina)"*: the arrange (published `Good` and `Worn` listings with fixed `CreatedAt`) and two tests. | The endpoint has a new parameter, so Claude needs the contract to test it. |
+| 2 | — | *"`?condition=Banana` → 400. ASP.NET Core rejects it before the handler runs, so check only the status code."* | There is no handler `Error` to read for this case. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Condition filter (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v22, commit c3861b4; section written and run by Carina Coman
+- **Result:** 2 new tests in `Listings/GetListingsTests.cs`: `?condition=Good` → 200 with only the Good listing (`totalCount` 1, `count` 1, its id and condition checked); `?condition=Banana` → 400, status only. Both use a private helper `SeedGoodAndWornListingsAsync`, which publishes the listings before `SeedAsync`, and check that the database still has the 2 listings. Existing tests unchanged, nothing changed in `src/`. `dotnet build` 0 warnings, 0 errors (no CA or IDE diagnostics in the SARIF log); integration tests 221/221 three runs in a row; full run: 10 architecture, 435 unit, 13 ML, 221 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v22 is the final version.
+- **Commits:** skill c3861b4; generated code 8c18e23
 ### Run 28, skill v27 (Feature: Minimum category confidence)
 
 - **Why a new version:** `POST /api/v1/listings/category-suggestion` can now answer `"category": null`, with a confidence below 0.7, when the model is not sure.
@@ -1198,6 +1232,7 @@ saved.Should().BeEquivalentTo(listing);
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
+
 ### Run 1, skill v1 (our repository)
 
 - **Prompt:** `Use the code-review skill in .claude/skills/code-review/SKILL.md to review this repository. Follow the skill exactly. Do not edit any file. Give me only the output the skill asks for.`
