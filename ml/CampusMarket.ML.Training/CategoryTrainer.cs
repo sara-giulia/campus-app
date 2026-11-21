@@ -1,3 +1,4 @@
+using CampusMarket.ML.Training.Evaluation;
 using Microsoft.ML;
 
 namespace CampusMarket.ML.Training;
@@ -41,15 +42,21 @@ public sealed class CategoryTrainer : IModelTrainer
         var scored = model.Transform(labelMap.Transform(testNonSpam));
         var metrics = mlContext.MulticlassClassification.Evaluate(scored, labelColumnName: "Label");
 
+        var report = Report(mlContext, scored, trainNonSpam);
+
         var text =
             $"Micro accuracy: {metrics.MicroAccuracy:0.000}" + Environment.NewLine +
             $"Macro accuracy: {metrics.MacroAccuracy:0.000}" + Environment.NewLine +
-            $"Log loss:       {metrics.LogLoss:0.000}";
+            $"Log loss:       {metrics.LogLoss:0.000}" + Environment.NewLine +
+            Environment.NewLine +
+            ClassificationReport.ToMarkdown(report);
 
         var structured = new Dictionary<string, double>(StringComparer.Ordinal)
         {
+            ["ece"] = report.Calibration.ExpectedCalibrationError,
             ["logLoss"] = metrics.LogLoss,
             ["macroAccuracy"] = metrics.MacroAccuracy,
+            ["macroF1"] = report.MacroF1,
             ["microAccuracy"] = metrics.MicroAccuracy,
         };
 
@@ -58,4 +65,30 @@ public sealed class CategoryTrainer : IModelTrainer
 
     private static IDataView WithoutSpam(MLContext mlContext, IDataView data) =>
         mlContext.Data.FilterByCustomPredicate<ListingRow>(data, row => row.IsSpam);
+
+    // Confusion matrix, per-class metrics, macro-F1 and calibration on the scored test rows.
+    // The confidence of a row is the probability of the class the model chose.
+    public static ClassificationReport.MulticlassReport Report(MLContext mlContext, IDataView scored, IDataView trainNonSpam)
+    {
+        var labels = mlContext.Data.CreateEnumerable<ListingRow>(trainNonSpam, reuseRowObject: false)
+            .Select(r => r.Category)
+            .Distinct()
+            .OrderBy(c => c, StringComparer.Ordinal)
+            .ToList();
+
+        var predictions = mlContext.Data.CreateEnumerable<ScoredRow>(scored, reuseRowObject: false)
+            .Select(r => new ClassificationReport.MulticlassPrediction(r.Category, r.PredictedLabel, r.Score.Max()))
+            .ToList();
+
+        return ClassificationReport.Multiclass(predictions, labels);
+    }
+
+    private sealed class ScoredRow
+    {
+        public string Category { get; set; } = string.Empty;
+
+        public string PredictedLabel { get; set; } = string.Empty;
+
+        public float[] Score { get; set; } = [];
+    }
 }

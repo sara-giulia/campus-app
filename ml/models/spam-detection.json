@@ -14,7 +14,9 @@
   "testMetrics": {
     "accuracy": 1.000000,
     "auc": 1.000000,
+    "ece": 0.006692,
     "f1": 1.000000,
+    "prAuc": 1.000000,
     "precision": 1.000000,
     "recall": 1.000000
   },

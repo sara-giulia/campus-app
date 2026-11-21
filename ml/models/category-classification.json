@@ -12,8 +12,10 @@
   "seed": 2026,
   "split": "70/15/15 grouped by TemplateId",
   "testMetrics": {
+    "ece": 0.035965,
     "logLoss": 0.473041,
     "macroAccuracy": 0.856257,
+    "macroF1": 0.863569,
     "microAccuracy": 0.852814
   },
   "trainedAt": "2026-11-21T12:41:49Z"
