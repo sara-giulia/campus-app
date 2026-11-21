@@ -22,7 +22,7 @@ public static class ClassificationReport
 
     public sealed record MulticlassReport(
         IReadOnlyList<string> Labels,
-        int[,] Confusion,
+        IReadOnlyList<IReadOnlyList<int>> Confusion,
         IReadOnlyList<ClassMetrics> PerClass,
         double Accuracy,
         double MacroF1,
@@ -66,7 +66,12 @@ public static class ClassificationReport
             predictions.Select(p => (p.Confidence, string.Equals(p.Actual, p.Predicted, StringComparison.Ordinal))).ToList(),
             calibrationBins);
 
-        return new MulticlassReport(labels, confusion, perClass, accuracy, macroF1, calibration);
+        // Rows of the matrix as read-only lists: a public record should not expose a multidimensional array.
+        var rows = Enumerable.Range(0, labels.Count)
+            .Select(r => (IReadOnlyList<int>)Enumerable.Range(0, labels.Count).Select(c => confusion[r, c]).ToList())
+            .ToList();
+
+        return new MulticlassReport(labels, rows, perClass, accuracy, macroF1, calibration);
     }
 
     // ---- Binary -------------------------------------------------------------------------------
@@ -192,7 +197,7 @@ public static class ClassificationReport
         {
             sb.Append("| ").Append(report.Labels[r]).Append(" |");
             for (var c = 0; c < report.Labels.Count; c++)
-                sb.Append(' ').Append(report.Confusion[r, c].ToString(CultureInfo.InvariantCulture)).Append(" |");
+                sb.Append(' ').Append(report.Confusion[r][c].ToString(CultureInfo.InvariantCulture)).Append(" |");
             sb.AppendLine();
         }
 

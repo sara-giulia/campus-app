@@ -2294,3 +2294,10 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Cadrul de evaluare pentru clas
 - **Problems seen:** none.
 - **Commits:** code and tests e33d9a9
 
+### Run 2
+
+- **Prompt:** `SonarCloud shows 1 new issue on PR #103: ClassificationReport.cs line 23, "Make this constructor private or simplify its parameters to not use multidimensional/jagged arrays."`
+- **Decision:** the public record `MulticlassReport` took the confusion matrix as `int[,]`. It is now `IReadOnlyList<IReadOnlyList<int>>` (one read-only list per true class); the 2D array stays only as a local variable while counting. Same values, same Markdown table.
+- **Result:** `ClassificationReport.cs` and the confusion matrix test (compares the rows in order). Build 0 warnings; the 30 ML tests pass.
+- **Commits:** code and this entry in the same commit (the one that changes `ClassificationReport.cs`)
+

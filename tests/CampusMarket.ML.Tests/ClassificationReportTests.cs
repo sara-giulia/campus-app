@@ -27,8 +27,8 @@ public sealed class ClassificationReportTests
     {
         var report = Multiclass(SixRows, ["A", "B", "C"]);
 
-        var expected = new[,] { { 1, 1, 0 }, { 0, 2, 0 }, { 1, 0, 1 } };
-        report.Confusion.Should().BeEquivalentTo(expected);
+        report.Confusion.Should().BeEquivalentTo(new[] { new[] { 1, 1, 0 }, new[] { 0, 2, 0 }, new[] { 1, 0, 1 } },
+            options => options.WithStrictOrdering());
     }
 
     [Fact]
