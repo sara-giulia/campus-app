@@ -1,0 +1,76 @@
+/* Login from the sketches: the form on the left, a large picture panel on the right. */
+
+.login {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: stretch;
+  min-height: 520px;
+}
+
+.login__form-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.login__title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.login__subtitle {
+  margin: 8px 0 32px;
+  color: var(--muted);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* the big picture of the sketch; a soft coral panel until we have real photos */
+.login__picture {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(160deg, var(--tile-peach), var(--accent-soft) 55%, var(--tile-yellow));
+  display: flex;
+  align-items: flex-end;
+  padding: 32px;
+  overflow: hidden;
+}
+
+.login__quote {
+  max-width: 30ch;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.login__quote small {
+  display: block;
+  margin-top: 6px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .login {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .login__picture {
+    display: none;
+  }
+}

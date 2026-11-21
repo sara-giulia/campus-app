@@ -8,8 +8,21 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 1. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
 2. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
 3. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
+4. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
 
 Unit tests: `dotnet test` from the repository root.
+
+### Web frontend
+
+The web interface is in `frontend/` (React + Vite + TypeScript). It needs Node.js 20 or newer and the API running on `http://localhost:5112`.
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+It opens on `http://localhost:5173`. The API allows only the origins in `Cors:AllowedOrigins` (`appsettings.json`, `http://localhost:5173` by default); for another address set `Cors__AllowedOrigins__0` in the API's environment. To use another API address in the frontend, copy `frontend/.env.example` to `frontend/.env.local` and change `VITE_API_URL`. How the frontend is organised (where to add a page, the API client, login): [frontend/README.md](frontend/README.md).
 
 ### With Docker
 
@@ -22,6 +35,71 @@ Unit tests: `dotnet test` from the repository root.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
 - The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
+
+### Deploy
+
+The `.github/workflows/deploy.yml` workflow runs on every push to `main`
+(and on `workflow_dispatch`): first it restores, builds and runs the full
+test suite; then — only if the tests pass — it builds the Docker image from
+the repository's `Dockerfile` and pushes it to GitHub Container Registry as
+`ghcr.io/<owner>/campus-app` with two tags, `latest` and the full commit
+SHA (so a specific build can be pinned if `latest` has to be rolled back).
+Login to GHCR uses the built-in `GITHUB_TOKEN`
+(`permissions: packages: write, contents: read`); no secret has to be
+added for the publish step.
+
+As a final step, if a `RENDER_DEPLOY_HOOK` repository secret is set, the
+workflow `curl`s it to trigger a redeploy of the Render service. The step
+is skipped when the secret is not set, so the pipeline works end-to-end
+before Render is wired up and remains idempotent afterwards.
+
+#### Render (free web service) setup
+
+1. In Render, create a new **Web Service** and choose
+   **Deploy an existing image from a registry**. Use the image URL
+   `ghcr.io/<owner>/campus-app:latest` (replace `<owner>` with the GitHub
+   user or org that hosts the repository). The image is public, so no
+   registry credentials are needed. Pin to a specific commit SHA tag if a
+   reproducible build matters more than always running `latest`.
+2. Set the **Health Check Path** to `/health`. Render polls it to decide
+   whether the instance is up; the API returns `200 Healthy` only when it
+   can reach the database.
+3. Leave the port setting on its default. Render passes the public port
+   through the `PORT` environment variable; the API reads it at startup
+   (`Program.cs`) and binds to `http://0.0.0.0:$PORT`.
+4. Configure the environment variables below under
+   **Environment → Environment Variables**. Only names appear here; the
+   values are chosen in Render and never committed to the repository.
+
+   | Name | Required | Purpose |
+   |---|---|---|
+   | `ASPNETCORE_ENVIRONMENT` | yes | Set to `Production`. Triggers the JWT fail-fast check below. |
+   | `Jwt__Key` | yes | Random string of **at least 32 characters** used to sign JWTs. The API refuses to start in Production if it is missing or shorter than 32 characters. |
+   | `Seed__AdminEmail` | optional | Email of the first Admin created on startup. Leave unset to skip the admin seed. |
+   | `Seed__AdminPassword` | optional | Password of the first Admin. Needed only when `Seed__AdminEmail` is set. |
+   | `ConnectionStrings__CampusMarket` | optional | SQLite connection string. The Docker image already defaults this to `Data Source=/app/data/campusmarket.db`, so it only needs to be overridden to point the API at a different path (for example, an attached disk). |
+   | `Seed__DemoData` | optional | `true` seeds a demo member and a few published listings when the database is empty, so a fresh Render instance has something to browse. Off by default and never on in tests. |
+   | `Seed__DemoPassword` | optional | Password for the demo student account created when `Seed__DemoData=true`. Must be at least 8 characters. If missing or shorter, the demo listings are still seeded but the demo member is skipped (a warning is written to the log). The demo member always has the `Student` role. |
+
+5. Set up the deploy hook (optional but recommended). In Render, open
+   **Settings → Deploy Hook** on the service, copy the URL, and add it as a
+   GitHub repository secret named `RENDER_DEPLOY_HOOK`. Future pushes to
+   `main` will then rebuild the image, push it to GHCR, and tell Render to
+   pull it.
+
+#### Free-plan limits to know about
+
+- **Sleep after 15 minutes of inactivity.** The first request after a
+  sleep wakes the instance; typical cold-start latency is tens of seconds.
+  Render's uptime checks keep the service warmer than no traffic at all,
+  but there is no hard guarantee it stays up.
+- **No persistent disk on the free tier.** SQLite lives inside the
+  container's filesystem, which is reset on every redeploy and every
+  cold start, so the database is wiped whenever a new image is pulled or
+  the instance is rebuilt. Set `Seed__DemoData=true` to repopulate a bit
+  of data after each redeploy; attach a disk (paid tier) if the data has
+  to survive.
+- **One instance, no scaling.** Fine for a student demo, not for traffic.
 
 ---
 
@@ -77,7 +155,8 @@ Unit tests: `dotnet test` from the repository root.
 - **xUnit** with hand-written fakes
 - **Postman** collections for API tests
 - **SonarQube Cloud** for code quality and coverage, with a quality gate of **100% coverage on new code**
-- **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`) for the AI module
+- **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`, `Microsoft.ML.LightGbm`) for the AI module
+- **React + Vite + TypeScript** for the web frontend (`frontend/`), with React Router
 
 ## 3. Use cases
 
@@ -130,6 +209,9 @@ flowchart LR
 | Cancel reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin; only if active |
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
+| Member | `GetMyProfile` | `GET /api/v1/members/me` | anyone logged in; only their own profile | 200, 401, 404 |
+| Member | `UpdateMyProfile` | `PUT /api/v1/members/me` | anyone logged in; only their own name (the email does not change) | 204, 400 `Member.InvalidName`, 401, 404 |
+| Member | `GetPublicProfile` | `GET /api/v1/members/{id}/profile` | everyone; no email and no role in the response, only `Active` listings | 200, 404 `Member.NotFound` |
 | Get suggested price | `SuggestPrice` (AI) | `POST /api/v1/listings/price-suggestion` | suggestion only, never applied |
 | Get suggested category | `SuggestCategory` (AI) | `POST /api/v1/listings/category-suggestion` | suggestion only, the seller still picks the category |
 | Report a listing | `ReportListing` | `POST /api/v1/listings/{id}/reports` | not own listing; only `Active` or `Reserved`; at most once per member |
@@ -166,16 +248,20 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
-| Auth | `Register` | `POST /api/v1/auth/register` | everyone | 201 + `Location`, 400, 409 |
+| Auth | `Register` | `POST /api/v1/auth/register` | everyone, at most 5 registrations per minute per IP | 201 + `Location`, 400, 409, 429 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
+| Auth | `ChangePassword` | `POST /api/v1/auth/change-password` | anyone logged in; only their own password | 204, 400 `Auth.InvalidCredentials` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`, 401, 404 `Member.NotFound` |
 | Auth | `Refresh` | `POST /api/v1/auth/refresh` | anyone with a valid refresh token | 200, 401 `Auth.InvalidRefreshToken` |
 | Auth | `Logout` | `POST /api/v1/auth/logout` | anyone with a valid refresh token | 204, 401 `Auth.InvalidRefreshToken` |
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
+| Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
+| Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
+| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 3 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) are present, 503 `Unhealthy` otherwise |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites` and `GET /api/v1/moderation/listings` (Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -184,6 +270,7 @@ GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except 
 | Parameter | Meaning | Default |
 |---|---|---|
 | `category` | `Textbook`, `Notes`, `Electronics`, `LabEquipment` or `Other` | all categories |
+| `condition` | `New`, `Good` or `Worn` | all conditions |
 | `minPrice` | lowest price, inclusive | no limit |
 | `maxPrice` | highest price, inclusive | no limit |
 | `search` | text in the title, upper and lower case ignored | no search |
@@ -227,7 +314,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
-| 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` is not one of the values above |
+| 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
 Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
 
@@ -238,12 +325,14 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 3. Send the access token on every protected request: `Authorization: Bearer <token>`.
 4. When the access token expires, `POST /api/v1/auth/refresh` with `{ "refreshToken" }` returns a new `{ "token", "expiresAt", "refreshToken" }`, without the password. The old refresh token stops working (rotation), so always keep the new one.
 5. `POST /api/v1/auth/logout` with `{ "refreshToken" }` cancels the refresh token (204). After that it can no longer be used.
+6. `POST /api/v1/auth/change-password` with `{ "currentPassword", "newPassword", "confirmNewPassword" }` (logged in) changes your password (204). A wrong current password gives 400 `Auth.InvalidCredentials`; the new password follows the same rules as Register (`Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`).
 
 - Passwords are stored only as a hash, never returned.
 - Refresh tokens are long random strings (64 bytes from `RandomNumberGenerator`). Only their SHA-256 hash is stored, so a copy of the database cannot be used to log in. An unknown, expired, already used or cancelled refresh token gets the same 401 `Auth.InvalidRefreshToken`.
 - A wrong email and a wrong password get the same 401 `Auth.InvalidCredentials`, so nobody can find out which emails have an account.
 - Login allows 5 attempts per minute from the same IP, then 429.
 - Roles: `Student` and `Admin`. In the Development environment an Admin account is created at startup from `Seed:AdminEmail` / `Seed:AdminPassword` in `appsettings.Development.json`. The JWT key is also there, for development only.
+- CORS: browsers may call the API only from the origins in `Cors:AllowedOrigins` (the web frontend, `http://localhost:5173` in development). Any header and method is allowed, `Location` is readable by the frontend, and no cookies are used: the token always goes in the `Authorization` header. The CORS headers are also on error answers (401, 404, 500), so the frontend can read the error.
 
 ### Error codes
 
@@ -662,8 +751,10 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
 - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 - `ml/**`: dev tools for the AI module (synthetic dataset generator), not app code shipped by the API.
+- `load-tests/**`: k6 scripts, not application code, no unit tests.
+- `frontend/**`: the web frontend (TypeScript), outside the .NET coverage (also excluded in the CI).
 
-SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
+SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**`, `load-tests/**`, `frontend/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
 
 ---
 
@@ -694,6 +785,114 @@ training project reads the CSV, runs a 70 / 15 / 15 train / validation / test
 split and writes the trained models into `ml/models/`. The `.csproj` of the
 API copies every `ml/models/*.zip` to its output under `ml-models/`, so the
 API runs without training.
+
+The split is **group-aware by `TemplateId`** (`DatasetSplit`, seed `2026`): both
+`TrainTestSplit` cuts pass `samplingKeyColumnName = TemplateId`, so every row
+of an item type lands in exactly one of train / validation / test and the
+quality tests therefore evaluate on item types the model has never seen. Pure
+spam rows are grouped by their spam pattern (one `TemplateId` per spam
+description body, e.g. `spam-00` … `spam-11`), so the test set holds spam
+patterns the model has never seen. On top of that, `PriceTrainer` runs a
+**5-fold grouped cross-validation** on train + validation (test held out,
+same non-spam filter as the price evaluation) and reports R², MAE and RMSE as
+mean ± std — a tighter check of how well the model generalizes than a single
+hold-out split.
+
+### Baselines
+
+After training, the program prints a side-by-side table comparing each model
+against trivial baselines on the same test part (`DatasetSplit`, grouped by
+`TemplateId`). The model must beat the baselines on every metric; if it does
+not, it is not learning anything the baselines miss.
+
+Baselines (`ml/CampusMarket.ML.Training/Evaluation/Baselines.cs`):
+
+- **Price** (non-spam rows): predicts the mean price of the same
+  `Category × Condition` from the train part, falling back to the category
+  mean and then the global mean.
+- **Category** (non-spam rows):
+  - (a) always the most frequent class of the train part;
+  - (b) a short Romanian keyword rule
+    (`carte`/`manual`/`curs` → Textbook, `notite`/`rezumat` → Notes,
+    `laptop`/`telefon`/`casti` → Electronics,
+    `microscop`/`halat`/`pipeta` → LabEquipment, else Other).
+- **Spam** (all rows): the description or title contains a phone number, a
+  link, `whatsapp`/`telegram`, three or more exclamation marks, or the price
+  is `<= 5` lei.
+
+Last run (seed `2026`, 15% grouped test part):
+
+Price (non-spam, test):
+
+| Metric | Model (FastTree on log1p(Price), picked by MAE on validation) | Baseline (mean by Category × Condition) |
+|---|---|---|
+| R² | **0.451** | 0.274 |
+| MAE | **268.53** lei | 345.44 lei |
+| RMSE | **606.21** lei | 697.05 lei |
+| MAPE | **75.3%** | 179.6% |
+
+Details of the 6-candidate selection, the per-category MAE and the
+5-fold grouped CV are in [docs/ml/price.md](docs/ml/price.md).
+
+Category (non-spam, test):
+
+| Metric | Model (SDCA max entropy) | Most frequent class | Keyword rule |
+|---|---|---|---|
+| Micro accuracy | **0.853** | 0.281 | 0.519 |
+| Macro accuracy | **0.858** | 0.200 | 0.484 |
+
+Spam (all rows, test):
+
+| Metric | Model (SDCA logistic) | Rule baseline |
+|---|---|---|
+| Accuracy | **1.000** | 0.987 |
+| Precision | **1.000** | 0.667 |
+| Recall | 1.000 | 1.000 |
+| F1 score | **1.000** | 0.800 |
+
+### External evaluation
+
+`ml/data/external.csv` is an out-of-catalog sanity check: an AI was asked
+to draft 125 second-hand student listings without access to our catalog or
+`listings.csv`, then the team rewrote the first 30 rows after real
+listings we have seen (titles and phrasing we did not generate) and kept
+the rest as review-light drafts. Columns match `listings.csv` exactly
+(`Title,Description,Category,Condition,Price,IsSpam,TemplateId`, all with
+`TemplateId = external`), and the file carries no personal data — no
+names, phone numbers, email addresses or links to real sellers. 122 rows
+load as data (the last 3 lines are blank), of which 102 are non-spam and
+20 are spam, roughly balanced across the five categories (Electronics 27,
+LabEquipment 23, Notes 24, Other 25, Textbook 23). After training, the
+program loads the saved `.zip` models — the same files the API serves —
+and scores them on these rows next to the baselines from `Baselines.cs`.
+
+Last run (seed `2026`):
+
+| Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
+|---|---|---|---|---|---|
+| Price (non-spam) | R² | **0.451** | 0.274 | **0.511** | 0.011 |
+| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **112.10** | 192.05 |
+| Price (non-spam) | MAPE | **75.3%** | 176.5% | **55.1%** | 132.1% |
+| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.735** | 0.196 |
+| Category (non-spam) | Macro accuracy | **0.857** | 0.200 | **0.737** | 0.200 |
+| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.934 |
+| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.929 |
+| Spam (all) | Recall | 1.000 | 1.000 | 0.500 | 0.650 |
+| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.765 |
+
+The price and category models still beat their baselines on external
+data, and by a larger R² margin than on the test part — the external
+prices are more concentrated around the catalog averages, so the baseline
+collapses while the model generalizes. Spam is the honest miss: the test
+part is saturated because synthetic spam signals the generator plants
+(links, phone numbers, `!!!`, 1-leu prices) are the same the rule
+baseline catches, so both reach 1.000. The external set has ten subtle
+spam rows with normal titles, normal prices and no scam keywords
+(`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet festival
+Untold"`), which neither the model nor the rule catch — recall drops to
+0.500 for the model and 0.650 for the rule. That gap is a dataset-v2
+limit and a task for the next iteration of the spam generator, not a
+regression in the committed model.
 
 ### Dataset v2
 
@@ -744,25 +943,108 @@ SHA256 hashes to check. The second command trains the three models with
 seed `2026` and writes them to `ml/models/`. The `PredictionEnginePool`
 registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
 
+### Reproducibility
+
+Everything in the pipeline is pinned so two runs produce the same bytes:
+
+- **Seed `2026`** lives in `DatasetSplit.Seed` and in the generator (same
+  constant in both). The `MLContext` is built with this seed.
+- Every ML.NET trainer passes **`NumberOfThreads = 1`** in its Options object
+  (`PriceTrainer`, `CategoryTrainer`, `SpamTrainer`). SDCA, FastTree and
+  LightGBM only produce identical metrics across runs when they do not
+  parallelize over threads.
+- Beside each saved model, the trainer writes a **`<model-file>.json`
+  sidecar** (`ModelMetadata.cs`): the model name, the chosen algorithm and
+  target, UTC timestamp (ISO 8601), seed, split (70/15/15 grouped by
+  `TemplateId`), SHA-256 of `ml/data/listings.csv`, row counts per part, the
+  test metrics as numbers, and the git commit from `GITHUB_SHA` if set. Keys
+  are sorted alphabetically and metrics are written with six decimals, so a
+  `git diff` of two runs only highlights real changes.
+- CI (`.github/workflows/ml.yml`, runs on `ml/**` or
+  `tests/CampusMarket.ML.Tests/**` changes): sets up .NET 10, restores, then
+  (1) regenerates `ml/data/listings.csv` with the generator and fails if
+  `git diff --exit-code` reports a byte change; (2) trains the models;
+  (3) runs `ml/scripts/check_metrics.py` on the new sidecars against the
+  committed ones and fails if any R², accuracy or F1 dropped by more than
+  0.02 absolute, or MAE grew by more than 5% relative; (4) runs
+  `dotnet test tests/CampusMarket.ML.Tests` against the fresh models; and
+  (5) uploads `ml/models/*.{zip,json}` as a build artifact. CI never
+  commits, pushes or needs secrets.
+
+Reproduce locally in three commands from the repository root:
+
+```
+dotnet run --project ml/CampusMarket.ML.DatasetGenerator
+dotnet run --project ml/CampusMarket.ML.Training
+dotnet test tests/CampusMarket.ML.Tests
+```
+
+Running the first two twice in a row produces identical bytes in
+`ml/data/listings.csv` and identical `testMetrics` in every
+`ml/models/*.json` (only the `trainedAt` timestamp changes).
+
 ### Price suggestion model (B3)
 
-- Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, FastTree regression on
-  the non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
-  `Title` and `Description` through `FeaturizeText`. Label: `Price`.
-- Metrics on the 15% hold-out (seed 2026, non-spam rows):
+- Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, regression on the
+  non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
+  `Title` and `Description` through `FeaturizeText`.
+- **Model selection (price v2):** six candidates — three algorithms (`FastTree`,
+  `LightGbm`, `Sdca`) × two targets (`Price`, `log1p(Price)`) — are trained on
+  the train part and scored on the **validation** part only; the winner is
+  picked by MAE in lei, tie-broken by R². The winner is retrained on
+  train + validation and evaluated **once** on the test part (the saved
+  model). The current winner is **FastTree on `log1p(Price)`**: dampening the
+  heavy-tailed price distribution with `log1p` wins on MAE and MAPE even
+  when raw-target Sdca has a higher R². When the target is log-based, the
+  saved pipeline appends an `Expression` transform that maps `Score` back
+  to lei, so the API's `PriceSuggester` reads `Score` directly and does not
+  need to know which target won.
+- Test metrics on the 15% grouped hold-out (seed 2026, non-spam, unseen
+  `TemplateId`s):
 
   | Metric | Value |
   |---|---|
-  | R² | **0.713** |
-  | MAE | 143.48 lei |
-  | RMSE | 314.06 lei |
+  | R²   | **0.451** |
+  | MAE  | 268.53 lei |
+  | RMSE | 606.21 lei |
+  | MAPE | 75.3% |
 
+  5-fold grouped CV on train + validation: R² 0.449 ± 0.106,
+  MAE 164.95 ± 42.43 lei, RMSE 383.08 ± 113.76 lei. The six-candidate table,
+  the MAE per category and the "when not to trust the suggestion" notes are
+  in [docs/ml/price.md](docs/ml/price.md).
 - The saved model (`ml/models/price-regression.zip`) is loaded by the API through
   `PredictionEnginePool<PriceInput, PricePrediction>`; the `SuggestPrice` slice
   depends on `IPriceSuggester` (in `Common/Pricing/`) and never sees `Microsoft.ML`.
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on its own split (seed 42, 20%) and fails if R² drops below 0.8, or if, for
-  the same title, `Condition = New` is not priced higher than `Condition = Worn`.
+  on the shared grouped split and fails if R² on the test part drops below
+  **0.40** (winner's test R² − 0.05, rounded down to two decimals — see
+  `MinRSquared` and [docs/ml/price.md](docs/ml/price.md)), or if, for the
+  same title, `Condition = New` is not priced higher than `Condition = Worn`.
+
+#### Price feedback loop
+
+Training metrics measure the model against a synthetic test split; the real
+check is against sales people actually made. Every time a seller confirms a
+sale (`POST /api/v1/listings/{id}/reservations/{reservationId}/confirm`),
+`ConfirmSaleHandler` asks the same `IPriceSuggester` the `SuggestPrice`
+slice uses what it would have suggested for that listing (title,
+description, category, condition), and writes a `SaleRecord` in the same
+`CommitAsync` as the sale: `ListingId`, `Category`, `Condition`, the
+suggested price, the actual sold price (`Listing.Price.Amount`) and
+`SoldAt`. If the suggester throws or returns nothing, the sale still goes
+through — a warning is logged and no `SaleRecord` is written, so the
+feedback loop never blocks the sale. Records live in the `SaleRecords`
+table (migration `AddSaleRecords`), with no FK to `Listings` on purpose so
+analytics survives listing deletion.
+
+`GET /api/v1/admin/ml/price-accuracy` (Admins only) reads the table and
+returns `count`, overall MAE in lei and MAPE in %, the same metrics broken
+down per `Category`, and the 10 newest records (`listingId`, `category`,
+`condition`, `suggestedPrice`, `soldPrice`, `soldAt`). On an empty table
+the response is `{ count: 0, mae: null, mape: null, perCategory: [],
+lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
+`ISaleRecordRepository` and no `IUnitOfWork`.
 
 ### Category suggestion model (B4)
 

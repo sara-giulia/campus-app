@@ -263,6 +263,54 @@ public sealed class GetListingsTests : IntegrationTestBase
         count.Should().Be(3);
     }
 
+    [Fact]
+    public async Task Given_GoodAndWornListings_When_FilteringByCondition_Then_Returns200WithOnlyGoodListing()
+    {
+        // Arrange
+        var (good, _) = await SeedGoodAndWornListingsAsync();
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/listings?condition=Good");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+        body!.TotalCount.Should().Be(1);
+        body.Count.Should().Be(1);
+        body.Items.Select(i => i.Id).Should().Equal(good.Id);
+        body.Items[0].Condition.Should().Be(Condition.Good);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_GoodAndWornListings_When_ConditionCannotBeParsed_Then_Returns400()
+    {
+        // Arrange
+        await SeedGoodAndWornListingsAsync();
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/listings?condition=Banana");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(2);
+    }
+
+    private async Task<(Listing good, Listing worn)> SeedGoodAndWornListingsAsync()
+    {
+        var good = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        var worn = Listing.Create(SellerId, "Culegere analiza", Category.Textbook, Condition.Worn, 20m, CreatedAt.AddHours(1)).Value;
+        good.Publish();
+        worn.Publish();
+        await SeedAsync(good, worn);
+        return (good, worn);
+    }
+
     private async Task<(Listing oopTextbook, Listing oopProblemSet, Listing calculator)> SeedThreeListingsAsync()
     {
         var oopTextbook = Listing.Create(SellerId, "OOP textbook", Category.Textbook, Condition.Good, 40m, CreatedAt).Value;
