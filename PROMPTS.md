@@ -696,9 +696,11 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
-### Skill update v22 → v23 (coverage-report is local only)
+### Skill update v25 → v26 (coverage-report is local only)
 
-| What | Before (v22) | After (v23) |
+- **Numbering:** numbered after #73, #77 and #79, which make unit-testing v23, v24 and v25, so those three PRs keep their numbers.
+
+| What | Before (v25) | After (v26) |
 |---|---|---|
 | Coverage report in Git (section "Coverage") | *"Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`."* | *"The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either."* |
 | Check after generating | *"`git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing."* | removed |
