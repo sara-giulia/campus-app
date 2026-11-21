@@ -8,6 +8,7 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 1. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
 2. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
 3. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
+4. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
 
 Unit tests: `dotnet test` from the repository root.
 
