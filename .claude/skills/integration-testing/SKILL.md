@@ -796,3 +796,18 @@ File: `Listings/CreateListingTests.cs` (add to it).
 
 Tests to add:
 - POST a listing with price 200000 → 400 `Money.TooHigh`, nothing saved.
+
+## Feature: Production configuration and demo data (Sara)
+Production code: in `CampusMarketSetup.cs`, `ValidateCampusMarketProductionConfiguration` (only in Production: throws `InvalidOperationException` when `Jwt:Key` is missing or shorter than 32 characters) and `SeedDemoDataIfRequested` (only when `Seed:DemoData` is true and the database is empty: 3 published listings; a Student demo member only when `Seed:DemoPassword` has at least 8 characters, otherwise a warning and no member).
+File: `Infrastructure/ProductionConfigurationTests.cs` (new).
+Test host: start a separate host with `Factory.WithWebHostBuilder(b => ...)` and `UseSetting(...)` / `UseEnvironment(...)`, like the Admin seed tests; dispose it with `await using`.
+Tests to add:
+- Environment Production, `Jwt:Key` of 10 characters → creating the client throws `InvalidOperationException` whose message mentions `Jwt__Key`.
+- Environment Production, `Jwt:Key` of 40 characters → `GET /health` 200.
+- `Seed:DemoData` = true and `Seed:DemoPassword` = 8+ characters → `GET /api/v1/listings` gives `totalCount` 3; the database has exactly 1 member, with the Student role.
+- `Seed:DemoData` = true without `Seed:DemoPassword` → 3 listings, 0 members.
+- `Seed:DemoData` not set → 0 listings and 0 members (unchanged behaviour).
+  Rules for this feature:
+- Never hard-code a real key; use generated test strings.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
