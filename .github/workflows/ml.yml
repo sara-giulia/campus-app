@@ -47,12 +47,14 @@ jobs:
         run: dotnet run --project ml/CampusMarket.ML.Training --configuration Release
 
       # Compare the fresh testMetrics in ml/models/*.json against the ones
-      # committed on this branch. Allowed drift (also documented in the
-      # script header): R2, accuracies and F1 may fall by at most 0.02
-      # absolute; MAE may grow by at most 5% relative. Everything else in
-      # testMetrics is informational.
+      # committed on this branch. The script hard-codes both directories
+      # (.ci/reference-models and ml/models, resolved from its own location)
+      # so there is no path it can be redirected at. Allowed drift (also
+      # documented in the script header): R2, accuracies and F1 may fall by
+      # at most 0.02 absolute; MAE may grow by at most 5% relative.
+      # Everything else in testMetrics is informational.
       - name: Check that no metric regressed vs the committed models
-        run: python3 ml/scripts/check_metrics.py .ci/reference-models ml/models
+        run: python3 ml/scripts/check_metrics.py
 
       - name: Run the ML quality tests against the freshly trained models
         run: dotnet test tests/CampusMarket.ML.Tests --configuration Release
