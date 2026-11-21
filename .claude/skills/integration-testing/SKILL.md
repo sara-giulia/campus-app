@@ -924,3 +924,22 @@ Rules for this feature:
 - Never change `appsettings.json`, `CampusMarketApiFactory` or `IntegrationTestBase`.
 - This section goes with changes made by hand before the run (`CampusMarketSetup.cs`, `Program.cs`, `appsettings.json`, the new `frontend/` folder, `README.md`, `.dockerignore`, `.github/workflows/build.yml`), so the section 10 check on `git status` also lists them.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Register rate limiting (Carina)
+
+Production code: `CampusMarketSetup.AddCampusMarket` adds the rate limiter policy "register": a fixed window of 1 minute per IP (`context.Connection.RemoteIpAddress`, or "unknown"), with the limit from `RateLimiting:RegisterPermitLimit` (default 5). `RegisterEndpoint` uses `.RequireRateLimiting("register")`. A rejected request gets 429 (status only, from `options.RejectionStatusCode`). `CampusMarketApiFactory` sets the limit to 1000 so the other tests are not blocked; do not change the factory or `IntegrationTestBase`.
+
+File: `Auth/RegisterRateLimitTests.cs` (new), class `RegisterRateLimitTests : IntegrationTestBase`.
+
+Test host: start a second copy of the API with the real limit, `Factory.WithWebHostBuilder(b => b.UseSetting("RateLimiting:RegisterPermitLimit", "5"))`, the same way the Admin seed tests do; use only the client from its `CreateClient()` and dispose the copy with `await using`. In the test server every request falls in the same partition, so all of them count against one limit.
+
+Request body: `{ name, email, password, confirmPassword }`, with a valid name, a different email for each request and a password of at least 8 characters.
+
+Tests to add (status, body, then the database):
+- 5 registrations with different emails → all 201; a 6th, valid, with a new email → 429; the database has exactly 5 members and none with the 6th email.
+- 5 registrations whose passwords do not match → 400 each (they also count toward the limit); a 6th, valid → 429; the database has no members.
+- with the normal factory (limit 1000), 6 registrations with different emails → all 201; the database has 6 members.
+
+Rules for this feature:
+- Check the members with `QueryDbAsync` on `db.Set<Member>()`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
