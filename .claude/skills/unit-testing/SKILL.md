@@ -562,6 +562,47 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`. Build the messages from `Review.MinRating`, `Review.MaxRating` and `Review.MaxCommentLength`, the same way the domain does. The message of `Review.Duplicate` contains the generated Id: use `.Match("A review with id '*' already exists.")`, as for `Favorite.Duplicate`.
 - Never use real time: `Now` is fixed.
 
+## Feature: Condition filter (Carina)
+
+Production code: `Features/Listings/GetListings/GetListingsHandler.cs`, the new optional `Condition` filter of `GetListingsQuery`. `Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument (`Condition: Condition.Good`).
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it, keep every existing test).
+
+Tests to add:
+- three Active listings (New, Good, Worn), query with `Condition = Good` → only the Good one, `TotalCount` 1.
+- `Category` and `Condition` together → only the listings that match both.
+- no `Condition` → every Active listing comes back (unchanged behaviour).
+
+Rules for this feature:
+- The handler is a query handler: the repository content is unchanged after every call.
+- Never use real time; every `createdAt` is a fixed `DateTimeOffset`.
+
+## Feature: My profile (Carina)
+
+Production code (written by hand, read it before generating):
+- `Features/Members/GetMyProfile/GetMyProfileHandler.cs`: a query handler with only `IMemberRepository` (no `IUnitOfWork`). Unknown member → `NotFound` `Member.NotFound`; otherwise `GetMyProfileResponse.From(member)` with `Id`, `Name`, `Email` (the email value), `Role` (as text) and `CreatedAt`. There is no password field in the response.
+- `Features/Members/UpdateMyProfile/UpdateMyProfileHandler.cs`: unknown member → `NotFound` `Member.NotFound`; otherwise `member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same; a validation error from `Update` is returned as it is; then `repository.Update` and one `CommitAsync`.
+
+Files (new): `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs`, `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs`.
+
+Arrange: `FakeMemberRepository`, `FakeUnitOfWork`, a fixed `Now`. Build members with `Member.Register(name, email, new FakePasswordHasher().Hash("secret12"), Now)` (or with `MemberRole.Admin` as the last argument for an Admin) and put them straight into `FakeMemberRepository.Items`.
+
+Tests to add:
+- GetMyProfile:
+  - a stored Student → success with its `Id`, `Name`, `Email` (lower case), `Role` `"Student"` and `CreatedAt` = `Now`; the repository is unchanged.
+  - a stored Admin → `Role` is `"Admin"`.
+  - unknown id → `NotFound` `Member.NotFound`.
+- UpdateMyProfile:
+  - a valid new name → success, returns the member's `Id`; the stored member has the new (trimmed) name and the same email; `UpdateCount` 1; `SaveCount` 1.
+  - a name of 1 character → `Validation` `Member.InvalidName`; the name is unchanged; `UpdateCount` 0; `SaveCount` 0.
+  - unknown id → `NotFound` `Member.NotFound`; `SaveCount` 0.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Public profile (Carina)
 
 Production code (written by hand, read it before generating): `Features/Members/GetPublicProfile/GetPublicProfileHandler.cs`, a query handler with `IMemberRepository`, `IListingRepository` and `IReviewRepository` (no `IUnitOfWork`).
@@ -593,6 +634,7 @@ Rules for this feature:
 - Never use real time.
 - Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 Production code: `Features/Listings/SuggestCategory/SuggestCategoryHandler.cs`, `MinConfidence` = 0.7; `SuggestCategoryResponse.Category` is now nullable.

@@ -88,6 +88,9 @@ public static class CampusMarketSetup
         });
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
+        
+        // API description for the documentation page (served only in Development, see Program.cs).
+        services.AddOpenApi();
 
         // Background reservation expiry: registered only when enabled, so tests and
         // scenarios that need a quiet host can turn it off through configuration.

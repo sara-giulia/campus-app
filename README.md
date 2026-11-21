@@ -8,6 +8,7 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 1. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
 2. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
 3. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
+4. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
 
 Unit tests: `dotnet test` from the repository root.
 
@@ -195,6 +196,8 @@ flowchart LR
 | Cancel reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin; only if active |
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
+| Member | `GetMyProfile` | `GET /api/v1/members/me` | anyone logged in; only their own profile | 200, 401, 404 |
+| Member | `UpdateMyProfile` | `PUT /api/v1/members/me` | anyone logged in; only their own name (the email does not change) | 204, 400 `Member.InvalidName`, 401, 404 |
 | Member | `GetPublicProfile` | `GET /api/v1/members/{id}/profile` | everyone; no email and no role in the response, only `Active` listings | 200, 404 `Member.NotFound` |
 | Get suggested price | `SuggestPrice` (AI) | `POST /api/v1/listings/price-suggestion` | suggestion only, never applied |
 | Get suggested category | `SuggestCategory` (AI) | `POST /api/v1/listings/category-suggestion` | suggestion only, the seller still picks the category |
@@ -242,7 +245,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -251,6 +254,7 @@ GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except 
 | Parameter | Meaning | Default |
 |---|---|---|
 | `category` | `Textbook`, `Notes`, `Electronics`, `LabEquipment` or `Other` | all categories |
+| `condition` | `New`, `Good` or `Worn` | all conditions |
 | `minPrice` | lowest price, inclusive | no limit |
 | `maxPrice` | highest price, inclusive | no limit |
 | `search` | text in the title, upper and lower case ignored | no search |
@@ -294,7 +298,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
-| 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` is not one of the values above |
+| 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
 Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
 
