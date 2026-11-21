@@ -1194,6 +1194,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v28 is the final version.
 - **Commits:** skill 0d26845; generated code c989e44
 
+### Run 30, skill v29 (Feature: Register rate limiting)
+
+- **Why a new version:** task 5 (issue #98). `POST /api/v1/auth/register` got the rate limiter policy "register": at most 5 registrations per minute from the same IP, then 429, with the limit read from `RateLimiting:RegisterPermitLimit`. The integration test factory raises it to 1000 so the other tests are not blocked, so the real limit needed its own tests.
+
+#### Change to SKILL.md (v28 → v29) and why
+
+| # | v28 (before) | v29 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the register rate limit. | New section *"Feature: Register rate limiting (Carina)"*: the policy, the factory setting (1000), a second copy of the API with `UseSetting("RateLimiting:RegisterPermitLimit", "5")`, and 3 tests. | Without the second copy the tests would run with the raised limit and never see a 429. |
+| 2 | — | *"5 registrations whose passwords do not match → 400 each (they also count toward the limit); a 6th, valid → 429"*. | Proves that the limiter counts every request, not only the successful ones. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Register rate limiting (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v29, commit 3d0ee62 (numbered after #73, #75, #77 and #79, which make v22 to v25, and after the entries on main up to v28); section written and run by Carina Coman
+- **Result:** new file `Auth/RegisterRateLimitTests.cs` with 3 tests: six valid registrations with the limit at 5 → the first five 201, the sixth 429, exactly 5 members and none with the sixth email; five registrations whose passwords do not match → 400 each, then a sixth valid one → 429, no members; the normal factory (limit 1000) → six registrations 201, 6 members. The first two use a second copy of the API (`WithWebHostBuilder`, disposed with `await using`); the five earlier calls are in a private helper `RegisterFiveAsync`, written as five explicit calls like `ExhaustLoginRateLimitAsync`, so no test has a loop. Nothing changed in `src/`, the factory, `IntegrationTestBase` or the skill. Integration tests 230/230 three runs in a row.
+- **Problems seen:** none. Notes from the run: the 429 is checked only by status code, as the section says (the error handling section may turn it into ProblemDetails, but its body is not checked); the status codes of the five earlier calls are collected in the Arrange and checked at the start of the Assert, so the Act stays the single sixth call.
+- **Change to SKILL.md:** none after the run; v29 is the final version.
+- **Commits:** skill 3d0ee62; generated code 9e9c0fb
 
 ## code-review
 
