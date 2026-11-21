@@ -173,9 +173,10 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
+| Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites` and `GET /api/v1/moderation/listings` (Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -928,6 +929,30 @@ Running the first two twice in a row produces identical bytes in
   **0.40** (winner's test R² − 0.05, rounded down to two decimals — see
   `MinRSquared` and [docs/ml/price.md](docs/ml/price.md)), or if, for the
   same title, `Condition = New` is not priced higher than `Condition = Worn`.
+
+#### Price feedback loop
+
+Training metrics measure the model against a synthetic test split; the real
+check is against sales people actually made. Every time a seller confirms a
+sale (`POST /api/v1/listings/{id}/reservations/{reservationId}/confirm`),
+`ConfirmSaleHandler` asks the same `IPriceSuggester` the `SuggestPrice`
+slice uses what it would have suggested for that listing (title,
+description, category, condition), and writes a `SaleRecord` in the same
+`CommitAsync` as the sale: `ListingId`, `Category`, `Condition`, the
+suggested price, the actual sold price (`Listing.Price.Amount`) and
+`SoldAt`. If the suggester throws or returns nothing, the sale still goes
+through — a warning is logged and no `SaleRecord` is written, so the
+feedback loop never blocks the sale. Records live in the `SaleRecords`
+table (migration `AddSaleRecords`), with no FK to `Listings` on purpose so
+analytics survives listing deletion.
+
+`GET /api/v1/admin/ml/price-accuracy` (Admins only) reads the table and
+returns `count`, overall MAE in lei and MAPE in %, the same metrics broken
+down per `Category`, and the 10 newest records (`listingId`, `category`,
+`condition`, `suggestedPrice`, `soldPrice`, `soldAt`). On an empty table
+the response is `{ count: 0, mae: null, mape: null, perCategory: [],
+lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
+`ISaleRecordRepository` and no `IUnitOfWork`.
 
 ### Category suggestion model (B4)
 

@@ -584,3 +584,20 @@ Tests to add:
 - exactly `Money.MaxAmount` → success.
 - `Money.MaxAmount + 0.01m` → `Validation`, code `Money.TooHigh`, exact message from the code.
 - `Listing.Create` with a price above the maximum → the same error.
+
+## Feature: Price feedback loop (Sara)
+Production code (written by hand, read it before generating):
+- `Domain/Listings/SaleRecord.cs`: `SaleRecord.Create(...)` returns `Result<SaleRecord>`; prices must be > 0.
+- `Features/Listings/ConfirmSale/ConfirmSaleHandler.cs`: new dependencies `ISaleRecordRepository`, `IPriceSuggester`, `ILogger<ConfirmSaleHandler>`. After a successful confirm sale it asks the suggester and adds a `SaleRecord` (same `CommitAsync`). If the suggester throws or returns a price <= 0, the sale still succeeds and no record is added.
+- `Features/Admin/PriceAccuracy/PriceAccuracyHandler.cs` (query handler): count, MAE, MAPE, per category, last 10 newest first; with no records count 0 and null metrics.
+  Existing tests: `Features/Listings/ConfirmSale/ConfirmSaleHandlerTests.cs` no longer compiles (the constructor has 6 parameters). Update every `new ConfirmSaleHandler(...)` to pass a `FakeSaleRecordRepository`, a fake price suggester and `NullLogger<ConfirmSaleHandler>.Instance`; change nothing else in those tests.
+  Fakes: reuse the existing fake price suggester if there is one; otherwise add `FakePriceSuggester` (configurable price, or throws when asked) in the same hand-written style. Add `FakeSaleRecordRepository` (`Items`, `Add`, `GetAllAsync`).
+  Tests to add:
+- `SaleRecord.Create`: valid → success with all fields; suggested price 0 → validation error; sold price 0 → validation error (exact code and message from the code).
+- ConfirmSale success with suggester returning 120 → one record with suggested 120, sold = listing price, the listing's category and condition; `SaveCount` 1.
+- ConfirmSale success with suggester throwing → sale succeeds, no record, `SaveCount` 1.
+- ConfirmSale success with suggester returning 0 → sale succeeds, no record.
+- ConfirmSale failure (any existing failure case) → no record.
+- PriceAccuracy: no records → count 0, metrics null; records (suggested 100/sold 80, suggested 50/sold 50) → count 2, MAE 10, MAPE 12.5; per category grouped; last records newest first, at most 10.
+  Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100% lines and branches.
+
