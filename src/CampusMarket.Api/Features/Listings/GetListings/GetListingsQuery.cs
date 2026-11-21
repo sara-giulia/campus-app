@@ -9,7 +9,8 @@ public sealed record GetListingsQuery(
     decimal? MaxPrice = null,
     string? Search = null,
     int Page = GetListingsQuery.DefaultPage,
-    int PageSize = GetListingsQuery.DefaultPageSize) : IQuery<GetListingsResponse>
+    int PageSize = GetListingsQuery.DefaultPageSize,
+    Condition? Condition = null) : IQuery<GetListingsResponse>
 {
     public const int DefaultPage = 1;
     public const int DefaultPageSize = 20;
