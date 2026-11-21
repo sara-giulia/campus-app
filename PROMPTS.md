@@ -1942,3 +1942,15 @@ Weeks 6–7 (plan of Sara and Anca), Anca's first task: the skeleton of the web 
 - **Follow-up 2:** `Remove the email and the Admin badge from the top bar.` The top bar keeps only the initials (the email shows on hover) and the logout button.
 - **Result:** `HomePage.tsx`, `home.css`, `Icons.tsx`, `Layout.tsx` and `layout.css` changed. No change in the API.
 - **Commits:** code 5b3d6a9
+
+### Run 6
+
+- **Prompt:** `Change it to the style Sara asked for in her conversations and that you see in the HTML (her page sketches), for my part of the task, and it must work correctly.`
+- **Decisions:**
+    - Sara's sketches (a Claude canvas exported to HTML) were rendered with headless Chrome and read page by page. Her final direction: white background, coral-red accent, Figtree, rounded corners, a coral wordmark, a top bar with the links on the right, a landing page with a big title on the left and a 2×2 photo collage on the right, a login page with the form on the left and a big picture on the right. The export shows only four pages correctly (home, explore, listing, publish); register, login and profile repeat the listing page.
+    - Only the parts of the sketches that belong to the skeleton and work today: the colours, the font, the top bar, the footer, the landing hero and the login layout. Left out until their pages exist: the search bar, "Vinde ceva", "Creează cont", "Ai uitat parola?", the listings grid, campus/faculty fields (not in the API).
+    - The collage tiles show four of the API categories, because listings have no photos yet; the login picture is a soft coral panel for the same reason.
+    - Tokens in `index.css` (light and dark), Figtree instead of Inter, buttons and inputs a bit taller and bolder as in the sketches, the secondary button outlined in dark.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings. Against the running API, in a headless Chrome driven through the DevTools protocol: wrong password → "Email sau parolă greșită.", login → home with the avatar, still logged in after reload, `/login` while logged in goes home, logout clears the tokens, unknown address → 404; all passed (one run hit the login rate limit of 5 per minute and was repeated a minute later). Screenshots of home (light, dark, logged in, 500 px) and login.
+- **Result:** `index.css`, `ui.css`, `layout.css`, `Logo.tsx`, `Layout.tsx` (footer), `HomePage.tsx`, `home.css`, `LoginPage.tsx`, `login.css`, `main.tsx`, `index.html`, `favicon.svg`, `package.json` (Figtree instead of Inter) and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b4d094
