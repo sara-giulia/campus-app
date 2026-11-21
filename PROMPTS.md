@@ -2301,3 +2301,10 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Cadrul de evaluare pentru clas
 - **Result:** `ClassificationReport.cs` and the confusion matrix test (compares the rows in order). Build 0 warnings; the 30 ML tests pass.
 - **Commits:** code and this entry in the same commit (the one that changes `ClassificationReport.cs`)
 
+### Run 3
+
+- **Prompt:** `SonarCloud now shows 3 issues on PR #103, all on ClassificationReportTests.cs line 30: "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array" (CA1861).`
+- **Decision:** the expected rows of the confusion matrix test moved to a `static readonly int[][] ExpectedConfusion` field. Run 2 was not checked with the SARIF build after the change; this time both ML projects were built with `-p:ErrorLog=...` and have no finding outside generated code.
+- **Result:** `ClassificationReportTests.cs` only; the 30 ML tests pass.
+- **Commits:** test and this entry in the same commit (the one that changes `ClassificationReportTests.cs`)
+

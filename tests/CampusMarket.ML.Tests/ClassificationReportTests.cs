@@ -22,13 +22,14 @@ public sealed class ClassificationReportTests
         new("C", "A", 0.55), new("C", "C", 0.95),
     ];
 
+    private static readonly int[][] ExpectedConfusion = [[1, 1, 0], [0, 2, 0], [1, 0, 1]];
+
     [Fact]
     public void Multiclass_builds_the_confusion_matrix_with_true_rows_and_predicted_columns()
     {
         var report = Multiclass(SixRows, ["A", "B", "C"]);
 
-        report.Confusion.Should().BeEquivalentTo(new[] { new[] { 1, 1, 0 }, new[] { 0, 2, 0 }, new[] { 1, 0, 1 } },
-            options => options.WithStrictOrdering());
+        report.Confusion.Should().BeEquivalentTo(ExpectedConfusion, options => options.WithStrictOrdering());
     }
 
     [Fact]
