@@ -616,3 +616,25 @@ Production code (written by hand, read it before generating):
 - PriceAccuracy: no records → count 0, metrics null; records (suggested 100/sold 80, suggested 50/sold 50) → count 2, MAE 10, MAPE 12.5; per category grouped; last records newest first, at most 10.
   Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100% lines and branches.
 
+## Feature: Change password (Carina)
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/Member.cs`, `ChangePassword(newPasswordHash)`: an empty or whitespace hash → `Validation` `Member.PasswordRequired` ("A password is required."); otherwise it sets `PasswordHash` and returns the same member.
+- `Features/Auth/ChangePassword/ChangePasswordHandler.cs`, in this order: member not found → `NotFound` `Member.NotFound`; `PasswordHash` null or `Verify` false → `Validation` `Auth.InvalidCredentials` ("The email or the password is wrong."); new password null, empty or shorter than `RegisterHandler.MinPasswordLength` (8) → `Validation` `Auth.WeakPassword`; `NewPassword` different from `ConfirmNewPassword` → `Validation` `Auth.PasswordsDoNotMatch`; otherwise `Hash(new)`, `ChangePassword`, `repository.Update`, one `CommitAsync`, and it returns the member's `Id`.
+
+Files: `Domain/Members/MemberTests.cs` (add to it), `Features/Auth/ChangePassword/ChangePasswordHandlerTests.cs` (new). Use the existing `FakeMemberRepository`, `FakePasswordHasher` and `FakeUnitOfWork`; read them first to see how the fake hash is built and what they count.
+
+Tests to add:
+- `Member.ChangePassword`: a hash → stored, the same instance is returned; `""` and `"   "` (`[Theory]`) → `Member.PasswordRequired`, the hash is unchanged.
+- success → `PasswordHash` is the fake hash of the new password, returns the member's `Id`, `UpdateCount` 1, `SaveCount` 1.
+- wrong current password → `Auth.InvalidCredentials`; hash unchanged; `UpdateCount` 0; `SaveCount` 0.
+- a member without a password (`Member.Create`) → `Auth.InvalidCredentials`.
+- new password of 7 characters → `Auth.WeakPassword`; exactly 8 characters → success (the boundary); empty → `Auth.WeakPassword`.
+- confirmation different → `Auth.PasswordsDoNotMatch`; `SaveCount` 0.
+- unknown member → `NotFound` `Member.NotFound`; `SaveCount` 0.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
