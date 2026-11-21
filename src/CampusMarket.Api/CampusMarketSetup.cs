@@ -216,9 +216,9 @@ public static class CampusMarketSetup
         if (string.IsNullOrEmpty(password) || password.Length < MinDemoPasswordLength)
         {
             logger.LogWarning(
-                "Seed:DemoPassword is missing or shorter than {MinLength} characters; seeding the demo listings without a demo member. " +
-                "Set the Seed__DemoPassword environment variable to a value of at least {MinLength} characters to enable sign-in as the demo student.",
-                MinDemoPasswordLength, MinDemoPasswordLength);
+                "{Variable} is missing or shorter than {MinLength} characters; seeding the demo listings without a demo member. " +
+                "Set the Seed__DemoPassword environment variable to a value of at least that length to enable sign-in as the demo student.",
+                "Seed:DemoPassword", MinDemoPasswordLength);
             return null;
         }
 

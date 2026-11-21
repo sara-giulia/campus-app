@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrWhiteSpace(port))
 {
-    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}"); // NOSONAR: TLS is terminated by the platform proxy; the container listens on plain HTTP inside the private network
 }
 
 // Services and endpoints are set up in CampusMarketSetup, so the tests can reuse them
