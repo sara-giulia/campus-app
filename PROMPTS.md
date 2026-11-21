@@ -2275,3 +2275,22 @@ Performance change on `GET /api/v1/listings`, written by Diana with Claude Code;
     - The check was done with `UpdateListingEndpoint`: one endpoint is enough to show that the test fails when the clearing is missing.
 - **Result:** `ListingsCacheTests.cs` has 4 tests. Without `ListingsCache.ClearAsync` in `UpdateListingEndpoint`, the update test fails (3 pass); with the line back, all 4 pass. Full run: 10 architecture, 438 unit, 13 ML, 226 integration, 0 warnings. `src/` unchanged (the line was put back).
 - **Commits:** skill section a93eb36; tests regenerated in 8631881 (see Run 36 of integration-testing)
+
+## classification-report
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Cadrul de evaluare pentru clasificare": confusion matrix and macro-F1 for the category, precision / recall / F1 / PR-AUC for spam, and calibration for both, on the current data. Written by Ancuța Ilenei with Claude Code. The ML tests are written by hand, like the other tests in `CampusMarket.ML.Tests` (the test skills cover the API, not the training project).
+
+### Run 1
+
+- **Prompt:** `Do my next task from the plan: the evaluation framework for classification (Training/Evaluation/ClassificationReport.cs): confusion matrix and macro-F1 for the category, precision, recall, F1 and PR-AUC for spam, calibration (if the model says 90%, is it spam in ~90% of the cases?); it must work on the current data.`
+- **Decisions:**
+    - `ClassificationReport` works only on rows of (true label, predicted label, probability), with no ML.NET type, so it can be tested on small hand-made examples and reused on any data (the external set, the thresholds task, the model cards).
+    - Macro-F1 is the plain mean of the per-class F1, so a small class counts as much as a big one; a class that is neither in the data nor predicted is left out. Precision or recall with an empty denominator is 0.
+    - PR-AUC is computed as average precision: rows sorted by probability, precision added each time recall grows; rows with the same probability are taken together so their order does not change the result. Chosen over ROC-AUC for spam because spam is only 18 of the 711 test rows.
+    - Calibration: 10 equal bins over [0, 1], mean predicted probability against how often it was true, and ECE (weighted mean gap). For the category the probability is the one of the chosen class and "true" means the prediction was right; for spam it is P(spam) and "true" means the row is spam. Empty bins are kept in the data and skipped in the table.
+    - `CategoryTrainer.Report` and `SpamTrainer.Report` turn the scored test rows into a report; the trainers print it after the existing metrics and add `macroF1` and `ece` (category) and `prAuc` and `ece` (spam) to the `testMetrics` of the `.json` files. `check_metrics.py` only checks its known keys, so the new ones are informational.
+    - The models were retrained to get the numbers; every existing metric came out identical. The committed `.zip` files and the other metadata were kept and only the four new metrics were added to the two `.json` files: on Windows `listings.csv` is checked out with CRLF, so its SHA-256 differs from the one CI computes on Linux.
+- **Result:** new `Evaluation/ClassificationReport.cs`; `CategoryTrainer.cs` and `SpamTrainer.cs` (report, new metrics); `ml/models/category-classification.json` and `spam-detection.json` (four metrics); new `tests/CampusMarket.ML.Tests/ClassificationReportTests.cs` with 17 tests: the confusion matrix, per-class metrics, macro-F1, an unused label, an unknown label, multiclass calibration, binary counts, a higher threshold, average precision (worked example, perfect ranking, no positives, ties), calibration (worked example with ECE 0.2, no rows, zero bins), the Markdown tables, and two bars on the committed models: category macro-F1 at least 0.8 and ECE at most 0.1, spam PR-AUC at least 0.95. README: section "Classification report (category and spam)" with the last confusion matrix, per-class table and calibration, and the category and spam sections brought up to date (the old numbers and "seed 42, 20%" were from before dataset v2). Last run: category macro-F1 0.864, ECE 0.036; spam PR-AUC 1.000, ECE 0.007. Build 0 warnings; 10 architecture, 481 unit, 30 ML and 270 integration tests pass; the SARIF logs of the two ML projects have no finding in the new code.
+- **Problems seen:** none.
+- **Commits:** code and tests e33d9a9
+
