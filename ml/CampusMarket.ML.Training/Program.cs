@@ -58,15 +58,26 @@ foreach (var trainer in trainers)
     Console.WriteLine();
     Console.WriteLine($"=== {trainer.Name} ===");
 
-    var (model, metrics) = trainer.Train(mlContext, trainSet, validationSet, testSet);
+    var result = trainer.Train(mlContext, trainSet, validationSet, testSet);
 
-    Console.WriteLine(metrics);
+    Console.WriteLine(result.MetricsText);
 
     var modelPath = Path.Combine(modelsDir, trainer.ModelFileName);
-    mlContext.Model.Save(model, data.Schema, modelPath);
+    mlContext.Model.Save(result.Model, data.Schema, modelPath);
     Console.WriteLine($"Saved model to {modelPath}");
 
-    trainedModels[trainer.ModelFileName] = model;
+    ModelMetadata.Save(
+        modelFilePath: modelPath,
+        modelName: trainer.Name,
+        algorithm: result.Algorithm,
+        testMetrics: result.TestMetrics,
+        csvPath: csvPath,
+        trainRowCount: trainCount,
+        validationRowCount: validationCount,
+        testRowCount: testCount);
+    Console.WriteLine($"Saved metadata to {Path.ChangeExtension(modelPath, ".json")}");
+
+    trainedModels[trainer.ModelFileName] = result.Model;
 }
 
 Console.WriteLine();

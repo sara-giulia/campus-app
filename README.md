@@ -806,6 +806,46 @@ SHA256 hashes to check. The second command trains the three models with
 seed `2026` and writes them to `ml/models/`. The `PredictionEnginePool`
 registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
 
+### Reproducibility
+
+Everything in the pipeline is pinned so two runs produce the same bytes:
+
+- **Seed `2026`** lives in `DatasetSplit.Seed` and in the generator (same
+  constant in both). The `MLContext` is built with this seed.
+- Every ML.NET trainer passes **`NumberOfThreads = 1`** in its Options object
+  (`PriceTrainer`, `CategoryTrainer`, `SpamTrainer`). SDCA, FastTree and
+  LightGBM only produce identical metrics across runs when they do not
+  parallelize over threads.
+- Beside each saved model, the trainer writes a **`<model-file>.json`
+  sidecar** (`ModelMetadata.cs`): the model name, the chosen algorithm and
+  target, UTC timestamp (ISO 8601), seed, split (70/15/15 grouped by
+  `TemplateId`), SHA-256 of `ml/data/listings.csv`, row counts per part, the
+  test metrics as numbers, and the git commit from `GITHUB_SHA` if set. Keys
+  are sorted alphabetically and metrics are written with six decimals, so a
+  `git diff` of two runs only highlights real changes.
+- CI (`.github/workflows/ml.yml`, runs on `ml/**` or
+  `tests/CampusMarket.ML.Tests/**` changes): sets up .NET 10, restores, then
+  (1) regenerates `ml/data/listings.csv` with the generator and fails if
+  `git diff --exit-code` reports a byte change; (2) trains the models;
+  (3) runs `ml/scripts/check_metrics.py` on the new sidecars against the
+  committed ones and fails if any R², accuracy or F1 dropped by more than
+  0.02 absolute, or MAE grew by more than 5% relative; (4) runs
+  `dotnet test tests/CampusMarket.ML.Tests` against the fresh models; and
+  (5) uploads `ml/models/*.{zip,json}` as a build artifact. CI never
+  commits, pushes or needs secrets.
+
+Reproduce locally in three commands from the repository root:
+
+```
+dotnet run --project ml/CampusMarket.ML.DatasetGenerator
+dotnet run --project ml/CampusMarket.ML.Training
+dotnet test tests/CampusMarket.ML.Tests
+```
+
+Running the first two twice in a row produces identical bytes in
+`ml/data/listings.csv` and identical `testMetrics` in every
+`ml/models/*.json` (only the `trainedAt` timestamp changes).
+
 ### Price suggestion model (B3)
 
 - Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, regression on the
