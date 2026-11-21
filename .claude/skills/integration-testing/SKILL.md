@@ -980,3 +980,14 @@ Tests to add:
 - `/health/ready` → 200, body "Healthy" (the models are copied to the test output).
 - `/health` → 200 (unchanged).
 - If MlModelsHealthCheck has lines the HTTP tests cannot reach (the Unhealthy branch), add a test that calls CheckHealthAsync with a ModelsPath folder that does not exist → Unhealthy, message lists the missing files.
+
+## Feature: Correlation id (Diana)
+
+Production code: `Infrastructure/Logging/CorrelationIdMiddleware.cs`, registered first in `Program.cs`.
+
+File: `Infrastructure/CorrelationIdTests.cs` (new), class `CorrelationIdTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /api/v1/listings` without the header → the response has `X-Correlation-Id`, not empty, and it is a valid Guid.
+- the same request with `X-Correlation-Id: test-123` → the response header is exactly `test-123`.
+- an error response (`GET /api/v1/listings/{random guid}` → 404) also has the header.

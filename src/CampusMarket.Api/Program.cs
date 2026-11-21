@@ -1,5 +1,6 @@
 using CampusMarket.Api;
 using CampusMarket.Api.Infrastructure.ErrorHandling;
+using CampusMarket.Api.Infrastructure.Logging;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
@@ -18,6 +19,8 @@ builder.Services.AddCampusMarket(builder.Configuration);
 builder.Services.AddCampusMarketErrorHandling();
 
 var app = builder.Build();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 app.ValidateCampusMarketProductionConfiguration();
 
