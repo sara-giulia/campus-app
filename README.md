@@ -198,6 +198,7 @@ flowchart LR
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
 | Member | `GetMyProfile` | `GET /api/v1/members/me` | anyone logged in; only their own profile | 200, 401, 404 |
 | Member | `UpdateMyProfile` | `PUT /api/v1/members/me` | anyone logged in; only their own name (the email does not change) | 204, 400 `Member.InvalidName`, 401, 404 |
+| Member | `GetPublicProfile` | `GET /api/v1/members/{id}/profile` | everyone; no email and no role in the response, only `Active` listings | 200, 404 `Member.NotFound` |
 | Get suggested price | `SuggestPrice` (AI) | `POST /api/v1/listings/price-suggestion` | suggestion only, never applied |
 | Get suggested category | `SuggestCategory` (AI) | `POST /api/v1/listings/category-suggestion` | suggestion only, the seller still picks the category |
 | Report a listing | `ReportListing` | `POST /api/v1/listings/{id}/reports` | not own listing; only `Active` or `Reserved`; at most once per member |

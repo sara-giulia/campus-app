@@ -732,6 +732,25 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v24 is the final version.
 - **Commits:** skill f197c2c; generated code b9461db
 
+### Run 23, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). New query slice `GetPublicProfile` (`GET /api/v1/members/{id}/profile`): name, member since, average rating, review count and Active listings, without email or role. The handler had no tests.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: what the handler returns, how to build Draft, Active and Sold listings and a review (`Publish`, `Reserve`, `ConfirmSale`, `Review.Create`), and 6 tests. | Building a review needs a sold listing with a completed reservation; without the steps Claude would have to guess them. |
+| 2 | — | *"reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals)"*. | Proves the rounding, not only an average that is already exact. |
+| 3 | — | *"If `FakeReviewRepository` already exists in `Fakes/`, use it as it is"*. | So the run does not write a second fake for the same interface. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests (and the fake, if it is missing) from the "Feature: Public profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v25, commit f4cb94c (numbered after the condition filter and my profile PRs, #72 and #76, which make v23 and v24); section written and run by Carina Coman
+- **Result:** one new file, `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`, with the 6 tests of the section: 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with title and price (also the member's id, name and `MemberSince`); another seller's Active listing is not included; no reviews → `AverageRating` null, `ReviewCount` 0; ratings 5 and 4 → 4.5 and 2; ratings 5, 4 and 4 → 4.33; unknown id → `Member.NotFound`. The existing `FakeReviewRepository` was used, so no fake changed. No existing test or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1044/1044 lines, 362/362 branches, 167/167 methods. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill f4cb94c; generated code 155cf71
+
 ### Run 25, skill v27 (Feature: Minimum category confidence)
 
 - **Why a new version:** `SuggestCategoryHandler` has a new rule: below `MinConfidence` (0.7) the response has `Category` null and keeps the confidence. `SuggestCategoryResponse.Category` is now nullable. The new branch had no tests, and one existing test used a confidence of 0.5 and expected a category.
@@ -1250,6 +1269,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the existing `ReservationExpiryTests` (job on) failed in 2 of 4 integration runs with `SqliteException: SQLite Error 5: 'database is locked'`, so the "three runs in a row" check did not pass. The test was not touched by this run: the expiry job and the test use the same in-memory SQLite connection at the same time. Reported to the team, not fixed here.
 - **Change to SKILL.md:** none after the run; v24 is the final version.
 - **Commits:** skill e28342c; generated code 35d92a4
+
+### Run 26, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). `GET /api/v1/members/{id}/profile` is a new public endpoint; it must never show the email, and it shows only Active listings and the review summary.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: the response, the 404 from the handler and from the route, how to seed a sold listing with a review, and 4 tests. | The endpoint is new, so Claude needs the contract to test it. |
+| 2 | — | *"the raw body (`ReadAsStringAsync`) does not contain the seller's email"*. | Proves over HTTP that the email, which is personal data, never leaves the API here. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Public profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v25, commit 4394edd (numbered after the condition filter, API documentation and my profile PRs, #72, #74 and #76, which make v22, v23 and v24); section written and run by Carina Coman
+- **Result:** new file `Members/PublicProfileTests.cs` with 4 tests, none of them logged in: an Active and a Draft listing → 200 with only the Active one (id, title, price), the right name, 0 reviews, no average, and the raw body does not contain the email; a sold listing reviewed with 4 → `averageRating` 4, `reviewCount` 1, no active listings; unknown id → 404 `Member.NotFound`, type `NotFound`; `/members/abc/profile` → 404 (status only). Every test checks that the seeded data is unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no diagnostics in the SARIF log; integration tests 223/223 three runs in a row; full run: 10 architecture, 438 unit, 13 ML, 223 integration.
+- **Problems seen:** the first version of the first test ordered the listings by date inside the database query, which SQLite cannot do with `DateTimeOffset`, so it failed. The run fixed its own test in the same session (no sort in the query, the two listings compared without order); the API was not involved.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill 4394edd; generated code 9febc5f
 
 ### Run 28, skill v27 (Feature: Minimum category confidence)
 

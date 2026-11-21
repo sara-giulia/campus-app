@@ -603,6 +603,38 @@ Rules for this feature:
 - Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Public profile (Carina)
+
+Production code (written by hand, read it before generating): `Features/Members/GetPublicProfile/GetPublicProfileHandler.cs`, a query handler with `IMemberRepository`, `IListingRepository` and `IReviewRepository` (no `IUnitOfWork`).
+- Unknown member → `NotFound` `Member.NotFound`.
+- Otherwise: only the listings with `SellerId` = the member's id and `Status` = `Active`, ordered by `CreatedAt` descending, then `Id` ascending, as `PublicListingItem(Id, Title, Price.Amount)`.
+- Reviews come from `GetBySellerAsync`: `AverageRating` is null when there are none, otherwise `Math.Round(average, 2)`; `ReviewCount` is their number.
+- The response has no email and no role.
+
+File (new): `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`.
+
+Fakes: `FakeMemberRepository`, `FakeListingRepository`, and `FakeReviewRepository`. If `FakeReviewRepository` already exists in `Fakes/`, use it as it is; if not, add one in the same hand-written style (`Items` by `Id`, `GetBySellerAsync` returns the reviews with that `SellerId`).
+
+Arrange (read `Listing.cs` and `Review.cs` for the exact signatures; fixed `Now` and fixed, named ids such as `SellerId`, `BuyerId`, `OtherSellerId`):
+- Draft listing: `Listing.Create(...).Value`. Active: then `Publish()`. Sold: `Publish()`, `Reserve(BuyerId, Now)`, then `ConfirmSale(reservationId, Now)`.
+- A review: `Review.Create(BuyerId, soldListing, rating, null, Now).Value` (the sold listing's completed reservation belongs to `BuyerId`).
+- Give the listings different fixed `createdAt` values, so the expected order is known.
+
+Tests to add:
+- the member has 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with the right title and price.
+- an Active listing of another seller is not included.
+- no reviews → `AverageRating` null, `ReviewCount` 0.
+- reviews with ratings 5 and 4 → `AverageRating` 4.5, `ReviewCount` 2.
+- reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals).
+- unknown id → `NotFound` `Member.NotFound`.
+- In every test the repositories are unchanged after the call (it is a query).
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 Production code: `Features/Listings/SuggestCategory/SuggestCategoryHandler.cs`, `MinConfidence` = 0.7; `SuggestCategoryResponse.Category` is now nullable.

@@ -838,6 +838,28 @@ Rules for this feature:
 - Fixed ids and times; never compare to `DateTime.Now`.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Public profile (Carina)
+
+Endpoint: `GET /api/v1/members/{id}/profile` (`Features/Members/GetPublicProfile/`). Public: never use `AuthenticateAs` in these tests.
+- 200: `{ id, name, memberSince, averageRating, reviewCount, activeListings: [ { id, title, price } ] }`. No email and no role.
+- 404 `Member.NotFound` from the handler, with `{ code, message, type }` (read it into `Error`, check `Code` and `Type`).
+- An id that is not a Guid (`/members/abc/profile`) does not match the route → 404; check only the status.
+
+File (new): `Members/PublicProfileTests.cs`, class `PublicProfileTests : IntegrationTestBase`.
+
+Arrange: seed with `SeedAsync`, fixed ids and times.
+- The seller: `Member.Create(...).Value`. Its listings: `Listing.Create(sellerId, ...)`, published with `Publish()` for an `Active` one, left as is for a `Draft`.
+- For a review: a sold listing (`Publish()`, `Reserve(buyer.Id, CreatedAt)`, `ConfirmSale(reservation.Id, CreatedAt)`) and `Review.Create(buyer.Id, soldListing, rating, null, CreatedAt).Value`; seed the buyer, the listing and the review together.
+
+Tests to add (status, body, then the database):
+- a seller with one Active and one Draft listing → 200; `activeListings` has only the Active one (its id, title and price); the right `name`; `reviewCount` 0 and `averageRating` null; the raw body (`ReadAsStringAsync`) does not contain the seller's email; the database is unchanged.
+- a seller with one sold listing reviewed with rating 4 → 200, `averageRating` 4, `reviewCount` 1, `activeListings` empty.
+- unknown id → 404 `Member.NotFound`, type `NotFound`; the seeded data is unchanged.
+- `/api/v1/members/abc/profile` → 404 (status only).
+
+Rules for this feature:
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 File: `Listings/SuggestCategoryTests.cs` (add to it).
