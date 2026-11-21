@@ -1,0 +1,182 @@
+/*
+  CampusMarket design tokens. Components use only these variables, so the light
+  and dark themes both work. Shared components: src/app/ui/ (ui.css).
+  Page styles live next to each page.
+*/
+
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f6f6f4; /* light grey (footer, hovers) */
+  --ink: #1d1d1b;
+  --ink-soft: #3d3d3a;
+  --muted: #6e6e6a;
+  --line: #ebebe8;
+  --line-strong: #d6d6d2;
+
+  --accent: #c9361f; /* coral red, as in the sketches */
+  --accent-hover: #b02d18;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbece9;
+
+  --success: #2f7d3a;
+  --success-soft: #ecf6ee;
+  --warning: #a2630b;
+  --warning-soft: #fbf1df;
+  --danger: #b42318;
+  --danger-soft: #fdeceb;
+
+  /* pastel tiles used as image placeholders until listings have photos */
+  --tile-blue: #d6e4f0;
+  --tile-yellow: #f1e3b8;
+  --tile-green: #dfe8d3;
+  --tile-peach: #f3dbcd;
+  --tile-lilac: #e5d9ee;
+
+  --shadow-sm: 0 1px 2px rgba(20, 20, 18, 0.05);
+  --shadow: 0 2px 8px rgba(20, 20, 18, 0.08);
+  --shadow-lg: 0 8px 28px rgba(20, 20, 18, 0.12);
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+
+  --font-body: 'Figtree Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --topbar-h: 72px;
+  --content-w: 1200px;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #161615;
+  --surface: #1e1e1c;
+  --surface-2: #262624;
+  --ink: #f2f2ef;
+  --ink-soft: #d5d5d0;
+  --muted: #a0a09a;
+  --line: #31312e;
+  --line-strong: #42423e;
+
+  --accent: #ee6a52;
+  --accent-hover: #f4826d;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(238, 106, 82, 0.14);
+
+  --success: #7fcf8b;
+  --success-soft: rgba(127, 207, 139, 0.12);
+  --warning: #e6b45c;
+  --warning-soft: rgba(230, 180, 92, 0.12);
+  --danger: #f28b82;
+  --danger-soft: rgba(242, 139, 130, 0.12);
+
+  --tile-blue: #2b3a48;
+  --tile-yellow: #463f2a;
+  --tile-green: #34402d;
+  --tile-peach: #48352c;
+  --tile-lilac: #3c3247;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font: 16px/1.55 var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 800;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

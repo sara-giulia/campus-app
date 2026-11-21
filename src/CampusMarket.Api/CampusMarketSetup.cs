@@ -32,6 +32,8 @@ namespace CampusMarket.Api;
 /// and the API tests use it to start the same API on a free port.
 public static class CampusMarketSetup
 {
+    public const string FrontendCorsPolicy = "Frontend";
+
     public static IServiceCollection AddCampusMarket(this IServiceCollection services, IConfiguration configuration)
     {
         // Application clock: tests can replace it with a fake clock
@@ -100,6 +102,9 @@ public static class CampusMarketSetup
         });
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
+        
+        // API description for the documentation page (served only in Development, see Program.cs).
+        services.AddOpenApi();
 
         // Background reservation expiry: registered only when enabled, so tests and
         // scenarios that need a quiet host can turn it off through configuration.
@@ -119,7 +124,20 @@ public static class CampusMarketSetup
 
         // GET /health: the API is up and can reach the database.
         services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
-        
+
+        // The web frontend runs on another origin (Vite on :5173 in development),
+        // so the browser needs CORS. Only the origins in Cors:AllowedOrigins are allowed;
+        // the token goes in the Authorization header, so no cookies (no AllowCredentials).
+        // GetChildren instead of Get<string[]>() ?? []: a missing section simply gives no origins.
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").GetChildren()
+            .Select(origin => origin.Value!)
+            .ToArray();
+        services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders("Location")));
+
         return services;
     }
 
