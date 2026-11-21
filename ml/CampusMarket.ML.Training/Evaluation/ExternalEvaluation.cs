@@ -85,7 +85,7 @@ public static class ExternalEvaluation
 
     // --- Prediction helpers -----------------------------------------------
 
-    private static List<(ListingRow Row, double Score)> PricePredictions(MLContext mlContext, ITransformer model, IReadOnlyList<ListingRow> rows)
+    private static List<(ListingRow Row, double Score)> PricePredictions(MLContext mlContext, ITransformer model, List<ListingRow> rows)
     {
         if (rows.Count == 0) return new List<(ListingRow, double)>();
 
@@ -101,7 +101,7 @@ public static class ExternalEvaluation
         return result;
     }
 
-    private static List<(ListingRow Row, string Predicted)> CategoryPredictions(MLContext mlContext, ITransformer model, IReadOnlyList<ListingRow> rows)
+    private static List<(ListingRow Row, string Predicted)> CategoryPredictions(MLContext mlContext, ITransformer model, List<ListingRow> rows)
     {
         if (rows.Count == 0) return new List<(ListingRow, string)>();
 
@@ -117,7 +117,7 @@ public static class ExternalEvaluation
         return result;
     }
 
-    private static List<(ListingRow Row, bool Predicted)> SpamPredictions(MLContext mlContext, ITransformer model, IReadOnlyList<ListingRow> rows)
+    private static List<(ListingRow Row, bool Predicted)> SpamPredictions(MLContext mlContext, ITransformer model, List<ListingRow> rows)
     {
         if (rows.Count == 0) return new List<(ListingRow, bool)>();
 
@@ -135,7 +135,7 @@ public static class ExternalEvaluation
 
     // --- Baselines (matched to Baselines.cs) ------------------------------
 
-    private static List<(ListingRow Row, double Score)> PriceBaselinePredictions(MLContext mlContext, IDataView trainData, IReadOnlyList<ListingRow> rows)
+    private static List<(ListingRow Row, double Score)> PriceBaselinePredictions(MLContext mlContext, IDataView trainData, List<ListingRow> rows)
     {
         var train = mlContext.Data.CreateEnumerable<ListingRow>(trainData, reuseRowObject: false)
             .Where(r => !r.IsSpam)
@@ -166,15 +166,16 @@ public static class ExternalEvaluation
             .OrderByDescending(g => g.Count())
             .First().Key;
 
-    // Spam rule (copied so we don't depend on Baselines internals).
+    // Spam rule — same patterns as Baselines.cs, so reuse its GeneratedRegex methods
+    // instead of declaring duplicates here.
     private static bool IsSpamByRule(ListingRow r)
     {
         var text = (r.Title ?? string.Empty) + " " + (r.Description ?? string.Empty);
         var lower = text.ToLowerInvariant();
-        if (System.Text.RegularExpressions.Regex.IsMatch(text, @"(?:\d[\s\-\.]*){9,}")) return true;
-        if (System.Text.RegularExpressions.Regex.IsMatch(text, @"(?:https?://|www\.|\blink\b)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) return true;
+        if (Baselines.PhoneRegex().IsMatch(text)) return true;
+        if (Baselines.LinkRegex().IsMatch(text)) return true;
         if (lower.Contains("whatsapp") || lower.Contains("telegram")) return true;
-        if (System.Text.RegularExpressions.Regex.IsMatch(text, @"!{3,}")) return true;
+        if (Baselines.ExclRegex().IsMatch(text)) return true;
         if (r.Price <= 5f) return true;
         return false;
     }
@@ -190,7 +191,7 @@ public static class ExternalEvaluation
     public sealed record MultiMetrics(double MicroAccuracy, double MacroAccuracy);
     public sealed record BinMetrics(double Accuracy, double Precision, double Recall, double F1);
 
-    private static PriceMetrics RegressionMetrics(IReadOnlyList<(ListingRow Row, double Score)> preds)
+    private static PriceMetrics RegressionMetrics(List<(ListingRow Row, double Score)> preds)
     {
         if (preds.Count == 0) return new PriceMetrics(0, 0, 0);
         var actual = preds.Select(p => (double)p.Row.Price).ToArray();
@@ -217,7 +218,7 @@ public static class ExternalEvaluation
         return new PriceMetrics(r2, mae, mape);
     }
 
-    private static MultiMetrics MulticlassMetrics(IReadOnlyList<(ListingRow Row, string Predicted)> preds)
+    private static MultiMetrics MulticlassMetrics(List<(ListingRow Row, string Predicted)> preds)
     {
         if (preds.Count == 0) return new MultiMetrics(0, 0);
         var correct = preds.Count(p => p.Row.Category == p.Predicted);
@@ -240,7 +241,7 @@ public static class ExternalEvaluation
         return new MultiMetrics(micro, macro);
     }
 
-    private static BinMetrics BinaryMetrics(IReadOnlyList<(ListingRow Row, bool Predicted)> preds)
+    private static BinMetrics BinaryMetrics(List<(ListingRow Row, bool Predicted)> preds)
     {
         if (preds.Count == 0) return new BinMetrics(0, 0, 0, 0);
         var tp = 0; var fp = 0; var tn = 0; var fn = 0;
@@ -263,7 +264,7 @@ public static class ExternalEvaluation
         "Electronics", "LabEquipment", "Notes", "Other", "Textbook",
     };
 
-    private static Dictionary<(string Actual, string Predicted), int> ConfusionMatrix(IReadOnlyList<(ListingRow Row, string Predicted)> preds)
+    private static Dictionary<(string Actual, string Predicted), int> ConfusionMatrix(List<(ListingRow Row, string Predicted)> preds)
     {
         var m = new Dictionary<(string, string), int>();
         foreach (var p in preds)
@@ -276,7 +277,7 @@ public static class ExternalEvaluation
 
     // --- Printing ---------------------------------------------------------
 
-    private static void PrintCounts(IReadOnlyList<ListingRow> rows)
+    private static void PrintCounts(List<ListingRow> rows)
     {
         var inv = CultureInfo.InvariantCulture;
         Console.WriteLine();
@@ -323,7 +324,7 @@ public static class ExternalEvaluation
         Console.WriteLine("Spam baseline: hand-written rule from Baselines.cs.");
     }
 
-    private static void PrintConfusionMatrix(IReadOnlyDictionary<(string Actual, string Predicted), int> matrix)
+    private static void PrintConfusionMatrix(Dictionary<(string Actual, string Predicted), int> matrix)
     {
         var inv = CultureInfo.InvariantCulture;
         Console.WriteLine();
@@ -349,7 +350,7 @@ public static class ExternalEvaluation
         }
     }
 
-    private static void PrintTopPriceErrors(IReadOnlyList<(ListingRow Row, double Score)> preds)
+    private static void PrintTopPriceErrors(List<(ListingRow Row, double Score)> preds)
     {
         var inv = CultureInfo.InvariantCulture;
         Console.WriteLine();
@@ -366,7 +367,7 @@ public static class ExternalEvaluation
         }
     }
 
-    private static void PrintMisclassifiedSpam(IReadOnlyList<(ListingRow Row, bool Predicted)> preds)
+    private static void PrintMisclassifiedSpam(List<(ListingRow Row, bool Predicted)> preds)
     {
         var inv = CultureInfo.InvariantCulture;
         var wrong = preds.Where(p => p.Predicted != p.Row.IsSpam).ToList();
