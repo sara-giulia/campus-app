@@ -822,3 +822,27 @@ Tests to add:
 - seed a seller, a buyer and a published listing; reserve as the buyer, confirm the sale as the seller (204) → the database has 1 `SaleRecord` for that listing with sold price = listing price and suggested price > 0; then Admin GET → count 1 and the record in `lastRecords`.
   Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: CORS for the frontend (Anca)
+
+The web frontend (`frontend/`, Vite on `http://localhost:5173`) calls the API from another origin, so the browser needs CORS. Read `CampusMarketSetup.cs` (`AddCors`, policy `CampusMarketSetup.FrontendCorsPolicy` = `"Frontend"`), `Program.cs` (`app.UseCors(...)` is the first middleware, before `UseExceptionHandler`) and `appsettings.json` (`Cors:AllowedOrigins` = `["http://localhost:5173"]`) before generating.
+
+Production code:
+- Only the origins in `Cors:AllowedOrigins` are allowed; any header and any method; `Location` is an exposed header; no credentials (the token goes in the `Authorization` header, never in a cookie).
+- The test host reads the same `appsettings.json`, so `http://localhost:5173` is allowed in every test without extra setup.
+
+File: `Cors/CorsTests.cs`, class `CorsTests : IntegrationTestBase` (fixed `SellerId` as in the other classes; `private const string FrontendOrigin = "http://localhost:5173";`).
+
+Tests to add:
+- Preflight: `OPTIONS /api/v1/auth/login` with headers `Origin: http://localhost:5173`, `Access-Control-Request-Method: POST`, `Access-Control-Request-Headers: content-type,authorization` → 204; `Access-Control-Allow-Origin` is exactly `http://localhost:5173`; `Access-Control-Allow-Methods` contains `POST`; `Access-Control-Allow-Headers` contains `authorization` (compare case-insensitively); there is no `Access-Control-Allow-Credentials` header; no member in the database.
+- Preflight from an origin that is not allowed (`http://evil.example`) → still 204, but there is no `Access-Control-Allow-Origin` header (the browser then blocks the call); no member in the database.
+- Logged in as `SellerId`, `POST /api/v1/listings` with a valid body and `Origin: http://localhost:5173` → 201; `Access-Control-Allow-Origin` is the origin; `Access-Control-Expose-Headers` contains `Location`; the `Location` header is set; the listing is in the database.
+- No token, `GET /api/v1/members/me/favorites` with the origin → 401 ProblemDetails `Auth.Unauthorized` and `Access-Control-Allow-Origin` is the origin (the browser can only read an error when the CORS header is there).
+- A seeded draft of `SellerId`, client with `ThrowingUnitOfWork` (see "Feature: Error handling (Anca)"), the seller publishes it with the origin → 500 ProblemDetails `Server.Error` and `Access-Control-Allow-Origin` is still the origin; the listing is still `Draft`.
+- The same request without an `Origin` header (`GET /api/v1/listings`) → 200 and no `Access-Control-Allow-Origin` header (clients that are not browsers see no change).
+- Another origin through configuration, two tests (one HTTP call each), both with `Factory.WithWebHostBuilder(b => b.UseSetting("Cors:AllowedOrigins:0", "https://campusmarket.example"))` from a private helper, disposed with `await using`: a preflight from `https://campusmarket.example` gets `Access-Control-Allow-Origin: https://campusmarket.example`; a preflight from `http://localhost:5173` gets no `Access-Control-Allow-Origin` (index 0 was replaced). This is how the deployed frontend's address is set (`Cors__AllowedOrigins__0`). Both check that no member was saved.
+
+Rules for this feature:
+- Build the preflight with `new HttpRequestMessage(HttpMethod.Options, url)` and add the headers with `request.Headers.Add(...)`; read the CORS headers from `response.Headers` with `TryGetValues`, never from `response.Content.Headers`.
+- Never change `appsettings.json`, `CampusMarketApiFactory` or `IntegrationTestBase`.
+- This section goes with changes made by hand before the run (`CampusMarketSetup.cs`, `Program.cs`, `appsettings.json`, the new `frontend/` folder, `README.md`, `.dockerignore`, `.github/workflows/build.yml`), so the section 10 check on `git status` also lists them.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
