@@ -943,3 +943,28 @@ Tests to add (status, body, then the database):
 Rules for this feature:
 - Check the members with `QueryDbAsync` on `db.Set<Member>()`.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Change password (Carina)
+
+Endpoint: `POST /api/v1/auth/change-password` with `{ "currentPassword", "newPassword", "confirmNewPassword" }`, needs a token ("me" is the member in the token).
+
+| Success | Failures |
+|---|---|
+| 204, empty body | 400 `Auth.InvalidCredentials` (wrong current password), 400 `Auth.WeakPassword`, 400 `Auth.PasswordsDoNotMatch`, 404 `Member.NotFound`, 401 (no token) |
+
+The 401 is a ProblemDetails answer: check it as "Feature: Error handling (Anca)" says. The 400 and 404 come from the handler and keep `{ code, message, type }`: read them into `Error` and check `Code` and `Type`.
+
+File: `Auth/ChangePasswordTests.cs` (new), class `ChangePasswordTests : IntegrationTestBase`.
+
+Arrange: seed the member with a real hash, as `LoginTests` does (`new AspNetPasswordHasher().Hash("secret12")`), and log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database):
+- valid request → 204, empty body; in the database `AspNetPasswordHasher.Verify` accepts the new password and rejects the old one.
+- after a successful change (Arrange), `POST /api/v1/auth/login` with the new password → 200 with a token; in another test, with the old password → 401.
+- wrong current password → 400 `Auth.InvalidCredentials`; the stored hash is unchanged (the old password still verifies).
+- new password of 7 characters → 400 `Auth.WeakPassword`; confirmation different → 400 `Auth.PasswordsDoNotMatch`; the hash is unchanged in both.
+- a token of a member that is not in the database → 404 `Member.NotFound`.
+- no token → 401; the member is unchanged.
+
+Rules for this feature:
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
