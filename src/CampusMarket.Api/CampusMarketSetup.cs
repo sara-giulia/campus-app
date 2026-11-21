@@ -32,6 +32,8 @@ namespace CampusMarket.Api;
 /// and the API tests use it to start the same API on a free port.
 public static class CampusMarketSetup
 {
+    public const string FrontendCorsPolicy = "Frontend";
+
     public static IServiceCollection AddCampusMarket(this IServiceCollection services, IConfiguration configuration)
     {
         // Application clock: tests can replace it with a fake clock
@@ -73,7 +75,7 @@ public static class CampusMarketSetup
         services.AddAuthorizationBuilder()
             .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
         
-        // At most 5 login attempts per minute from the same IP address, then 429.
+        // At most 5 login attempts and 5 registrations per minute from the same IP address, then 429.
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -83,6 +85,18 @@ public static class CampusMarketSetup
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
+
+            // Same idea as login: a burst of sign-ups from one IP is blocked (429). The limit is
+            // configurable so the integration tests, which register many members, can raise it.
+            var registerLimit = configuration.GetValue("RateLimiting:RegisterPermitLimit", 5);
+            options.AddPolicy("register", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = registerLimit,
                         Window = TimeSpan.FromMinutes(1)
                     }));
         });
@@ -110,7 +124,20 @@ public static class CampusMarketSetup
 
         // GET /health: the API is up and can reach the database.
         services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
-        
+
+        // The web frontend runs on another origin (Vite on :5173 in development),
+        // so the browser needs CORS. Only the origins in Cors:AllowedOrigins are allowed;
+        // the token goes in the Authorization header, so no cookies (no AllowCredentials).
+        // GetChildren instead of Get<string[]>() ?? []: a missing section simply gives no origins.
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").GetChildren()
+            .Select(origin => origin.Value!)
+            .ToArray();
+        services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders("Location")));
+
         return services;
     }
 

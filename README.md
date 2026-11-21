@@ -12,6 +12,18 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 
 Unit tests: `dotnet test` from the repository root.
 
+### Web frontend
+
+The web interface is in `frontend/` (React + Vite + TypeScript). It needs Node.js 20 or newer and the API running on `http://localhost:5112`.
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+It opens on `http://localhost:5173`. The API allows only the origins in `Cors:AllowedOrigins` (`appsettings.json`, `http://localhost:5173` by default); for another address set `Cors__AllowedOrigins__0` in the API's environment. To use another API address in the frontend, copy `frontend/.env.example` to `frontend/.env.local` and change `VITE_API_URL`. How the frontend is organised (where to add a page, the API client, login): [frontend/README.md](frontend/README.md).
+
 ### With Docker
 
 1. `docker compose up --build` from the repository root. The API listens on `http://localhost:5080` (port 8080 inside the container).
@@ -144,6 +156,7 @@ before Render is wired up and remains idempotent afterwards.
 - **Postman** collections for API tests
 - **SonarQube Cloud** for code quality and coverage, with a quality gate of **100% coverage on new code**
 - **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`, `Microsoft.ML.LightGbm`) for the AI module
+- **React + Vite + TypeScript** for the web frontend (`frontend/`), with React Router
 
 ## 3. Use cases
 
@@ -235,7 +248,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
-| Auth | `Register` | `POST /api/v1/auth/register` | everyone | 201 + `Location`, 400, 409 |
+| Auth | `Register` | `POST /api/v1/auth/register` | everyone, at most 5 registrations per minute per IP | 201 + `Location`, 400, 409, 429 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
 | Auth | `ChangePassword` | `POST /api/v1/auth/change-password` | anyone logged in; only their own password | 204, 400 `Auth.InvalidCredentials` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`, 401, 404 `Member.NotFound` |
 | Auth | `Refresh` | `POST /api/v1/auth/refresh` | anyone with a valid refresh token | 200, 401 `Auth.InvalidRefreshToken` |
@@ -317,6 +330,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 - A wrong email and a wrong password get the same 401 `Auth.InvalidCredentials`, so nobody can find out which emails have an account.
 - Login allows 5 attempts per minute from the same IP, then 429.
 - Roles: `Student` and `Admin`. In the Development environment an Admin account is created at startup from `Seed:AdminEmail` / `Seed:AdminPassword` in `appsettings.Development.json`. The JWT key is also there, for development only.
+- CORS: browsers may call the API only from the origins in `Cors:AllowedOrigins` (the web frontend, `http://localhost:5173` in development). Any header and method is allowed, `Location` is readable by the frontend, and no cookies are used: the token always goes in the `Authorization` header. The CORS headers are also on error answers (401, 404, 500), so the frontend can read the error.
 
 ### Error codes
 
@@ -734,8 +748,9 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 - `ml/**`: dev tools for the AI module (synthetic dataset generator), not app code shipped by the API.
 - `load-tests/**`: k6 scripts, not application code, no unit tests.
+- `frontend/**`: the web frontend (TypeScript), outside the .NET coverage (also excluded in the CI).
 
-SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**`, `load-tests/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
+SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**`, `load-tests/**`, `frontend/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
 
 ---
 

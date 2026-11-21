@@ -9,7 +9,8 @@ public static class RegisterEndpoint
     public static void Map(RouteGroupBuilder group)
     {
         group.MapPost("/register", Handle)
-            .WithName("Register");
+            .WithName("Register")
+            .RequireRateLimiting("register");
     }
 
     private static async Task<Results<CreatedAtRoute<RegisterResponse>, BadRequest<Error>, Conflict<Error>>> Handle(
