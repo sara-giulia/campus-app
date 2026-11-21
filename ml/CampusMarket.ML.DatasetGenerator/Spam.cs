@@ -60,11 +60,22 @@ public static class Spam
 
     public static string PickDescription(Random rng)
     {
-        var template = DescriptionBodies[rng.Next(DescriptionBodies.Length)];
-        return template
+        return PickDescriptionWithIndex(rng).Description;
+    }
+
+    // Picks the same way as PickDescription and also returns the index of the chosen
+    // body. The index identifies the spam text pattern and is used as part of the row's
+    // TemplateId for pure spam, so the group-aware split can keep rows of one pattern
+    // together while sending different patterns to different parts.
+    public static (string Description, int Index) PickDescriptionWithIndex(Random rng)
+    {
+        var index = rng.Next(DescriptionBodies.Length);
+        var template = DescriptionBodies[index];
+        var description = template
             .Replace("{P1}", rng.Next(10, 100).ToString("D2"))
             .Replace("{P2}", rng.Next(100, 1000).ToString("D3"))
             .Replace("{P3}", rng.Next(100, 1000).ToString("D3"))
             .Replace("{N}", rng.Next(100, 1000).ToString());
+        return (description, index);
     }
 }

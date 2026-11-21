@@ -19,6 +19,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<SaleRecord> SaleRecords => Set<SaleRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

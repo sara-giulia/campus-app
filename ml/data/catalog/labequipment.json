@@ -1,0 +1,1105 @@
+{
+  "category": "LabEquipment",
+  "items": [
+    {
+      "id": "lab-halat-chimie",
+      "titles": [
+        "Halat laborator alb, bumbac, marimea M",
+        "Halat laborator chimie, lung, marimea L",
+        "HALAT alb facultate, cu buzunare, XL",
+        "Halat laborator, model unisex, marimea S",
+        "Halat laborator lab chimie, marimea M, nou",
+        "Halat laborator marimea L, bumbac 100%",
+        "Halat alb S, spalat o data",
+        "Halat laborator unisex, model student"
+      ],
+      "descriptions": [
+        "Halat folosit un semestru la laborator.",
+        "Spalat si calcat, fara pete.",
+        "Bumbac 100%, confortabil pentru ore lungi.",
+        "Vin cu nasturi de rezerva.",
+        "Marime standard conforma cu regulamentul.",
+        "Halat lung, pana aproape de genunchi.",
+        "Buzunare interioare pentru pixuri.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 40,
+      "priceMax": 95
+    },
+    {
+      "id": "lab-halat-medicina",
+      "titles": [
+        "Halat laborator medicina, marimea L",
+        "Halat UMF, bumbac, marimea M",
+        "HALAT MEDICINA, manga lunga, S",
+        "Halat UMF student, marimea L",
+        "Halat anatomie si disectie, XL",
+        "Halat UMF farmacie, folosit un semestru",
+        "Halat Oxford medicina, marimea M",
+        "Halat UMF, croi slim, M"
+      ],
+      "descriptions": [
+        "Halat folosit un semestru la UMF.",
+        "Spalat si calcat, fara pete.",
+        "Bumbac 100%, confortabil pentru ore lungi.",
+        "Vin cu nasturi de rezerva.",
+        "Marime standard conforma cu regulamentul UMF.",
+        "Halat lung, pana aproape de genunchi.",
+        "Buzunare interioare pentru stetoscop.",
+        "Vand pentru ca am luat halat nou."
+      ],
+      "priceMin": 50,
+      "priceMax": 110
+    },
+    {
+      "id": "lab-manusi-nitril",
+      "titles": [
+        "Manusi nitril, cutie 100 buc, marimea M",
+        "Manusi medicale nitril, cutie 100 L",
+        "MANUSI DE UNICA FOLOSINTA nitril, S",
+        "Manusi nitril albastre, cutie 100 bucati",
+        "Manusi fara pudra, nitril, marimea M",
+        "Cutie manusi nitril L, nou, nedesfacuta",
+        "Manusi medicale, nitril M, 100 buc",
+        "Manusi protectie nitril, pentru laborator"
+      ],
+      "descriptions": [
+        "Cutie manusi folosite doar partial.",
+        "Vin cu 70 de bucati ramase.",
+        "Fara pudra, hipoalergenice.",
+        "Perfect pentru laborator si disectie.",
+        "Marime standard, strans pe mana.",
+        "Nu s-au desfacut niciodata, nedeschise.",
+        "Vand pentru ca am terminat laboratoarele.",
+        "Cutie sigilata, nu a fost deschisa."
+      ],
+      "priceMin": 15,
+      "priceMax": 50
+    },
+    {
+      "id": "lab-ochelari-protectie",
+      "titles": [
+        "Ochelari protectie lab chimie, policarbonat",
+        "OCHELARI PROTECTIE, antistropi",
+        "Ochelari laborator, benzi reglabile",
+        "Ochelari protectie fizica/chimie",
+        "Set ochelari protectie si manusi, kit lab",
+        "Ochelari protectie, UV blocking, reglabili",
+        "Ochelari lab chimie, folositi 2 lucrari",
+        "Ochelari protectie, model unisex"
+      ],
+      "descriptions": [
+        "Ochelari in stare perfecta, folositi doar la 2 lucrari.",
+        "Vin cu husa de protectie.",
+        "Lentile transparente, fara zgarieturi.",
+        "Benzi reglabile, confortabili pentru ore intregi.",
+        "Conformi cu cerintele de la laborator.",
+        "Rezistenti la stropi de acizi.",
+        "Vin cu suruburi de rezerva.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 25,
+      "priceMax": 70
+    },
+    {
+      "id": "lab-multimetru-unit",
+      "titles": [
+        "Multimetru digital UNI-T UT61E",
+        "Multimetru UNI-T UT139C, True RMS",
+        "MULTIMETRU UNI-T UT33D, pentru electronica",
+        "Multimetru UNI-T UT210E, cu clema",
+        "Multimetru profesional UT61D",
+        "UNI-T UT139E True RMS Multimeter",
+        "Multimetru UNI-T UT33B, pentru studenti",
+        "Multimetru UNI-T UT90A, cu Bluetooth"
+      ],
+      "descriptions": [
+        "Multimetru folosit la laborator, functioneaza perfect.",
+        "Vine cu sonde si manual de utilizare.",
+        "Baterie noua, afisaj clar.",
+        "Ideal pentru proiecte electronica si Arduino.",
+        "Masoara tensiune, curent, rezistenta, capacitate.",
+        "Fara zgarieturi pe carcasa.",
+        "Vine cu geanta de transport.",
+        "Vand pentru ca am luat un Fluke."
+      ],
+      "priceMin": 80,
+      "priceMax": 220
+    },
+    {
+      "id": "lab-multimetru-fluke",
+      "titles": [
+        "Multimetru Fluke 101, calibrat",
+        "Multimetru Fluke 117, premium",
+        "MULTIMETRU FLUKE 115, RMS",
+        "Fluke 179 True RMS Multimeter",
+        "Multimetru Fluke 87V, flagship",
+        "Fluke 107, multimetru compact",
+        "Multimetru Fluke 15B+, pentru profesionisti",
+        "Fluke 177 True RMS Digital Multimeter"
+      ],
+      "descriptions": [
+        "Multimetru Fluke in stare foarte buna.",
+        "Vine cu sonde Fluke originale.",
+        "Baterie noua, afisaj clar.",
+        "Calibrat recent, acuratete premium.",
+        "Masoara tensiune, curent, rezistenta, capacitate.",
+        "Fara zgarieturi pe carcasa.",
+        "Vine cu geanta de transport.",
+        "Vand pentru ca am terminat facultatea."
+      ],
+      "priceMin": 200,
+      "priceMax": 650
+    },
+    {
+      "id": "lab-breadboard-830",
+      "titles": [
+        "Breadboard 830 puncte, cu fire jumper",
+        "KIT breadboard + componente pentru Arduino",
+        "Breadboard mare, cu sine de alimentare",
+        "Set breadboard + 65 fire jumper m-m, m-f, f-f",
+        "BREADBOARD 830 PUNCTE, universal",
+        "Breadboard 830 contacte, fara defecte",
+        "Breadboard pentru proiect Arduino, 830 pct",
+        "Breadboard mare 830 puncte, cu capacitate inalta"
+      ],
+      "descriptions": [
+        "Breadboard nou, folosit la un singur proiect.",
+        "Vine cu set de fire jumper de diferite lungimi.",
+        "Contactele sunt in stare perfecta.",
+        "Perfect pentru laborator si proiecte personale.",
+        "Include si o punte de alimentare 5V/3V3.",
+        "Fara contacte deteriorate.",
+        "Compatibil cu Arduino si Raspberry Pi.",
+        "Vand pentru ca am terminat proiectul."
+      ],
+      "priceMin": 20,
+      "priceMax": 55
+    },
+    {
+      "id": "lab-breadboard-400",
+      "titles": [
+        "Breadboard 400 puncte, pentru proiecte mici",
+        "BREADBOARD 400 pct, cu sine de alimentare",
+        "Breadboard mic 400 contacte, pentru Arduino",
+        "Breadboard 400 puncte, universal",
+        "Breadboard portabil 400 puncte",
+        "Breadboard 400 contacte, cu fire jumper",
+        "Breadboard 400 puncte, fara defecte",
+        "Mini breadboard 400 puncte, 2 bucati"
+      ],
+      "descriptions": [
+        "Breadboard nou, folosit la un singur proiect.",
+        "Vine cu set de fire jumper de diferite lungimi.",
+        "Contactele sunt in stare perfecta.",
+        "Perfect pentru proiecte simple cu Arduino.",
+        "Dimensiune compacta, incape in geanta.",
+        "Fara contacte deteriorate.",
+        "Compatibil cu Arduino si Raspberry Pi.",
+        "Vand pentru ca am terminat proiectul."
+      ],
+      "priceMin": 10,
+      "priceMax": 35
+    },
+    {
+      "id": "lab-kit-arduino-uno",
+      "titles": [
+        "Kit Arduino UNO R3 original, cu componente",
+        "KIT ARDUINO complet, cu 200+ componente",
+        "Kit Arduino UNO starter, cu manual",
+        "Set complet Arduino UNO, cu breadboard",
+        "Kit Arduino UNO cu LCD si senzori",
+        "Arduino UNO kit, cu motor servo",
+        "Kit Arduino UNO starter, in romana",
+        "Arduino UNO kit educational, pentru studenti"
+      ],
+      "descriptions": [
+        "Kit folosit pentru un semestru, toate componentele sunt ok.",
+        "Vine cu cutie originala si cablu USB.",
+        "Perfect pentru laborator de proiect IoT.",
+        "Include breadboard, senzori, LED-uri, rezistente.",
+        "Arduino UNO R3 verificat ca functioneaza.",
+        "Vine cu manual in romana.",
+        "Include motor servo si displayLCD.",
+        "Vand pentru ca am terminat proiectul."
+      ],
+      "priceMin": 100,
+      "priceMax": 300
+    },
+    {
+      "id": "lab-kit-arduino-mega",
+      "titles": [
+        "Kit Arduino MEGA 2560 + componente",
+        "Arduino MEGA R3, cu senzori si motoare",
+        "KIT ARDUINO MEGA, pentru robotica",
+        "Set Arduino MEGA 2560 complet",
+        "Arduino MEGA kit, cu display si module",
+        "Kit Arduino MEGA cu CNC shield",
+        "Arduino MEGA 2560 starter kit",
+        "Kit Arduino MEGA cu modul GSM/GPS"
+      ],
+      "descriptions": [
+        "Kit folosit pentru un singur proiect.",
+        "Vine cu cutie originala si cablu USB.",
+        "Perfect pentru proiecte complexe.",
+        "Include senzori, motoare, LCD.",
+        "Arduino MEGA 2560 verificat.",
+        "Vine cu set complet de fire.",
+        "Include CNC shield si drivere motor.",
+        "Vand pentru ca am terminat licenta."
+      ],
+      "priceMin": 150,
+      "priceMax": 400
+    },
+    {
+      "id": "lab-kit-raspberry-pi",
+      "titles": [
+        "Raspberry Pi 4 Model B 4GB kit",
+        "Raspberry Pi 5 kit, cu racire",
+        "KIT RASPBERRY PI 4 8GB cu accesorii",
+        "Raspberry Pi 4 kit, cu SD si carcasa",
+        "Pi 4 Model B 2GB starter kit",
+        "Raspberry Pi 400 kit cu tastatura",
+        "Raspberry Pi Zero 2 W kit",
+        "Pi 4 Model B 8GB kit cu display touch"
+      ],
+      "descriptions": [
+        "Kit folosit la un proiect de semestru.",
+        "Vine cu card SD de 32GB preinstalat.",
+        "Carcasa cu ventilator functional.",
+        "Alimentator USB-C original inclus.",
+        "Perfect pentru proiecte IoT si retro gaming.",
+        "Include cablu HDMI micro si adaptoare.",
+        "Fara defecte, functioneaza impecabil.",
+        "Vand pentru ca am luat Pi 5."
+      ],
+      "priceMin": 300,
+      "priceMax": 800
+    },
+    {
+      "id": "lab-kit-robotica",
+      "titles": [
+        "Kit robotica Arduino cu sasiu si roti",
+        "Kit robotica DIY cu motoare pas cu pas",
+        "KIT ROBOTICA DFROBOT pentru studenti",
+        "Kit robotica cu senzori ultrasonici",
+        "Makeblock mBot robot educational",
+        "Kit robot educational cu Arduino",
+        "LEGO Mindstorms EV3 kit, educational",
+        "Kit robotica didactic, cu bluetooth"
+      ],
+      "descriptions": [
+        "Kit robotica folosit la cursul de robotica.",
+        "Toate componentele functioneaza.",
+        "Vine cu sasiu, roti, motoare, senzori.",
+        "Include manual si cod sursa.",
+        "Compatibil Arduino UNO sau MEGA.",
+        "Bluetooth pentru control de la telefon.",
+        "Fara defecte, verificat.",
+        "Vand pentru ca am terminat cursul."
+      ],
+      "priceMin": 200,
+      "priceMax": 600
+    },
+    {
+      "id": "lab-set-rezistoare",
+      "titles": [
+        "Set rezistoare 1/4W, 600 bucati",
+        "Set 1000 rezistoare, toate valorile",
+        "KIT rezistoare 1/2W, 800 piese",
+        "Set rezistoare 1%, precizie 0805 SMD",
+        "Rezistoare toleranta 5%, 600 buc",
+        "Set complet rezistoare, 1R-1M, 1200 buc",
+        "Rezistoare 1/4W, kit 500 buc",
+        "Set rezistoare metalfilm, 750 bucati"
+      ],
+      "descriptions": [
+        "Set folosit partial, raman peste 400 piese.",
+        "Vine in cutie plastic cu compartimente.",
+        "Toate valorile uzuale sunt prezente.",
+        "Piese noi, nefolosite in majoritate.",
+        "Perfect pentru proiecte Arduino.",
+        "Toleranta 5%, 1/4W.",
+        "Include lista cu valorile incluse.",
+        "Vand pentru ca am terminat proiectele."
+      ],
+      "priceMin": 10,
+      "priceMax": 35
+    },
+    {
+      "id": "lab-set-condensatoare",
+      "titles": [
+        "Set condensatoare electrolitice, 120 buc",
+        "Kit condensatoare ceramice, 540 buc",
+        "SET CONDENSATOARE elecrolitice si ceramice",
+        "Set complet condensatoare, 200 bucati",
+        "Condensatoare ceramic SMD 0805, 500 buc",
+        "Set condensatoare 10uF-1000uF, electrolitice",
+        "Kit condensatoare cu valori uzuale",
+        "Condensatoare ceramice si tantal, 180 buc"
+      ],
+      "descriptions": [
+        "Set folosit partial, raman peste 100 piese.",
+        "Vine in cutie plastic cu compartimente.",
+        "Toate valorile uzuale sunt prezente.",
+        "Piese noi, nefolosite in majoritate.",
+        "Perfect pentru proiecte electronica.",
+        "Include lista cu valorile.",
+        "Marci: Panasonic, Nichicon.",
+        "Vand pentru ca am terminat proiectele."
+      ],
+      "priceMin": 15,
+      "priceMax": 45
+    },
+    {
+      "id": "lab-set-led",
+      "titles": [
+        "Set LED 5mm, 300 buc, 5 culori",
+        "Kit LED 3mm si 5mm, 500 buc",
+        "SET LED-URI color + RGB, 200 buc",
+        "Set LED 5mm, verde albastru rosu alb",
+        "LED-uri 5mm high brightness, 100 buc",
+        "Kit LED-uri cu rezistoare incluse",
+        "Set LED RGB, 10 bucati 5mm",
+        "LED-uri de rezerva, 200 buc 3mm/5mm"
+      ],
+      "descriptions": [
+        "Set LED-uri folosit partial.",
+        "Raman peste 150 LED-uri.",
+        "Vine in punga cu compartimente.",
+        "Toate functioneaza, testate.",
+        "Perfect pentru proiecte Arduino.",
+        "Include rezistoare de limitare 220 ohm.",
+        "Marimi 3mm si 5mm.",
+        "Vand pentru ca am terminat proiectele."
+      ],
+      "priceMin": 10,
+      "priceMax": 30
+    },
+    {
+      "id": "lab-set-tranzistoare",
+      "titles": [
+        "Set tranzistoare bipolare, 200 buc",
+        "Kit MOSFET-uri N si P channel, 50 buc",
+        "SET TRANZISTOARE BC547, 100 buc",
+        "Set complet tranzistoare, 180 buc",
+        "Tranzistoare 2N2222, 2N3904, 50 buc",
+        "Kit tranzistoare TO-92, 10 tipuri",
+        "Set MOSFET si BJT, 150 bucati",
+        "Tranzistoare de putere, 20 buc TIP41/42"
+      ],
+      "descriptions": [
+        "Set folosit partial, raman peste 120 piese.",
+        "Vine in cutie plastic.",
+        "Toate tipurile uzuale sunt prezente.",
+        "Piese noi, testate.",
+        "Perfect pentru proiecte Arduino.",
+        "Include foaia cu pinout.",
+        "Marci: ST, ON Semi.",
+        "Vand pentru ca am terminat proiectele."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "lab-pistol-lipit",
+      "titles": [
+        "Statie de lipit TS100, portabila",
+        "Statie de lipit Weller WLC100",
+        "STATIE LIPIT YIHUA 936, cu temperatura",
+        "Pistol de lipit 60W, cu suport",
+        "Statie de lipit Hakko FX888D",
+        "Statie de lipit profesionala ATTEN",
+        "Pistol de lipit 30W, pentru proiecte mici",
+        "Pinecil V2, pistol de lipit USB-C"
+      ],
+      "descriptions": [
+        "Statie folosita la proiecte Arduino, functioneaza impecabil.",
+        "Vine cu varfuri de rezerva.",
+        "Temperatura reglabila 180-480C.",
+        "Fara defecte, cablu intact.",
+        "Include suport si burete de curatare.",
+        "Perfect pentru proiecte electronica.",
+        "Incalzire rapida, 1 minut.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 50,
+      "priceMax": 200
+    },
+    {
+      "id": "lab-letcon-30w",
+      "titles": [
+        "Letcon 30W, pentru electronica",
+        "Letcon 40W, cu varf conic",
+        "LETCON ELECTRONIC 30W, nou",
+        "Letcon 25W pentru lipit componente",
+        "Letcon 60W cu reglaj temperatura",
+        "Letcon pistol 30W, pentru studenti",
+        "Letcon 15W, pentru PCB-uri subtiri",
+        "Letcon 40W, cu termostat"
+      ],
+      "descriptions": [
+        "Letcon folosit, functioneaza perfect.",
+        "Vine cu varf nou de rezerva.",
+        "Fara defecte, cablu intact.",
+        "Incalzire rapida, 2 minute.",
+        "Perfect pentru proiecte Arduino.",
+        "Vine cu suport de birou.",
+        "Vand pentru ca am luat statie.",
+        "Tensiune 220V, compatibil CE."
+      ],
+      "priceMin": 25,
+      "priceMax": 80
+    },
+    {
+      "id": "lab-osciloscop",
+      "titles": [
+        "Osciloscop Rigol DS1054Z, 4 canale",
+        "Osciloscop Hantek 2D72, 70MHz",
+        "OSCILOSCOP SIGLENT SDS1104X-E",
+        "Osciloscop Owon SDS1102, 100MHz",
+        "Osciloscop digital Rigol DS1202Z-E",
+        "Picoscope 2205A USB oscilloscope",
+        "Hantek DSO2C10, osciloscop 100MHz",
+        "Osciloscop Siglent SDS1202X-E"
+      ],
+      "descriptions": [
+        "Osciloscop folosit la laboratoare de electronica.",
+        "Vine cu 2 sonde si manual.",
+        "Fara defecte, afisaj clar.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru debug Arduino si FPGA.",
+        "Include software PC pentru capturi.",
+        "Bandwidth 50-100MHz, 4 canale.",
+        "Vand pentru ca am terminat facultatea."
+      ],
+      "priceMin": 400,
+      "priceMax": 2500
+    },
+    {
+      "id": "lab-sursa-tensiune",
+      "titles": [
+        "Sursa de tensiune reglabila 0-30V 5A",
+        "SURSA LABORATOR 0-60V 3A, digitala",
+        "Sursa variabila Korad KA3005P",
+        "Sursa laborator RIDEN RD6006",
+        "Sursa de tensiune Rigol DP832",
+        "Sursa variabila UNI-T UTP3313TFL",
+        "Sursa dubla reglabila 0-30V 10A",
+        "Sursa PWR-SIM, pentru electronica"
+      ],
+      "descriptions": [
+        "Sursa folosita la laborator electronica.",
+        "Vine cu cablurile originale.",
+        "Fara defecte, afisaj clar.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru proiecte Arduino si digitale.",
+        "Protectie la supra-curent.",
+        "Afisaj digital clar.",
+        "Vand pentru ca am terminat facultatea."
+      ],
+      "priceMin": 150,
+      "priceMax": 700
+    },
+    {
+      "id": "lab-trusa-disectie",
+      "titles": [
+        "Trusa disectie, 12 piese, inox",
+        "Kit disectie an I medicina, inox cu etui",
+        "TRUSA DISECTIE completa, pentru medicina generala",
+        "Trusa disectie pentru stomatologie, 15 piese",
+        "Set instrumente disectie, folosit un semestru",
+        "Trusa disectie 20 piese cu lame",
+        "Trusa anatomie, cu bisturiu si foarfece",
+        "Set disectie, cu etui din piele"
+      ],
+      "descriptions": [
+        "Trusa in stare foarte buna, dezinfectata.",
+        "Vine cu etui de piele si toate instrumentele.",
+        "Lamele ascutite, bisturie noi de rezerva.",
+        "Folosita la UMF un semestru.",
+        "Ideal pentru anul I medicina generala.",
+        "Include foarfece, pensete, bisturie.",
+        "Fara urme de rugina.",
+        "Vand pentru ca am terminat anul I."
+      ],
+      "priceMin": 60,
+      "priceMax": 160
+    },
+    {
+      "id": "lab-microscop-optic",
+      "titles": [
+        "Microscop optic Bresser Biolux NV",
+        "Microscop Celestron 44106, 40x-1000x",
+        "MICROSCOP OPTIC MOTIC BA210, pentru studenti",
+        "Microscop binocular Bresser Erudit",
+        "Microscop didactic Levenhuk 2L",
+        "Microscop optic cu camera, USB",
+        "Microscop Olympus CX22, pentru UMF",
+        "Microscop Amscope M158C, binocular"
+      ],
+      "descriptions": [
+        "Microscop folosit la laborator biologie.",
+        "Vine cu set de lame preparate.",
+        "Fara defecte, oculare curate.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru biologie si medicina.",
+        "Include husa de protectie si manual.",
+        "Zoom 40x-1000x.",
+        "Vand pentru ca am terminat cursul."
+      ],
+      "priceMin": 250,
+      "priceMax": 1200
+    },
+    {
+      "id": "lab-cronometru",
+      "titles": [
+        "Cronometru digital laborator Casio",
+        "Stopwatch Oregon Scientific SW901",
+        "CRONOMETRU DIGITAL profesional",
+        "Cronometru sport Accusplit",
+        "Cronometru digital JS-307, cu memorie",
+        "Stopwatch pentru laborator, precis",
+        "Cronometru Casio HS-70W",
+        "Cronometru digital silicon, rezistent apa"
+      ],
+      "descriptions": [
+        "Cronometru folosit la laborator fizica.",
+        "Baterie noua, functioneaza impecabil.",
+        "Precizie 1/100 secunda.",
+        "Vine cu snur si clip.",
+        "Fara defecte, afisaj clar.",
+        "Perfect pentru experimente de fizica.",
+        "Rezistent la apa IPX4.",
+        "Vand pentru ca nu mai am nevoie."
+      ],
+      "priceMin": 15,
+      "priceMax": 50
+    },
+    {
+      "id": "lab-balanta-digitala",
+      "titles": [
+        "Balanta digitala 0.01g, 500g",
+        "Balanta de precizie 0.001g 100g",
+        "BALANTA DIGITALA LAB, 2000g 0.1g",
+        "Balanta de buzunar 0.01g 200g",
+        "Balanta de laborator KERN, 0.01g",
+        "Balanta digitala 0.001g, cu capac vant",
+        "Balanta OHAUS Pioneer 0.0001g",
+        "Balanta portabila precizie 0.1g"
+      ],
+      "descriptions": [
+        "Balanta folosita la laborator chimie.",
+        "Baterie noua, functioneaza impecabil.",
+        "Vine cu platform si manual.",
+        "Fara defecte, afisaj clar.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru experimente de chimie.",
+        "Include greutati de calibrare.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 50,
+      "priceMax": 200
+    },
+    {
+      "id": "lab-ph-meter",
+      "titles": [
+        "pH meter digital PH-009",
+        "pH tester HANNA HI98100",
+        "PH METER OAKTON pH 110, digital",
+        "pH-meter de laborator Apera AI209",
+        "pH meter portabil, cu electrod inlocuibil",
+        "pH meter Milwaukee MW102",
+        "pH meter digital cu temperatura",
+        "pH meter de buzunar, pentru studenti"
+      ],
+      "descriptions": [
+        "pH meter folosit la laborator chimie.",
+        "Baterie noua, calibrat recent.",
+        "Vine cu solutii de calibrare.",
+        "Fara defecte, afisaj clar.",
+        "Electrod in stare perfecta.",
+        "Perfect pentru experimente de chimie.",
+        "Include husa de transport.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 70,
+      "priceMax": 250
+    },
+    {
+      "id": "lab-termometru-digital",
+      "titles": [
+        "Termometru digital laborator, -50 la 300C",
+        "Termometru digital TP3001 cu sonda",
+        "TERMOMETRU DIGITAL BENETECH GM1312",
+        "Termometru infrarosu Fluke 59E",
+        "Termometru sonda K, -200 la 1300C",
+        "Termometru digital Flir TG56",
+        "Termometru digital Testo 905-T2",
+        "Termometru Thermocouple cu sonda"
+      ],
+      "descriptions": [
+        "Termometru folosit la laborator chimie.",
+        "Baterie noua, functioneaza impecabil.",
+        "Vine cu sonda de rezerva.",
+        "Fara defecte, afisaj clar.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru experimente de chimie.",
+        "Include husa de transport.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 30,
+      "priceMax": 90
+    },
+    {
+      "id": "lab-stetoscop",
+      "titles": [
+        "Stetoscop Littmann Classic III",
+        "Stetoscop MDF Acoustica",
+        "STETOSCOP LITTMANN Cardiology IV",
+        "Stetoscop Littmann Lightweight II",
+        "Stetoscop ADC Adscope 615",
+        "Stetoscop Riester Duplex",
+        "Stetoscop Littmann Master Cardiology",
+        "Stetoscop electronic 3M Littmann"
+      ],
+      "descriptions": [
+        "Stetoscop folosit la UMF, in stare perfecta.",
+        "Vine cu doua perechi de olive.",
+        "Diafragma si clopot in stare perfecta.",
+        "Fara urme de uzura.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru auscultatie cardiaca si pulmonara.",
+        "Include husa de transport Littmann.",
+        "Vand pentru ca am terminat anul III."
+      ],
+      "priceMin": 100,
+      "priceMax": 400
+    },
+    {
+      "id": "lab-tensiometru",
+      "titles": [
+        "Tensiometru electronic Omron M3 Comfort",
+        "Tensiometru brat Beurer BM 55",
+        "TENSIOMETRU ELECTRONIC MICROLIFE BP A2",
+        "Tensiometru A&D UA-767Plus",
+        "Tensiometru Omron M7 Intelli IT",
+        "Tensiometru Sanitas SBM 21",
+        "Tensiometru Panasonic EW3109",
+        "Tensiometru Rossmax AW150f"
+      ],
+      "descriptions": [
+        "Tensiometru folosit cateva luni la UMF.",
+        "Baterie noua, functioneaza impecabil.",
+        "Vine cu mansoane de rezerva.",
+        "Fara defecte, afisaj clar.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru practica la UMF.",
+        "Include husa de transport.",
+        "Vand pentru ca am terminat practica."
+      ],
+      "priceMin": 70,
+      "priceMax": 250
+    },
+    {
+      "id": "lab-pulsoximetru",
+      "titles": [
+        "Pulsoximetru deget Beurer PO 30",
+        "Pulsoximetru Masimo iSpO2",
+        "PULSOXIMETRU DIGITAL deget PC-60F1",
+        "Pulsoximetru Nonin GO2",
+        "Pulsoximetru Choice MMed",
+        "Pulsoximetru Omron HPO-100",
+        "Pulsoximetru portabil Finger Tip",
+        "Pulsoximetru deget AccuMed"
+      ],
+      "descriptions": [
+        "Pulsoximetru folosit cateva luni.",
+        "Baterie noua, functioneaza impecabil.",
+        "Afisaj OLED clar.",
+        "Fara defecte, se potriveste pe deget.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru practica la UMF.",
+        "Include husa de transport.",
+        "Vand pentru ca am terminat practica."
+      ],
+      "priceMin": 30,
+      "priceMax": 120
+    },
+    {
+      "id": "lab-atlas-anatomie",
+      "titles": [
+        "Atlas anatomie Papilian, 3 volume",
+        "Atlas anatomie Sinelnikov, 4 volume",
+        "ATLAS ANATOMIE NETTER, in romana",
+        "Atlas anatomie Pernkopf, editie veche",
+        "Atlas anatomie Rohen, color",
+        "Atlas anatomie Grant, in engleza",
+        "Atlas anatomie McMinn, color",
+        "Atlas anatomie Sobotta, 3 volume"
+      ],
+      "descriptions": [
+        "Atlas folosit la UMF anul I.",
+        "Interior aproape curat, cateva post-it-uri.",
+        "Coperta prezinta zgarieturi minime.",
+        "Include scheme si imagini detaliate.",
+        "Perfect pentru anatomie si laborator.",
+        "Vine cu caietul meu de disectie, cadou.",
+        "Carte groasa si grea, dar completa.",
+        "Vand pentru ca am terminat anul I."
+      ],
+      "priceMin": 80,
+      "priceMax": 200
+    },
+    {
+      "id": "lab-eprubete-set",
+      "titles": [
+        "Set eprubete sticla, 20 buc, 15ml",
+        "Set eprubete cu dop plastic, 50 buc",
+        "EPRUBETE DE STICLA, 25 bucati 20ml",
+        "Set 100 eprubete laborator, 10ml",
+        "Eprubete Falcon 15ml, set 50 buc",
+        "Set eprubete cu stand, 30 buc",
+        "Eprubete sticla Pyrex 25ml, 10 buc",
+        "Set eprubete 50ml, cu capace"
+      ],
+      "descriptions": [
+        "Set eprubete folosit partial, raman 15 buc.",
+        "Spalate si sterilizate, fara pete.",
+        "Vine cu stand din plastic.",
+        "Perfect pentru laborator chimie si biologie.",
+        "Fara zgarieturi majore.",
+        "Include cateva piese de rezerva.",
+        "Compatibil cu dopuri plastic sau sticla.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 15,
+      "priceMax": 50
+    },
+    {
+      "id": "lab-pahar-laborator",
+      "titles": [
+        "Set pahare Berzelius, 100-1000ml, 6 buc",
+        "Set pahare laborator Erlenmeyer, 5 buc",
+        "PAHARE LABORATOR BORCAN, set 10 buc",
+        "Set pahare Becher 50-500ml, sticla",
+        "Pahare Erlenmeyer 250ml, set 10 buc",
+        "Set pahare borosilicat, 100-2000ml",
+        "Pahare laborator Pyrex, 500ml, 5 buc",
+        "Set pahare masura 100-1000ml"
+      ],
+      "descriptions": [
+        "Set pahare folosit la laborator chimie.",
+        "Spalate si uscate, fara pete.",
+        "Vine cu rezistenta termica.",
+        "Perfect pentru laborator chimie.",
+        "Fara ciobituri majore.",
+        "Include diferite dimensiuni.",
+        "Compatibil cu placa de incalzire.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 20,
+      "priceMax": 60
+    },
+    {
+      "id": "lab-pipeta",
+      "titles": [
+        "Pipeta automata 100-1000ul, pipetman",
+        "Set pipete gradate sticla, 5 buc",
+        "PIPETA AUTOMATA eppendorf 20-200ul",
+        "Pipeta multicanala 8 canale",
+        "Set pipete 10ul, 100ul, 1000ul",
+        "Pipeta Transferpipete, 1-5ml",
+        "Pipeta 5-50ul, Gilson Pipetman",
+        "Set pipete laborator sticla 10ml"
+      ],
+      "descriptions": [
+        "Pipeta folosita la laborator, calibrata recent.",
+        "Vine cu varfuri de rezerva.",
+        "Functioneaza impecabil.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru laborator biologie si chimie.",
+        "Include manual si certificat.",
+        "Compatibil cu varfuri standard.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 25,
+      "priceMax": 100
+    },
+    {
+      "id": "lab-sursa-logica",
+      "titles": [
+        "Analizor logic USB 8 canale, 24MHz",
+        "Sonda logica Hantek 4032L, 32 canale",
+        "ANALIZOR LOGIC SALEAE compatibil",
+        "Analizor logic Rigol MSO5000",
+        "Analizor logic USB 16 canale 200MHz",
+        "Sonda logica Hantek PP-80, pentru debug",
+        "Saleae Logic 8 Pro, 100MHz 8 canale",
+        "DSLogic Plus, 16 canale 400MHz"
+      ],
+      "descriptions": [
+        "Sonda logica folosita la laborator electronica.",
+        "Vine cu set de clipuri si USB cable.",
+        "Compatibila cu Sigrok si PulseView.",
+        "Carcasa fara zgarieturi.",
+        "Perfect pentru debug Arduino si FPGA.",
+        "Include manual si software gratis.",
+        "Compatibila cu Windows, Mac, Linux.",
+        "Vand pentru ca am terminat facultatea."
+      ],
+      "priceMin": 100,
+      "priceMax": 400
+    },
+    {
+      "id": "lab-fludor-colofoniu",
+      "titles": [
+        "Fludor 0.5mm, bobina 100g, cu colofoniu",
+        "Colofoniu solid pentru lipit, 50g",
+        "FLUDOR 1mm Sn60Pb40, 250g",
+        "Fludor fara plumb, 0.8mm, 100g",
+        "Colofoniu flux lichid, 10ml",
+        "Fludor 0.6mm bobina mica, 50g",
+        "Pasta lipit 10g, Sn63Pb37",
+        "Fludor 1.2mm, Sn99 fara plumb, 500g"
+      ],
+      "descriptions": [
+        "Fludor folosit la proiecte, mai e peste jumatate.",
+        "Bobina originala, nu desfacuta de tot.",
+        "Perfect pentru lipit componente SMD si TH.",
+        "Fara contaminare, miroase a colofoniu.",
+        "Compatibil cu letconuri 30-60W.",
+        "Vine cu colofoniu solid cadou.",
+        "Include manualul cu sfaturi de lipit.",
+        "Vand pentru ca am luat pasta lipit."
+      ],
+      "priceMin": 10,
+      "priceMax": 40
+    },
+    {
+      "id": "lab-pompa-dezlipit",
+      "titles": [
+        "Pompa de dezlipit aluminium",
+        "Vacuum sucker dezlipit, cu varf silicon",
+        "POMPA DEZLIPIT fludor, 20cm",
+        "Pompa de dezlipit TTC-260, manual",
+        "Pompa dezlipit aluminiu, 20cm",
+        "Vacuum solder sucker, varf teflon",
+        "Pompa de dezlipit cu buton rapid",
+        "Pompa de dezlipit manuala, 15cm"
+      ],
+      "descriptions": [
+        "Pompa folosita la proiecte Arduino.",
+        "Functioneaza impecabil, vacuum puternic.",
+        "Fara defecte, varf intact.",
+        "Perfect pentru dezlipit componente PCB.",
+        "Carcasa din aluminiu usoara.",
+        "Vine cu varf de rezerva.",
+        "Include manual de folosire.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 15,
+      "priceMax": 60
+    },
+    {
+      "id": "lab-casca-rcp",
+      "titles": [
+        "Manechin RCP pentru CPR training",
+        "Manechin reanimare adulti Prestan",
+        "MANECHIN RCP LAERDAL Little Anne",
+        "Manechin CPR Mannequin profesional",
+        "Manechin reanimare pediatric",
+        "Little Anne QCPR, cu feedback",
+        "Manechin RCP training set 4 buc",
+        "Manechin reanimare copii, Laerdal"
+      ],
+      "descriptions": [
+        "Manechin folosit la cursuri de prim ajutor.",
+        "Vine cu geanta de transport.",
+        "Fara defecte, airbag functional.",
+        "Perfect pentru cursuri RCP.",
+        "Include masca de rezerva.",
+        "Ventil respiratie functional.",
+        "Compatibil cu Laerdal AED Trainer.",
+        "Vand pentru ca am terminat cursul."
+      ],
+      "priceMin": 300,
+      "priceMax": 900
+    },
+    {
+      "id": "lab-sonda-oscilo",
+      "titles": [
+        "Sonda osciloscop 100MHz, 1x/10x",
+        "Set 2 sonde oscilo Rigol RP2200",
+        "SONDA OSCILOSCOP HANTEK 200MHz",
+        "Sonda oscilo pasiva, BNC 1.5m",
+        "Cablu BNC-BNC pentru oscilo, 1m",
+        "Set cabluri BNC+sonde pentru lab",
+        "Sonda 500MHz atten 10x, pentru RF",
+        "Sonda oscilo diferentiala 25MHz"
+      ],
+      "descriptions": [
+        "Sonde folosite la laborator electronica.",
+        "Vin cu adaptoare si manuale.",
+        "Fara defecte, firele intacte.",
+        "Perfect pentru proiecte digitale.",
+        "Compatibile cu majoritatea osciloscoapelor.",
+        "Include carlige retractabile.",
+        "Verificate inainte de vanzare.",
+        "Vand pentru ca am terminat laboratoarele."
+      ],
+      "priceMin": 50,
+      "priceMax": 200
+    },
+    {
+      "id": "lab-generator-functii",
+      "titles": [
+        "Generator functii UTG932E 30MHz",
+        "Generator semnale Rigol DG1022",
+        "GENERATOR FUNCTII FeelTech FY6800",
+        "Generator Siglent SDG1032X",
+        "Generator Rigol DG822, 25MHz",
+        "Generator functii UNI-T UTG962",
+        "Hantek HDG2102B, 100MHz",
+        "Generator functii Owon AG1022"
+      ],
+      "descriptions": [
+        "Generator folosit la laborator electronica.",
+        "Vine cu cabluri BNC-BNC originale.",
+        "Fara defecte, afisaj clar.",
+        "Perfect pentru proiecte audio si RF.",
+        "Carcasa fara zgarieturi.",
+        "Include manual si software PC.",
+        "Compatibil Windows pentru configurare.",
+        "Vand pentru ca am terminat facultatea."
+      ],
+      "priceMin": 200,
+      "priceMax": 900
+    },
+    {
+      "id": "lab-caiet-laborator",
+      "titles": [
+        "Caiet laborator chimie, 100 pagini milim",
+        "Caiet laborator anatomie UMF, A4 80 pag",
+        "CAIET LABORATOR FIZICA, milimetric",
+        "Caiet laborator biologie, cu scheme",
+        "Caiet notite anatomie, A4 150 pagini",
+        "Caiet laborator chimie organica, 80 pag",
+        "Caiet laborator electronica, milimetric",
+        "Caiet laborator medicina, UMF, A4"
+      ],
+      "descriptions": [
+        "Caiet folosit, cu notite de la laborator.",
+        "Format A4, 100 pagini milimetrice.",
+        "Scris citet, cu culori diferite.",
+        "Include schemele rezolvate.",
+        "Perfect pentru pregatirea examenului.",
+        "Coperta prezinta zgarieturi minime.",
+        "Vine cu raspunsurile la referate.",
+        "Vand pentru ca am terminat semestrul."
+      ],
+      "priceMin": 15,
+      "priceMax": 45
+    },
+    {
+      "id": "lab-ampermetru-clamp",
+      "titles": [
+        "Clamp Meter UNI-T UT210E AC/DC",
+        "Ampermetru de clema Fluke 324",
+        "CLAMP METER HANTEK CC-65",
+        "Clamp Meter UT201 pentru AC",
+        "Ampermetru de clema Ennologic eM860T",
+        "Hioki CM4141 Clamp Meter",
+        "Clamp Meter Mastech MS2008A",
+        "Ampermetru de clema BENETECH GM1100"
+      ],
+      "descriptions": [
+        "Clamp meter folosit la laborator.",
+        "Baterie noua, functioneaza impecabil.",
+        "Vine cu sonde originale.",
+        "Fara defecte, afisaj clar.",
+        "Masoara curent AC/DC, tensiune, rezistenta.",
+        "Perfect pentru proiecte electronica.",
+        "Include husa de transport.",
+        "Vand pentru ca am terminat facultatea."
+      ],
+      "priceMin": 60,
+      "priceMax": 220
+    },
+    {
+      "id": "lab-protoboard-pcb",
+      "titles": [
+        "Set 10 placi protoboard, 70x90mm",
+        "Protoboard PCB, perforat 1.27mm pitch",
+        "SET PCB prototip, 50x70mm, 10 buc",
+        "Set protoboard dual-sided",
+        "Placa prototip FR-4, 10 buc",
+        "PCB universal 100x80mm, 5 buc",
+        "Perfboard 7x9cm, 10 bucati",
+        "Set 20 placi prototip universal"
+      ],
+      "descriptions": [
+        "Set placi protoboard, folosite partial.",
+        "Vin in punga sigilata, 10 bucati ramase.",
+        "FR-4, calitate buna, pini curati.",
+        "Perfect pentru proiecte permanente.",
+        "Compatibile cu majoritatea componentelor.",
+        "Include lipire incercata.",
+        "Fara contacte deteriorate.",
+        "Vand pentru ca am terminat proiectele."
+      ],
+      "priceMin": 20,
+      "priceMax": 70
+    },
+    {
+      "id": "lab-lupa-ceas",
+      "titles": [
+        "Lupa ceasornicar 10x, cu LED",
+        "LUPA MONOCULARA 20x, pentru electronica",
+        "Lupa ceasornicar Arduino, 30x cu lumina",
+        "Lupa de masa 5x, cu brat reglabil",
+        "Lupa microscop 60x cu LED",
+        "Lupa ceasornicar, 15x cu banda",
+        "Lupa de birou 3x, cu LED",
+        "Lupa 10x cu scala pentru masuratori"
+      ],
+      "descriptions": [
+        "Lupa folosita la lipit componente SMD.",
+        "Vine cu baterii si suport.",
+        "LED functioneaza impecabil.",
+        "Lentila fara zgarieturi.",
+        "Perfect pentru proiecte Arduino si PCB.",
+        "Include husa de transport.",
+        "Carcasa fara zgarieturi.",
+        "Vand pentru ca am terminat proiectele."
+      ],
+      "priceMin": 15,
+      "priceMax": 70
+    },
+    {
+      "id": "lab-manual-anatomie-lab",
+      "titles": [
+        "Manual laborator anatomie UMF",
+        "Indrumator disectie, anul I medicina",
+        "MANUAL LAB ANATOMIE, folosit un sem",
+        "Caiet lab anatomie, UMF Carol Davila",
+        "Manual laborator anatomie UMF Cluj",
+        "Indrumator laborator anatomie UMF Iasi",
+        "Caiet lab anatomie UMF Timisoara",
+        "Manual laborator histologie UMF"
+      ],
+      "descriptions": [
+        "Manual folosit un semestru la UMF.",
+        "Interior fara sublinieri.",
+        "Coperta prezinta zgarieturi minime.",
+        "Include schemele si referatele.",
+        "Perfect pentru pregatirea laboratorului.",
+        "Vine cu caietul meu de notite, cadou.",
+        "Carte groasa, dar organizata.",
+        "Vand pentru ca am terminat anul I."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    }
+  ]
+}

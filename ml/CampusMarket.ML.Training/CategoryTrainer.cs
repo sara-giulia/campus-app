@@ -15,7 +15,7 @@ public sealed class CategoryTrainer : IModelTrainer
 
     public string ModelFileName => "category-classification.zip";
 
-    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView testData)
+    public TrainingResult Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
     {
         var trainNonSpam = WithoutSpam(mlContext, trainData);
         var testNonSpam = WithoutSpam(mlContext, testData);
@@ -28,7 +28,12 @@ public sealed class CategoryTrainer : IModelTrainer
             .Append(mlContext.Transforms.Text.FeaturizeText("DescriptionFeatures", nameof(ListingRow.Description)))
             .Append(mlContext.Transforms.Concatenate("Features", "TitleFeatures", "DescriptionFeatures"))
             .Append(mlContext.MulticlassClassification.Trainers.SdcaMaximumEntropy(
-                labelColumnName: "Label", featureColumnName: "Features"))
+                new Microsoft.ML.Trainers.SdcaMaximumEntropyMulticlassTrainer.Options
+                {
+                    LabelColumnName = "Label",
+                    FeatureColumnName = "Features",
+                    NumberOfThreads = 1,
+                }))
             .Append(mlContext.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
 
         var model = pipeline.Fit(labelMap.Transform(trainNonSpam));
@@ -41,7 +46,14 @@ public sealed class CategoryTrainer : IModelTrainer
             $"Macro accuracy: {metrics.MacroAccuracy:0.000}" + Environment.NewLine +
             $"Log loss:       {metrics.LogLoss:0.000}";
 
-        return (model, text);
+        var structured = new Dictionary<string, double>(StringComparer.Ordinal)
+        {
+            ["logLoss"] = metrics.LogLoss,
+            ["macroAccuracy"] = metrics.MacroAccuracy,
+            ["microAccuracy"] = metrics.MicroAccuracy,
+        };
+
+        return new TrainingResult(model, text, "SDCA maximum entropy", structured);
     }
 
     private static IDataView WithoutSpam(MLContext mlContext, IDataView data) =>

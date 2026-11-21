@@ -5708,6 +5708,67 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Price accuracy (200)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/ml/price-accuracy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "ml",
+                "price-accuracy"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has count, metrics and lastRecords\", () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property(\"count\");",
+                  "  pm.expect(body).to.have.property(\"mae\");",
+                  "  pm.expect(body).to.have.property(\"mape\");",
+                  "  pm.expect(body).to.have.property(\"perCategory\");",
+                  "  pm.expect(body).to.have.property(\"lastRecords\");",
+                  "  pm.expect(body.perCategory).to.be.an(\"array\");",
+                  "  pm.expect(body.lastRecords).to.be.an(\"array\");",
+                  "  pm.expect(body.lastRecords.length).to.be.at.most(10);",
+                  "  if (body.count === 0) {",
+                  "    pm.expect(body.mae).to.be.null;",
+                  "    pm.expect(body.mape).to.be.null;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "auth": {

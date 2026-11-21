@@ -314,7 +314,7 @@ var assemblies = [
       { "name": "CampusMarket.Api.Features.Listings.DeleteListing.DeleteListingHandler", "rp": "CampusMarket.Api_DeleteListingHandler.html", "cl": 15, "ucl": 0, "cal": 15, "tl": 30, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.ExpireReservations.ExpireReservationsHandler", "rp": "CampusMarket.Api_ExpireReservationsHandler.html", "cl": 20, "ucl": 0, "cal": 20, "tl": 35, "cb": 6, "tb": 6, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.GetListingById.GetListingByIdHandler", "rp": "CampusMarket.Api_GetListingByIdHandler.html", "cl": 8, "ucl": 0, "cal": 8, "tl": 21, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
-      { "name": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "rp": "CampusMarket.Api_GetListingsHandler.html", "cl": 37, "ucl": 0, "cal": 37, "tl": 53, "cb": 18, "tb": 18, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
+      { "name": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "rp": "CampusMarket.Api_GetListingsHandler.html", "cl": 35, "ucl": 0, "cal": 35, "tl": 51, "cb": 16, "tb": 16, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.PublishListing.PublishListingHandler", "rp": "CampusMarket.Api_PublishListingHandler.html", "cl": 24, "ucl": 0, "cal": 24, "tl": 46, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.ReserveListing.ReserveListingHandler", "rp": "CampusMarket.Api_ReserveListingHandler.html", "cl": 28, "ucl": 0, "cal": 28, "tl": 55, "cb": 10, "tb": 10, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
       { "name": "CampusMarket.Api.Features.Listings.SuggestCategory.SuggestCategoryHandler", "rp": "CampusMarket.Api_SuggestCategoryHandler.html", "cl": 9, "ucl": 0, "cal": 9, "tl": 23, "cb": 2, "tb": 2, "cm": 0, "fcm": 0, "tm": 0, "lch": [], "bch": [], "mch": [], "mfch": [], "hc": [], "metrics": { } },
@@ -345,13 +345,13 @@ var riskHotspotMetrics = [
 
 var riskHotspots = [
   {
-    "assembly": "CampusMarket.Api", "class": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "reportPath": "CampusMarket.Api_GetListingsHandler.html", "methodName": "HandleAsync()", "methodShortName": "HandleAsync()", "fileIndex": 0, "line": 12,
+    "assembly": "CampusMarket.Api", "class": "CampusMarket.Api.Domain.Reviews.Review", "reportPath": "CampusMarket.Api_Review.html", "methodName": "CampusMarket.Api.Domain.Common.Result\u00601\u003CCampusMarket.Api.Domain.Reviews.Review\u003E CampusMarket.Api.Domain.Reviews.Review::Create(System.Guid,CampusMarket.Api.Domain.Listings.Listing,System.Int32,System.String,System.DateTimeOffset)", "methodShortName": "Create(...)", "fileIndex": 0, "line": 25,
     "metrics": [
-      { "value": 18, "exceeded": true },
-      { "value": 18, "exceeded": false },
+      { "value": 16, "exceeded": true },
+      { "value": 16, "exceeded": false },
     ]},
   {
-    "assembly": "CampusMarket.Api", "class": "CampusMarket.Api.Domain.Reviews.Review", "reportPath": "CampusMarket.Api_Review.html", "methodName": "CampusMarket.Api.Domain.Common.Result\u00601\u003CCampusMarket.Api.Domain.Reviews.Review\u003E CampusMarket.Api.Domain.Reviews.Review::Create(System.Guid,CampusMarket.Api.Domain.Listings.Listing,System.Int32,System.String,System.DateTimeOffset)", "methodShortName": "Create(...)", "fileIndex": 0, "line": 25,
+    "assembly": "CampusMarket.Api", "class": "CampusMarket.Api.Features.Listings.GetListings.GetListingsHandler", "reportPath": "CampusMarket.Api_GetListingsHandler.html", "methodName": "HandleAsync()", "methodShortName": "HandleAsync()", "fileIndex": 0, "line": 12,
     "metrics": [
       { "value": 16, "exceeded": true },
       { "value": 16, "exceeded": false },
