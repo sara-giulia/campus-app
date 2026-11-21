@@ -23,6 +23,71 @@ Unit tests: `dotnet test` from the repository root.
 - The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
+### Deploy
+
+The `.github/workflows/deploy.yml` workflow runs on every push to `main`
+(and on `workflow_dispatch`): first it restores, builds and runs the full
+test suite; then — only if the tests pass — it builds the Docker image from
+the repository's `Dockerfile` and pushes it to GitHub Container Registry as
+`ghcr.io/<owner>/campus-app` with two tags, `latest` and the full commit
+SHA (so a specific build can be pinned if `latest` has to be rolled back).
+Login to GHCR uses the built-in `GITHUB_TOKEN`
+(`permissions: packages: write, contents: read`); no secret has to be
+added for the publish step.
+
+As a final step, if a `RENDER_DEPLOY_HOOK` repository secret is set, the
+workflow `curl`s it to trigger a redeploy of the Render service. The step
+is skipped when the secret is not set, so the pipeline works end-to-end
+before Render is wired up and remains idempotent afterwards.
+
+#### Render (free web service) setup
+
+1. In Render, create a new **Web Service** and choose
+   **Deploy an existing image from a registry**. Use the image URL
+   `ghcr.io/<owner>/campus-app:latest` (replace `<owner>` with the GitHub
+   user or org that hosts the repository). The image is public, so no
+   registry credentials are needed. Pin to a specific commit SHA tag if a
+   reproducible build matters more than always running `latest`.
+2. Set the **Health Check Path** to `/health`. Render polls it to decide
+   whether the instance is up; the API returns `200 Healthy` only when it
+   can reach the database.
+3. Leave the port setting on its default. Render passes the public port
+   through the `PORT` environment variable; the API reads it at startup
+   (`Program.cs`) and binds to `http://0.0.0.0:$PORT`.
+4. Configure the environment variables below under
+   **Environment → Environment Variables**. Only names appear here; the
+   values are chosen in Render and never committed to the repository.
+
+   | Name | Required | Purpose |
+   |---|---|---|
+   | `ASPNETCORE_ENVIRONMENT` | yes | Set to `Production`. Triggers the JWT fail-fast check below. |
+   | `Jwt__Key` | yes | Random string of **at least 32 characters** used to sign JWTs. The API refuses to start in Production if it is missing or shorter than 32 characters. |
+   | `Seed__AdminEmail` | optional | Email of the first Admin created on startup. Leave unset to skip the admin seed. |
+   | `Seed__AdminPassword` | optional | Password of the first Admin. Needed only when `Seed__AdminEmail` is set. |
+   | `ConnectionStrings__CampusMarket` | optional | SQLite connection string. The Docker image already defaults this to `Data Source=/app/data/campusmarket.db`, so it only needs to be overridden to point the API at a different path (for example, an attached disk). |
+   | `Seed__DemoData` | optional | `true` seeds a demo member and a few published listings when the database is empty, so a fresh Render instance has something to browse. Off by default and never on in tests. |
+   | `Seed__DemoPassword` | optional | Password for the demo student account created when `Seed__DemoData=true`. Must be at least 8 characters. If missing or shorter, the demo listings are still seeded but the demo member is skipped (a warning is written to the log). The demo member always has the `Student` role. |
+
+5. Set up the deploy hook (optional but recommended). In Render, open
+   **Settings → Deploy Hook** on the service, copy the URL, and add it as a
+   GitHub repository secret named `RENDER_DEPLOY_HOOK`. Future pushes to
+   `main` will then rebuild the image, push it to GHCR, and tell Render to
+   pull it.
+
+#### Free-plan limits to know about
+
+- **Sleep after 15 minutes of inactivity.** The first request after a
+  sleep wakes the instance; typical cold-start latency is tens of seconds.
+  Render's uptime checks keep the service warmer than no traffic at all,
+  but there is no hard guarantee it stays up.
+- **No persistent disk on the free tier.** SQLite lives inside the
+  container's filesystem, which is reset on every redeploy and every
+  cold start, so the database is wiped whenever a new image is pulled or
+  the instance is rebuilt. Set `Seed__DemoData=true` to repopulate a bit
+  of data after each redeploy; attach a disk (paid tier) if the data has
+  to survive.
+- **One instance, no scaling.** Fine for a student demo, not for traffic.
+
 ---
 
 ## Table of contents
