@@ -1,5 +1,6 @@
 using CampusMarket.Api;
 using CampusMarket.Api.Infrastructure.ErrorHandling;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,5 +33,12 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapCampusMarket();
+
+// API documentation, only in Development: the JSON at /openapi/v1.json, the web page at /scalar.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
 
 await app.RunAsync();

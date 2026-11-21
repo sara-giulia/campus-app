@@ -782,6 +782,36 @@ Rules for this feature:
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
 
+## Feature: Condition filter (Carina)
+
+Endpoint: `GET /api/v1/listings?condition=...` (`New`, `Good` or `Worn`), public, no `AuthenticateAs`. Only `Active` listings are returned, as before.
+
+File: `Listings/GetListingsTests.cs` (add to it, keep every existing test).
+
+Arrange: seed published listings (`listing.Publish()` before `SeedAsync`) with the same `SellerId`, one in `Good` and one in `Worn` condition, each with its own fixed `CreatedAt`.
+
+Tests to add (status, body, then the database still has the seeded listings):
+- `?condition=Good` → 200, only the Good listing, `totalCount` 1.
+- `?condition=Banana` → 400. ASP.NET Core rejects it before the handler runs, so check only the status code.
+
+Rules for this feature:
+- Build the query string exactly as a client would send it, in the URL of `Client.GetAsync`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: API documentation (Carina)
+
+Production code: `services.AddOpenApi()` in `CampusMarketSetup.AddCampusMarket`; in `Program.cs`, only when `app.Environment.IsDevelopment()`: `app.MapOpenApi()` (the document at `/openapi/v1.json`) and `app.MapScalarApiReference()` (the page at `/scalar`). The test host runs in the Development environment, so both are mapped in the tests.
+
+File: `Infrastructure/OpenApiTests.cs` (new), class `OpenApiTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /openapi/v1.json` → 200, a JSON content type, and the body contains `/api/v1/listings` and `/api/v1/auth/login`. Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document.
+- The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of "Feature: Error handling (Anca)" do.
+
+Rules for this feature:
+- Do not change `Program.cs`, `CampusMarketSetup.cs` or the test factory.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: My profile (Carina)
 
 Endpoints (`Features/Members/GetMyProfile/`, `Features/Members/UpdateMyProfile/`), both need a token ("me" is the member in the token):
@@ -807,6 +837,7 @@ Tests to add (status, body, then the database):
 Rules for this feature:
 - Fixed ids and times; never compare to `DateTime.Now`.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 File: `Listings/SuggestCategoryTests.cs` (add to it).

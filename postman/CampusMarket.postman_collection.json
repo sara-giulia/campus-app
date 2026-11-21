@@ -1266,6 +1266,80 @@
               ]
             },
             {
+              "name": "Get listings - filter by condition (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?condition=Good",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ],
+                  "query": [
+                    {
+                      "key": "condition",
+                      "value": "Good"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Created listing (condition Good) is found\", () => {",
+                      "  const ids = pm.response.json().items.map(i => i.id);",
+                      "  pm.expect(ids).to.include(pm.collectionVariables.get(\"listingId\"));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - unknown condition (400)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?condition=Banana",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ],
+                  "query": [
+                    {
+                      "key": "condition",
+                      "value": "Banana"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Get listings - price limits are inclusive (200)",
               "request": {
                 "method": "GET",

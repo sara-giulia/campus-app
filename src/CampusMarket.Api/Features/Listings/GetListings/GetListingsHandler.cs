@@ -27,6 +27,8 @@ public sealed class GetListingsHandler(IListingRepository repository)
 
         if (query.Category is not null)
             filtered = filtered.Where(l => l.Category == query.Category);
+        if (query.Condition is not null)
+            filtered = filtered.Where(l => l.Condition == query.Condition);
         if (query.MinPrice is not null)
             filtered = filtered.Where(l => l.Price.Amount >= query.MinPrice);
         if (query.MaxPrice is not null)
