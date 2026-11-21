@@ -24,6 +24,71 @@ Unit tests: `dotnet test` from the repository root.
 - The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
+### Deploy
+
+The `.github/workflows/deploy.yml` workflow runs on every push to `main`
+(and on `workflow_dispatch`): first it restores, builds and runs the full
+test suite; then — only if the tests pass — it builds the Docker image from
+the repository's `Dockerfile` and pushes it to GitHub Container Registry as
+`ghcr.io/<owner>/campus-app` with two tags, `latest` and the full commit
+SHA (so a specific build can be pinned if `latest` has to be rolled back).
+Login to GHCR uses the built-in `GITHUB_TOKEN`
+(`permissions: packages: write, contents: read`); no secret has to be
+added for the publish step.
+
+As a final step, if a `RENDER_DEPLOY_HOOK` repository secret is set, the
+workflow `curl`s it to trigger a redeploy of the Render service. The step
+is skipped when the secret is not set, so the pipeline works end-to-end
+before Render is wired up and remains idempotent afterwards.
+
+#### Render (free web service) setup
+
+1. In Render, create a new **Web Service** and choose
+   **Deploy an existing image from a registry**. Use the image URL
+   `ghcr.io/<owner>/campus-app:latest` (replace `<owner>` with the GitHub
+   user or org that hosts the repository). The image is public, so no
+   registry credentials are needed. Pin to a specific commit SHA tag if a
+   reproducible build matters more than always running `latest`.
+2. Set the **Health Check Path** to `/health`. Render polls it to decide
+   whether the instance is up; the API returns `200 Healthy` only when it
+   can reach the database.
+3. Leave the port setting on its default. Render passes the public port
+   through the `PORT` environment variable; the API reads it at startup
+   (`Program.cs`) and binds to `http://0.0.0.0:$PORT`.
+4. Configure the environment variables below under
+   **Environment → Environment Variables**. Only names appear here; the
+   values are chosen in Render and never committed to the repository.
+
+   | Name | Required | Purpose |
+   |---|---|---|
+   | `ASPNETCORE_ENVIRONMENT` | yes | Set to `Production`. Triggers the JWT fail-fast check below. |
+   | `Jwt__Key` | yes | Random string of **at least 32 characters** used to sign JWTs. The API refuses to start in Production if it is missing or shorter than 32 characters. |
+   | `Seed__AdminEmail` | optional | Email of the first Admin created on startup. Leave unset to skip the admin seed. |
+   | `Seed__AdminPassword` | optional | Password of the first Admin. Needed only when `Seed__AdminEmail` is set. |
+   | `ConnectionStrings__CampusMarket` | optional | SQLite connection string. The Docker image already defaults this to `Data Source=/app/data/campusmarket.db`, so it only needs to be overridden to point the API at a different path (for example, an attached disk). |
+   | `Seed__DemoData` | optional | `true` seeds a demo member and a few published listings when the database is empty, so a fresh Render instance has something to browse. Off by default and never on in tests. |
+   | `Seed__DemoPassword` | optional | Password for the demo student account created when `Seed__DemoData=true`. Must be at least 8 characters. If missing or shorter, the demo listings are still seeded but the demo member is skipped (a warning is written to the log). The demo member always has the `Student` role. |
+
+5. Set up the deploy hook (optional but recommended). In Render, open
+   **Settings → Deploy Hook** on the service, copy the URL, and add it as a
+   GitHub repository secret named `RENDER_DEPLOY_HOOK`. Future pushes to
+   `main` will then rebuild the image, push it to GHCR, and tell Render to
+   pull it.
+
+#### Free-plan limits to know about
+
+- **Sleep after 15 minutes of inactivity.** The first request after a
+  sleep wakes the instance; typical cold-start latency is tens of seconds.
+  Render's uptime checks keep the service warmer than no traffic at all,
+  but there is no hard guarantee it stays up.
+- **No persistent disk on the free tier.** SQLite lives inside the
+  container's filesystem, which is reset on every redeploy and every
+  cold start, so the database is wiped whenever a new image is pulled or
+  the instance is rebuilt. Set `Seed__DemoData=true` to repopulate a bit
+  of data after each redeploy; attach a disk (paid tier) if the data has
+  to survive.
+- **One instance, no scaling.** Fine for a student demo, not for traffic.
+
 ---
 
 ## Table of contents
@@ -78,7 +143,7 @@ Unit tests: `dotnet test` from the repository root.
 - **xUnit** with hand-written fakes
 - **Postman** collections for API tests
 - **SonarQube Cloud** for code quality and coverage, with a quality gate of **100% coverage on new code**
-- **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`) for the AI module
+- **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`, `Microsoft.ML.LightGbm`) for the AI module
 
 ## 3. Use cases
 
@@ -157,7 +222,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
-| Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1), 400, 401 |
+| Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below 0.7), 400, 401 |
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
@@ -174,9 +239,10 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
+| Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites` and `GET /api/v1/moderation/listings` (Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -268,6 +334,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Reservation.NotActive` | 400 | you cancel or confirm a reservation that is not active |
 | `Reservation.Expired` | 400 | you confirm a reservation past its 48-hour expiry |
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
+| `Money.TooHigh` | 400 | the price is above 100000 lei |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
 | `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
 | `Favorite.ListingNotAvailable` | 400 | the listing is still a draft, or it was hidden by an Admin |
@@ -674,61 +741,301 @@ ml/
 ├── CampusMarket.ML.DatasetGenerator/   # writes the synthetic CSV
 ├── CampusMarket.ML.Training/           # loads the CSV and trains the models
 ├── data/
-│   └── listings.csv                    # synthetic dataset (B1)
+│   ├── catalog/                        # dataset v2 catalog, one JSON per category
+│   │   ├── textbook.json
+│   │   ├── notes.json
+│   │   ├── electronics.json
+│   │   ├── labequipment.json
+│   │   └── other.json
+│   └── listings.csv                    # synthetic dataset, generated
 └── models/
     └── *.zip                           # trained models, committed
 ```
 
-Flow: **dataset → training → models → API**. The generator produces a deterministic
-CSV; the training project reads it, runs an 80 / 20 split and writes the trained
-models into `ml/models/`. The `.csproj` of the API copies every `ml/models/*.zip`
-to its output under `ml-models/`, so the API runs without training.
+Flow: **catalog → dataset → training → models → API**. The catalog is the
+source of truth for item types, prices and natural Romanian titles and
+descriptions; the generator reads it and layers on realistic noise; the
+training project reads the CSV, runs a 70 / 15 / 15 train / validation / test
+split and writes the trained models into `ml/models/`. The `.csproj` of the
+API copies every `ml/models/*.zip` to its output under `ml-models/`, so the
+API runs without training.
 
-Retrain the models (no error if no trainer has been registered yet):
+The split is **group-aware by `TemplateId`** (`DatasetSplit`, seed `2026`): both
+`TrainTestSplit` cuts pass `samplingKeyColumnName = TemplateId`, so every row
+of an item type lands in exactly one of train / validation / test and the
+quality tests therefore evaluate on item types the model has never seen. Pure
+spam rows are grouped by their spam pattern (one `TemplateId` per spam
+description body, e.g. `spam-00` … `spam-11`), so the test set holds spam
+patterns the model has never seen. On top of that, `PriceTrainer` runs a
+**5-fold grouped cross-validation** on train + validation (test held out,
+same non-spam filter as the price evaluation) and reports R², MAE and RMSE as
+mean ± std — a tighter check of how well the model generalizes than a single
+hold-out split.
+
+### Baselines
+
+After training, the program prints a side-by-side table comparing each model
+against trivial baselines on the same test part (`DatasetSplit`, grouped by
+`TemplateId`). The model must beat the baselines on every metric; if it does
+not, it is not learning anything the baselines miss.
+
+Baselines (`ml/CampusMarket.ML.Training/Evaluation/Baselines.cs`):
+
+- **Price** (non-spam rows): predicts the mean price of the same
+  `Category × Condition` from the train part, falling back to the category
+  mean and then the global mean.
+- **Category** (non-spam rows):
+  - (a) always the most frequent class of the train part;
+  - (b) a short Romanian keyword rule
+    (`carte`/`manual`/`curs` → Textbook, `notite`/`rezumat` → Notes,
+    `laptop`/`telefon`/`casti` → Electronics,
+    `microscop`/`halat`/`pipeta` → LabEquipment, else Other).
+- **Spam** (all rows): the description or title contains a phone number, a
+  link, `whatsapp`/`telegram`, three or more exclamation marks, or the price
+  is `<= 5` lei.
+
+Last run (seed `2026`, 15% grouped test part):
+
+Price (non-spam, test):
+
+| Metric | Model (FastTree on log1p(Price), picked by MAE on validation) | Baseline (mean by Category × Condition) |
+|---|---|---|
+| R² | **0.451** | 0.274 |
+| MAE | **268.53** lei | 345.44 lei |
+| RMSE | **606.21** lei | 697.05 lei |
+| MAPE | **75.3%** | 179.6% |
+
+Details of the 6-candidate selection, the per-category MAE and the
+5-fold grouped CV are in [docs/ml/price.md](docs/ml/price.md).
+
+Category (non-spam, test):
+
+| Metric | Model (SDCA max entropy) | Most frequent class | Keyword rule |
+|---|---|---|---|
+| Micro accuracy | **0.853** | 0.281 | 0.519 |
+| Macro accuracy | **0.858** | 0.200 | 0.484 |
+
+Spam (all rows, test):
+
+| Metric | Model (SDCA logistic) | Rule baseline |
+|---|---|---|
+| Accuracy | **1.000** | 0.987 |
+| Precision | **1.000** | 0.667 |
+| Recall | 1.000 | 1.000 |
+| F1 score | **1.000** | 0.800 |
+
+### External evaluation
+
+`ml/data/external.csv` is an out-of-catalog sanity check: an AI was asked
+to draft 125 second-hand student listings without access to our catalog or
+`listings.csv`, then the team rewrote the first 30 rows after real
+listings we have seen (titles and phrasing we did not generate) and kept
+the rest as review-light drafts. Columns match `listings.csv` exactly
+(`Title,Description,Category,Condition,Price,IsSpam,TemplateId`, all with
+`TemplateId = external`), and the file carries no personal data — no
+names, phone numbers, email addresses or links to real sellers. 122 rows
+load as data (the last 3 lines are blank), of which 102 are non-spam and
+20 are spam, roughly balanced across the five categories (Electronics 27,
+LabEquipment 23, Notes 24, Other 25, Textbook 23). After training, the
+program loads the saved `.zip` models — the same files the API serves —
+and scores them on these rows next to the baselines from `Baselines.cs`.
+
+Last run (seed `2026`):
+
+| Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
+|---|---|---|---|---|---|
+| Price (non-spam) | R² | **0.451** | 0.274 | **0.511** | 0.011 |
+| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **112.10** | 192.05 |
+| Price (non-spam) | MAPE | **75.3%** | 176.5% | **55.1%** | 132.1% |
+| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.735** | 0.196 |
+| Category (non-spam) | Macro accuracy | **0.857** | 0.200 | **0.737** | 0.200 |
+| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.934 |
+| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.929 |
+| Spam (all) | Recall | 1.000 | 1.000 | 0.500 | 0.650 |
+| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.765 |
+
+The price and category models still beat their baselines on external
+data, and by a larger R² margin than on the test part — the external
+prices are more concentrated around the catalog averages, so the baseline
+collapses while the model generalizes. Spam is the honest miss: the test
+part is saturated because synthetic spam signals the generator plants
+(links, phone numbers, `!!!`, 1-leu prices) are the same the rule
+baseline catches, so both reach 1.000. The external set has ten subtle
+spam rows with normal titles, normal prices and no scam keywords
+(`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet festival
+Untold"`), which neither the model nor the rule catch — recall drops to
+0.500 for the model and 0.650 for the rule. That gap is a dataset-v2
+limit and a task for the next iteration of the spam generator, not a
+regression in the committed model.
+
+### Dataset v2
+
+- **Seed:** `const int Seed = 2026` in both the generator and the trainer, so
+  every run produces identical bytes.
+- **Catalog:** 5 JSON files in `ml/data/catalog/` (over 300 item types total,
+  covering textbooks per subject and year, notes, laptops, phones, headphones,
+  PC parts, small appliances, dorm furniture, clothes, shoes, bikes, scooters,
+  lab equipment, musical instruments, sports gear, games, kitchen items,
+  decorations, tickets and more). Every item has **8+ natural titles** and
+  **8+ descriptions** in Romanian, a realistic price range in lei and typical
+  conditions. Items are mapped to one of the five `Category` values
+  (`Textbook`, `Notes`, `Electronics`, `LabEquipment`, `Other`).
+- **Variation at generate time:** the seeded `Random` strips diacritics in
+  about 55% of rows, introduces an occasional swap-letter typo, abbreviates
+  words the student way (`vand`, `neg.`, `pt`, `stare f buna`, `sem`, `ed.`,
+  `vol.`), randomizes capitalization or shouts the whole title in ALL CAPS,
+  sometimes attaches an emoji, drops the description in ~12% of rows,
+  stretches it to a long paragraph in ~8%, and perturbs the price ±20%.
+- **Label noise:** on purpose, about **3% of non-spam rows carry the wrong
+  category** (a seller who picked the wrong dropdown).
+- **Spam:** 10% of rows. About one third of the spam is **disguised** — a
+  normal-looking title in a legitimate category, with the scam/contact hint
+  only in the description — and the rest is loud ALL-CAPS spam with absurd
+  prices (1 leu or 50000–100000 lei). About 6% of normal listings contain a
+  single spam-adjacent word (`urgent`, `promotie`, `rapid`, …) without being
+  spam, so the classifier has to look at the whole context.
+- **CSV columns:** `Title,Description,Category,Condition,Price,IsSpam,TemplateId`.
+  `TemplateId` is the item-type id from the catalog (`tb-analiza-mate-y1`,
+  `elec-laptop-thinkpad`, …) or `spam-generic` for the loud spam rows; it is
+  the **last** column so the existing `ListingRow` column indexes 0–5 do not
+  shift.
+
+### Regenerate the dataset and retrain
+
+From the repository root:
 
 ```
+dotnet run --project ml/CampusMarket.ML.DatasetGenerator
 dotnet run --project ml/CampusMarket.ML.Training
 ```
 
-The concrete models (price in B3, category in B4, spam in B5) are added
-one per task. Their `PredictionEnginePool` registrations live in
-`src/CampusMarket.Api/Infrastructure/ML/`.
+The first command rewrites `ml/data/listings.csv` (seed `2026`) and prints the
+row count, the number of item types per category, the rows per `Category` and
+`Condition`, the spam percentage, the min / avg / max price per `Category`,
+and 10 sample rows. Two runs produce identical bytes; compare the printed
+SHA256 hashes to check. The second command trains the three models with
+seed `2026` and writes them to `ml/models/`. The `PredictionEnginePool`
+registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
+
+### Reproducibility
+
+Everything in the pipeline is pinned so two runs produce the same bytes:
+
+- **Seed `2026`** lives in `DatasetSplit.Seed` and in the generator (same
+  constant in both). The `MLContext` is built with this seed.
+- Every ML.NET trainer passes **`NumberOfThreads = 1`** in its Options object
+  (`PriceTrainer`, `CategoryTrainer`, `SpamTrainer`). SDCA, FastTree and
+  LightGBM only produce identical metrics across runs when they do not
+  parallelize over threads.
+- Beside each saved model, the trainer writes a **`<model-file>.json`
+  sidecar** (`ModelMetadata.cs`): the model name, the chosen algorithm and
+  target, UTC timestamp (ISO 8601), seed, split (70/15/15 grouped by
+  `TemplateId`), SHA-256 of `ml/data/listings.csv`, row counts per part, the
+  test metrics as numbers, and the git commit from `GITHUB_SHA` if set. Keys
+  are sorted alphabetically and metrics are written with six decimals, so a
+  `git diff` of two runs only highlights real changes.
+- CI (`.github/workflows/ml.yml`, runs on `ml/**` or
+  `tests/CampusMarket.ML.Tests/**` changes): sets up .NET 10, restores, then
+  (1) regenerates `ml/data/listings.csv` with the generator and fails if
+  `git diff --exit-code` reports a byte change; (2) trains the models;
+  (3) runs `ml/scripts/check_metrics.py` on the new sidecars against the
+  committed ones and fails if any R², accuracy or F1 dropped by more than
+  0.02 absolute, or MAE grew by more than 5% relative; (4) runs
+  `dotnet test tests/CampusMarket.ML.Tests` against the fresh models; and
+  (5) uploads `ml/models/*.{zip,json}` as a build artifact. CI never
+  commits, pushes or needs secrets.
+
+Reproduce locally in three commands from the repository root:
+
+```
+dotnet run --project ml/CampusMarket.ML.DatasetGenerator
+dotnet run --project ml/CampusMarket.ML.Training
+dotnet test tests/CampusMarket.ML.Tests
+```
+
+Running the first two twice in a row produces identical bytes in
+`ml/data/listings.csv` and identical `testMetrics` in every
+`ml/models/*.json` (only the `trainedAt` timestamp changes).
 
 ### Price suggestion model (B3)
 
-- Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, FastTree regression on
-  the non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
-  `Title` and `Description` through `FeaturizeText`. Label: `Price`.
-- Metrics on the 20% hold-out (seed 42, non-spam rows):
+- Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, regression on the
+  non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
+  `Title` and `Description` through `FeaturizeText`.
+- **Model selection (price v2):** six candidates — three algorithms (`FastTree`,
+  `LightGbm`, `Sdca`) × two targets (`Price`, `log1p(Price)`) — are trained on
+  the train part and scored on the **validation** part only; the winner is
+  picked by MAE in lei, tie-broken by R². The winner is retrained on
+  train + validation and evaluated **once** on the test part (the saved
+  model). The current winner is **FastTree on `log1p(Price)`**: dampening the
+  heavy-tailed price distribution with `log1p` wins on MAE and MAPE even
+  when raw-target Sdca has a higher R². When the target is log-based, the
+  saved pipeline appends an `Expression` transform that maps `Score` back
+  to lei, so the API's `PriceSuggester` reads `Score` directly and does not
+  need to know which target won.
+- Test metrics on the 15% grouped hold-out (seed 2026, non-spam, unseen
+  `TemplateId`s):
 
   | Metric | Value |
   |---|---|
-  | R² | **0.830** |
-  | MAE | 81.24 lei |
-  | RMSE | 189.39 lei |
+  | R²   | **0.451** |
+  | MAE  | 268.53 lei |
+  | RMSE | 606.21 lei |
+  | MAPE | 75.3% |
 
+  5-fold grouped CV on train + validation: R² 0.449 ± 0.106,
+  MAE 164.95 ± 42.43 lei, RMSE 383.08 ± 113.76 lei. The six-candidate table,
+  the MAE per category and the "when not to trust the suggestion" notes are
+  in [docs/ml/price.md](docs/ml/price.md).
 - The saved model (`ml/models/price-regression.zip`) is loaded by the API through
   `PredictionEnginePool<PriceInput, PricePrediction>`; the `SuggestPrice` slice
   depends on `IPriceSuggester` (in `Common/Pricing/`) and never sees `Microsoft.ML`.
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on the same split and fails if R² drops below 0.8, or if, for the same title,
-  `Condition = New` is not priced higher than `Condition = Worn`.
+  on the shared grouped split and fails if R² on the test part drops below
+  **0.40** (winner's test R² − 0.05, rounded down to two decimals — see
+  `MinRSquared` and [docs/ml/price.md](docs/ml/price.md)), or if, for the
+  same title, `Condition = New` is not priced higher than `Condition = Worn`.
+
+#### Price feedback loop
+
+Training metrics measure the model against a synthetic test split; the real
+check is against sales people actually made. Every time a seller confirms a
+sale (`POST /api/v1/listings/{id}/reservations/{reservationId}/confirm`),
+`ConfirmSaleHandler` asks the same `IPriceSuggester` the `SuggestPrice`
+slice uses what it would have suggested for that listing (title,
+description, category, condition), and writes a `SaleRecord` in the same
+`CommitAsync` as the sale: `ListingId`, `Category`, `Condition`, the
+suggested price, the actual sold price (`Listing.Price.Amount`) and
+`SoldAt`. If the suggester throws or returns nothing, the sale still goes
+through — a warning is logged and no `SaleRecord` is written, so the
+feedback loop never blocks the sale. Records live in the `SaleRecords`
+table (migration `AddSaleRecords`), with no FK to `Listings` on purpose so
+analytics survives listing deletion.
+
+`GET /api/v1/admin/ml/price-accuracy` (Admins only) reads the table and
+returns `count`, overall MAE in lei and MAPE in %, the same metrics broken
+down per `Category`, and the 10 newest records (`listingId`, `category`,
+`condition`, `suggestedPrice`, `soldPrice`, `soldAt`). On an empty table
+the response is `{ count: 0, mae: null, mape: null, perCategory: [],
+lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
+`ISaleRecordRepository` and no `IUnitOfWork`.
 
 ### Category suggestion model (B4)
 
 - Trainer: `CategoryTrainer` in `ml/CampusMarket.ML.Training`, multiclass
   classification with SDCA maximum entropy on the non-spam rows only. Features:
   `Title` and `Description` through `FeaturizeText`, concatenated. Label: `Category`.
-- Metrics on the 20% hold-out (seed 42, non-spam rows):
+- Metrics on the 15% hold-out (seed 2026, non-spam rows):
 
   | Metric | Value |
   |---|---|
-  | Micro accuracy | **1.000** |
-  | Macro accuracy | 1.000 |
-  | Log loss | 0.014 |
+  | Micro accuracy | **0.935** |
+  | Macro accuracy | 0.928 |
+  | Log loss | 0.294 |
 
-  The accuracy is this high because the dataset is synthetic: every category uses
-  its own words in the title. Real listings would score lower.
+  The accuracy is no longer saturated: dataset v2 adds label noise, overlapping
+  vocabulary across categories and seller-style noise, so the model has to work
+  for every point.
 - The saved model (`ml/models/category-classification.zip`) is loaded by the API
   through `PredictionEnginePool<CategoryInput, CategoryPrediction>`; the
   `SuggestCategory` slice depends on `ICategorySuggester` (in `Common/Categories/`).
@@ -736,8 +1043,9 @@ one per task. Their `PredictionEnginePool` registrations live in
 - There is no category for items like clothes, so the model always picks the
   closest of the five; it is only a suggestion and the seller can change it.
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on the same split and fails if the micro accuracy drops below 0.9, or if three
-  listings written by hand (not in the CSV) get the wrong category.
+  on its own split (seed 42, 20%) and fails if the micro accuracy drops below
+  0.9, or if three listings written by hand (not in the CSV) get the wrong
+  category.
 
 ### Spam detection model (B5)
 
@@ -745,7 +1053,7 @@ one per task. Their `PredictionEnginePool` registrations live in
   with SDCA logistic regression on all rows. Features: `Title` and `Description`
   through `FeaturizeText`, and `Price` split into bins (spam often has absurd prices,
   1 leu or tens of thousands). Label: `IsSpam`.
-- Metrics on the 20% hold-out (seed 42, all rows):
+- Metrics on the 15% hold-out (seed 2026, all rows):
 
   | Metric | Value |
   |---|---|
@@ -753,13 +1061,17 @@ one per task. Their `PredictionEnginePool` registrations live in
   | AUC | 1.000 |
   | F1 score | 1.000 |
 
-  As for the category model, the scores are this high because the dataset is synthetic.
+  Dataset v2 keeps spam distinctive enough (link-in-bio, WhatsApp, "castiga
+  500 lei") that the classifier still separates it cleanly from normal listings,
+  even with a third of spam disguised and a few normal listings carrying a
+  single spam-adjacent word.
 - The saved model (`ml/models/spam-detection.zip`) is loaded by the API through
   `PredictionEnginePool<SpamInput, SpamPrediction>`; `PublishListing` depends on
   `ISpamDetector` (in `Common/Moderation/`) and adds an automatic report when the
   model says spam (see [Moderation](#moderation)).
-- Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model on
-  the same split and fails if the AUC drops below 0.95 or the F1 score below 0.9, or
-  if four listings written by hand (two spam, two normal) are classified wrongly.
+- Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
+  on its own split (seed 42, 20%) and fails if the AUC drops below 0.95 or the
+  F1 score below 0.9, or if four listings written by hand (two spam, two normal)
+  are classified wrongly.
 
 ---

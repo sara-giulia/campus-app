@@ -58,6 +58,50 @@ public sealed class SuggestCategoryTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task Given_UnrelatedTitle_When_SuggestingCategory_Then_Returns200WithNullCategory()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var request = new SuggestCategoryRequest(
+            Title: "Banana",
+            Description: "Am de vandut o banana buna");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings/category-suggestion", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<SuggestCategoryResponse>(Json);
+        body!.Category.Should().BeNull();
+        body.Confidence.Should().BeLessThan(SuggestCategoryHandler.MinConfidence);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ConfidentNotesTitle_When_SuggestingCategory_Then_Returns200Notes()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var request = new SuggestCategoryRequest(Title: "Notite Analiza matematica, an I");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings/category-suggestion", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<SuggestCategoryResponse>(Json);
+        body!.Category.Should().Be(Category.Notes);
+        body.Confidence.Should().BeGreaterThanOrEqualTo(SuggestCategoryHandler.MinConfidence);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Given_NoToken_When_SuggestingCategory_Then_Returns401()
     {
         // Arrange

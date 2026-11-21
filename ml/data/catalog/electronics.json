@@ -1,0 +1,1555 @@
+{
+  "category": "Electronics",
+  "items": [
+    {
+      "id": "elec-laptop-thinkpad",
+      "titles": [
+        "Laptop Lenovo ThinkPad T480, i5 + 16GB RAM",
+        "ThinkPad X1 Carbon, 14 inch, SSD 512",
+        "LENOVO THINKPAD T490, business grade",
+        "Laptop Lenovo ThinkPad, i7, 16GB, SSD NVMe",
+        "Laptop ThinkPad L480, impecabil",
+        "Lenovo ThinkPad T460, second hand office",
+        "Laptop Lenovo ThinkPad, display FHD, 14 inch",
+        "ThinkPad T470, i5 gen 7, 8GB, SSD 256"
+      ],
+      "descriptions": [
+        "Laptop folosit la cursuri, bateria tine 4 ore.",
+        "Fara zgarieturi majore, functioneaza perfect.",
+        "Windows 11 preinstalat, actualizat.",
+        "Vine cu incarcator original si husa.",
+        "Ideal pentru proiecte de facultate si Visual Studio.",
+        "Tastatura iluminata, trackpoint functioneaza.",
+        "Baterie noua montata acum 2 luni.",
+        "Fara pixeli morti, display IPS clar."
+      ],
+      "priceMin": 1800,
+      "priceMax": 4500
+    },
+    {
+      "id": "elec-laptop-asus",
+      "titles": [
+        "Laptop ASUS VivoBook, i3, 8GB RAM",
+        "ASUS Zenbook 14, ultrabook, i5",
+        "LAPTOP ASUS TUF Gaming, GTX 1650",
+        "Laptop Asus VivoBook S14, SSD 512",
+        "Asus Zenbook 13, UX333, ca nou",
+        "ASUS X515, laptop pentru facultate",
+        "Laptop ASUS ROG Strix, pentru gaming",
+        "ASUS Chromebook Flip, 2 in 1"
+      ],
+      "descriptions": [
+        "Laptop folosit cu grija, fara defecte.",
+        "Windows 11 Home, licenta activata.",
+        "Vine cu incarcator original.",
+        "Perfect pentru teme si proiecte.",
+        "Display Full HD, culori vii.",
+        "Baterie tine 5 ore, am masurat.",
+        "Carcasa fara zgarieturi majore.",
+        "Tastatura cu numpad separat."
+      ],
+      "priceMin": 1500,
+      "priceMax": 4200
+    },
+    {
+      "id": "elec-laptop-dell",
+      "titles": [
+        "Laptop Dell Latitude 5490, i7, 16GB RAM",
+        "Dell XPS 13, ultrabook premium",
+        "DELL INSPIRON 15, pentru studenti",
+        "Laptop Dell Latitude E7470, business",
+        "Dell XPS 15, display OLED, pentru design",
+        "Laptop DELL VOSTRO, i5, 8GB RAM",
+        "Dell G5 Gaming, GTX 1660, 16GB",
+        "Dell Latitude 7490, second hand office"
+      ],
+      "descriptions": [
+        "Laptop folosit la lucru, in stare foarte buna.",
+        "Merge foarte bine, are incarcator original.",
+        "Windows 11 Pro, licenta activata.",
+        "Vine cu geanta Dell originala.",
+        "Display Full HD IPS, mat.",
+        "Baterie noua, tine 6 ore.",
+        "Carcasa din aluminiu, fara zgarieturi.",
+        "SSD NVMe rapid, 512GB."
+      ],
+      "priceMin": 1700,
+      "priceMax": 4800
+    },
+    {
+      "id": "elec-laptop-hp",
+      "titles": [
+        "Laptop HP Pavilion 15, Ryzen 5",
+        "HP ProBook 450, business, 16GB",
+        "HP OMEN Gaming, GTX 1660 Ti",
+        "Laptop HP EliteBook 840, i7 gen 10",
+        "HP Pavilion x360, 2 in 1 touchscreen",
+        "LAPTOP HP 250 G7, pentru studenti",
+        "HP ZBook Studio, workstation, i9",
+        "HP Envy 13, ultrabook aluminium"
+      ],
+      "descriptions": [
+        "Laptop folosit la facultate, in stare buna.",
+        "Windows 11 Home, licenta activata.",
+        "Vine cu incarcator original.",
+        "Perfect pentru teme si proiecte.",
+        "Display Full HD IPS, culori frumoase.",
+        "Baterie tine 4 ore, am masurat.",
+        "Carcasa fara zgarieturi majore.",
+        "SSD NVMe rapid, 512GB."
+      ],
+      "priceMin": 1500,
+      "priceMax": 4500
+    },
+    {
+      "id": "elec-laptop-macbook",
+      "titles": [
+        "Apple MacBook Air M1, 8GB RAM, 256 SSD",
+        "MacBook Pro 13 M2, 16GB, 512 SSD",
+        "MACBOOK AIR 2020, M1, pentru studenti",
+        "MacBook Pro 15 inch, intel i7, 2018",
+        "Apple MacBook Air 2017, i5, SSD 128",
+        "MacBook Pro 14 M1 Pro, 16GB, 512",
+        "Apple MacBook Air M2, impecabil",
+        "MacBook Pro 13 2020, Touch Bar"
+      ],
+      "descriptions": [
+        "MacBook folosit cu grija, baterie foarte buna.",
+        "macOS Ventura, actualizat la zi.",
+        "Vine cu incarcator original Apple.",
+        "Fara zgarieturi, din casa de nefumatori.",
+        "Baterie tine 10 ore, am masurat.",
+        "Perfect pentru design si programare.",
+        "Resetat la setari din fabrica, gata de folosit.",
+        "Carcasa din aluminiu, fara urme."
+      ],
+      "priceMin": 2500,
+      "priceMax": 7500
+    },
+    {
+      "id": "elec-laptop-gaming",
+      "titles": [
+        "Laptop Gaming MSI GF63, GTX 1650",
+        "Acer Nitro 5 Gaming, Ryzen 5, RTX 3050",
+        "LAPTOP GAMING ASUS ROG, RTX 3060",
+        "Laptop gaming Lenovo Legion 5",
+        "MSI Katana 15, RTX 4060, i7",
+        "LAPTOP GAMING HP OMEN, 16GB RAM",
+        "Dell G15 Gaming, RTX 3060, SSD 1TB",
+        "Gigabyte Aorus 15P, RTX 3070"
+      ],
+      "descriptions": [
+        "Laptop gaming folosit un an, fara probleme.",
+        "Windows 11, licenta activata.",
+        "Vine cu incarcator original.",
+        "Perfect pentru jocuri AAA si rendering.",
+        "Display 144Hz, culori vii.",
+        "Racire eficienta, nu se supraincalzeste.",
+        "Baterie tine 3 ore la folosire grea.",
+        "Tastatura RGB, iluminare functioneaza."
+      ],
+      "priceMin": 2500,
+      "priceMax": 6500
+    },
+    {
+      "id": "elec-laptop-ideapad",
+      "titles": [
+        "Lenovo IdeaPad 3, Ryzen 5, 8GB RAM",
+        "Lenovo IdeaPad Slim 5, i7, 16GB",
+        "IDEAPAD 5 PRO, 2.5K OLED display",
+        "Lenovo IdeaPad Gaming 3, GTX 1650",
+        "Lenovo IdeaPad Flex 5, 2 in 1",
+        "LENOVO IDEAPAD, laptop studenti",
+        "Lenovo IdeaPad 320, buget redus",
+        "IdeaPad 5, SSD 512, pentru facultate"
+      ],
+      "descriptions": [
+        "Laptop folosit la facultate, in stare buna.",
+        "Windows 11 Home, licenta activata.",
+        "Vine cu incarcator original.",
+        "Perfect pentru teme si proiecte.",
+        "Display Full HD, culori frumoase.",
+        "Baterie tine 5 ore, am masurat.",
+        "Carcasa fara zgarieturi majore.",
+        "SSD NVMe rapid, 512GB."
+      ],
+      "priceMin": 1200,
+      "priceMax": 3800
+    },
+    {
+      "id": "elec-laptop-acer",
+      "titles": [
+        "Acer Aspire 5, i5 gen 11, 8GB",
+        "Acer Swift 3, ultrabook, Ryzen 7",
+        "ACER NITRO 5, GTX 1650, gaming",
+        "Laptop Acer Travelmate P2, business",
+        "Acer Aspire 7 Gaming, i7, 16GB",
+        "Acer Chromebook Spin 311, 2 in 1",
+        "Acer Predator Helios 300, RTX 3060",
+        "Laptop Acer Aspire 3, pentru studenti"
+      ],
+      "descriptions": [
+        "Laptop folosit cu grija, fara defecte.",
+        "Windows 11 Home, licenta activata.",
+        "Vine cu incarcator original.",
+        "Perfect pentru teme si proiecte.",
+        "Display Full HD IPS, antireflex.",
+        "Baterie tine 5 ore, am masurat.",
+        "Carcasa fara zgarieturi majore.",
+        "SSD 256GB rapid."
+      ],
+      "priceMin": 1300,
+      "priceMax": 3500
+    },
+    {
+      "id": "elec-tablet-ipad",
+      "titles": [
+        "Apple iPad 10, 64GB, WiFi",
+        "iPad Air 5, M1, 256GB, impecabil",
+        "APPLE IPAD PRO 11 inch, M2, 128GB",
+        "iPad Mini 6, 64GB, cellular",
+        "iPad Pro 12.9 inch, cu Apple Pencil 2",
+        "IPAD 9TH GEN, 64GB, pentru scoala",
+        "iPad Air 4, 256GB, Space Gray",
+        "Apple iPad 8, 32GB, perfect pentru scoala"
+      ],
+      "descriptions": [
+        "iPad folosit cu grija, baterie foarte buna.",
+        "iPadOS 17, actualizat la zi.",
+        "Vine cu incarcator original Apple.",
+        "Fara zgarieturi, folie protectie aplicata.",
+        "Perfect pentru notite si desen.",
+        "Compatibil cu Apple Pencil (nu e inclus).",
+        "Resetat la setari din fabrica.",
+        "Carcasa din aluminiu, fara urme."
+      ],
+      "priceMin": 1200,
+      "priceMax": 4500
+    },
+    {
+      "id": "elec-tablet-android",
+      "titles": [
+        "Samsung Galaxy Tab A8, 32GB",
+        "Lenovo Tab M10 Plus, 64GB",
+        "SAMSUNG TAB S7 FE, 128GB",
+        "Xiaomi Pad 5, 128GB, display 2.5K",
+        "Samsung Galaxy Tab S6 Lite, cu S Pen",
+        "Lenovo Tab P11, 128GB, cu touchpen",
+        "Samsung Galaxy Tab A7, 32GB, pentru copii",
+        "Xiaomi Redmi Pad, 128GB, display mare"
+      ],
+      "descriptions": [
+        "Tableta folosita cu grija, bateria tine mult.",
+        "Android 13, actualizata la zi.",
+        "Vine cu incarcator original.",
+        "Perfect pentru notite si filme.",
+        "Fara zgarieturi, folie protectie aplicata.",
+        "Resetata la setari din fabrica.",
+        "Display Full HD, culori vii.",
+        "Carcasa fara urme."
+      ],
+      "priceMin": 400,
+      "priceMax": 1800
+    },
+    {
+      "id": "elec-tablet-wacom",
+      "titles": [
+        "Tableta grafica Wacom Intuos S",
+        "Wacom Intuos Pro M, pentru design",
+        "WACOM CTL-472, pentru desen digital",
+        "Wacom One, tableta pentru studenti",
+        "Wacom Cintiq 16 HD, cu ecran",
+        "Tableta grafica Wacom Intuos CTH-490",
+        "Wacom Bamboo, pentru notite si desen",
+        "Wacom Intuos Pro S, pentru ilustrare"
+      ],
+      "descriptions": [
+        "Tableta folosita pentru teme de design.",
+        "Vine cu stiloul original si cablu USB.",
+        "Nu are zgarieturi majore.",
+        "Perfect pentru Photoshop si Illustrator.",
+        "Driver-ul se instaleaza usor pe Windows.",
+        "Suprafata placuta la atins, fara urme.",
+        "Vine cu software licentiat Wacom.",
+        "Am folosit-o la licenta de grafica."
+      ],
+      "priceMin": 500,
+      "priceMax": 1800
+    },
+    {
+      "id": "elec-ebook-kindle",
+      "titles": [
+        "Kindle Paperwhite 11, 16GB, waterproof",
+        "AMAZON KINDLE 10th gen, 8GB",
+        "Kindle Oasis, 32GB, cu buton fizic",
+        "Kindle Paperwhite 10, 8GB, pentru citit",
+        "Amazon Kindle Scribe, 16GB, cu pen",
+        "Kindle Basic 11, 8GB, pentru facultate",
+        "Kindle Paperwhite 7, folosit",
+        "Amazon Kindle Oasis 2, 32GB, premium"
+      ],
+      "descriptions": [
+        "Kindle in stare foarte buna, folosit cu husa.",
+        "Baterie tine saptamani intregi.",
+        "Vine cu cablu USB-C si husa cadou.",
+        "Perfect pentru citit la facultate.",
+        "Peste 50 de carti incarcate, cadou.",
+        "Ecran E-Ink, nu oboseste ochii.",
+        "Fara zgarieturi pe ecran.",
+        "Resetat la setari din fabrica."
+      ],
+      "priceMin": 300,
+      "priceMax": 700
+    },
+    {
+      "id": "elec-phone-iphone-se",
+      "titles": [
+        "iPhone SE 2020, 64GB, baterie buna",
+        "APPLE IPHONE SE 2022, 128GB",
+        "iPhone SE 2 generatie, 64GB, perfect functional",
+        "iPhone SE 2020, 128GB, Red Edition",
+        "iPhone SE 2022, 5G, 64GB, impecabil",
+        "iPhone SE, 128GB, Black, ca nou",
+        "iPhone SE 3rd gen, 64GB, sigilat",
+        "Apple iPhone SE 2020, cu accesorii"
+      ],
+      "descriptions": [
+        "Telefon folosit cu grija, fara zgarieturi.",
+        "Bateria tine o zi, 85% capacitate.",
+        "Vine cu incarcator original Apple.",
+        "Resetat la setari din fabrica.",
+        "iCloud scos, gata de folosit.",
+        "Folie sticla aplicata de la inceput.",
+        "Perfect pentru facultate, suficient de rapid.",
+        "Face ID nu, dar are Touch ID."
+      ],
+      "priceMin": 600,
+      "priceMax": 2000
+    },
+    {
+      "id": "elec-phone-iphone-12",
+      "titles": [
+        "iPhone 12, 128GB, ca nou",
+        "APPLE IPHONE 12 MINI, 64GB",
+        "iPhone 12 Pro, 256GB, Pacific Blue",
+        "iPhone 12, 64GB, White, impecabil",
+        "iPhone 12 Pro Max, 128GB, Graphite",
+        "Apple iPhone 12, 128GB, Purple",
+        "iPhone 12 mini, 128GB, Red",
+        "iPhone 12, 256GB, display OLED"
+      ],
+      "descriptions": [
+        "iPhone folosit cu grija, fara zgarieturi.",
+        "Bateria tine o zi, 82% capacitate.",
+        "Vine cu incarcator original Apple.",
+        "Resetat la setari din fabrica.",
+        "iCloud scos, gata de folosit.",
+        "Folie sticla aplicata de la inceput.",
+        "Face ID functioneaza impecabil.",
+        "Camera triplă, calitate premium."
+      ],
+      "priceMin": 1500,
+      "priceMax": 3800
+    },
+    {
+      "id": "elec-phone-samsung-a52",
+      "titles": [
+        "Samsung Galaxy A52, 128GB",
+        "SAMSUNG A52 5G, 128GB, dual sim",
+        "Galaxy A52s, 128GB, Awesome Black",
+        "Samsung Galaxy A52, 256GB, White",
+        "Samsung A52 5G, 128GB, Awesome Violet",
+        "Galaxy A52 4G, 128GB, dual SIM, impecabil",
+        "Samsung Galaxy A52s 5G, 256GB, Mint",
+        "Samsung A52, 128GB, cu folie sticla aplicata"
+      ],
+      "descriptions": [
+        "Telefon folosit cu grija, fara zgarieturi.",
+        "Bateria tine o zi intreaga de utilizare.",
+        "Vine cu incarcator si folie sticla.",
+        "Resetat la setari din fabrica.",
+        "Android 13 actualizat.",
+        "Perfect pentru facultate.",
+        "Camera principala foarte buna.",
+        "Display Super AMOLED, culori vii."
+      ],
+      "priceMin": 700,
+      "priceMax": 1800
+    },
+    {
+      "id": "elec-phone-samsung-s21",
+      "titles": [
+        "Samsung Galaxy S21, 128GB, Phantom Gray",
+        "SAMSUNG GALAXY S21 5G, 256GB",
+        "Galaxy S21+ 5G, 128GB, Phantom Silver",
+        "Samsung S21 Ultra, 256GB, Phantom Black",
+        "Samsung Galaxy S21 FE, 128GB, Olive",
+        "Galaxy S21 5G, 128GB, Phantom White",
+        "Samsung S21 Ultra 5G, 512GB",
+        "Galaxy S21 FE, 256GB, Phantom Gray"
+      ],
+      "descriptions": [
+        "Telefon folosit cu grija, fara zgarieturi.",
+        "Bateria tine o zi, in stare foarte buna.",
+        "Vine cu incarcator si folie sticla.",
+        "Resetat la setari din fabrica.",
+        "Android 14 actualizat.",
+        "Camera principala premium.",
+        "Display AMOLED 120Hz, culori vii.",
+        "Perfect pentru fotografie si jocuri."
+      ],
+      "priceMin": 1500,
+      "priceMax": 3500
+    },
+    {
+      "id": "elec-phone-xiaomi",
+      "titles": [
+        "Xiaomi Redmi Note 11, 128GB, dual sim",
+        "XIAOMI REDMI 10, 64GB",
+        "Xiaomi Mi 11 Lite 5G, 128GB",
+        "Xiaomi Redmi Note 12 Pro, 256GB",
+        "Xiaomi Poco X5 Pro, 256GB, 5G",
+        "Redmi Note 10 Pro, 128GB, Blue",
+        "Xiaomi 12 Pro, 256GB, premium",
+        "Xiaomi Mi Note 10, 128GB, camera 108MP"
+      ],
+      "descriptions": [
+        "Telefon folosit cu grija, fara zgarieturi.",
+        "Bateria tine mai mult de o zi.",
+        "Vine cu incarcator si folie sticla.",
+        "Resetat la setari din fabrica.",
+        "MIUI 14 actualizat.",
+        "Perfect pentru facultate si jocuri.",
+        "Camera 108MP, calitate buna.",
+        "Display AMOLED, culori vii."
+      ],
+      "priceMin": 500,
+      "priceMax": 1500
+    },
+    {
+      "id": "elec-phone-huawei",
+      "titles": [
+        "Huawei P30 lite, 128GB, Blue",
+        "HUAWEI P SMART 2021, 128GB",
+        "Huawei Mate 20 Pro, 128GB",
+        "Huawei P40 Lite, 128GB, Green",
+        "Huawei Nova 9, 128GB, dual sim",
+        "Huawei P30 Pro, 256GB, Breathing Crystal",
+        "Huawei Y7 2019, 64GB, pentru BAC",
+        "Huawei P20 Lite, 64GB, perfect functional"
+      ],
+      "descriptions": [
+        "Telefon folosit cu grija, fara zgarieturi.",
+        "Bateria tine o zi intreaga de utilizare.",
+        "Vine cu incarcator si folie sticla.",
+        "Resetat la setari din fabrica.",
+        "Camera principala foarte buna.",
+        "Display AMOLED, culori vii.",
+        "Perfect pentru facultate.",
+        "Nu are Google Play Store (dupa 2019)."
+      ],
+      "priceMin": 400,
+      "priceMax": 1200
+    },
+    {
+      "id": "elec-phone-oneplus",
+      "titles": [
+        "OnePlus Nord 2T 5G, 128GB",
+        "OnePlus 9, 128GB, Astral Black",
+        "ONEPLUS 10T, 256GB, 5G",
+        "OnePlus Nord CE 3 Lite, 128GB",
+        "OnePlus 8T, 256GB, Lunar Silver",
+        "OnePlus Nord 3 5G, 256GB, Mysty Green",
+        "OnePlus 7T Pro, 256GB, McLaren Edition",
+        "OnePlus Nord CE 2, 128GB, Gray Mirror"
+      ],
+      "descriptions": [
+        "Telefon folosit cu grija, fara zgarieturi.",
+        "Bateria tine o zi, 90% capacitate.",
+        "Vine cu incarcator rapid original.",
+        "Resetat la setari din fabrica.",
+        "OxygenOS 13 actualizat.",
+        "Perfect pentru gaming si poze.",
+        "Display AMOLED 90Hz.",
+        "Camera dubla, foarte buna."
+      ],
+      "priceMin": 800,
+      "priceMax": 2500
+    },
+    {
+      "id": "elec-smartwatch-apple",
+      "titles": [
+        "Apple Watch Series 7, 45mm, GPS",
+        "APPLE WATCH SE 2 GEN, 44mm",
+        "Apple Watch Series 8, 41mm, Midnight",
+        "Apple Watch Ultra, Titanium",
+        "Apple Watch Series 6, 44mm, cu curea",
+        "Apple Watch SE, 40mm, Space Gray",
+        "Apple Watch Series 9, GPS, 45mm",
+        "Apple Watch Nike Series 7, 41mm"
+      ],
+      "descriptions": [
+        "Smartwatch folosit cu grija, fara zgarieturi.",
+        "Baterie noua, tine toata ziua.",
+        "Vine cu incarcator original Apple.",
+        "Perfect pentru fitness si notificari.",
+        "Resetat la setari din fabrica.",
+        "watchOS 10 actualizat.",
+        "Compatibil cu iPhone 8 sau mai nou.",
+        "Include cureaua originala si folie."
+      ],
+      "priceMin": 800,
+      "priceMax": 3500
+    },
+    {
+      "id": "elec-smartwatch-samsung",
+      "titles": [
+        "Samsung Galaxy Watch 4, 44mm",
+        "SAMSUNG GALAXY WATCH 5 PRO, 45mm",
+        "Samsung Galaxy Watch Active 2, 40mm",
+        "Samsung Galaxy Watch 6, 44mm, Graphite",
+        "Samsung Watch 5, 44mm, LTE",
+        "Galaxy Watch 4 Classic, 46mm, Silver",
+        "Samsung Galaxy Watch 3, 45mm, cu GPS",
+        "Galaxy Watch Active, 40mm, rose gold"
+      ],
+      "descriptions": [
+        "Smartwatch folosit cu grija, fara zgarieturi.",
+        "Baterie tine 2 zile, in stare buna.",
+        "Vine cu incarcator original.",
+        "Perfect pentru fitness si notificari.",
+        "Resetat la setari din fabrica.",
+        "Wear OS 4 actualizat.",
+        "Monitor SpO2 si EKG.",
+        "Compatibil cu Android si iPhone."
+      ],
+      "priceMin": 500,
+      "priceMax": 2200
+    },
+    {
+      "id": "elec-smartwatch-garmin",
+      "titles": [
+        "Garmin Forerunner 245, pentru alergat",
+        "GARMIN VENU 2, display AMOLED",
+        "Garmin Fenix 7, premium outdoor",
+        "Garmin Forerunner 55, baterie 2 saptamani",
+        "Garmin Instinct, military grade",
+        "Garmin Venu Sq, buget redus",
+        "Garmin Fenix 6 Pro, titanium",
+        "Garmin Forerunner 745, triatlon"
+      ],
+      "descriptions": [
+        "Smartwatch folosit la antrenamente, fara defecte.",
+        "Baterie tine 2 saptamani, stare foarte buna.",
+        "Vine cu incarcator original Garmin.",
+        "Perfect pentru atletism si outdoor.",
+        "Resetat la setari din fabrica.",
+        "GPS precis, sincronizare rapida.",
+        "Include cureaua originala si folie.",
+        "Compatibil cu Garmin Connect."
+      ],
+      "priceMin": 600,
+      "priceMax": 2500
+    },
+    {
+      "id": "elec-headphones-bluetooth",
+      "titles": [
+        "Casti Bluetooth Sony WH-CH510",
+        "Sony WH-1000XM4, anulare zgomot",
+        "CASTI BOSE QC35 II, premium",
+        "JBL Tune 760NC, ANC activa",
+        "Casti Bluetooth Sennheiser HD 450BT",
+        "Sony WH-1000XM5, flagship ANC",
+        "Audio-Technica M50x BT, wireless",
+        "Casti wireless Marshall Major IV"
+      ],
+      "descriptions": [
+        "Casti folosite pentru cursuri online.",
+        "Vin cu cutie si cablu de incarcare.",
+        "Pernute foarte comode, se poarta mult.",
+        "Fara zgarieturi, functioneaza perfect.",
+        "Microfonul se aude clar la Zoom.",
+        "Baterie tine 30 de ore.",
+        "Perfect pentru calatorii si facultate.",
+        "Vine cu husa de transport."
+      ],
+      "priceMin": 200,
+      "priceMax": 900
+    },
+    {
+      "id": "elec-headphones-wired",
+      "titles": [
+        "Casti studio Audio-Technica M40x",
+        "Sennheiser HD 599, open back",
+        "CASTI AKG K240 STUDIO, pentru mixing",
+        "Casti Shure SRH440, closed back",
+        "Casti studio Beyerdynamic DT 770 Pro",
+        "Casti Audio-Technica ATH-M50x",
+        "Casti HD 25-1 II, DJ grade",
+        "AKG K371, studio reference"
+      ],
+      "descriptions": [
+        "Casti folosite pentru mixing si mastering.",
+        "Vin cu cablu detasabil original.",
+        "Pernute foarte comode, se poarta mult.",
+        "Fara zgarieturi, functioneaza perfect.",
+        "Sunet neutru, perfect pentru producti.",
+        "Carcasa pliabila, usor de carat.",
+        "Perfect pentru studio si gaming.",
+        "Vine cu adaptor jack 3.5 la 6.35."
+      ],
+      "priceMin": 100,
+      "priceMax": 400
+    },
+    {
+      "id": "elec-earbuds-airpods",
+      "titles": [
+        "Apple AirPods 2 Generation",
+        "APPLE AIRPODS PRO 2 Gen, USB-C",
+        "AirPods Pro 1, cu anulare zgomot",
+        "AirPods Max, in orice culoare",
+        "Apple AirPods 3, Lightning",
+        "AirPods Pro 2, MagSafe charging",
+        "Apple AirPods 2 cu cutie wireless",
+        "AirPods Max, Space Gray, impecabil"
+      ],
+      "descriptions": [
+        "AirPods folositi cu grija, fara zgarieturi.",
+        "Baterie tine 5 ore, 90% capacitate.",
+        "Vin cu cutia originala, impecabila.",
+        "Resetati la setari din fabrica.",
+        "Compatibil cu iPhone, iPad, Mac.",
+        "Include cablu Lightning original.",
+        "Microfoanele se aud clar la call-uri.",
+        "Vand pentru ca am luat alte casti."
+      ],
+      "priceMin": 400,
+      "priceMax": 1500
+    },
+    {
+      "id": "elec-earbuds-sony",
+      "titles": [
+        "Sony WF-1000XM4, anulare zgomot",
+        "Sony Linkbuds S, confortabile",
+        "SONY WF-C500, buget redus",
+        "Sony WF-1000XM5, flagship earbuds",
+        "Sony WF-SP800N, sport earbuds",
+        "Casti Sony WI-C310, wireless neckband",
+        "Sony WF-C700N, cu ANC",
+        "Sony WF-H800, hi-res audio"
+      ],
+      "descriptions": [
+        "Earbuds folositi cu grija, fara defecte.",
+        "Baterie tine 6 ore, in stare buna.",
+        "Vin cu cutia originala si cablu USB-C.",
+        "Resetati la setari din fabrica.",
+        "Compatibil Android si iOS.",
+        "Include varfuri de silicon de rezerva.",
+        "Perfect pentru alergat si cursuri.",
+        "Microfoanele se aud clar la Zoom."
+      ],
+      "priceMin": 300,
+      "priceMax": 1200
+    },
+    {
+      "id": "elec-headphones-gaming",
+      "titles": [
+        "Casti gaming HyperX Cloud II",
+        "Logitech G Pro X, gaming headset",
+        "CASTI GAMING RAZER KRAKEN X",
+        "Casti SteelSeries Arctis 7, wireless",
+        "HyperX Cloud Alpha S, surround 7.1",
+        "Casti JBL Quantum 200, cu microfon",
+        "ASUS ROG Delta S, gaming headset USB-C",
+        "Casti Corsair HS70, cu microfon detasabil"
+      ],
+      "descriptions": [
+        "Casti folosite pentru gaming si cursuri.",
+        "Vin cu cutia originala si cablu.",
+        "Pernute foarte comode, se poarta mult.",
+        "Fara zgarieturi, functioneaza perfect.",
+        "Microfonul se aude clar in Discord.",
+        "Carcasa rezistenta, cu RGB.",
+        "Sunet surround virtual 7.1.",
+        "Vine cu software pentru PC."
+      ],
+      "priceMin": 150,
+      "priceMax": 800
+    },
+    {
+      "id": "elec-speakers-bluetooth",
+      "titles": [
+        "Boxa Bluetooth JBL Flip 5",
+        "JBL Go 3, boxa portabila",
+        "BOXA BLUETOOTH SONY SRS-XB13",
+        "Boxa Bose SoundLink Mini II",
+        "JBL Charge 5, Bluetooth, waterproof",
+        "Anker Soundcore 2, Bluetooth",
+        "Boxa Marshall Emberton II",
+        "JBL Xtreme 3, cu sunet 360"
+      ],
+      "descriptions": [
+        "Boxa folosita doar la petreceri si camin.",
+        "Vine cu cablu USB-C si manual.",
+        "Sunet puternic si clar.",
+        "Fara zgarieturi, carcasa intacta.",
+        "Baterie tine 12 ore.",
+        "Rezistenta la stropi de apa.",
+        "Se conecteaza rapid la telefon.",
+        "Perfect pentru camin si excursii."
+      ],
+      "priceMin": 80,
+      "priceMax": 500
+    },
+    {
+      "id": "elec-microphone-usb",
+      "titles": [
+        "Microfon USB Blue Yeti Nano",
+        "Blue Yeti, condensator USB",
+        "MICROFON HYPERX QUADCAST S",
+        "Rode NT-USB Mini, pentru streaming",
+        "Elgato Wave 3, microfon USB",
+        "FIFINE K688, microfon dynamic USB",
+        "Shure MV7, hybrid USB/XLR",
+        "Audio-Technica ATR2100x-USB"
+      ],
+      "descriptions": [
+        "Microfon folosit pentru streaming si Zoom.",
+        "Vine cu cablu USB original si manual.",
+        "Sunet cristal clear, fara zgomot.",
+        "Carcasa fara zgarieturi.",
+        "Include suport si popper filter.",
+        "Perfect pentru podcast si cursuri online.",
+        "Compatibil cu Windows, Mac, PS.",
+        "Vand pentru ca am luat unul mai bun."
+      ],
+      "priceMin": 150,
+      "priceMax": 700
+    },
+    {
+      "id": "elec-webcam-logitech",
+      "titles": [
+        "Webcam Logitech C920, Full HD",
+        "Logitech C922 Pro, streaming",
+        "WEBCAM LOGITECH BRIO 4K",
+        "Logitech C270, pentru cursuri online",
+        "Logitech StreamCam, USB-C",
+        "Webcam Microsoft LifeCam HD-3000",
+        "Razer Kiyo, cu ring light",
+        "Elgato Facecam MK.2"
+      ],
+      "descriptions": [
+        "Webcam folosit pentru Zoom si cursuri.",
+        "Vine cu cablu USB original.",
+        "Imagine clara la 1080p.",
+        "Microfon integrat, se aude bine.",
+        "Autofocus functioneaza impecabil.",
+        "Suport rotativ, se fixeaza pe monitor.",
+        "Perfect pentru facultate online.",
+        "Compatibil cu Windows si Mac."
+      ],
+      "priceMin": 150,
+      "priceMax": 600
+    },
+    {
+      "id": "elec-calculator-casio-991",
+      "titles": [
+        "Casio fx-991EX ClassWiz",
+        "Casio fx-991EX, pentru BAC/admitere",
+        "CALCULATOR CASIO FX 991EX, ca nou",
+        "Casio fx-991ES Plus, programabil",
+        "Calculator stiintific Casio fx-991",
+        "Casio fx-991EX, accepta la examene",
+        "Casio fx-991ES, pentru facultate",
+        "Casio fx-991EX C, versiune noua"
+      ],
+      "descriptions": [
+        "Calculator in stare perfecta, baterie plina.",
+        "Folosit un an la facultate.",
+        "Carcasa fara zgarieturi.",
+        "Include capacul original.",
+        "Acceptat la examenele de admitere si de licenta.",
+        "Perfect pentru matematica si fizica.",
+        "Afisaj clar si rapid.",
+        "Vine cu manual de utilizare."
+      ],
+      "priceMin": 90,
+      "priceMax": 170
+    },
+    {
+      "id": "elec-calculator-casio-82ms",
+      "titles": [
+        "Casio fx-82MS, stiintific de baza",
+        "CALCULATOR CASIO FX-82MS, pentru liceu",
+        "Casio fx-82MS, pentru facultate",
+        "Calculator Casio fx-82MS, cu capac",
+        "Casio fx-82MS, perfect pentru BAC",
+        "Casio fx-82ES Plus, pentru matematica",
+        "Calculator Casio FX-82MS, ca nou",
+        "Casio fx-82 Solar, functioneaza perfect"
+      ],
+      "descriptions": [
+        "Calculator folosit la facultate si liceu.",
+        "Functioneaza perfect, baterie buna.",
+        "Carcasa fara zgarieturi.",
+        "Include capacul original.",
+        "Perfect pentru matematica si fizica.",
+        "Acceptat la BAC si admitere.",
+        "Afisaj clar, inclusiv functii trigonometrice.",
+        "Vine cu manual de utilizare."
+      ],
+      "priceMin": 50,
+      "priceMax": 100
+    },
+    {
+      "id": "elec-calculator-ti-84",
+      "titles": [
+        "Texas Instruments TI-84 Plus CE",
+        "TI-84 Plus, pentru calcule avansate",
+        "CALCULATOR TI-84 PLUS CE, Color",
+        "Texas Instruments TI-83 Plus, pentru statistica",
+        "TI-84 Plus Silver Edition, pentru examen",
+        "TI-Nspire CX II, calculator grafic",
+        "Texas Instruments TI-89 Titanium",
+        "TI-84 Plus CE Python, cu baterie reincarcabila"
+      ],
+      "descriptions": [
+        "Calculator grafic in stare foarte buna.",
+        "Baterie reincarcabila, vine cu cablu USB.",
+        "Carcasa fara zgarieturi.",
+        "Include capacul original.",
+        "Perfect pentru statistica si calculus.",
+        "Acceptat la SAT si AP exams.",
+        "Afisaj clar color, grafice color.",
+        "Vine cu manual in engleza."
+      ],
+      "priceMin": 200,
+      "priceMax": 450
+    },
+    {
+      "id": "elec-monitor-24",
+      "titles": [
+        "Monitor 24 inch Full HD, HDMI + DP",
+        "Dell U2419H, IPS 24 inch",
+        "MONITOR DELL S2421HN, 24 inch IPS",
+        "Monitor Samsung 24 inch Full HD, 75Hz",
+        "LG 24MK600M, IPS Full HD",
+        "Monitor Philips 243V7QDSB, pentru office",
+        "Dell P2422H, 24 inch IPS 75Hz",
+        "Monitor BenQ GW2480, 24 inch, eye care"
+      ],
+      "descriptions": [
+        "Monitor folosit la laborator acasa, fara pixeli morti.",
+        "Vine cu cablu HDMI si stand original.",
+        "Imagine foarte buna, culori calibrate.",
+        "Ideal pentru programare si proiecte.",
+        "Carcasa putin zgariata in spate, fata e perfecta.",
+        "Reglaj inaltime, tilt si swivel.",
+        "Conectica: HDMI, DisplayPort, VGA.",
+        "Perfect pentru office si facultate."
+      ],
+      "priceMin": 400,
+      "priceMax": 1200
+    },
+    {
+      "id": "elec-monitor-27",
+      "titles": [
+        "Monitor LG 27 inch IPS, pentru programare",
+        "Dell U2722DE, 27 inch QHD IPS",
+        "MONITOR SAMSUNG 27 INCH 2K",
+        "Monitor BenQ PD2700U, 4K pentru design",
+        "LG 27UL500, 4K IPS, HDR10",
+        "Monitor ASUS ProArt PA278QV, design",
+        "Dell S2722QC, 27 inch 4K USB-C",
+        "LG 27GP850, 27 inch 1440p 165Hz"
+      ],
+      "descriptions": [
+        "Monitor folosit la programare si gaming.",
+        "Vine cu cablu HDMI si stand original.",
+        "Imagine 4K/QHD, culori calibrate.",
+        "Ideal pentru design si programare.",
+        "Carcasa fara zgarieturi.",
+        "Reglaj inaltime, tilt, swivel si pivot.",
+        "Conectica: HDMI, DP, USB-C.",
+        "Perfect pentru editare foto si video."
+      ],
+      "priceMin": 600,
+      "priceMax": 1800
+    },
+    {
+      "id": "elec-monitor-gaming",
+      "titles": [
+        "Monitor Gaming 27 inch 144Hz",
+        "ASUS TUF VG27AQ, 1440p 165Hz",
+        "MONITOR GAMING CURBAT MSI 27 INCH",
+        "Samsung Odyssey G5, 32 inch QHD 144Hz",
+        "LG UltraGear 27GP750, 240Hz IPS",
+        "AOC C27G2, curbat 165Hz",
+        "Monitor Dell S2722DGM, 32 inch QHD",
+        "Gigabyte M27Q, 1440p 170Hz IPS"
+      ],
+      "descriptions": [
+        "Monitor gaming folosit un an, fara defecte.",
+        "Vine cu cablu DP si stand original.",
+        "144Hz si 1ms, perfect pentru FPS.",
+        "G-Sync si FreeSync compatibil.",
+        "Carcasa fara zgarieturi.",
+        "Reglaj inaltime, tilt si pivot.",
+        "RGB subtil pe spate.",
+        "Perfect pentru gaming competitiv."
+      ],
+      "priceMin": 800,
+      "priceMax": 2500
+    },
+    {
+      "id": "elec-keyboard-mecanica",
+      "titles": [
+        "Tastatura mecanica Keychron K2, red switches",
+        "Logitech G Pro X, swap switches",
+        "TASTATURA RAZER HUNTSMAN ELITE",
+        "Corsair K70 RGB MK.2, Cherry MX Red",
+        "Tastatura SteelSeries Apex Pro",
+        "Keychron K8, hot-swappable",
+        "Ducky One 3, Cherry MX Brown",
+        "ASUS ROG Strix Flare II Animate"
+      ],
+      "descriptions": [
+        "Tastatura folosita 6 luni, taste perfecte.",
+        "RGB-ul functioneaza, se configureaza din software.",
+        "Vine cu cablu USB-C detasabil.",
+        "Switch-urile sunt silentioase, scurte.",
+        "Fara defecte, totul merge perfect.",
+        "Carcasa din aluminiu, premium.",
+        "Keycaps PBT, nu se decoloreaza.",
+        "Vand pentru ca am luat alta tastatura."
+      ],
+      "priceMin": 200,
+      "priceMax": 800
+    },
+    {
+      "id": "elec-keyboard-wireless",
+      "titles": [
+        "Tastatura Logitech MX Keys wireless",
+        "Logitech K380, multi-device",
+        "TASTATURA APPLE MAGIC KEYBOARD",
+        "Microsoft Surface Keyboard, Bluetooth",
+        "Logitech MX Keys Mini, pentru laptop",
+        "Keychron K3, wireless mecanica slim",
+        "Tastatura Logitech K270, cordless",
+        "Logitech K845, mecanica cu dongle"
+      ],
+      "descriptions": [
+        "Tastatura folosita pentru facultate si lucru.",
+        "Baterie tine 2 luni, in stare buna.",
+        "Vine cu dongle USB si manual.",
+        "Conectare Bluetooth la 3 dispozitive.",
+        "Taste silentioase, confortabile.",
+        "Fara urme de folosire, ca noua.",
+        "Perfect pentru tastat volume mari.",
+        "Compatibil Windows, Mac, iPad."
+      ],
+      "priceMin": 100,
+      "priceMax": 400
+    },
+    {
+      "id": "elec-mouse-gaming",
+      "titles": [
+        "Mouse gaming Logitech G Pro Wireless",
+        "Razer DeathAdder V3 Pro, wireless",
+        "MOUSE GAMING LOGITECH G502 HERO",
+        "Corsair Dark Core RGB Pro SE",
+        "Mouse SteelSeries Rival 3 Wireless",
+        "Razer Viper Ultimate, wireless RGB",
+        "Glorious Model O Wireless, 69g",
+        "Logitech G305 LightSpeed, 240h baterie"
+      ],
+      "descriptions": [
+        "Mouse folosit pentru gaming competitiv, fara defecte.",
+        "Senzor precis, 25600 DPI.",
+        "Baterie tine 60 de ore.",
+        "Vine cu cablu USB pentru incarcare.",
+        "Carcasa fara zgarieturi.",
+        "Butoane programabile, se seteaza din software.",
+        "RGB subtil pe scroll si logo.",
+        "Perfect pentru FPS si MOBA."
+      ],
+      "priceMin": 150,
+      "priceMax": 600
+    },
+    {
+      "id": "elec-mouse-office",
+      "titles": [
+        "Mouse Logitech M185 wireless",
+        "Logitech MX Master 3, pentru office",
+        "MOUSE LOGITECH M705 Marathon",
+        "Microsoft Sculpt Ergonomic Mouse",
+        "Logitech MX Anywhere 3, portabil",
+        "Logitech M590 Multi-Device silent",
+        "Microsoft Surface Mouse, Bluetooth",
+        "Logitech M510, wireless office"
+      ],
+      "descriptions": [
+        "Mouse folosit pentru facultate si office.",
+        "Baterie tine 2 ani.",
+        "Vine cu dongle USB si manual.",
+        "Scroll silentios, confortabil.",
+        "Compatibil Windows, Mac, Linux.",
+        "Fara urme de folosire, ca nou.",
+        "Perfect pentru lucru indelungat.",
+        "Design ergonomic, incheiatura relaxata."
+      ],
+      "priceMin": 50,
+      "priceMax": 200
+    },
+    {
+      "id": "elec-mouse-vertical",
+      "titles": [
+        "Mouse vertical Logitech MX Vertical",
+        "ANKER MOUSE VERTICAL wireless",
+        "Mouse vertical Delux M618 Plus",
+        "Mouse vertical ergonomic Perixx",
+        "Mouse vertical Evoluent VerticalMouse 4",
+        "Trust Verto Wireless Vertical",
+        "Jelly Comb mouse vertical pentru stangaci",
+        "Mouse vertical Microsoft Sculpt"
+      ],
+      "descriptions": [
+        "Mouse folosit pentru a reduce durerile de incheietura.",
+        "Baterie tine 4 luni.",
+        "Vine cu dongle USB sau cablu.",
+        "Design ergonomic, foarte confortabil.",
+        "Scroll silentios, click-uri precise.",
+        "Fara urme de folosire, ca nou.",
+        "Perfect pentru lucru indelungat.",
+        "Compatibil Windows, Mac, Linux."
+      ],
+      "priceMin": 80,
+      "priceMax": 250
+    },
+    {
+      "id": "elec-cpu-intel",
+      "titles": [
+        "Procesor Intel Core i5-12400F",
+        "Intel Core i7-12700K, 12 generatie",
+        "CPU INTEL I5-10400F, LGA 1200",
+        "Intel i5-11400F, pentru gaming",
+        "Intel Core i7-11700K, 11 generatie",
+        "Intel i9-12900K, flagship LGA 1700",
+        "Procesor Intel Pentium G6400, buget",
+        "Intel i3-12100F, pentru PC entry level"
+      ],
+      "descriptions": [
+        "Procesor folosit un an, in stare perfecta.",
+        "Nu a facut overclock.",
+        "Vine cu cutia originala Intel.",
+        "Include cooler-ul original (unde se aplica).",
+        "Fara urme de folosire pe pinii socket.",
+        "Perfect pentru gaming si workstation.",
+        "Testat inainte de vanzare, functioneaza impecabil.",
+        "Vand pentru ca am facut upgrade."
+      ],
+      "priceMin": 400,
+      "priceMax": 1500
+    },
+    {
+      "id": "elec-cpu-amd",
+      "titles": [
+        "AMD Ryzen 5 5600X, 6C/12T",
+        "AMD Ryzen 7 5800X3D, cu cache 3D",
+        "CPU AMD RYZEN 5 3600, AM4",
+        "Ryzen 7 5700G, cu grafica integrata",
+        "AMD Ryzen 5 5500, pentru PC buget",
+        "AMD Ryzen 9 5900X, pentru workstation",
+        "Procesor AMD Ryzen 7 5800X",
+        "AMD Ryzen 5 7600X, socket AM5"
+      ],
+      "descriptions": [
+        "Procesor folosit un an, in stare perfecta.",
+        "Nu a facut overclock.",
+        "Vine cu cutia originala AMD.",
+        "Include cooler-ul Wraith (unde se aplica).",
+        "Fara urme de folosire.",
+        "Perfect pentru gaming si workstation.",
+        "Testat inainte de vanzare, functioneaza impecabil.",
+        "Vand pentru ca am facut upgrade."
+      ],
+      "priceMin": 400,
+      "priceMax": 1800
+    },
+    {
+      "id": "elec-gpu-nvidia",
+      "titles": [
+        "NVIDIA RTX 3060, 12GB, Gaming Trio",
+        "GPU GeForce RTX 3070, Founders Edition",
+        "RTX 3060 TI, Asus TUF Gaming",
+        "GeForce RTX 4060, Ventus 3X",
+        "MSI RTX 3080, SUPRIM X 10GB",
+        "Nvidia GeForce RTX 3070 Ti Gaming",
+        "Gigabyte RTX 3050, Eagle 8GB",
+        "Palit RTX 3060 Dual, 12GB GDDR6"
+      ],
+      "descriptions": [
+        "Placa video folosita un an, fara defecte.",
+        "Nu a facut mining.",
+        "Vine cu cutia originala si manuale.",
+        "Ventilatoarele sunt in stare perfecta.",
+        "Testata in Furmark 1 ora, stabila.",
+        "Perfect pentru gaming si rendering.",
+        "Fara urme de folosire pe conectori.",
+        "Vand pentru ca am facut upgrade."
+      ],
+      "priceMin": 800,
+      "priceMax": 3500
+    },
+    {
+      "id": "elec-gpu-amd",
+      "titles": [
+        "AMD Radeon RX 6600, 8GB",
+        "GPU RADEON RX 6700 XT, 12GB",
+        "RX 6800 XT, Sapphire Nitro+",
+        "Radeon RX 6500 XT, 4GB",
+        "AMD RX 7600, pentru 1080p",
+        "Radeon RX 6950 XT, flagship",
+        "Powercolor RX 6700 XT Red Devil",
+        "XFX Radeon RX 6800, Merc 319"
+      ],
+      "descriptions": [
+        "Placa video folosita un an, fara defecte.",
+        "Nu a facut mining.",
+        "Vine cu cutia originala si manuale.",
+        "Ventilatoarele sunt in stare perfecta.",
+        "Testata inainte de vanzare.",
+        "Perfect pentru gaming si rendering.",
+        "Fara urme de folosire pe conectori.",
+        "Vand pentru ca am facut upgrade."
+      ],
+      "priceMin": 700,
+      "priceMax": 2500
+    },
+    {
+      "id": "elec-ram-ddr4",
+      "titles": [
+        "Memorie Corsair Vengeance DDR4 16GB",
+        "RAM Kingston Fury 32GB DDR4 3200",
+        "MEMORIE G.SKILL Trident Z DDR4",
+        "Memorie RAM Crucial 16GB DDR4",
+        "Corsair Vengeance LPX DDR4 3600MHz",
+        "RAM Patriot Viper Steel DDR4 16GB",
+        "Kingston HyperX Fury DDR4 2x8GB",
+        "G.Skill Ripjaws V DDR4 16GB 3200MHz"
+      ],
+      "descriptions": [
+        "Memorii folosite un an, in stare perfecta.",
+        "Nu au facut overclock peste XMP.",
+        "Vin cu cutia originala.",
+        "Testate 24h cu MemTest, stabile.",
+        "Fara urme de folosire pe pinii DIMM.",
+        "Perfect pentru gaming si workstation.",
+        "Latencia CL16 sau mai mica.",
+        "Vand pentru ca am luat 32GB."
+      ],
+      "priceMin": 150,
+      "priceMax": 700
+    },
+    {
+      "id": "elec-ram-ddr5",
+      "titles": [
+        "Memorii G.Skill Trident Z5 DDR5 32GB",
+        "RAM Kingston Fury Beast DDR5 32GB",
+        "MEMORIE DDR5 CORSAIR Dominator",
+        "Corsair Vengeance DDR5 5600MHz",
+        "G.Skill Trident Z5 RGB 6000MHz",
+        "Kingston Fury Renegade DDR5 32GB",
+        "Teamgroup T-Force Delta DDR5 32GB",
+        "Crucial DDR5 16GB 4800MHz kit"
+      ],
+      "descriptions": [
+        "Memorii DDR5 folosite 6 luni, in stare perfecta.",
+        "Nu au facut overclock peste XMP.",
+        "Vin cu cutia originala.",
+        "Testate 24h cu MemTest, stabile.",
+        "Fara urme de folosire pe pinii DIMM.",
+        "Perfect pentru PC AM5 si LGA 1700.",
+        "Latencia CL30 sau mai mica.",
+        "Vand pentru ca am facut upgrade."
+      ],
+      "priceMin": 250,
+      "priceMax": 1200
+    },
+    {
+      "id": "elec-ssd-nvme",
+      "titles": [
+        "SSD NVMe Samsung 980 Pro 1TB",
+        "Western Digital SN850 1TB NVMe",
+        "SSD NVME CRUCIAL P3 1TB",
+        "Kingston NV2 1TB NVMe PCIe 4.0",
+        "SSD Samsung 970 EVO Plus 1TB",
+        "Sabrent Rocket 4 Plus 2TB NVMe",
+        "SSD WD Black SN770 1TB",
+        "Crucial T700 2TB NVMe PCIe 5.0"
+      ],
+      "descriptions": [
+        "SSD folosit un an, in stare perfecta.",
+        "Peste 85% TBW rezervat.",
+        "Vine cu cutia originala si manual.",
+        "Testat cu CrystalDiskInfo, 100% Health.",
+        "Fara urme de folosire.",
+        "Perfect pentru gaming si workstation.",
+        "Viteze de pana la 7000 MB/s.",
+        "Vand pentru ca am facut upgrade."
+      ],
+      "priceMin": 200,
+      "priceMax": 900
+    },
+    {
+      "id": "elec-ssd-sata",
+      "titles": [
+        "SSD SATA Samsung 870 EVO 500GB",
+        "Crucial MX500 1TB SATA",
+        "SSD SATA KINGSTON A400 1TB",
+        "Western Digital Blue 500GB SATA",
+        "SSD Samsung 860 EVO 1TB",
+        "Kingston KC2500 1TB SSD",
+        "Crucial BX500 1TB SATA",
+        "SanDisk Ultra 3D 1TB SATA"
+      ],
+      "descriptions": [
+        "SSD folosit un an, in stare perfecta.",
+        "Peste 90% TBW rezervat.",
+        "Vine cu cutia originala si surubul.",
+        "Testat cu CrystalDiskInfo, 100% Health.",
+        "Fara urme de folosire.",
+        "Perfect pentru upgrade de la HDD.",
+        "Viteze de 550 MB/s citire.",
+        "Vand pentru ca am facut upgrade la NVMe."
+      ],
+      "priceMin": 120,
+      "priceMax": 500
+    },
+    {
+      "id": "elec-hdd-external",
+      "titles": [
+        "HDD extern Western Digital 2TB",
+        "Seagate Expansion 4TB USB 3.0",
+        "HDD EXTERN LACIE 2TB, pentru backup",
+        "WD My Passport 4TB, USB 3.0",
+        "Seagate Backup Plus 2TB portable",
+        "Toshiba Canvio Basics 2TB",
+        "ADATA HD680 2TB, antisoc",
+        "Western Digital Elements 4TB"
+      ],
+      "descriptions": [
+        "HDD folosit un an, in stare perfecta.",
+        "Testat cu CrystalDiskInfo, sanatos 100%.",
+        "Vine cu cablul USB original.",
+        "Fara zgarieturi pe carcasa.",
+        "Perfect pentru backup si stocare.",
+        "Compatibil Windows, Mac, PS, Xbox.",
+        "Format NTFS sau exFAT.",
+        "Vand pentru ca am luat NAS."
+      ],
+      "priceMin": 200,
+      "priceMax": 700
+    },
+    {
+      "id": "elec-router-wifi",
+      "titles": [
+        "Router ASUS RT-AX55, WiFi 6",
+        "TP-Link Archer AX73, WiFi 6",
+        "ROUTER XIAOMI AX3000, mesh",
+        "TP-Link Archer C7, AC1750",
+        "Router ASUS RT-AX86U, gaming",
+        "Netgear Nighthawk RAX200, WiFi 6",
+        "Router Huawei WS5200, dual-band",
+        "ASUS ZenWiFi AX Mini, mesh system"
+      ],
+      "descriptions": [
+        "Router folosit la camin, in stare perfecta.",
+        "Vine cu cablul de alimentare.",
+        "Firmware actualizat la ultima versiune.",
+        "Fara zgarieturi, functioneaza perfect.",
+        "Semnal foarte bun, 100 metri acoperire.",
+        "Acopera o garsoniera cu 2-3 dispozitive.",
+        "Suport WiFi 6 si WPA3.",
+        "Perfect pentru streaming si gaming."
+      ],
+      "priceMin": 150,
+      "priceMax": 900
+    },
+    {
+      "id": "elec-powerbank",
+      "titles": [
+        "Powerbank Anker PowerCore 20000mAh",
+        "Xiaomi Mi Powerbank 10000mAh",
+        "POWERBANK BASEUS 20000mAh USB-C",
+        "Anker PowerCore 10000 PD, USB-C",
+        "Powerbank Samsung 10000mAh, dual port",
+        "RavPower 26800mAh, 3 USB",
+        "Powerbank Aukey 20000mAh Fast Charge",
+        "Mi Powerbank 3 Pro 20000mAh 50W"
+      ],
+      "descriptions": [
+        "Powerbank folosit la facultate si drumetii.",
+        "Incarca de 3 ori un telefon.",
+        "Vine cu cablu USB-C original.",
+        "Fara zgarieturi pe carcasa.",
+        "Suport Fast Charge pana la 20W.",
+        "Perfect pentru facultate si drumetii.",
+        "Design slim, incape in rucsac.",
+        "Vand pentru ca am luat unul mai mare."
+      ],
+      "priceMin": 50,
+      "priceMax": 250
+    },
+    {
+      "id": "elec-printer-laser",
+      "titles": [
+        "Imprimanta laser Brother HL-L2375DW",
+        "HP LaserJet Pro M15w, WiFi",
+        "IMPRIMANTA SAMSUNG XPRESS M2026W",
+        "Canon i-SENSYS MF445dw, multifunctional",
+        "Brother MFC-L2710DW, laser mono",
+        "HP LaserJet MFP M28w, compacta",
+        "Lexmark MS431dn, laser alb-negru",
+        "Xerox B215, multifunctional WiFi"
+      ],
+      "descriptions": [
+        "Imprimanta folosita acasa, fara probleme.",
+        "Tonerul e la 60% capacitate.",
+        "Vine cu cabluri USB si de alimentare.",
+        "WiFi, se conecteaza la telefon si laptop.",
+        "Perfect pentru teme si imprimari.",
+        "Fara zgarieturi, functioneaza impecabil.",
+        "Toner compatibil usor de gasit.",
+        "Vand pentru ca am luat color."
+      ],
+      "priceMin": 400,
+      "priceMax": 1200
+    },
+    {
+      "id": "elec-projector-portable",
+      "titles": [
+        "Proiector Xiaomi Mi Smart Projector",
+        "Proiector BenQ TK700STi, 4K",
+        "PROIECTOR ANKER NEBULA Capsule",
+        "Proiector Epson EH-TW650, Full HD",
+        "Xiaomi Mi Smart Compact Projector",
+        "ViewSonic X10-4K, laser 4K",
+        "Proiector LG CineBeam PH30N",
+        "Mini-proiector YABER Pro V7"
+      ],
+      "descriptions": [
+        "Proiector folosit la 2 petreceri de camin.",
+        "Bulb cu 1500 ore ramase.",
+        "Vine cu telecomanda si cablu HDMI.",
+        "Fara zgarieturi pe carcasa.",
+        "Imagine Full HD, culori vii.",
+        "Boxa integrata, suficienta pentru 10 persoane.",
+        "Perfect pentru filme si prezentari.",
+        "Compatibil HDMI, USB, Bluetooth."
+      ],
+      "priceMin": 400,
+      "priceMax": 1500
+    },
+    {
+      "id": "elec-docking-station",
+      "titles": [
+        "Docking station USB-C HP 100W",
+        "Dell Universal Dock D6000",
+        "DOCKING STATION ANKER PowerExpand",
+        "Lenovo ThinkPad Hybrid USB-C Dock",
+        "Caldigit TS4, Thunderbolt 4",
+        "Baseus Docking 11-in-1, USB-C",
+        "Satechi USB-C Multiport Adapter",
+        "HyperDrive Pro 8-in-2 USB-C Hub"
+      ],
+      "descriptions": [
+        "Docking folosit la laptop pentru teme.",
+        "Vine cu cablul original si adaptor.",
+        "Fara zgarieturi, functioneaza impecabil.",
+        "Suport HDMI, VGA, ethernet, USB.",
+        "Perfect pentru setup cu doua monitoare.",
+        "Compatibil Windows si Mac.",
+        "Carcasa din aluminiu, premium.",
+        "Vand pentru ca am luat alt laptop."
+      ],
+      "priceMin": 200,
+      "priceMax": 700
+    },
+    {
+      "id": "elec-camera-dslr",
+      "titles": [
+        "Camera DSLR Nikon D5600, cu obiectiv 18-55",
+        "Canon EOS 850D, DSLR entry",
+        "CAMERA DSLR CANON EOS 2000D",
+        "Nikon D7500, DSLR mid-range",
+        "Canon EOS 90D, DSLR semi-pro",
+        "Nikon D750, full-frame second hand",
+        "Canon 5D Mark IV, body only",
+        "Camera DSLR Pentax K-70, weather sealed"
+      ],
+      "descriptions": [
+        "Camera folosita la evenimente de facultate.",
+        "Vine cu obiectivul original si curea.",
+        "Baterie tine 400 cadre.",
+        "Fara zgarieturi majore, functioneaza impecabil.",
+        "Include carte SD de 32GB.",
+        "Perfect pentru incepatori si pasionati.",
+        "Shutter count sub 10000.",
+        "Vand pentru ca am luat mirrorless."
+      ],
+      "priceMin": 1500,
+      "priceMax": 5500
+    },
+    {
+      "id": "elec-camera-mirrorless",
+      "titles": [
+        "Sony Alpha A6400 mirrorless",
+        "Fujifilm X-T30, cu obiectiv 15-45",
+        "CAMERA MIRRORLESS CANON EOS R10",
+        "Sony Alpha A7 III, full-frame",
+        "Fujifilm X-T5, APS-C flagship",
+        "Nikon Z50, mirrorless DX",
+        "Canon EOS M50 Mark II",
+        "Sony Alpha ZV-E10, vlogging"
+      ],
+      "descriptions": [
+        "Camera folosita la vlogging si fotografie.",
+        "Vine cu obiectivul original si baterie.",
+        "Fara zgarieturi, functioneaza impecabil.",
+        "Include carte SD de 64GB.",
+        "Shutter count sub 5000.",
+        "Perfect pentru fotografie si video.",
+        "4K 30fps, autofocus rapid.",
+        "Vand pentru ca am facut upgrade."
+      ],
+      "priceMin": 1800,
+      "priceMax": 7000
+    },
+    {
+      "id": "elec-gopro",
+      "titles": [
+        "GoPro Hero 11 Black, 5K video",
+        "GoPro Hero 10 Black, cu accesorii",
+        "GOPRO HERO 9, in stare perfecta",
+        "GoPro Hero 8 Black, cu suport",
+        "Insta360 One X2, 360 camera",
+        "DJI Osmo Action 4, rival GoPro",
+        "GoPro Hero 11 Mini, compacta",
+        "GoPro Hero 7 Silver, pentru video"
+      ],
+      "descriptions": [
+        "GoPro folosita in excursii, fara defecte.",
+        "Baterie noua, tine 1.5 ore filmare.",
+        "Vine cu card SD de 128GB si curea.",
+        "Fara zgarieturi pe lentile.",
+        "Impermeabila la 10 metri.",
+        "Perfect pentru schi, inot, bike.",
+        "Include suport piept si casca.",
+        "Vand pentru ca am luat Insta360."
+      ],
+      "priceMin": 800,
+      "priceMax": 2200
+    },
+    {
+      "id": "elec-drone",
+      "titles": [
+        "DJI Mini 2, drona pliabila",
+        "DJI Mavic Air 2, 4K",
+        "DRONA DJI MINI 3 PRO, cu RC",
+        "DJI Phantom 4 Pro, profesionala",
+        "Autel EVO Lite+, 6K video",
+        "DJI Mini SE, pentru incepatori",
+        "DJI Mavic 3 Classic, Hasselblad",
+        "Parrot Anafi, drona 4K"
+      ],
+      "descriptions": [
+        "Drona folosita in excursii, fara defecte.",
+        "Baterie tine 30 min, 2 baterii incluse.",
+        "Vine cu telecomanda, hub, card SD 64GB.",
+        "Fara zgarieturi pe carcasa.",
+        "Camera 4K, calitate premium.",
+        "Perfect pentru vlogging si peisaje.",
+        "Include hubul de incarcare si cabluri.",
+        "Vand pentru ca am luat Mavic Pro."
+      ],
+      "priceMin": 1200,
+      "priceMax": 4500
+    },
+    {
+      "id": "elec-vr-headset",
+      "titles": [
+        "Meta Quest 2, 128GB, standalone VR",
+        "Oculus Quest 2, 256GB",
+        "VR HEADSET VALVE INDEX",
+        "Meta Quest 3, 128GB, mixed reality",
+        "HTC Vive Pro 2, PC VR",
+        "PlayStation VR2, pentru PS5",
+        "Pico 4, standalone VR",
+        "Meta Quest Pro, flagship"
+      ],
+      "descriptions": [
+        "Headset VR folosit, in stare perfecta.",
+        "Vine cu controllere si cabluri originale.",
+        "Baterie noua, tine 2 ore.",
+        "Fara zgarieturi pe lentile.",
+        "Perfect pentru gaming si fitness.",
+        "Compatibil cu Beat Saber, Half-Life Alyx.",
+        "Resetat la setari din fabrica.",
+        "Include husa de transport."
+      ],
+      "priceMin": 1500,
+      "priceMax": 3500
+    },
+    {
+      "id": "elec-usb-flash",
+      "titles": [
+        "USB flash SanDisk Ultra 64GB",
+        "Kingston DataTraveler 100 128GB",
+        "USB FLASH TRANSCEND 128GB",
+        "SanDisk Cruzer Glide 32GB",
+        "Lexar JumpDrive S80 64GB",
+        "Corsair Flash Voyager 256GB USB 3.0",
+        "Toshiba TransMemory U301 32GB",
+        "Kingston DataTraveler Kyson 128GB USB 3.2"
+      ],
+      "descriptions": [
+        "USB flash in stare foarte buna.",
+        "Testat, nu are erori.",
+        "Vine cu cutia originala.",
+        "Perfect pentru proiecte si carti.",
+        "Fara zgarieturi pe carcasa.",
+        "Viteze pana la 100 MB/s.",
+        "Compatibil USB 3.0 / 3.1.",
+        "Vand pentru ca am luat un hard extern."
+      ],
+      "priceMin": 30,
+      "priceMax": 150
+    },
+    {
+      "id": "elec-card-sd",
+      "titles": [
+        "Card microSD SanDisk 128GB A2",
+        "Samsung Evo Select 256GB microSD",
+        "CARD SD KINGSTON 128GB U3 V30",
+        "SanDisk Extreme Pro 64GB SD",
+        "Lexar Professional 1066x 128GB SD",
+        "Transcend microSD 400GB",
+        "Kingston Canvas Go Plus 128GB microSD",
+        "SanDisk Extreme microSD 256GB"
+      ],
+      "descriptions": [
+        "Card SD folosit in telefon, fara erori.",
+        "Testat cu H2testw, fara corupere.",
+        "Vine cu adaptor SD si cutie.",
+        "Fara zgarieturi pe contacte.",
+        "Viteze pana la 100 MB/s citire.",
+        "Perfect pentru GoPro si drona.",
+        "Clasa U3/V30, suport 4K video.",
+        "Vand pentru ca am luat 512GB."
+      ],
+      "priceMin": 40,
+      "priceMax": 250
+    }
+  ]
+}

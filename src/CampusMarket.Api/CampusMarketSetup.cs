@@ -24,6 +24,7 @@ using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Moderation;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews;
+using CampusMarket.Api.Features.Admin;
 
 namespace CampusMarket.Api;
 
@@ -48,6 +49,7 @@ public static class CampusMarketSetup
         services.AddScoped<IFavoriteRepository, EfFavoriteRepository>();
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
+        services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -112,6 +114,28 @@ public static class CampusMarketSetup
         return services;
     }
 
+    // Fails fast in Production when the JWT signing key is missing or too
+    // short. Dev and Test keep their own keys (appsettings.Development.json /
+    // the integration-test factory), so this check is production-only.
+    public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
+    {
+        if (!app.Environment.IsProduction())
+            return app;
+
+        var key = app.Configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(key) || key.Length < MinJwtKeyLength)
+        {
+            throw new InvalidOperationException(
+                $"Jwt:Key is missing or shorter than {MinJwtKeyLength} characters. " +
+                "Set the Jwt__Key environment variable to a random value of at least " +
+                $"{MinJwtKeyLength} characters before starting the API in Production.");
+        }
+
+        return app;
+    }
+
+    private const int MinJwtKeyLength = 32;
+
     public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
     {
         using var scope = app.Services.CreateScope();
@@ -119,6 +143,7 @@ public static class CampusMarketSetup
         db.Database.Migrate();
 
         SeedAdmin(scope.ServiceProvider, db, app.Configuration);
+        SeedDemoDataIfRequested(scope.ServiceProvider, db, app.Configuration);
 
         return app;
     }
@@ -151,6 +176,86 @@ public static class CampusMarketSetup
         db.SaveChanges();
     }
 
+    private const int MinDemoPasswordLength = 8;
+
+    // Idempotent demo seed: only runs when Seed:DemoData is "true" AND the
+    // database is empty (no members, no listings). Safe to leave wired across
+    // restarts — a redeploy on Render loses the SQLite file, so the first
+    // start after a redeploy seeds again, every later start is a no-op.
+    // Off by default; tests leave Seed:DemoData unset.
+    private static void SeedDemoDataIfRequested(IServiceProvider services, CampusMarketDbContext db, IConfiguration config)
+    {
+        if (!config.GetValue("Seed:DemoData", false))
+            return;
+
+        if (db.Members.Any() || db.Listings.Any())
+            return;
+
+        var clock = services.GetRequiredService<TimeProvider>();
+        var now = clock.GetUtcNow();
+
+        // Seed the demo listings even when the password env var is unusable, so
+        // a fresh Render instance has something to browse; the listings then
+        // belong to an orphan seller id, which is fine because nobody can log
+        // in as that account.
+        var sellerId = TrySeedDemoMember(services, db, config, now) ?? Guid.NewGuid();
+
+        foreach (var draft in BuildDemoListings(sellerId, now))
+        {
+            draft.Publish();
+            db.Listings.Add(draft);
+        }
+
+        db.SaveChanges();
+    }
+
+    // Returns the demo member's id when Seed:DemoPassword is at least
+    // MinDemoPasswordLength characters; null (with a warning in the log)
+    // when the env var is missing or too short. The demo member is ALWAYS
+    // created with the Student role — never Admin.
+    private static Guid? TrySeedDemoMember(IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
+    {
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("CampusMarket.DemoSeed");
+        var password = config["Seed:DemoPassword"];
+
+        if (string.IsNullOrEmpty(password) || password.Length < MinDemoPasswordLength)
+        {
+            logger.LogWarning(
+                "{Variable} is missing or shorter than {MinLength} characters; seeding the demo listings without a demo member. " +
+                "Set the Seed__DemoPassword environment variable to a value of at least that length to enable sign-in as the demo student.",
+                "Seed:DemoPassword", MinDemoPasswordLength);
+            return null;
+        }
+
+        var hasher = services.GetRequiredService<IPasswordHasher>();
+        var member = Member.Register(
+            "Demo Student",
+            "demo@campusmarket.ro",
+            hasher.Hash(password),
+            now,
+            MemberRole.Student);
+        if (member.IsFailure)
+            return null;
+
+        db.Members.Add(member.Value);
+        return member.Value.Id;
+    }
+
+    private static List<Listing> BuildDemoListings(Guid sellerId, DateTimeOffset now)
+    {
+        var drafts = new List<Listing>();
+        TryAdd(drafts, Listing.Create(sellerId, "Manual Analiza Matematica anul I", Category.Textbook, Condition.Good, 40m, now, "Stare buna, notite in creion pe ultimele pagini."));
+        TryAdd(drafts, Listing.Create(sellerId, "Casti wireless aproape noi", Category.Electronics, Condition.Good, 180m, now, "Autonomie buna, cutia originala."));
+        TryAdd(drafts, Listing.Create(sellerId, "Notite curs structuri de date", Category.Notes, Condition.New, 20m, now, "Scrise de mana, sem 2, anul I."));
+        return drafts;
+    }
+
+    private static void TryAdd(List<Listing> drafts, Result<Listing> result)
+    {
+        if (result.IsSuccess)
+            drafts.Add(result.Value);
+    }
+
     public static IEndpointRouteBuilder MapCampusMarket(this IEndpointRouteBuilder app)
     {
         app.MapGet("/", () => "CampusMarket API is running");
@@ -163,6 +268,7 @@ public static class CampusMarketSetup
         api.MapFavoritesEndpoints();
         api.MapModerationEndpoints();
         api.MapReviewsEndpoints();
+        api.MapAdminEndpoints();
 
         return app;
     }

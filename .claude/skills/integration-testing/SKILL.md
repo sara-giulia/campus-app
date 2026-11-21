@@ -795,3 +795,43 @@ Tests to add:
 Rules for this feature:
 - Do not change `Program.cs`, `CampusMarketSetup.cs` or the test factory.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+## Feature: Minimum category confidence (Diana)
+
+File: `Listings/SuggestCategoryTests.cs` (add to it).
+
+Tests to add:
+- title "Banana", description "Am de vandut o banana buna" → 200, `category` is null, `confidence` below 0.7.
+- title "Notite Analiza matematica, an I" → 200, `category` is "Notes".
+
+## Feature: Maximum price (Diana)
+
+File: `Listings/CreateListingTests.cs` (add to it).
+
+Tests to add:
+- POST a listing with price 200000 → 400 `Money.TooHigh`, nothing saved.
+
+## Feature: Production configuration and demo data (Sara)
+Production code: in `CampusMarketSetup.cs`, `ValidateCampusMarketProductionConfiguration` (only in Production: throws `InvalidOperationException` when `Jwt:Key` is missing or shorter than 32 characters) and `SeedDemoDataIfRequested` (only when `Seed:DemoData` is true and the database is empty: 3 published listings; a Student demo member only when `Seed:DemoPassword` has at least 8 characters, otherwise a warning and no member).
+File: `Infrastructure/ProductionConfigurationTests.cs` (new).
+Test host: start a separate host with `Factory.WithWebHostBuilder(b => ...)` and `UseSetting(...)` / `UseEnvironment(...)`, like the Admin seed tests; dispose it with `await using`.
+Tests to add:
+- Environment Production, `Jwt:Key` of 10 characters → creating the client throws `InvalidOperationException` whose message mentions `Jwt__Key`.
+- Environment Production, `Jwt:Key` of 40 characters → `GET /health` 200.
+- `Seed:DemoData` = true and `Seed:DemoPassword` = 8+ characters → `GET /api/v1/listings` gives `totalCount` 3; the database has exactly 1 member, with the Student role.
+- `Seed:DemoData` = true without `Seed:DemoPassword` → 3 listings, 0 members.
+- `Seed:DemoData` not set → 0 listings and 0 members (unchanged behaviour).
+  Rules for this feature:
+- Never hard-code a real key; use generated test strings.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+
+
+## Feature: Price feedback loop (Sara)
+Endpoint: `GET /api/v1/admin/ml/price-accuracy`, Admin only. Confirm sale now saves a `SaleRecord` (suggested price from the real price model, sold price = listing price).
+File: `Admin/PriceAccuracyTests.cs` (new).
+Tests to add:
+- no token → 401; Student token → 403.
+- Admin, no sales → 200, count 0, metrics null.
+- seed a seller, a buyer and a published listing; reserve as the buyer, confirm the sale as the seller (204) → the database has 1 `SaleRecord` for that listing with sold price = listing price and suggested price > 0; then Admin GET → count 1 and the record in `lastRecords`.
+  Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+

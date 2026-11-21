@@ -1,0 +1,1605 @@
+{
+  "category": "Textbook",
+  "items": [
+    {
+      "id": "tb-analiza-mate-y1",
+      "titles": [
+        "Analiză matematică Siretchi, anul I",
+        "Manual Analiza matematica Rogai, pentru examen",
+        "Analiză matematică vol. I, ediția 2018",
+        "ANALIZA MATEMATICA culegere probleme rezolvate",
+        "Analiza matematica, Flondor, Mate-Info anul 1",
+        "Culegere Analiza matematica cu exercitii, sem I",
+        "Manual complet Analiză matematică, an I Informatică",
+        "Analiza Matematica, Fihtenholt vol. I, in romana"
+      ],
+      "descriptions": [
+        "Manual folosit un semestru, am scris doar cu creionul pe margine.",
+        "Carte in stare foarte buna, fara sublinieri la text, doar la cateva formule.",
+        "Interiorul e curat, coperta are o indoitura mica in colt.",
+        "Ideal pentru anul 1 Mate-Info sau Automatica, acopera intreaga programa.",
+        "Vine cu caietul meu de la seminar, cadou.",
+        "Am dat examen cu ea si am luat 9, teoremele sunt subliniate cu marker.",
+        "Nu are pagini rupte sau lipite, doar un pic ingalbenita la margini.",
+        "A stat in biblioteca mai mult decat am folosit-o, pare aproape noua."
+      ],
+      "priceMin": 40,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-algebra-liniara",
+      "titles": [
+        "Algebra liniara si geometrie analitica - manual anul I",
+        "Algebră liniară Ion D. Ion, ediția nouă",
+        "ALGEBRA LINIARA pentru ingineri - manual Politehnica",
+        "Manual algebra liniara, culegere probleme",
+        "Algebra liniara Nastasescu, an I",
+        "Algebra Liniara - Radu, pentru examenul din iunie",
+        "Culegere algebra liniara cu exercitii rezolvate complet",
+        "Algebra liniara, matrici si vectori, manual complet"
+      ],
+      "descriptions": [
+        "Carte folosita doar la pregatirea pentru examen.",
+        "Manualul recomandat de profesor, in stare foarte buna.",
+        "Contine multe exercitii rezolvate pas cu pas.",
+        "Sublinieri cu creionul, se sterg usor.",
+        "Perfecta pentru examenul de an I.",
+        "Capitolele despre spatii vectoriale si matrici sunt excelent explicate.",
+        "Vand pentru ca am terminat anul si nu mai am loc.",
+        "Carte aproape noua, o arunc daca nu o cumpara nimeni."
+      ],
+      "priceMin": 45,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-geometrie-analitica",
+      "titles": [
+        "Geometrie analitica - manual an I facultate",
+        "Manual Geometrie analitica Udriste",
+        "GEOMETRIE analitica si diferentiala, Politehnica",
+        "Geometrie analitica, Teodorescu, an 1 Mate",
+        "Culegere geometrie analitica, probleme rezolvate",
+        "Manual geometrie, conice si cuadrice",
+        "Geometrie Analitica, Hamburg, folosit semestrul I",
+        "Culegere probleme Geometrie, pentru examen iarna"
+      ],
+      "descriptions": [
+        "Carte in stare buna, interior curat.",
+        "Cu demonstratii detaliate si figuri clare.",
+        "Am folosit-o la seminar si la pregatirea examenului.",
+        "Coperta prezinta mici semne de uzura.",
+        "Contine un rezumat al teoriei la final.",
+        "Sublinieri doar la cateva pagini, cu creionul.",
+        "Perfecta pentru studentii de la Mate-Info sau Politehnica.",
+        "Toate exercitiile de la examen au exemplu in carte."
+      ],
+      "priceMin": 35,
+      "priceMax": 95
+    },
+    {
+      "id": "tb-structuri-date",
+      "titles": [
+        "Structuri de date si algoritmi - Cormen CLRS",
+        "CLRS Introduction to Algorithms, editia 3",
+        "Structuri de Date - Drozdek, in romana",
+        "Manual algoritmi, Cormen in engleza",
+        "Carte structuri de date si algoritmi, an II",
+        "Algoritmi Weiss, data structures and analysis",
+        "Manual STRUCTURI DE DATE SI ALGORITMI, UNITBV",
+        "Cormen - cartea neagra de algoritmi, uzata putin"
+      ],
+      "descriptions": [
+        "Cartea standard pentru algoritmi, in stare buna.",
+        "Am folosit-o la examen, am trecut cu 10.",
+        "Explicatii clare, pseudocod si dovezi matematice.",
+        "Interiorul e curat, cateva post-it-uri cadou.",
+        "Coperta groasa, rezista la ani de utilizare.",
+        "Cartea aceasta mi-a salvat sesiunea.",
+        "Peste 1000 de pagini, acopera tot.",
+        "Carte cu sublinieri la paginile cu arbori binari."
+      ],
+      "priceMin": 60,
+      "priceMax": 160
+    },
+    {
+      "id": "tb-poo-cpp",
+      "titles": [
+        "Programare orientata pe obiecte C++ - Herbert Schildt",
+        "POO in C++, manual Ciocarlan, an II",
+        "Manual Programare Orientata pe Obiecte, C++",
+        "POO C++ pentru Automatica, an 2",
+        "C++ - Programarea Orientata pe Obiecte",
+        "Manual POO cu exemple si laboratoare, C++",
+        "POO IN C++ - Bjarne Stroustrup, in engleza",
+        "Programare orientată pe obiecte - curs si laborator"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de POO.",
+        "Toate laboratoarele sunt in cod C++ comentat.",
+        "Carte in stare foarte buna, cateva pagini indoite.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Contine clase, mostenire, polimorfism, template-uri.",
+        "Vine cu CD-ul cu sursele originale, nedeschis.",
+        "Pagini fara sublinieri, pare aproape noua.",
+        "Perfect pentru anul II informatica sau automatica."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-poo-java",
+      "titles": [
+        "Introducere in POO cu Java - manual UB",
+        "Programare Java - Herbert Schildt editia 9",
+        "POO Java, manual complet an II",
+        "Java - Programare Orientata pe Obiecte",
+        "Manual POO JAVA, pentru examenul din iunie",
+        "Core Java Volume I - Cay Horstmann, in engleza",
+        "Carte POO Java, Patrascu, cu laboratoare",
+        "Head First Java - carte usoara, intr-un singur volum"
+      ],
+      "descriptions": [
+        "Explicatii clare cu exemple de cod.",
+        "Am invatat Java din ea in anul II.",
+        "Carte in stare foarte buna, folosita cu grija.",
+        "Contine exercitii si proiecte rezolvate.",
+        "Coperta lucioasa, interior curat.",
+        "Perfect pentru pregatirea examenelor si a interviurilor.",
+        "Include capitole despre JavaFX si colectii.",
+        "Cateva sublinieri cu creionul, se sterg usor."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-poo-csharp",
+      "titles": [
+        "Programare in C# - manual pentru studenti",
+        "C# 10 and .NET 6 - Mark J. Price, in engleza",
+        "POO C# - manual complet, an II UB",
+        "Manual Programare C# .NET, editia noua",
+        "C# pentru incepatori - Patrascoiu, in romana",
+        "Carte C#, Herbert Schildt, editia 4",
+        "Fundamentele programarii C# - carte universitara",
+        "Programare .NET cu C#, manual facultate"
+      ],
+      "descriptions": [
+        "Perfect pentru invatarea C# de la zero.",
+        "Explicatii clare cu exemple si capturi de cod.",
+        "Carte folosita doar la pregatirea examenului.",
+        "Vine cu CD cu exemple si proiecte complete.",
+        "Interior curat, coperta fara defecte.",
+        "Am trecut examenul de POO cu ajutorul ei.",
+        "Contine capitole despre LINQ, EF Core si ASP.NET.",
+        "Cateva pagini indoite la coltul de sus."
+      ],
+      "priceMin": 45,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-baze-de-date",
+      "titles": [
+        "Baze de date Connolly Begg, editia 4",
+        "Fundamentele bazelor de date - Popescu",
+        "BAZE DE DATE RELATIONALE, manual an II",
+        "SQL si proiectarea bazelor de date - manual complet",
+        "Database System Concepts - Silberschatz",
+        "Manual baze de date, Oracle si SQL Server",
+        "Baze de Date - Felea, Universitatea Cuza",
+        "Baze de date, normalizare si tranzactii - carte"
+      ],
+      "descriptions": [
+        "Acopera totul, de la modelare ER la tranzactii.",
+        "Am folosit-o la examenul de baze de date, an II.",
+        "Interior aproape nou, cateva post-it-uri la indicii.",
+        "Contine exemple cu SQL Server si Oracle.",
+        "Capitolul despre normalizare mi-a salvat examenul.",
+        "Carte de peste 800 de pagini, cuprinzatoare.",
+        "Coperta prezinta o indoitura mica.",
+        "Explicatii limpezi, exemple practice cu date reale."
+      ],
+      "priceMin": 45,
+      "priceMax": 130
+    },
+    {
+      "id": "tb-retele-tanenbaum",
+      "titles": [
+        "Retele de calculatoare - Andrew Tanenbaum",
+        "Computer Networks - Tanenbaum editia 5",
+        "RETELE DE CALCULATOARE, manual complet",
+        "Manual retele Tanenbaum, in romana",
+        "Carte retele de calculatoare, pentru CCNA",
+        "Retele - Kurose Ross, Top Down Approach",
+        "Tanenbaum Retele, an III, ediția a 4-a",
+        "Manual Retele de Calculatoare, UTCN"
+      ],
+      "descriptions": [
+        "Cartea standard pentru cursul de retele.",
+        "Explicatii clare despre TCP/IP si OSI.",
+        "Am folosit-o si pentru certificarea CCNA.",
+        "Peste 900 pagini, acopera totul.",
+        "Interiorul e curat, coperta zgariata putin.",
+        "Vine cu insemnari cu creionul la capitolele de rutare.",
+        "Perfect pentru anul III informatica/CTI.",
+        "Carte in engleza, usor de citit pentru un student."
+      ],
+      "priceMin": 60,
+      "priceMax": 160
+    },
+    {
+      "id": "tb-sisteme-operare",
+      "titles": [
+        "Sisteme de operare - Tanenbaum, editia 4",
+        "Operating Systems - Silberschatz Galvin",
+        "SISTEME DE OPERARE, Dinosaur Book",
+        "Manual Sisteme de Operare, UB informatica",
+        "Sisteme de Operare Linux - Negrescu",
+        "Sisteme operare, carte in engleza",
+        "Manual SO, cu capitole despre scheduling si memorie",
+        "Sisteme de operare - carte an II CTI"
+      ],
+      "descriptions": [
+        "Carte clasica, folosita la cursul de SO.",
+        "Am invatat din ea pentru examen, am luat 9.",
+        "Explicatii foarte bune despre procese si fire.",
+        "Interior aproape curat, cateva sublinieri.",
+        "Capitol foarte bun despre deadlock si semafoare.",
+        "Perfect pentru anul II informatica sau Automatica.",
+        "Contine exemple de cod pentru Linux si Windows.",
+        "Coperta uzata putin la cotor, interiorul e in regula."
+      ],
+      "priceMin": 55,
+      "priceMax": 150
+    },
+    {
+      "id": "tb-arhitectura-calc",
+      "titles": [
+        "Arhitectura calculatoarelor - Patterson Hennessy",
+        "Computer Organization and Design - Patterson",
+        "ARHITECTURA CALCULATOARELOR, manual complet",
+        "Manual arhitectura MIPS, an II",
+        "Carte Arhitectura Calculatoarelor, Stallings",
+        "Hennessy Patterson editia 5, cu exercitii",
+        "Arhitectura si organizarea calculatoarelor",
+        "Manual Arhitectura Calculatoarelor UTCN"
+      ],
+      "descriptions": [
+        "Cartea clasica pentru cursul de arhitectura.",
+        "Explicatii clare despre pipeline si cache.",
+        "Interior curat, doar cateva sublinieri la MIPS.",
+        "Perfect pentru pregatirea examenului si a licentei.",
+        "Contine exemple in assembly si scheme.",
+        "Coperta groasa, rezista bine la folosire.",
+        "Am invatat din ea pentru examen, foarte clar scrisa.",
+        "Peste 700 de pagini, cuprinzatoare si bine organizata."
+      ],
+      "priceMin": 60,
+      "priceMax": 180
+    },
+    {
+      "id": "tb-ingineria-software",
+      "titles": [
+        "Ingineria Software - Sommerville editia 10",
+        "Software Engineering Pressman, in engleza",
+        "INGINERIA SOFTWARE, manual an III",
+        "Manual Ingineria Programarii, in romana",
+        "Carte UML si Design Patterns",
+        "Clean Code - Robert C. Martin",
+        "Design Patterns Gang of Four, carte originala",
+        "Carte Ingineria Software, Agile si UML"
+      ],
+      "descriptions": [
+        "Perfect pentru pregatirea examenului si a interviurilor.",
+        "Contine studii de caz reale si diagrame UML.",
+        "Interior fara sublinieri, pare aproape noua.",
+        "Am citit-o pentru proiectul de licenta.",
+        "Capitole excelente despre metodologii Agile.",
+        "Coperta prezinta zgarieturi minime.",
+        "Explicatii foarte clare despre design patterns.",
+        "Manualul recomandat de profesorul meu la curs."
+      ],
+      "priceMin": 45,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-compilere",
+      "titles": [
+        "Compilere - Dragon Book - Aho Sethi Ullman",
+        "Principiile compilerelor, cartea dragonului",
+        "COMPILERE, manual an III informatica",
+        "Compilers: Principles, Techniques, and Tools",
+        "Manual Compilere - Pop, UB",
+        "Carte compilere, in engleza, editia 2",
+        "Teoria compilerelor, manual facultate",
+        "Dragon Book Compilers, hardcover ediția internationala"
+      ],
+      "descriptions": [
+        "Cartea clasica, cunoscuta si ca Dragon Book.",
+        "Am invatat parsare si analiza lexicala din ea.",
+        "Explicatii matematice foarte riguroase.",
+        "Interior fara sublinieri, pare aproape noua.",
+        "Coperta groasa, cu dragonul original.",
+        "Perfect pentru anul III informatica.",
+        "Peste 1000 de pagini, dar bine impartite.",
+        "Carte folosita doar o data pentru examen."
+      ],
+      "priceMin": 55,
+      "priceMax": 150
+    },
+    {
+      "id": "tb-ia-manual",
+      "titles": [
+        "Artificial Intelligence - Russell Norvig, ediția 4",
+        "Inteligenta Artificiala - manual Russell Norvig",
+        "AI MANUAL, un volum unic, in engleza",
+        "Manual Inteligenta Artificiala, in romana",
+        "Carte AI, pentru examenul din iarna",
+        "Russell Norvig AI, modern approach",
+        "Manual IA, cu capitole despre cautare si invatare",
+        "Inteligenta Artificiala - carte universitara, an IV"
+      ],
+      "descriptions": [
+        "Cartea clasica pentru cursul de IA.",
+        "Explicatii clare despre cautare, planificare si invatare.",
+        "Peste 1100 pagini, foarte cuprinzatoare.",
+        "Interior aproape nou, fara sublinieri.",
+        "Am folosit-o pentru master si pentru licenta.",
+        "Coperta groasa cu robotul pe fundal.",
+        "Vine cu doar o indoitura mica in colt.",
+        "Perfect pentru studentii de la IA sau Data Science."
+      ],
+      "priceMin": 50,
+      "priceMax": 150
+    },
+    {
+      "id": "tb-machine-learning",
+      "titles": [
+        "Machine Learning - Tom Mitchell, carte originala",
+        "Pattern Recognition and Machine Learning - Bishop",
+        "MANUAL MACHINE LEARNING, in engleza",
+        "Hands-On Machine Learning - Aurelien Geron",
+        "Machine Learning in Romanian, UB",
+        "Carte ML, Bishop editia 1",
+        "Introducere in Machine Learning - manual",
+        "Deep Learning - Goodfellow Bengio Courville"
+      ],
+      "descriptions": [
+        "Cartea clasica pentru cursul de ML.",
+        "Am folosit-o pentru master si teza de licenta.",
+        "Explicatii clare, formule bine scoase in evidenta.",
+        "Interior curat, doar cateva post-it-uri.",
+        "Perfect pentru studentii de IA, Data Science sau Stats.",
+        "Coperta prezinta zgarieturi mici.",
+        "Vine cu codul de exemplu pe GitHub, link in prima pagina.",
+        "Carte in engleza, usor de citit cu dictionar."
+      ],
+      "priceMin": 60,
+      "priceMax": 170
+    },
+    {
+      "id": "tb-cybersecurity",
+      "titles": [
+        "Computer Security - Stallings editia 4",
+        "Cybersecurity - carte in engleza, manual an IV",
+        "SECURITATE CIBERNETICA, manual UTCN",
+        "Manual Securitatea Sistemelor Informatice",
+        "Carte Pentesting, Hacking Exposed",
+        "Cryptography and Network Security - Stallings",
+        "Manual Securitate Cibernetica, in romana",
+        "Carte Ethical Hacking, pentru CEH"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de securitate cibernetica.",
+        "Contine exemple de atacuri si masuri de aparare.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am folosit-o la pregatirea CEH.",
+        "Capitole despre criptografie si retele.",
+        "Coperta prezinta zgarieturi minore.",
+        "Vine cu subliniere in capitolul de pen-testing.",
+        "Carte groasa, foarte detaliata."
+      ],
+      "priceMin": 50,
+      "priceMax": 140
+    },
+    {
+      "id": "tb-fizica-mecanica",
+      "titles": [
+        "Fizica generala - mecanica si termodinamica",
+        "Mecanica fizica - Hristev, manual an I",
+        "FIZICA - mecanica, Sears Zemansky vol. I",
+        "Manual mecanica, pentru admiterea politehnica",
+        "Carte fizica mecanica, UB fizica",
+        "Fizica Vol I - mecanica clasica",
+        "Mecanica newtoniana si relativista - manual",
+        "Carte Mecanica Teoretica, probleme rezolvate"
+      ],
+      "descriptions": [
+        "Manualul de baza pentru fizica la facultate.",
+        "Contine toate formulele si exercitiile cheie.",
+        "Interior curat, cateva formule subliniate.",
+        "Am dat examenul cu ea si am luat 9.",
+        "Capitole excelente despre dinamica si cinematica.",
+        "Coperta prezinta mici semne de uzura.",
+        "Carte groasa, dar explicatiile sunt clare.",
+        "Perfect pentru anul I de la Politehnica sau UB Fizica."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-fizica-termo",
+      "titles": [
+        "Termodinamica - manual anul I facultate",
+        "Fizica termica - Luca, in romana",
+        "TERMODINAMICA, Sears Zemansky vol. II",
+        "Manual termodinamica, probleme rezolvate",
+        "Fizica statistica si termodinamica",
+        "Carte termodinamica, cu capitole despre entropie",
+        "Fizica termodinamica, UTCN manual",
+        "Carte Termodinamica, Hristev, folosit semestrul II"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de termodinamica.",
+        "Contine multe exercitii rezolvate pas cu pas.",
+        "Interior aproape nou, cateva sublinieri la formule.",
+        "Perfect pentru pregatirea examenului.",
+        "Capitole excelente despre entropia si ciclurile termice.",
+        "Coperta e intacta, interior curat.",
+        "Carte folosita doar un semestru.",
+        "Am invatat din ea pentru examenul de iarna."
+      ],
+      "priceMin": 40,
+      "priceMax": 100
+    },
+    {
+      "id": "tb-fizica-electromagnetism",
+      "titles": [
+        "Fizica - electricitate si magnetism, ETTI",
+        "Electromagnetism Jackson, carte originala",
+        "FIZICA ELECTROMAGNETISM, manual complet",
+        "Manual electricitate - Hristev",
+        "Carte electromagnetism, pentru examenul din iarna",
+        "Fizica electricitatii, UTCN manual",
+        "Electromagnetism Griffiths, ediția 4",
+        "Fizica electromagnetismului, carte complet facultate"
+      ],
+      "descriptions": [
+        "Manualul standard pentru electromagnetism.",
+        "Contine ecuatiile Maxwell cu demonstratii detaliate.",
+        "Interior curat, doar cateva sublinieri.",
+        "Am invatat din ea pentru examenul de ETTI.",
+        "Perfect pentru pregatirea admiterii la master.",
+        "Capitole excelente despre campuri si unde.",
+        "Coperta prezinta o indoitura mica.",
+        "Carte groasa, dar explicata foarte bine."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-fizica-optica",
+      "titles": [
+        "Optica - manual an II Fizica",
+        "Fizica optica geometrica si ondulatorie",
+        "OPTICA, Hecht editia 5, in engleza",
+        "Manual optica si fotonica",
+        "Carte fizica optica, UB manual",
+        "Fundamentals of Optics - Jenkins White",
+        "Optica Moderna, manual facultate",
+        "Carte Optica Experimentala, cu lucrari practice"
+      ],
+      "descriptions": [
+        "Manual perfect pentru cursul de optica.",
+        "Explicatii clare despre lentile si prisme.",
+        "Interior curat, cateva formule subliniate.",
+        "Am invatat din ea pentru examen.",
+        "Capitole despre fotonica si laser.",
+        "Coperta prezinta zgarieturi minore.",
+        "Carte folosita un semestru, fara defecte.",
+        "Perfect pentru studentii de fizica si ETTI."
+      ],
+      "priceMin": 40,
+      "priceMax": 100
+    },
+    {
+      "id": "tb-chimie-organica",
+      "titles": [
+        "Chimie organica - Clayden Greeves, editia 2",
+        "Chimie Organică - manual an I farmacie",
+        "CHIMIE ORGANICA, Morrison Boyd, carte universitara",
+        "Manual chimie organica, UMF farmacie",
+        "Carte chimie organica, pentru admitere medicina",
+        "Organic Chemistry - Solomons, in engleza",
+        "Manual Chimie Organica, UB chimie",
+        "Carte chimie organica, culegere probleme"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de chimie organica.",
+        "Contine toate reactiile si mecanismele.",
+        "Interior curat, cateva post-it-uri ca ghid.",
+        "Am invatat din ea pentru examenul din iarna.",
+        "Peste 1000 de pagini, cuprinzator.",
+        "Coperta prezinta mici zgarieturi.",
+        "Perfect pentru studentii de la farmacie sau chimie.",
+        "Carte folosita doar la pregatirea examenului."
+      ],
+      "priceMin": 45,
+      "priceMax": 130
+    },
+    {
+      "id": "tb-chimie-anorganica",
+      "titles": [
+        "Chimie anorganica - manual an I chimie",
+        "Chimie Anorganică Negoiu, in romana",
+        "CHIMIE ANORGANICA, manual UB chimie",
+        "Manual chimie anorganica, UMF farmacie",
+        "Housecroft Sharpe - Inorganic Chemistry",
+        "Chimie anorganica si analitica, manual",
+        "Carte chimie anorganica, cu exercitii rezolvate",
+        "Chimie Anorganica - Marcu, an I farmacie"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de chimie anorganica.",
+        "Contine toate grupele si proprietatile elementelor.",
+        "Interior aproape nou, cateva sublinieri.",
+        "Am trecut examenul cu ajutorul ei.",
+        "Coperta prezinta zgarieturi mici.",
+        "Carte groasa, foarte detaliata.",
+        "Perfect pentru farmacie sau chimie an I.",
+        "Vine cu tabel Mendeleev detasabil la final."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-anatomie-papilian",
+      "titles": [
+        "Anatomie - Papilian vol. I, editia 12",
+        "Anatomia omului Papilian, vol. II",
+        "ANATOMIE Papilian editia 2018, vol. I",
+        "Manual anatomie Papilian, an I medicina",
+        "Papilian - Aparatul Locomotor, vol. I",
+        "Anatomie Papilian vol. III, splanchnologia",
+        "Manual anatomie, Papilian cu atlas",
+        "Papilian descriptiva, editia noua"
+      ],
+      "descriptions": [
+        "Manualul UMF pentru anul I medicina.",
+        "Interior cu insemnari si post-it-uri ca ghid.",
+        "Coperta prezinta uzura normala, interiorul e complet.",
+        "Am dat examenul cu ea si am luat 9.",
+        "Carte groasa si grea, dar explica totul.",
+        "Perfect pentru anul I de medicina generala.",
+        "Vine cu caietul meu de disectie, cadou.",
+        "Imagini clare, fara pagini rupte."
+      ],
+      "priceMin": 70,
+      "priceMax": 200
+    },
+    {
+      "id": "tb-anatomie-sinelnikov",
+      "titles": [
+        "Anatomia omului - Sinelnikov vol. I",
+        "SINELNIKOV, atlas anatomie, vol. II",
+        "Atlas anatomie Sinelnikov, trei volume",
+        "Sinelnikov vol. III, cu sistem nervos",
+        "Manual Sinelnikov, editia a 7-a",
+        "Sinelnikov atlas anatomie, un singur volum",
+        "Atlas Anatomie Sinelnikov, ilustratii color",
+        "Sinelnikov vol. IV, aparat digestiv"
+      ],
+      "descriptions": [
+        "Atlasul standard pentru medicina generala.",
+        "Ilustratii foarte detaliate, color.",
+        "Interior aproape curat, cateva pagini marcate.",
+        "Am folosit atlasul la laboratoare de anatomie.",
+        "Coperta prezinta uzura, dar interiorul e complet.",
+        "Perfect pentru pregatirea examenelor de anatomie.",
+        "Vine cu caiet de notite cadou.",
+        "Vand pentru ca am terminat anul I."
+      ],
+      "priceMin": 80,
+      "priceMax": 220
+    },
+    {
+      "id": "tb-fiziologie-guyton",
+      "titles": [
+        "Guyton - Tratat de fiziologie medicala",
+        "Fiziologie Guyton, editia 13 in romana",
+        "GUYTON HALL, Textbook of Medical Physiology",
+        "Manual Guyton Hall editia 14",
+        "Tratat de fiziologie Guyton, carte originala",
+        "Fiziologie - Guyton, in engleza",
+        "Guyton Hall Physiology, hardcover",
+        "Carte Fiziologie, Guyton, pentru examen"
+      ],
+      "descriptions": [
+        "Cartea standard pentru fiziologie la UMF.",
+        "Peste 1100 pagini, foarte cuprinzator.",
+        "Interior curat, cateva post-it-uri ca ghid.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta uzura normala, dar e integra.",
+        "Explicatii foarte clare, cu scheme didactice.",
+        "Perfect pentru anul II de medicina generala.",
+        "Carte groasa, dar organizata foarte bine."
+      ],
+      "priceMin": 70,
+      "priceMax": 190
+    },
+    {
+      "id": "tb-histologie",
+      "titles": [
+        "Histologie - manual an I medicina",
+        "Histologie Junqueira Carneiro, editia 13",
+        "HISTOLOGIE, manual UMF, in romana",
+        "Manual histologie, cu atlas color",
+        "Histologie - Ross, atlas and textbook",
+        "Carte histologie, UMF Cluj",
+        "Manual Histologie si Embriologie",
+        "Atlas histologie, cu ilustratii color"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru histologie.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Vine cu indrumator de laborator, cadou.",
+        "Am invatat din ea pentru examenul de anul I.",
+        "Coperta prezinta zgarieturi minime.",
+        "Explicatii clare cu imagini microscopice detaliate.",
+        "Perfect pentru pregatirea examenului de histologie.",
+        "Carte folosita doar un semestru."
+      ],
+      "priceMin": 55,
+      "priceMax": 160
+    },
+    {
+      "id": "tb-farmacologie",
+      "titles": [
+        "Farmacologie - Katzung, ediția 14",
+        "Farmacologie Clinica - manual UMF",
+        "KATZUNG Farmacologie Basic and Clinical",
+        "Manual farmacologie, Fulga, in romana",
+        "Carte farmacologie, pentru an III medicina",
+        "Rang and Dale's Pharmacology, in engleza",
+        "Farmacologie Clinica, manual complet",
+        "Manual Farmacologie, UMF Carol Davila"
+      ],
+      "descriptions": [
+        "Manualul standard pentru farmacologie.",
+        "Peste 1200 pagini, foarte cuprinzator.",
+        "Interior curat, cateva sublinieri la medicamente.",
+        "Am invatat din ea pentru examen si rezidentiat.",
+        "Coperta groasa, rezista bine la folosire.",
+        "Perfect pentru anul III sau IV de medicina.",
+        "Vine cu bilete de la examene, cadou.",
+        "Carte folosita doar un semestru."
+      ],
+      "priceMin": 60,
+      "priceMax": 170
+    },
+    {
+      "id": "tb-microeconomie",
+      "titles": [
+        "Microeconomie - Mankiw editia 7",
+        "Microeconomie Varian, editia 9",
+        "MICROECONOMIE, manual ASE anul I",
+        "Manual microeconomie, in romana",
+        "Carte microeconomie, pentru examenul de anul 1",
+        "Principles of Economics - Mankiw",
+        "Manual Microeconomie si Macroeconomie",
+        "Microeconomics - Pindyck Rubinfeld"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de microeconomie.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am trecut examenul cu ajutorul ei.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru studentii de la ASE sau FABBV.",
+        "Vine cu rezumat la final.",
+        "Explicatii clare cu grafice color.",
+        "Carte groasa, foarte detaliata."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-macroeconomie",
+      "titles": [
+        "Macroeconomie - Mankiw editia 9",
+        "Macroeconomie Blanchard, in romana",
+        "MACROECONOMIE, manual ASE anul I",
+        "Manual macroeconomie, pentru examen",
+        "Carte macroeconomie, cu capitole despre inflatie",
+        "Macroeconomics - Mankiw, in engleza",
+        "Manual Macroeconomie, editia noua",
+        "Carte Macroeconomie, UB economie"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de macroeconomie.",
+        "Interior curat, cateva sublinieri la formule.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minore.",
+        "Contine capitole despre PIB, inflatie si somaj.",
+        "Vine cu rezumat la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu grafice color."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-contabilitate",
+      "titles": [
+        "Contabilitate financiara - manual ASE",
+        "Contabilitate - Horngren, editia 13",
+        "CONTABILITATE FINANCIARA, manual complet",
+        "Manual Contabilitate, pentru an I ASE",
+        "Carte contabilitate, cu exercitii rezolvate",
+        "Contabilitate de gestiune - Nicolae Feleaga",
+        "Manual Contabilitate Primara, pentru examen",
+        "Carte Contabilitate Financiara, UBB Cluj"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de contabilitate.",
+        "Interior aproape nou, fara sublinieri.",
+        "Contine exemple cu balanta si registru jurnal.",
+        "Am invatat din ea pentru examenul CECCAR.",
+        "Coperta prezinta zgarieturi minore.",
+        "Vine cu culegere probleme rezolvate la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu exemple pas cu pas."
+      ],
+      "priceMin": 40,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-management",
+      "titles": [
+        "Management - Peter Drucker, carte universitara",
+        "Fundamentele managementului - Nicolescu Verboncu",
+        "MANAGEMENT, manual ASE anul II",
+        "Manual Management General, in romana",
+        "Carte management, pentru examenul de an II",
+        "Management - Kotler, Marketing Management",
+        "Manual Management Strategic, UTCN",
+        "Carte Management Operational, facultate"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de management.",
+        "Interior curat, cateva sublinieri la strategii.",
+        "Am invatat din ea pentru examen si proiect.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii de caz si exemple reale.",
+        "Vine cu rezumat si bibliografie.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu diagrame."
+      ],
+      "priceMin": 35,
+      "priceMax": 100
+    },
+    {
+      "id": "tb-drept-civil",
+      "titles": [
+        "Drept civil - manual, UBB Drept",
+        "Drept Civil Partea Generala - Beleiu",
+        "DREPT CIVIL, manual complet facultate",
+        "Manual drept civil, pentru examen barou",
+        "Carte drept civil, Constituția comentată",
+        "Drept Civil - Contracte, Mircea Costin",
+        "Manual Drept Civil, UB Facultatea de Drept",
+        "Carte Drept Civil, culegere spete"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de drept civil.",
+        "Peste 800 pagini, foarte cuprinzator.",
+        "Interior aproape curat, cateva post-it-uri.",
+        "Am invatat din ea pentru examenul de barou.",
+        "Coperta prezinta zgarieturi minore.",
+        "Perfect pentru studentii de la Drept.",
+        "Vine cu caiet de spete rezolvate.",
+        "Carte folosita doar un semestru."
+      ],
+      "priceMin": 50,
+      "priceMax": 130
+    },
+    {
+      "id": "tb-drept-penal",
+      "titles": [
+        "Drept penal - Partea generala, manual UBB",
+        "Drept Penal - Streteanu, editia noua",
+        "DREPT PENAL GENERAL, manual facultate",
+        "Manual drept penal, pentru examen barou",
+        "Carte drept penal special, Antoniu",
+        "Drept Penal - Stănilă, cu codul penal",
+        "Manual Drept Penal, UB Facultatea de Drept",
+        "Carte Drept Penal, culegere probleme"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de drept penal.",
+        "Peste 700 pagini, foarte cuprinzator.",
+        "Interior curat, cateva post-it-uri ca ghid.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru studentii de la Drept.",
+        "Vine cu culegere de spete rezolvate.",
+        "Carte folosita un semestru, fara defecte."
+      ],
+      "priceMin": 50,
+      "priceMax": 130
+    },
+    {
+      "id": "tb-psihologie",
+      "titles": [
+        "Psihologie generala - Andrei Cosmovici",
+        "Psychology - David G. Myers, editia 11",
+        "PSIHOLOGIE, manual an I facultate",
+        "Manual psihologie, pentru examen",
+        "Carte psihologie sociala - Chelcea",
+        "Psihologie Cognitiva - Miclea",
+        "Manual Psihologie Generala, UB psihologie",
+        "Carte Psihologie Experimentala"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de psihologie.",
+        "Interior aproape nou, cateva sublinieri.",
+        "Am invatat din ea pentru examen si proiect.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru studentii de la psihologie si sociologie.",
+        "Vine cu rezumat la final.",
+        "Explicatii clare cu studii de caz.",
+        "Carte folosita doar un semestru."
+      ],
+      "priceMin": 35,
+      "priceMax": 95
+    },
+    {
+      "id": "tb-sociologie",
+      "titles": [
+        "Sociologie - Ilut Petru, carte universitara",
+        "Fundamentele sociologiei - Vlasceanu",
+        "SOCIOLOGIE, manual an I facultate",
+        "Manual sociologie, pentru examen",
+        "Carte sociologie generala",
+        "Sociology - Anthony Giddens",
+        "Manual Sociologie, UB facultate",
+        "Carte Sociologie Rurala si Urbana"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de sociologie.",
+        "Interior curat, cateva sublinieri.",
+        "Am invatat din ea pentru examen si proiect.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii empirice si teorie clasica.",
+        "Vine cu bibliografie si glosar.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu grafice."
+      ],
+      "priceMin": 35,
+      "priceMax": 90
+    },
+    {
+      "id": "tb-istorie-romanilor",
+      "titles": [
+        "Istoria romanilor - Dan Berindei",
+        "Istoria Romaniei pe scurt - Giurescu",
+        "ISTORIA ROMANILOR, manual pentru BAC",
+        "Manual istorie, admitere facultate",
+        "Carte Istoria Romaniei, Djuvara",
+        "Istoria Romanilor - manual complet",
+        "Manual Istorie, cu date si evenimente cheie",
+        "Carte Istoria Romanilor, Boia Lucian"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru BAC istorie.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru BAC si admitere.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru pregatirea examenelor.",
+        "Vine cu cronologia evenimentelor la final.",
+        "Carte folosita doar o data pentru BAC.",
+        "Explicatii clare cu harti si imagini."
+      ],
+      "priceMin": 30,
+      "priceMax": 90
+    },
+    {
+      "id": "tb-literatura-romana",
+      "titles": [
+        "Literatura romana - manual pentru BAC",
+        "Textele literare obligatorii BAC",
+        "LITERATURA ROMANA, carte bacalaureat",
+        "Manual literatura romana, cls XII",
+        "Antologie literatura romana - Manolescu",
+        "Carte Literatura Romana, pentru admitere filologie",
+        "Manual Literatura Romana, bacalaureat 2023",
+        "Carte Literatura Romana, fise rezumat"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru BAC romana.",
+        "Interior aproape nou, cateva sublinieri.",
+        "Am invatat din ea pentru BAC si am luat 9.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru pregatirea BAC-ului de romana.",
+        "Vine cu fise de recapitulare la final.",
+        "Carte folosita doar o data pentru BAC.",
+        "Explicatii clare cu comentarii pe texte."
+      ],
+      "priceMin": 25,
+      "priceMax": 75
+    },
+    {
+      "id": "tb-engleza",
+      "titles": [
+        "English Grammar in Use - Raymond Murphy",
+        "Oxford English Dictionary, editia studenti",
+        "ENGLEZA GRAMMAR, carte advanced",
+        "Manual engleza, pentru Cambridge CAE",
+        "Carte engleza, IELTS preparation",
+        "English File Advanced, manualul OUP",
+        "Manual Engleza, Pearson Business",
+        "Carte Engleza, Longman Advanced Grammar"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru avansati.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din el pentru certificatul Cambridge.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru pregatirea IELTS sau CAE.",
+        "Vine cu CD-ul audio original, nedeschis.",
+        "Carte folosita doar la pregatirea examenului.",
+        "Explicatii clare cu exemple reale."
+      ],
+      "priceMin": 25,
+      "priceMax": 80
+    },
+    {
+      "id": "tb-germana",
+      "titles": [
+        "Deutsche Grammatik - Hueber Verlag",
+        "Manual germana - Menschen A2",
+        "GERMANA A1-A2, manual Klett",
+        "Carte germana, pentru certificatul Goethe",
+        "Manual Germana Mittelstufe, B1",
+        "Carte Germana, Langenscheidt dictionar",
+        "Manual Germana, Studio d A2",
+        "Carte Germana, Berliner Platz NEU"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de germana.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din el pentru examenul Goethe B1.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru pregatirea certificatelor.",
+        "Vine cu CD-ul audio original.",
+        "Carte folosita doar la pregatirea examenului.",
+        "Explicatii clare cu exercitii graduale."
+      ],
+      "priceMin": 25,
+      "priceMax": 80
+    },
+    {
+      "id": "tb-franceza",
+      "titles": [
+        "Manual Franceza - Alter Ego A1",
+        "Grammaire progressive du francais - Gregoire",
+        "FRANCEZA Manual, CLE International",
+        "Carte franceza, pentru certificatul DELF",
+        "Manual Franceza, Cosmopolite B1",
+        "Carte Franceza, Larousse dictionar",
+        "Manual Franceza, Edito B2",
+        "Carte Franceza, Taxi A1 niveau debutant"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru franceza la facultate.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din el pentru DELF B1.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru pregatirea certificatelor.",
+        "Vine cu CD-ul audio original.",
+        "Carte folosita doar la pregatirea examenului.",
+        "Explicatii clare cu exercitii gradate."
+      ],
+      "priceMin": 25,
+      "priceMax": 80
+    },
+    {
+      "id": "tb-ecuatii-diferentiale",
+      "titles": [
+        "Ecuatii diferentiale - manual an II matematica",
+        "Teoria ecuatiilor diferentiale - Ionescu",
+        "ECUATII DIFERENTIALE, Polya",
+        "Manual Ecuatii Diferentiale si cu Derivate Partiale",
+        "Carte ED, culegere probleme rezolvate",
+        "Differential Equations - Boyce DiPrima",
+        "Manual EDP, pentru examen an II",
+        "Carte Ecuatii Diferentiale, UB mate"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de ecuatii diferentiale.",
+        "Interior aproape nou, cateva formule subliniate.",
+        "Am invatat din ea pentru examenul de iarna.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine peste 300 probleme rezolvate.",
+        "Vine cu rezumat teoretic la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu demonstratii detaliate."
+      ],
+      "priceMin": 45,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-teoria-probabilitatilor",
+      "titles": [
+        "Teoria probabilitatilor - manual facultate",
+        "Probability and Statistics - Walpole",
+        "TEORIA PROBABILITATILOR, manual UB",
+        "Manual Probabilitati si Statistica",
+        "Carte Probabilitati, Iosifescu",
+        "Introduction to Probability - Bertsekas",
+        "Manual Probabilitati, UTCN mate",
+        "Carte Probabilitati si Statistica, cu exercitii"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de probabilitati.",
+        "Interior curat, cateva formule subliniate.",
+        "Am invatat din ea pentru examen si proiect.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine peste 400 de exercitii rezolvate.",
+        "Vine cu tabele statistice la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme si grafice."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-statistica",
+      "titles": [
+        "Statistica - manual ASE, facultate",
+        "Statistics - Freedman Pisani Purves",
+        "STATISTICA economica, manual ASE",
+        "Manual Statistica Aplicata, in romana",
+        "Carte Statistica si SPSS",
+        "The Practice of Statistics - Yates Moore",
+        "Manual Statistica, UBB Cluj",
+        "Carte Statistica Descriptiva si Inferentiala"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru statistica.",
+        "Interior aproape nou, cateva sublinieri.",
+        "Am invatat din ea pentru examen si proiect.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii de caz si exemple practice.",
+        "Vine cu tabele statistice la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu SPSS si Excel."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-dezvoltare-web",
+      "titles": [
+        "Programare Web - manual complet an III",
+        "Web Development Bible - carte internationala",
+        "FULL STACK WEB DEV, manual facultate",
+        "Manual HTML CSS JavaScript, OReilly",
+        "Carte Web Development, Freeman",
+        "Learning Web Design - OReilly, editia 5",
+        "Manual Programare Web, UTCN",
+        "Carte React si Node.js, manual complet"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru programare web.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din el HTML, CSS si JavaScript.",
+        "Coperta prezinta zgarieturi minime.",
+        "Perfect pentru proiectele de an III.",
+        "Vine cu cod sursa pe GitHub, link in prima pagina.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu exemple practice."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-dezvoltare-mobile",
+      "titles": [
+        "Programare Android - manual Big Nerd Ranch",
+        "iOS Programming - carte universitara",
+        "DEZVOLTARE MOBILE, manual complet",
+        "Manual Android Studio, Kotlin",
+        "Carte Flutter, Dart in Action",
+        "React Native in Action, Manning",
+        "Manual Programare Mobile, UB informatica",
+        "Carte Dezvoltare Aplicatii Android, pentru examen"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de dezvoltare mobile.",
+        "Interior curat, cateva pagini indoite.",
+        "Am invatat din ea pentru proiectul de an III.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine proiecte Android si iOS complete.",
+        "Vine cu cod sursa pe GitHub, link in prima pagina.",
+        "Carte folosita un semestru, fara defecte.",
+        "Explicatii clare cu capturi de ecran."
+      ],
+      "priceMin": 40,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-devops-manual",
+      "titles": [
+        "The Phoenix Project - Gene Kim",
+        "DevOps Handbook - Gene Kim, carte originala",
+        "DEVOPS - manual complet facultate",
+        "Manual Docker si Kubernetes, in engleza",
+        "Carte CI/CD, Jenkins Pipeline",
+        "Site Reliability Engineering - Google",
+        "Manual DevOps, UTCN cursuri postuniversitare",
+        "Carte Terraform si Infrastructure as Code"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de DevOps.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru master si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii de caz reale.",
+        "Vine cu bibliografie si glosar.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme si exemple."
+      ],
+      "priceMin": 50,
+      "priceMax": 150
+    },
+    {
+      "id": "tb-testare-software",
+      "titles": [
+        "Software Testing - Ron Patton",
+        "Testarea programelor - manual facultate",
+        "TESTARE SOFTWARE, manual complet",
+        "Manual Selenium si TestNG, in engleza",
+        "Carte Agile Testing, Crispin Gregory",
+        "Introduction to Software Testing - Ammann",
+        "Manual Testare Software, UB informatica",
+        "Carte Unit Testing, Principles Patterns Practices"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de testare software.",
+        "Interior curat, cateva sublinieri.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii de caz cu Selenium si JUnit.",
+        "Vine cu cod sursa pe GitHub, link in prima pagina.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu exemple practice."
+      ],
+      "priceMin": 45,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-matematici-speciale",
+      "titles": [
+        "Matematici Speciale - manual ETTI/AC",
+        "Mathematics for Engineers - carte in engleza",
+        "MATEMATICI SPECIALE, manual Politehnica",
+        "Manual Serii Fourier, Transformate Laplace",
+        "Carte Matematici Speciale, Rudner",
+        "Advanced Engineering Mathematics - Kreyszig",
+        "Manual Matematici Speciale, UTCN",
+        "Carte Matematici Aplicate, cu exercitii rezolvate"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de matematici speciale.",
+        "Interior curat, cateva formule subliniate.",
+        "Am invatat din ea pentru examen si proiect.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine serii Fourier, Laplace si functii Bessel.",
+        "Vine cu rezumat teoretic la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu demonstratii detaliate."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-electronica-digitala",
+      "titles": [
+        "Electronica digitala - manual an II AC",
+        "Digital Design - Mano Ciletti, editia 5",
+        "ELECTRONICA DIGITALA, manual Politehnica",
+        "Manual Circuite Logice, UTCN",
+        "Carte Electronica Digitala, Floyd",
+        "Digital Electronics - Tocci Widmer",
+        "Manual Electronica Digitala, UB informatica",
+        "Carte VHDL si FPGA, Pedroni"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de electronica digitala.",
+        "Interior curat, cateva scheme subliniate.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine FPGA, VHDL si logica combinatorie.",
+        "Vine cu rezumat teoretic la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme digitale."
+      ],
+      "priceMin": 45,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-electronica-analogica",
+      "titles": [
+        "Electronica analogica - manual AC",
+        "Microelectronic Circuits - Sedra Smith",
+        "ELECTRONICA ANALOGICA, manual Politehnica",
+        "Manual Circuite Analogice, UTCN",
+        "Carte Electronica Analogica, Boylestad",
+        "Analog Integrated Circuits - Gray Hurst",
+        "Manual Electronica Analogica, UB",
+        "Carte Amplificatoare Operationale, pentru examen"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de electronica analogica.",
+        "Interior curat, cateva scheme subliniate.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine amplificatoare, filtre si surse de tensiune.",
+        "Vine cu rezumat teoretic la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme electrice."
+      ],
+      "priceMin": 45,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-biologie-celulara",
+      "titles": [
+        "Molecular Biology of the Cell - Alberts",
+        "Biologie Celulara - manual UMF",
+        "BIOLOGIE CELULARA si MOLECULARA, manual",
+        "Manual Biologie Celulara, UB biologie",
+        "Carte Biologie Moleculara, Lodish",
+        "Essential Cell Biology - Alberts",
+        "Manual Biologie Celulara, farmacie",
+        "Carte Biologia Celulei, Dinu"
+      ],
+      "descriptions": [
+        "Manualul standard pentru biologie celulara.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru examenul de anul I.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine imagini microscopice detaliate.",
+        "Vine cu rezumat la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme biologice."
+      ],
+      "priceMin": 50,
+      "priceMax": 140
+    },
+    {
+      "id": "tb-genetica",
+      "titles": [
+        "Genetica - Griffiths Introduction to Genetic Analysis",
+        "Genetica umana - manual UMF",
+        "GENETICA, manual UB biologie",
+        "Manual Genetica Medicala, farmacie",
+        "Carte Genetica, Hartl Jones",
+        "Essential Genetics - Hartl",
+        "Manual Genetica, Luca",
+        "Carte Genetica Moleculara, pentru examen"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de genetica.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru examenul de anul II.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii de caz si scheme detaliate.",
+        "Vine cu rezumat la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu diagrame genetice."
+      ],
+      "priceMin": 45,
+      "priceMax": 130
+    },
+    {
+      "id": "tb-microbiologie",
+      "titles": [
+        "Microbiologie - manual UMF",
+        "Brock Biology of Microorganisms",
+        "MICROBIOLOGIE MEDICALA, manual",
+        "Manual Microbiologie, UB biologie",
+        "Carte Microbiologie Farmaceutica",
+        "Microbiology - Tortora Funke Case",
+        "Manual Microbiologie, pentru examen",
+        "Carte Microbiologie Clinica, Buiuc"
+      ],
+      "descriptions": [
+        "Manualul recomandat pentru cursul de microbiologie.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii de caz si scheme detaliate.",
+        "Vine cu rezumat la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu imagini microscopice."
+      ],
+      "priceMin": 45,
+      "priceMax": 130
+    },
+    {
+      "id": "tb-biochimie",
+      "titles": [
+        "Biochimie - Lehninger Principles",
+        "Biochimie medicala - manual UMF",
+        "BIOCHIMIE, manual UB biochimie",
+        "Manual Biochimie Metabolica",
+        "Carte Biochimie, Stryer",
+        "Harper's Illustrated Biochemistry",
+        "Manual Biochimie, pentru examen",
+        "Carte Biochimie Clinica, Marshall"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de biochimie.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine cai metabolice detaliate.",
+        "Vine cu rezumat si glosar.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme biochimice."
+      ],
+      "priceMin": 50,
+      "priceMax": 140
+    },
+    {
+      "id": "tb-filosofie",
+      "titles": [
+        "Filosofie - manual facultate",
+        "Istoria filosofiei - Bertrand Russell",
+        "FILOSOFIE GENERALA, manual",
+        "Manual Filosofie, UBB Cluj",
+        "Carte Filosofie Politica, Rawls",
+        "Being and Time - Heidegger, in engleza",
+        "Manual Filosofie, UB facultate",
+        "Carte Filosofia Stiintei, Popper"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de filosofie.",
+        "Interior curat, cateva sublinieri.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine texte originale si comentarii.",
+        "Vine cu bibliografie si glosar.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme filosofice."
+      ],
+      "priceMin": 25,
+      "priceMax": 80
+    },
+    {
+      "id": "tb-drept-constitutional",
+      "titles": [
+        "Drept constitutional - Deleanu",
+        "Drept Constitutional Romanesc - Muraru",
+        "DREPT CONSTITUTIONAL, manual UBB",
+        "Manual Drept Constitutional, pentru examen barou",
+        "Carte Drept Constitutional Comparat",
+        "Constitutional Law - Barnett, in engleza",
+        "Manual Drept Constitutional, UB facultate",
+        "Carte Drept Constitutional, Ionescu"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de drept constitutional.",
+        "Interior aproape nou, cateva sublinieri.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine Constitutia Romaniei comentata.",
+        "Vine cu bibliografie si glosar.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme juridice."
+      ],
+      "priceMin": 40,
+      "priceMax": 110
+    },
+    {
+      "id": "tb-chimie-generala",
+      "titles": [
+        "Chimie generala - manual an I",
+        "Chemistry - Zumdahl, editia 10",
+        "CHIMIE GENERALA, manual UB chimie",
+        "Manual Chimie Generala, UMF farmacie",
+        "Carte Chimie Generala, Mirescu",
+        "General Chemistry - Petrucci",
+        "Manual Chimie Generala, UB biochimie",
+        "Carte Chimie Generala, cu exercitii rezolvate"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de chimie generala.",
+        "Interior curat, cateva sublinieri la formule.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine tabele periodice si calcule chimice.",
+        "Vine cu rezumat la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme chimice."
+      ],
+      "priceMin": 40,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-chimie-analitica",
+      "titles": [
+        "Chimie analitica - manual UMF farmacie",
+        "Analytical Chemistry - Skoog West Holler",
+        "CHIMIE ANALITICA, manual UB chimie",
+        "Manual Chimie Analitica Cantitativa",
+        "Carte Chimie Analitica, Harris",
+        "Quantitative Chemical Analysis - Harris",
+        "Manual Chimie Analitica, UB farmacie",
+        "Carte Chimie Analitica, Luca"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de chimie analitica.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru examen si proiect.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine metode analitice detaliate.",
+        "Vine cu rezumat la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme analitice."
+      ],
+      "priceMin": 40,
+      "priceMax": 120
+    },
+    {
+      "id": "tb-admitere-politehnica",
+      "titles": [
+        "Culegere matematica admitere Politehnica",
+        "Admitere politehnica fizica si matematica",
+        "ADMITERE POLITEHNICA, culegere probleme",
+        "Manual admitere Politehnica Bucuresti",
+        "Carte admitere UPB, matematica si fizica",
+        "Admitere Politehnica Timisoara, culegere",
+        "Culegere probleme matematica UTCN",
+        "Manual admitere UPT, fizica"
+      ],
+      "descriptions": [
+        "Perfect pentru admitere la Politehnica.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am luat admiterea cu ajutorul ei.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine probleme rezolvate pas cu pas.",
+        "Vine cu rezumat teoretic la final.",
+        "Carte folosita doar o data pentru admitere.",
+        "Explicatii clare cu demonstratii detaliate."
+      ],
+      "priceMin": 35,
+      "priceMax": 95
+    },
+    {
+      "id": "tb-admitere-medicina",
+      "titles": [
+        "Culegere biologie admitere medicina",
+        "Admitere UMF, chimie si biologie",
+        "ADMITERE MEDICINA, culegere probleme",
+        "Manual admitere Carol Davila",
+        "Carte admitere UMF Cluj, biologie",
+        "Admitere UMF Iasi, chimie organica",
+        "Culegere probleme admitere UMF",
+        "Manual admitere medicina, pregatire completa"
+      ],
+      "descriptions": [
+        "Perfect pentru admitere la medicina.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am luat admiterea cu ajutorul ei.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine probleme rezolvate pas cu pas.",
+        "Vine cu rezumat teoretic la final.",
+        "Carte folosita doar o data pentru admitere.",
+        "Explicatii clare cu scheme detaliate."
+      ],
+      "priceMin": 40,
+      "priceMax": 100
+    },
+    {
+      "id": "tb-admitere-ase",
+      "titles": [
+        "Culegere matematica admitere ASE",
+        "Admitere ASE, economie si matematica",
+        "ADMITERE ASE, culegere probleme",
+        "Manual admitere ASE Bucuresti",
+        "Carte admitere ASE, logica si matematica",
+        "Admitere FABBV, culegere probleme",
+        "Culegere probleme admitere ASE",
+        "Manual admitere economie, pregatire completa"
+      ],
+      "descriptions": [
+        "Perfect pentru admitere la ASE.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am luat admiterea cu ajutorul ei.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine probleme rezolvate pas cu pas.",
+        "Vine cu rezumat teoretic la final.",
+        "Carte folosita doar o data pentru admitere.",
+        "Explicatii clare cu grafice."
+      ],
+      "priceMin": 35,
+      "priceMax": 90
+    },
+    {
+      "id": "tb-propedeutica",
+      "titles": [
+        "Propedeutica medicala - manual UMF",
+        "Semiologie Medicala - Stanciu",
+        "PROPEDEUTICA, manual UMF anul III",
+        "Manual Semiologie, Georgescu",
+        "Carte Propedeutica, pentru examen",
+        "Harrison's Principles of Internal Medicine",
+        "Manual Propedeutica Chirurgicala",
+        "Carte Semiologie Chirurgicala"
+      ],
+      "descriptions": [
+        "Manualul standard pentru propedeutica.",
+        "Interior aproape nou, cateva pagini indoite.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine studii de caz reale.",
+        "Vine cu rezumat la final.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme clinice."
+      ],
+      "priceMin": 45,
+      "priceMax": 130
+    },
+    {
+      "id": "tb-anatomie-atlas",
+      "titles": [
+        "Atlas anatomie Netter, editia 7",
+        "NETTER Atlas of Human Anatomy",
+        "Atlas anatomie, Frank Netter",
+        "Manual Atlas Netter, in romana",
+        "Atlas anatomie Netter, cu ilustratii color",
+        "Atlas Anatomie Netter, hardcover",
+        "Netter Atlas, cu scheme radiologice",
+        "Atlas Anatomie Netter, format mare"
+      ],
+      "descriptions": [
+        "Atlasul Netter, standard pentru medicina.",
+        "Ilustratii foarte detaliate, color.",
+        "Interior aproape curat, cateva pagini marcate.",
+        "Am folosit atlasul la laboratoare de anatomie.",
+        "Coperta prezinta uzura, dar interiorul e complet.",
+        "Perfect pentru pregatirea examenelor.",
+        "Vine cu caiet de notite cadou.",
+        "Vand pentru ca am terminat anul I."
+      ],
+      "priceMin": 60,
+      "priceMax": 170
+    },
+    {
+      "id": "tb-chimie-biochimie",
+      "titles": [
+        "Biochimie - manual an I medicina",
+        "Biochimie Umana, manual UMF",
+        "BIOCHIMIE Medicala, manual",
+        "Manual Biochimie, UB biochimie",
+        "Carte Biochimie, pentru examen",
+        "Harper's Illustrated Biochemistry",
+        "Manual Biochimie, UBB Cluj",
+        "Carte Biochimie Clinica, pentru medicina"
+      ],
+      "descriptions": [
+        "Perfect pentru cursul de biochimie.",
+        "Interior curat, cateva sublinieri la formule.",
+        "Am invatat din ea pentru examen si licenta.",
+        "Coperta prezinta zgarieturi minime.",
+        "Contine cai metabolice detaliate.",
+        "Vine cu rezumat si glosar.",
+        "Carte folosita doar un semestru.",
+        "Explicatii clare cu scheme biochimice."
+      ],
+      "priceMin": 40,
+      "priceMax": 120
+    }
+  ]
+}

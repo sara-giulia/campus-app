@@ -78,6 +78,28 @@ public sealed class CreateListingTests : IntegrationTestBase
     }
 
     [Fact]
+    public async Task Given_PriceAboveMaximum_When_CreatingListing_Then_Returns400AndSavesNothing()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var request = new CreateListingRequest("Manual POO", Category.Textbook, Condition.Good, 200000m);
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Money.TooHigh");
+        error.Type.Should().Be(ErrorType.Validation);
+        error.Message.Should().Be("Price must be at most 100000 lei.");
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Given_Description_When_CreatingListing_Then_Returns201WithDescriptionAndGetReturnsIt()
     {
         // Arrange
