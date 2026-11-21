@@ -811,3 +811,14 @@ Tests to add:
 - Never hard-code a real key; use generated test strings.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+
+
+## Feature: Price feedback loop (Sara)
+Endpoint: `GET /api/v1/admin/ml/price-accuracy`, Admin only. Confirm sale now saves a `SaleRecord` (suggested price from the real price model, sold price = listing price).
+File: `Admin/PriceAccuracyTests.cs` (new).
+Tests to add:
+- no token → 401; Student token → 403.
+- Admin, no sales → 200, count 0, metrics null.
+- seed a seller, a buyer and a published listing; reserve as the buyer, confirm the sale as the seller (204) → the database has 1 `SaleRecord` for that listing with sold price = listing price and suggested price > 0; then Admin GET → count 1 and the record in `lastRecords`.
+  Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+

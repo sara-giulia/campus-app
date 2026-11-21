@@ -238,9 +238,10 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
+| Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites` and `GET /api/v1/moderation/listings` (Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -822,6 +823,50 @@ Spam (all rows, test):
 | Recall | 1.000 | 1.000 |
 | F1 score | **1.000** | 0.800 |
 
+### External evaluation
+
+`ml/data/external.csv` is an out-of-catalog sanity check: an AI was asked
+to draft 125 second-hand student listings without access to our catalog or
+`listings.csv`, then the team rewrote the first 30 rows after real
+listings we have seen (titles and phrasing we did not generate) and kept
+the rest as review-light drafts. Columns match `listings.csv` exactly
+(`Title,Description,Category,Condition,Price,IsSpam,TemplateId`, all with
+`TemplateId = external`), and the file carries no personal data — no
+names, phone numbers, email addresses or links to real sellers. 122 rows
+load as data (the last 3 lines are blank), of which 102 are non-spam and
+20 are spam, roughly balanced across the five categories (Electronics 27,
+LabEquipment 23, Notes 24, Other 25, Textbook 23). After training, the
+program loads the saved `.zip` models — the same files the API serves —
+and scores them on these rows next to the baselines from `Baselines.cs`.
+
+Last run (seed `2026`):
+
+| Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
+|---|---|---|---|---|---|
+| Price (non-spam) | R² | **0.451** | 0.274 | **0.511** | 0.011 |
+| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **112.10** | 192.05 |
+| Price (non-spam) | MAPE | **75.3%** | 176.5% | **55.1%** | 132.1% |
+| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.735** | 0.196 |
+| Category (non-spam) | Macro accuracy | **0.857** | 0.200 | **0.737** | 0.200 |
+| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.934 |
+| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.929 |
+| Spam (all) | Recall | 1.000 | 1.000 | 0.500 | 0.650 |
+| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.765 |
+
+The price and category models still beat their baselines on external
+data, and by a larger R² margin than on the test part — the external
+prices are more concentrated around the catalog averages, so the baseline
+collapses while the model generalizes. Spam is the honest miss: the test
+part is saturated because synthetic spam signals the generator plants
+(links, phone numbers, `!!!`, 1-leu prices) are the same the rule
+baseline catches, so both reach 1.000. The external set has ten subtle
+spam rows with normal titles, normal prices and no scam keywords
+(`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet festival
+Untold"`), which neither the model nor the rule catch — recall drops to
+0.500 for the model and 0.650 for the rule. That gap is a dataset-v2
+limit and a task for the next iteration of the spam generator, not a
+regression in the committed model.
+
 ### Dataset v2
 
 - **Seed:** `const int Seed = 2026` in both the generator and the trainer, so
@@ -871,6 +916,46 @@ SHA256 hashes to check. The second command trains the three models with
 seed `2026` and writes them to `ml/models/`. The `PredictionEnginePool`
 registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
 
+### Reproducibility
+
+Everything in the pipeline is pinned so two runs produce the same bytes:
+
+- **Seed `2026`** lives in `DatasetSplit.Seed` and in the generator (same
+  constant in both). The `MLContext` is built with this seed.
+- Every ML.NET trainer passes **`NumberOfThreads = 1`** in its Options object
+  (`PriceTrainer`, `CategoryTrainer`, `SpamTrainer`). SDCA, FastTree and
+  LightGBM only produce identical metrics across runs when they do not
+  parallelize over threads.
+- Beside each saved model, the trainer writes a **`<model-file>.json`
+  sidecar** (`ModelMetadata.cs`): the model name, the chosen algorithm and
+  target, UTC timestamp (ISO 8601), seed, split (70/15/15 grouped by
+  `TemplateId`), SHA-256 of `ml/data/listings.csv`, row counts per part, the
+  test metrics as numbers, and the git commit from `GITHUB_SHA` if set. Keys
+  are sorted alphabetically and metrics are written with six decimals, so a
+  `git diff` of two runs only highlights real changes.
+- CI (`.github/workflows/ml.yml`, runs on `ml/**` or
+  `tests/CampusMarket.ML.Tests/**` changes): sets up .NET 10, restores, then
+  (1) regenerates `ml/data/listings.csv` with the generator and fails if
+  `git diff --exit-code` reports a byte change; (2) trains the models;
+  (3) runs `ml/scripts/check_metrics.py` on the new sidecars against the
+  committed ones and fails if any R², accuracy or F1 dropped by more than
+  0.02 absolute, or MAE grew by more than 5% relative; (4) runs
+  `dotnet test tests/CampusMarket.ML.Tests` against the fresh models; and
+  (5) uploads `ml/models/*.{zip,json}` as a build artifact. CI never
+  commits, pushes or needs secrets.
+
+Reproduce locally in three commands from the repository root:
+
+```
+dotnet run --project ml/CampusMarket.ML.DatasetGenerator
+dotnet run --project ml/CampusMarket.ML.Training
+dotnet test tests/CampusMarket.ML.Tests
+```
+
+Running the first two twice in a row produces identical bytes in
+`ml/data/listings.csv` and identical `testMetrics` in every
+`ml/models/*.json` (only the `trainedAt` timestamp changes).
+
 ### Price suggestion model (B3)
 
 - Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, regression on the
@@ -909,6 +994,30 @@ registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
   **0.40** (winner's test R² − 0.05, rounded down to two decimals — see
   `MinRSquared` and [docs/ml/price.md](docs/ml/price.md)), or if, for the
   same title, `Condition = New` is not priced higher than `Condition = Worn`.
+
+#### Price feedback loop
+
+Training metrics measure the model against a synthetic test split; the real
+check is against sales people actually made. Every time a seller confirms a
+sale (`POST /api/v1/listings/{id}/reservations/{reservationId}/confirm`),
+`ConfirmSaleHandler` asks the same `IPriceSuggester` the `SuggestPrice`
+slice uses what it would have suggested for that listing (title,
+description, category, condition), and writes a `SaleRecord` in the same
+`CommitAsync` as the sale: `ListingId`, `Category`, `Condition`, the
+suggested price, the actual sold price (`Listing.Price.Amount`) and
+`SoldAt`. If the suggester throws or returns nothing, the sale still goes
+through — a warning is logged and no `SaleRecord` is written, so the
+feedback loop never blocks the sale. Records live in the `SaleRecords`
+table (migration `AddSaleRecords`), with no FK to `Listings` on purpose so
+analytics survives listing deletion.
+
+`GET /api/v1/admin/ml/price-accuracy` (Admins only) reads the table and
+returns `count`, overall MAE in lei and MAPE in %, the same metrics broken
+down per `Category`, and the 10 newest records (`listingId`, `category`,
+`condition`, `suggestedPrice`, `soldPrice`, `soldAt`). On an empty table
+the response is `{ count: 0, mae: null, mape: null, perCategory: [],
+lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
+`ISaleRecordRepository` and no `IUnitOfWork`.
 
 ### Category suggestion model (B4)
 

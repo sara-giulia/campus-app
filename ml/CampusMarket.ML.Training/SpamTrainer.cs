@@ -11,14 +11,20 @@ public sealed class SpamTrainer : IModelTrainer
 
     public string ModelFileName => "spam-detection.zip";
 
-    public (ITransformer Model, string Metrics) Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
+    public TrainingResult Train(MLContext mlContext, IDataView trainData, IDataView validationData, IDataView testData)
     {
         // The label is IsSpam itself, so the saved model does not need an IsSpam column at prediction time.
         var pipeline = mlContext.Transforms.Text.FeaturizeText("TitleFeatures", nameof(ListingRow.Title))
             .Append(mlContext.Transforms.Text.FeaturizeText("DescriptionFeatures", nameof(ListingRow.Description)))
             .Append(mlContext.Transforms.NormalizeBinning("PriceFeatures", nameof(ListingRow.Price), maximumBinCount: 20))
             .Append(mlContext.Transforms.Concatenate("Features", "TitleFeatures", "DescriptionFeatures", "PriceFeatures"))
-            .Append(mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(labelColumnName: nameof(ListingRow.IsSpam), featureColumnName: "Features"));
+            .Append(mlContext.BinaryClassification.Trainers.SdcaLogisticRegression(
+                new Microsoft.ML.Trainers.SdcaLogisticRegressionBinaryTrainer.Options
+                {
+                    LabelColumnName = nameof(ListingRow.IsSpam),
+                    FeatureColumnName = "Features",
+                    NumberOfThreads = 1,
+                }));
 
         var model = pipeline.Fit(trainData);
         var metrics = mlContext.BinaryClassification.Evaluate(model.Transform(testData), labelColumnName: nameof(ListingRow.IsSpam));
@@ -30,6 +36,15 @@ public sealed class SpamTrainer : IModelTrainer
             $"Precision: {metrics.PositivePrecision:F3}{Environment.NewLine}" +
             $"Recall:    {metrics.PositiveRecall:F3}";
 
-        return (model, text);
+        var structured = new Dictionary<string, double>(StringComparer.Ordinal)
+        {
+            ["accuracy"] = metrics.Accuracy,
+            ["auc"] = metrics.AreaUnderRocCurve,
+            ["f1"] = metrics.F1Score,
+            ["precision"] = metrics.PositivePrecision,
+            ["recall"] = metrics.PositiveRecall,
+        };
+
+        return new TrainingResult(model, text, "SDCA logistic regression", structured);
     }
 }
