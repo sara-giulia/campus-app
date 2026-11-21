@@ -713,6 +713,44 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v23 is the final version.
 - **Commits:** skill 1be82be; generated code ab95b6d
+
+### Run 22, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). New slices `GetMyProfile` (`GET /api/v1/members/me`) and `UpdateMyProfile` (`PUT /api/v1/members/me`, only the name changes) without tests.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile of the logged-in member. | New section *"Feature: My profile (Carina)"*: what each handler does, how to build the members (`Member.Register` with `FakePasswordHasher`, Student or Admin), and 6 tests. | Without it Claude would have to guess the order of the checks and what the response contains. |
+| 2 | — | *"`member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same"* + a test that checks the email after the update. | Proves that the profile update can never change the email. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v24, commit f197c2c (numbered after the condition filter PR, #72, which makes v23); section written and run by Carina Coman
+- **Result:** 6 new tests in two new files: `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs` (a Student with its id, name, lower-case email, role and `CreatedAt`, the repository unchanged; an Admin → role `"Admin"`; unknown id → `Member.NotFound`) and `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs` (a valid name with spaces → trimmed, email unchanged, `UpdateCount` 1, `SaveCount` 1; a 1-character name → `Member.InvalidName`, name unchanged, `UpdateCount` 0, `SaveCount` 0; unknown id → `Member.NotFound`, `SaveCount` 0). Every error checks type, code and the exact message. No existing test, fake or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1045/1045 lines and 362/362 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill f197c2c; generated code b9461db
+
+### Run 23, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). New query slice `GetPublicProfile` (`GET /api/v1/members/{id}/profile`): name, member since, average rating, review count and Active listings, without email or role. The handler had no tests.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: what the handler returns, how to build Draft, Active and Sold listings and a review (`Publish`, `Reserve`, `ConfirmSale`, `Review.Create`), and 6 tests. | Building a review needs a sold listing with a completed reservation; without the steps Claude would have to guess them. |
+| 2 | — | *"reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals)"*. | Proves the rounding, not only an average that is already exact. |
+| 3 | — | *"If `FakeReviewRepository` already exists in `Fakes/`, use it as it is"*. | So the run does not write a second fake for the same interface. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests (and the fake, if it is missing) from the "Feature: Public profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v25, commit f4cb94c (numbered after the condition filter and my profile PRs, #72 and #76, which make v23 and v24); section written and run by Carina Coman
+- **Result:** one new file, `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`, with the 6 tests of the section: 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with title and price (also the member's id, name and `MemberSince`); another seller's Active listing is not included; no reviews → `AverageRating` null, `ReviewCount` 0; ratings 5 and 4 → 4.5 and 2; ratings 5, 4 and 4 → 4.33; unknown id → `Member.NotFound`. The existing `FakeReviewRepository` was used, so no fake changed. No existing test or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1044/1044 lines, 362/362 branches, 167/167 methods. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill f4cb94c; generated code 155cf71
+
 ### Run 25, skill v27 (Feature: Minimum category confidence)
 
 - **Why a new version:** `SuggestCategoryHandler` has a new rule: below `MinConfidence` (0.7) the response has `Category` null and keeps the confidence. `SuggestCategoryResponse.Category` is now nullable. The new branch had no tests, and one existing test used a confidence of 0.5 and expected a category.
@@ -1215,6 +1253,62 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v22 is the final version.
 - **Commits:** skill c3861b4; generated code 8c18e23
+
+### Run 24, skill v23 (Feature: API documentation)
+
+- **Why a new version:** task 8 (issue #74). The API got an OpenAPI document (`/openapi/v1.json`) and a documentation page (`/scalar`), both only in Development. The new endpoint had no test.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the API documentation. | New section *"Feature: API documentation (Carina)"*: the production code (`AddOpenApi`, and `MapOpenApi` and `MapScalarApiReference` only in Development; the test host runs in Development), the new file and one test. | The document is a new endpoint, and Claude needs to know that it exists only in Development. |
+| 2 | Every test checks the database (section 4). | *"The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of 'Feature: Error handling (Anca)' do."* | Keeps the status, body and database checks without inventing data. |
+| 3 | — | *"Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document."* | The test only has to prove that the paths are listed; a typed OpenAPI model would need a new package. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the test from the "Feature: API documentation (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v23, commit 0e90f1e (numbered after the condition filter PR, #72, which makes v22); section written and run by Carina Coman
+- **Result:** new file `Infrastructure/OpenApiTests.cs`, class `OpenApiTests : IntegrationTestBase`, with one test, `Given_DevelopmentEnvironment_When_GettingOpenApiDocument_Then_Returns200WithApiPaths`: `GET /openapi/v1.json` → 200, content type `application/json`, the body (read as text) contains `/api/v1/listings` and `/api/v1/auth/login`, and the database still has 0 listings. No existing test changed, nothing changed in `src/`. `dotnet build` 0 warnings, 0 errors (built with the SARIF error log, no CA or IDE diagnostics); integration tests 220/220 three runs in a row; full run: 10 architecture, 432 unit, 13 ML, 220 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 0e90f1e; generated code 5cd4f6c
+
+### Run 25, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). `GET /api/v1/members/me` and `PUT /api/v1/members/me` are new endpoints that need a token.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile endpoints. | New section *"Feature: My profile (Carina)"*: a table with the success and failures of both endpoints, which errors are ProblemDetails (401) and which keep `{ code, message, type }` (400, 404), and 6 tests. | The endpoints are new, so Claude needs the contract to test them. |
+| 2 | — | *"the raw body ... does not contain `password`"* and *"in the database the member has the new name and the old email"*. | Proves that the response never shows the password hash and that the update cannot change the email. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v24, commit e28342c (numbered after the condition filter and API documentation PRs, #72 and #74, which make v22 and v23); section written and run by Carina Coman
+- **Result:** new file `Members/MyProfileTests.cs` with 6 tests: logged in → GET 200 with id, name, lower-case email, role `Student` and `createdAt`, no `password` in the raw body; a token of a member that is not in the database → 404 `Member.NotFound`; no token → GET 401 and PUT 401 (ProblemDetails `Auth.Unauthorized`), member unchanged; a valid name → 204, new name and old email in the database; a 1-character name → 400 `Member.InvalidName`, member unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no CA or IDE diagnostics; 10 architecture, 438 unit and 13 ML tests pass; the 6 new tests pass in every run.
+- **Problems seen:** the existing `ReservationExpiryTests` (job on) failed in 2 of 4 integration runs with `SqliteException: SQLite Error 5: 'database is locked'`, so the "three runs in a row" check did not pass. The test was not touched by this run: the expiry job and the test use the same in-memory SQLite connection at the same time. Reported to the team, not fixed here.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill e28342c; generated code 35d92a4
+
+### Run 26, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). `GET /api/v1/members/{id}/profile` is a new public endpoint; it must never show the email, and it shows only Active listings and the review summary.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: the response, the 404 from the handler and from the route, how to seed a sold listing with a review, and 4 tests. | The endpoint is new, so Claude needs the contract to test it. |
+| 2 | — | *"the raw body (`ReadAsStringAsync`) does not contain the seller's email"*. | Proves over HTTP that the email, which is personal data, never leaves the API here. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Public profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v25, commit 4394edd (numbered after the condition filter, API documentation and my profile PRs, #72, #74 and #76, which make v22, v23 and v24); section written and run by Carina Coman
+- **Result:** new file `Members/PublicProfileTests.cs` with 4 tests, none of them logged in: an Active and a Draft listing → 200 with only the Active one (id, title, price), the right name, 0 reviews, no average, and the raw body does not contain the email; a sold listing reviewed with 4 → `averageRating` 4, `reviewCount` 1, no active listings; unknown id → 404 `Member.NotFound`, type `NotFound`; `/members/abc/profile` → 404 (status only). Every test checks that the seeded data is unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no diagnostics in the SARIF log; integration tests 223/223 three runs in a row; full run: 10 architecture, 438 unit, 13 ML, 223 integration.
+- **Problems seen:** the first version of the first test ordered the listings by date inside the database query, which SQLite cannot do with `DateTimeOffset`, so it failed. The run fixed its own test in the same session (no sort in the query, the two listings compared without order); the API was not involved.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill 4394edd; generated code 9febc5f
+
 ### Run 28, skill v27 (Feature: Minimum category confidence)
 
 - **Why a new version:** `POST /api/v1/listings/category-suggestion` can now answer `"category": null`, with a confidence below 0.7, when the model is not sure.
