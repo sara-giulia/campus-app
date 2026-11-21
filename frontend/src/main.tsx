@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router/dom'
 import { AuthProvider } from './app/auth/AuthProvider'
 import { router } from './app/router'
-import '@fontsource-variable/inter'
+import '@fontsource-variable/figtree'
 import './index.css'
 
 createRoot(document.getElementById('root')!).render(

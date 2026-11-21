@@ -94,7 +94,7 @@ export function Layout() {
 
       <footer className="footer">
         <div className="footer__inner">
-          <span>© CampusMarket · marketplace pentru studenți</span>
+          <span>campusmarket · piața studenților</span>
         </div>
       </footer>
     </div>

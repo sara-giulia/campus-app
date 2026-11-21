@@ -23,7 +23,7 @@ The API address comes from `VITE_API_URL` (copy `.env.example` to `.env.local`);
 
 ## Look and UI kit
 
-A simple, warm look: cream background, warm white panels with a thin beige border, one caramel-brown accent, the Inter font (installed from npm, no external CDN). Pages keep their content centred. The moon button in the top bar switches to the dark theme; the choice is remembered.
+The look follows Sara's page sketches (`Campus Hub – schițe pagini.html`, outside the repo): white background, one coral-red accent, the Figtree font (installed from npm, no external CDN), rounded corners, the `campusmarket` wordmark in coral, a light grey footer. Until listings have photos, pastel tiles (`--tile-*` colours) stand in for the pictures. The moon button in the top bar switches to the dark theme; the choice is remembered.
 
 - Colours, radii and shadows are CSS variables in `src/index.css` (`--accent`, `--surface`, `--line`, `--muted`, ...). Use the variables, never fixed colours, so both themes work.
 - Build pages from the components in `src/app/ui/`: `import { Button, Card, TextField, Alert, Pagination } from '../../app/ui'`.

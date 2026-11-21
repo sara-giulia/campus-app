@@ -1,4 +1,4 @@
-// The CampusMarket mark (a price tag) and the wordmark.
+// The CampusMarket wordmark (as in the sketches) and a small square mark for compact places.
 export function LogoMark({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
@@ -10,10 +10,5 @@ export function LogoMark({ size = 30 }: { size?: number }) {
 }
 
 export function Logo() {
-  return (
-    <span className="logo">
-      <LogoMark />
-      <span className="logo__word">CampusMarket</span>
-    </span>
-  )
+  return <span className="logo">campusmarket</span>
 }

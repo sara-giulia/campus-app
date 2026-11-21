@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/errors'
 import { useAuth } from '../auth/AuthContext'
-import { Alert, Button, Card, LogoMark, TextField } from '../ui'
+import { Alert, Button, TextField } from '../ui'
 import './login.css'
 
 // Messages for the error codes POST /auth/login can return.
@@ -50,15 +50,10 @@ export function LoginPage() {
 
   return (
     <div className="login">
-      <div className="login__heading">
-        <LogoMark size={40} />
-        <div>
-          <h1>Intră în cont</h1>
-          <p className="muted">Folosește emailul și parola contului CampusMarket.</p>
-        </div>
-      </div>
+      <div className="login__form-side">
+        <h1 className="login__title">Bine ai revenit</h1>
+        <p className="login__subtitle">Intră în contul tău CampusMarket.</p>
 
-      <Card className="login__card">
         <form onSubmit={handleSubmit} className="login__form">
           <TextField label="Email" type="email" autoComplete="email" placeholder="nume@student.ro" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
           <TextField label="Parolă" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
@@ -67,7 +62,14 @@ export function LoginPage() {
             {submitting ? 'Se verifică…' : 'Intră în cont'}
           </Button>
         </form>
-      </Card>
+      </div>
+
+      <div className="login__picture" aria-hidden="true">
+        <p className="login__quote">
+          Cumperi și vinzi între colegi, direct în campus.
+          <small>campusmarket · piața studenților</small>
+        </p>
+      </div>
     </div>
   )
 }
