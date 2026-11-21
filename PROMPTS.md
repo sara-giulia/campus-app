@@ -2083,3 +2083,11 @@ Weeks 6–7 (plan of Sara and Anca), Anca's first task: the skeleton of the web 
 - **Checks:** `npm run build` and `npm run lint` with no errors or warnings. Against the running API, in a headless Chrome driven through the DevTools protocol: wrong password → "Email sau parolă greșită.", login → home with the avatar, still logged in after reload, `/login` while logged in goes home, logout clears the tokens, unknown address → 404; all passed (one run hit the login rate limit of 5 per minute and was repeated a minute later). Screenshots of home (light, dark, logged in, 500 px) and login.
 - **Result:** `index.css`, `ui.css`, `layout.css`, `Logo.tsx`, `Layout.tsx` (footer), `HomePage.tsx`, `home.css`, `LoginPage.tsx`, `login.css`, `main.tsx`, `index.html`, `favicon.svg`, `package.json` (Figtree instead of Inter) and `frontend/README.md` changed. No change in the API.
 - **Commits:** code 5b4d094
+
+### Run 7
+
+- **Prompt:** `SonarCloud shows 1 new issue on PR #99: frontend/src/api/config.ts line 3, "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking."`
+- **Decision:** the regex `/\/+$/` (remove the slashes at the end of `VITE_API_URL`) was replaced by a small loop, `withoutTrailingSlashes`, that walks back from the end; same result, no regex, so nothing can backtrack.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings.
+- **Commits:** code and this entry in the same commit (the one that changes `frontend/src/api/config.ts`)
+
