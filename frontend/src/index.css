@@ -1,0 +1,169 @@
+/*
+  CampusMarket design tokens. Components use only these variables, so the light
+  and dark themes both work. Shared components: src/app/ui/ (ui.css).
+  Page styles live next to each page.
+*/
+
+:root {
+  --bg: #faf6ef; /* cream */
+  --surface: #fffdf9; /* warm white */
+  --surface-2: #f3ece1; /* light beige */
+  --ink: #2b2620;
+  --ink-soft: #4a4238;
+  --muted: #857a6b;
+  --line: #ebe2d4;
+  --line-strong: #dccfbb;
+
+  --accent: #8b5a2b; /* caramel brown */
+  --accent-hover: #74481f;
+  --accent-ink: #ffffff;
+  --accent-soft: #f4e9da;
+
+  --success: #3f7a3a;
+  --success-soft: #edf5ea;
+  --warning: #a2630b;
+  --warning-soft: #fbf1df;
+  --danger: #a8352a;
+  --danger-soft: #fbecea;
+
+  --shadow-sm: 0 1px 2px rgba(60, 45, 25, 0.05);
+  --shadow: 0 1px 3px rgba(60, 45, 25, 0.08), 0 1px 2px rgba(60, 45, 25, 0.04);
+  --shadow-lg: 0 12px 28px -8px rgba(60, 45, 25, 0.16), 0 4px 8px -4px rgba(60, 45, 25, 0.06);
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+
+  --font-body: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --topbar-h: 64px;
+  --content-w: 1080px;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #1c1915;
+  --surface: #24201b;
+  --surface-2: #2e2922;
+  --ink: #f3ede4;
+  --ink-soft: #ddd4c7;
+  --muted: #a89c8b;
+  --line: #3a332a;
+  --line-strong: #4a4136;
+
+  --accent: #d4a373;
+  --accent-hover: #e0b588;
+  --accent-ink: #1c1915;
+  --accent-soft: rgba(212, 163, 115, 0.14);
+
+  --success: #8fca86;
+  --success-soft: rgba(143, 202, 134, 0.12);
+  --warning: #e6b45c;
+  --warning-soft: rgba(230, 180, 92, 0.12);
+  --danger: #ec8a7e;
+  --danger-soft: rgba(236, 138, 126, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 16px 32px -8px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font: 15px/1.6 var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
