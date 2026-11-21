@@ -991,3 +991,19 @@ Tests to add:
 - `GET /api/v1/listings` without the header → the response has `X-Correlation-Id`, not empty, and it is a valid Guid.
 - the same request with `X-Correlation-Id: test-123` → the response header is exactly `test-123`.
 - an error response (`GET /api/v1/listings/{random guid}` → 404) also has the header.
+
+## Feature: Listings cache (Diana)
+
+Production code: `GetListingsEndpoint` caches for 30 s with tag "listings"; `ListingsCache.ClearAsync` is called after every successful change of a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide).
+
+Important: the ASP.NET Core output cache does not store responses to requests that have an `Authorization` header. Every search in these tests is sent **without a token**; only the change (create, publish, update, reserve) is sent with a token.
+
+File: `Listings/ListingsCacheTests.cs` (replace its tests).
+
+Setup: every test starts with an empty cache: at the start, get `IOutputCacheStore` from `Factory.Services` and call `EvictByTagAsync(ListingsCache.Tag, ...)`, so the tests do not affect each other.
+
+Tests to add:
+- the cache is used: search without a token → change a published listing directly in the database (through the DbContext, no endpoint, for example its title) → the same search without a token still returns the old title.
+- search without a token → create a listing with a token → the same search without a token (the draft is not there, and this fills the cache) → publish with a token → the same search without a token → the new listing is there.
+- search without a token → update a listing's title with a token → the same search without a token → the new title is there.
+- search without a token → reserve the listing with a token → the same search without a token → it is gone (no longer Active).

@@ -126,6 +126,7 @@ public static class CampusMarketSetup
         services.AddHealthChecks()
             .AddDbContextCheck<CampusMarketDbContext>(tags: ["ready"])
             .AddCheck<MlModelsHealthCheck>("ml-models", tags: ["ready"]);
+        services.AddOutputCache();
 
         // The web frontend runs on another origin (Vite on :5173 in development),
         // so the browser needs CORS. Only the origins in Cors:AllowedOrigins are allowed;

@@ -39,6 +39,7 @@ app.UseStatusCodePages();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
+app.UseOutputCache();
 
 app.MapCampusMarket();
 
