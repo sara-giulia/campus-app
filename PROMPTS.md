@@ -1154,11 +1154,11 @@ saved.Should().BeEquivalentTo(listing);
 | 1 | Nothing about analyzer warnings. | Section 7: a private helper returns its concrete type (`List<T>`, not `IReadOnlyList<T>`); after generating, build with a SARIF log and check that the test files have no CA or IDE diagnostic. | Sonar imports these Roslyn suggestions as issues, but `dotnet build` does not show them, so the run could not see them. |
 
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them all. SonarCloud reports CA1859 on ReservationExpiryServiceTests.cs line 47. Apply the new rule in section 7 to the existing integration tests: fix that helper and any other helper that breaks the same rule. Do not change test names, assertions or behaviour.` (new session)
-- **Skill version:** v21, commit TODO (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Skill version:** v21, commit 99f5fa3 (rule written by Ancuța Ilenei with Claude Code; run in a new session)
 - **Result:** one line changed: `ServiceErrors` returns `List<CapturingLoggerProvider.Entry>`. No other helper broke the rule (the other interface return types are public members of interfaces). The SARIF log of the test project has no diagnostics. 674 tests pass, the integration tests three times in a row.
 - **Problems seen:** the rule says "the new test files"; when it is applied to existing tests it should mean the whole test project, which is what the run checked.
 - **Change to SKILL.md after the run:** none.
-- **Commits:** skill TODO; generated code TODO
+- **Commits:** skill 99f5fa3; generated code 80b724d
 
 ### Run 28, skill v27 (Feature: Minimum category confidence)
 
@@ -1194,6 +1194,26 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v28 is the final version.
 - **Commits:** skill 0d26845; generated code c989e44
 
+
+### Run 30, skill v29 (Feature: CORS for the frontend)
+
+- **Why a new version:** Weeks 6–7, the frontend skeleton. The web frontend (`frontend/`, Vite on `http://localhost:5173`) calls the API from another origin, so the API now answers CORS for the origins in `Cors:AllowedOrigins`. No integration test covered it. (Sara's sections "Production configuration and demo data" and "Price feedback loop" were added to the skill before this run without a PROMPTS entry; v29 counts after them.)
+
+#### Change to SKILL.md (v28 → v29) and why
+
+| # | v28 (before) | v29 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about CORS. | New section *"Feature: CORS for the frontend (Anca)"*: the production code to read, the file (`Cors/CorsTests.cs`, new) and the tests: allowed preflight (204, origin, methods, headers, no credentials), preflight from another origin (no `Access-Control-Allow-Origin`), 201 with `Location` exposed, 401 and 500 ProblemDetails that still carry the CORS header, a request without `Origin` (no CORS headers), an origin set through `Cors:AllowedOrigins:0`. | CORS is middleware: only a real HTTP request through the whole pipeline shows the headers, and only an error answer shows that `UseCors` runs before the exception handler. |
+| 2 | (after the run) the configured origin was one bullet with two preflights; the not-allowed preflight had no status; nothing said that `git status` lists the hand-made changes. | Two tests with one HTTP call each, from a private helper; the not-allowed preflight is still 204; a rule lists the files changed by hand before the run. | The run found these three gaps (section 6 allows one HTTP call per test). |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: CORS for the frontend (Anca)". Add only those tests. Then run dotnet build and dotnet test tests/CampusMarket.IntegrationTests three times in a row, and the whole solution once. Follow section 10, including the SARIF check from section 7. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v29, commit a6a5c1c (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** 8 tests in `Cors/CorsTests.cs`: preflight from the frontend (204, exact `Access-Control-Allow-Origin`, `POST` and `authorization` allowed, no `Access-Control-Allow-Credentials`), preflight from `http://evil.example` (204, no `Access-Control-Allow-Origin`), `POST /listings` with the origin (201, origin, `Location` exposed and set, listing saved), no token (401 `Auth.Unauthorized` with the origin), `ThrowingUnitOfWork` (500 `Server.Error` with the origin, listing still `Draft`), no `Origin` header (200, no CORS header), and two tests with `Cors:AllowedOrigins:0` = `https://campusmarket.example` (that origin allowed, `localhost:5173` no longer). Every test checks the database. No existing test changed. Build 0 warnings, 0 errors; the SARIF log of the test project is empty; full run: 10 architecture, 454 unit, 13 ML, 235 integration; the integration tests passed three times in a row.
+- **Problems seen:**
+    1. The section asked for two preflights in one test; split into two tests (fixed in the section after the run).
+    2. One integration test failed once in the first full run with coverage and was not seen again in 8 more runs (5 integration, 3 full); its name was not printed. Most likely the old timing issue of the reservation expiry tests, not CORS.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill a6a5c1c; generated code 820290e
 
 ## code-review
 
@@ -1818,7 +1838,7 @@ Team final step: 100% coverage of the whole project in SonarCloud, not only of `
     - `ReservationExpiryServiceTests.cs`, CA1859: fixed by the skill (Run 22 of integration-testing).
     - Coverage: with the coverage of all test projects merged, the only lines left were the `Down()` methods of the EF Core migrations, which never run (the app only applies migrations). `**/Migrations/**` was added to `sonar.coverage.exclusions` in the CI, next to `Program.cs` and `ml/**`, and written in the README under "Coverage exclusions".
     - The SARIF logs still show CA1861 in two migrations; those files are generated by EF Core and Sonar does not report them.
-- **Commits:** code TODO; tests generated in TODO (see Run 22 of integration-testing)
+- **Commits:** code 977eaaf; tests generated in 80b724d (see Run 22 of integration-testing)
 
 ## category-min-confidence
 
@@ -1855,3 +1875,70 @@ Week 6, task 2 (maximum price). The production code is the one from the task lis
   - `static readonly` instead of `const`: the field is now read at run time by `Money.Create`, so the static constructor runs and the line is covered, without a test written only for coverage and without excluding the line in Sonar. The value, the name and every use stay the same (no test or other code needed a compile-time constant), and a comment above the field says why it is not `const`.
 - **Result:** `Money.MaxAmount` is `public static readonly decimal`. Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 222 integration tests pass. In both coverage reports of `CampusMarket.Api`, every sequence point and branch of `Money` is covered, including the static constructor (line 8, 1 visit) and both sides of `amount > MaxAmount`.
 - **Commits:** code 7e6a4c6
+
+## frontend-skeleton
+
+Weeks 6–7 (plan of Sara and Anca), Anca's first task: the skeleton of the web frontend, so Sara can start her pages. Written by Ancuța Ilenei with Claude Code; the CORS tests were generated with the integration-testing skill (Run 30).
+
+### Run 1
+
+- **Prompt:** `Do the frontend skeleton from the plan, completely and correctly: the frontend/ project (React + Vite + TypeScript), routing, the menu, the API client with the token and automatic refresh, the login page, CORS in the API.`
+- **Decisions:**
+    - React + Vite + TypeScript (chosen with Sara), React Router; no UI library and no state library, only what the skeleton needs.
+    - CORS policy `Frontend` with the origins from `Cors:AllowedOrigins` (`http://localhost:5173` in `appsettings.json`; the deployed address goes in `Cors__AllowedOrigins__0`). Any header and method, `Location` exposed, no credentials, because the token goes in the `Authorization` header and never in a cookie. `UseCors` is the first middleware, so 401/404/500 answers also carry the CORS header and the frontend can read the error.
+    - The origins are read with `GetChildren()` instead of `Get<string[]>() ?? []`, so there is no branch that the tests can never reach (Sonar coverage).
+    - API client (`frontend/src/api/client.ts`): adds the token, refreshes it 30 s before it expires and once more after a 401, then repeats the request. Requests that get a 401 together share one refresh, because the API rotates the refresh token and a second refresh with the old one would log the user out. A failed refresh clears the tokens; a network error does not.
+    - Both error shapes of the API (`{ code, message, type }` and ProblemDetails) become one `ApiError { status, code, message }`, so pages check only `code`.
+    - The tokens are kept in `localStorage`, so a page refresh keeps the user logged in, and other tabs follow a login or logout. The user (`id`, `email`, `role`) is read from the access token claims, only for the UI.
+    - So two people do not edit the same lines: `src/api/` and `src/app/` are Anca's; every feature has its folder `src/features/<feature>/` and a `routes.tsx`; `router.tsx` and `menu.ts` only get added lines. The login page lives in `src/app/pages/` (part of the skeleton), so `features/auth/` stays free for Sara (register, forgot password).
+    - `frontend/**` added to `sonar.coverage.exclusions` (TypeScript, outside the .NET coverage) and to `.dockerignore` (the API image does not need it).
+- **Checks:** `npm run build` (type check + build) and `npm run lint` with no errors. With the API running: CORS checked with curl (allowed preflight, other origin, 200, 401, 404, 201 with `Location`). The API client checked with a scratch script against the running API, 12 cases, all passed: wrong password → `Auth.InvalidCredentials`, login, the role read from the token, a broken token → one refresh and the request repeated, three parallel 401s → one refresh, a token about to expire → refresh before the request, an invalid refresh token → logged out, logout → the old refresh token is refused, a 404 → the code from the body.
+- **Result:** new `frontend/` (the skeleton, `README.md`, `.env.example`); `CampusMarketSetup.cs` (CORS policy), `Program.cs` (`UseCors`), `appsettings.json` (`Cors:AllowedOrigins`); README (how to run the frontend, CORS, tech stack, coverage exclusions); CI and `.dockerignore`. Build 0 warnings; 10 architecture, 454 unit, 13 ML and 235 integration tests pass. In the merged coverage every new line of `CampusMarketSetup.cs` is covered; the lines still uncovered are from the deploy and price feedback PRs (#95, #96).
+- **Commits:** code 5b3d6a9; tests generated in 820290e (see Run 30 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `Rearrange it so it looks much nicer: an interesting, well-made look that fits the idea of the app, something "wow".`
+- **Decisions:**
+    - One idea for the whole look: the campus notice board. Light theme = squared notebook paper, notes pinned with pushpins, yellow highlighter, ballpoint-blue accent; dark theme = a chalkboard with yellow chalk. The choice is saved in `localStorage` (system setting by default) and applied in `index.html` before the page paints, so it does not flash.
+    - Fonts from npm (`@fontsource`), not from a CDN: Bricolage Grotesque for titles, Inter for text, Caveat for the handwritten notes, all with the Romanian letters.
+    - A shared UI kit in `frontend/src/app/ui/` (Button, TextField, Card, PageHeader, Alert, Badge, EmptyState, Loading, Note, Pagination, icons, theme toggle, logo), so Sara's pages and Anca's pages look the same. Colours only through CSS variables in `index.css`.
+    - Top bar with logo, menu (active page underlined with the highlighter), theme button, account chip (initials, email, Admin badge, logout); on phones the menu folds into a burger. The phone menu closes on navigation by remembering the page where it was opened (no `setState` in an effect).
+    - Home page: hero, a cork board with four example notes (labelled "exemple", not real listings), the five categories as sticky notes, the three steps (publish, reserve, confirm the sale) and the three ML helpers (price, category, spam). The texts only describe what the API already does.
+    - Login: chalkboard on the left, form on the right, password show/hide. 404: a sticky note "pagina asta s-a vândut deja…".
+    - `prefers-reduced-motion` turns the animations off; visible focus ring; labels and `aria` on the icon buttons.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings. Screenshots with headless Chrome of the home page (light, dark, 500 px wide), the login page and the 404 page; two problems seen and fixed (one note covered the AI price of the next one; the ML section was too narrow in three columns).
+- **Result:** new `frontend/src/app/ui/` (components + `ui.css`), `layout.css`, `pages/home.css`, `login.css`, `not-found.css`, new favicon; `index.css`, `Layout.tsx`, `menu.ts` (the login button is now on the right, not in the menu), the three pages, `index.html`, `main.tsx` (fonts) and `frontend/README.md` (look and UI kit) changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 3
+
+- **Prompt:** `Make it look more professional, less like AI and simpler: well organised and structured, but simpler and clean.`
+- **Decisions:**
+    - The notice board look of Run 2 was dropped before any commit: no notebook grid, cork board, tilted notes, handwritten font or chalkboard. A neutral look instead: light grey background, white panels with a thin border, one blue accent, Inter only (the two decorative fonts were uninstalled). The dark theme is a plain dark grey.
+    - The UI kit keeps the same components and props, only their style is simpler; `Note` became `Chip` (categories and filters), the badge tone `marker` became `warning`.
+    - Home page: a short intro with the login button and the five categories, then "Cum funcționează" (three steps) and "Funcționalități" (price, category, anti-spam), as plain cards. Login: one centred card. 404: a short message and a link back.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots with headless Chrome of the home page (light, dark, 500 px wide) and the login page.
+- **Result:** `index.css`, `ui.css`, `layout.css`, the page styles and pages, `Logo.tsx`, `favicon.svg`, `Layout.tsx` (footer), `ui/Layout.tsx` (`Chip`), `main.tsx` (only Inter) and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 4
+
+- **Prompt:** `A bit nicer and better ordered, the text more centred, simple; colours white, cream, beige; for now not too many things, only what the task asked, and working as the task says.`
+- **Decisions:**
+    - Warm palette in the tokens of `index.css`: cream background, warm white panels, beige borders, caramel-brown accent; the dark theme uses the same warm tones. Logo and favicon follow the accent.
+    - The home page keeps only what the skeleton needs: a centred welcome, the login button, and after login who is logged in. The "how it works" and "features" sections were removed; the listings search replaces this page later.
+    - Footer is one centred line.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots (home light and dark, login, 500 px wide). The whole login flow driven in a headless Chrome through the DevTools protocol against the running API, 9 checks, all passed: wrong password → "Email sau parolă greșită.", login → home with the email and the Admin badge in the menu, tokens stored, still logged in after a page refresh, `/login` while logged in goes home, logout clears the user and the tokens, an unknown address shows the 404 page.
+- **Result:** `index.css`, `HomePage.tsx`, `home.css`, `layout.css`, `Layout.tsx` (footer), `Logo.tsx`, `favicon.svg`, `index.html` and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 5
+
+- **Prompt:** `The colours and the top bar are fine, but add something here so the home page looks a bit more professional.`
+- **Decisions:** the home page keeps the centred welcome and adds, in the same colours: a small label above the title, "CampusMarket" in the accent colour, a soft warm glow behind the title, the five categories as chips under the button, and one panel with three highlights (suggested price, automatic category, spam sent to moderation) that describe what the API already does.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots of the home page (light, dark, 500 px wide).
+- **Follow-up:** `Remove the text under the title; the three highlights should not describe how the app works inside, only what the user gets.` The sentence under the title was removed and the highlights became user-facing: *Preț corect* (a price suggestion), *Rezervare simplă* (a colleague reserves, you confirm), *Doar între studenți* (buy and sell on campus); `HandshakeIcon` added to `Icons.tsx`.
+- **Follow-up 2:** `Remove the email and the Admin badge from the top bar.` The top bar keeps only the initials (the email shows on hover) and the logout button.
+- **Result:** `HomePage.tsx`, `home.css`, `Icons.tsx`, `Layout.tsx` and `layout.css` changed. No change in the API.
+- **Commits:** code 5b3d6a9
