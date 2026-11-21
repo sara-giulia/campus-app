@@ -73,7 +73,7 @@ public static class CampusMarketSetup
         services.AddAuthorizationBuilder()
             .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
         
-        // At most 5 login attempts per minute from the same IP address, then 429.
+        // At most 5 login attempts and 5 registrations per minute from the same IP address, then 429.
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -83,6 +83,18 @@ public static class CampusMarketSetup
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
+
+            // Same idea as login: a burst of sign-ups from one IP is blocked (429). The limit is
+            // configurable so the integration tests, which register many members, can raise it.
+            var registerLimit = configuration.GetValue("RateLimiting:RegisterPermitLimit", 5);
+            options.AddPolicy("register", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = registerLimit,
                         Window = TimeSpan.FromMinutes(1)
                     }));
         });
