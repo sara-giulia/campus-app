@@ -593,3 +593,42 @@ Rules for this feature:
 - Never use real time.
 - Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+## Feature: Minimum category confidence (Diana)
+
+Production code: `Features/Listings/SuggestCategory/SuggestCategoryHandler.cs`, `MinConfidence` = 0.7; `SuggestCategoryResponse.Category` is now nullable.
+
+File: `Features/Listings/SuggestCategory/SuggestCategoryHandlerTests.cs` (add to it). The fake suggester returns a configurable confidence.
+
+Tests to add:
+- confidence 0.9 → `Category` is the suggested one.
+- confidence exactly 0.7 → `Category` is the suggested one.
+- confidence 0.69 → `Category` is null, `Confidence` is still 0.69.
+- If existing tests use a confidence below 0.7 and expect a category, raise the fake's confidence in them to 0.9; change nothing else.
+
+## Feature: Maximum price (Diana)
+
+Production code: `Domain/Listings/Money.cs`, `Money.MaxAmount` = 100000.
+
+File: `Domain/Listings/MoneyTests.cs` (add to it).
+
+Tests to add:
+- exactly `Money.MaxAmount` → success.
+- `Money.MaxAmount + 0.01m` → `Validation`, code `Money.TooHigh`, exact message from the code.
+- `Listing.Create` with a price above the maximum → the same error.
+
+## Feature: Price feedback loop (Sara)
+Production code (written by hand, read it before generating):
+- `Domain/Listings/SaleRecord.cs`: `SaleRecord.Create(...)` returns `Result<SaleRecord>`; prices must be > 0.
+- `Features/Listings/ConfirmSale/ConfirmSaleHandler.cs`: new dependencies `ISaleRecordRepository`, `IPriceSuggester`, `ILogger<ConfirmSaleHandler>`. After a successful confirm sale it asks the suggester and adds a `SaleRecord` (same `CommitAsync`). If the suggester throws or returns a price <= 0, the sale still succeeds and no record is added.
+- `Features/Admin/PriceAccuracy/PriceAccuracyHandler.cs` (query handler): count, MAE, MAPE, per category, last 10 newest first; with no records count 0 and null metrics.
+  Existing tests: `Features/Listings/ConfirmSale/ConfirmSaleHandlerTests.cs` no longer compiles (the constructor has 6 parameters). Update every `new ConfirmSaleHandler(...)` to pass a `FakeSaleRecordRepository`, a fake price suggester and `NullLogger<ConfirmSaleHandler>.Instance`; change nothing else in those tests.
+  Fakes: reuse the existing fake price suggester if there is one; otherwise add `FakePriceSuggester` (configurable price, or throws when asked) in the same hand-written style. Add `FakeSaleRecordRepository` (`Items`, `Add`, `GetAllAsync`).
+  Tests to add:
+- `SaleRecord.Create`: valid → success with all fields; suggested price 0 → validation error; sold price 0 → validation error (exact code and message from the code).
+- ConfirmSale success with suggester returning 120 → one record with suggested 120, sold = listing price, the listing's category and condition; `SaveCount` 1.
+- ConfirmSale success with suggester throwing → sale succeeds, no record, `SaveCount` 1.
+- ConfirmSale success with suggester returning 0 → sale succeeds, no record.
+- ConfirmSale failure (any existing failure case) → no record.
+- PriceAccuracy: no records → count 0, metrics null; records (suggested 100/sold 80, suggested 50/sold 50) → count 2, MAE 10, MAPE 12.5; per category grouped; last records newest first, at most 10.
+  Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100% lines and branches.
+

@@ -1,0 +1,22 @@
+{
+  "algorithm": "SDCA logistic regression",
+  "dataset": {
+    "rowCountTest": 711,
+    "rowCountTrain": 3380,
+    "rowCountValidation": 909,
+    "sha256": "0b1ad7f4e36f5c01a9da90897252770d7c840e57bdd9275c678602940cd451ad"
+  },
+  "gitCommit": null,
+  "modelFileName": "spam-detection.zip",
+  "modelName": "Spam detection (SDCA logistic regression)",
+  "seed": 2026,
+  "split": "70/15/15 grouped by TemplateId",
+  "testMetrics": {
+    "accuracy": 1.000000,
+    "auc": 1.000000,
+    "f1": 1.000000,
+    "precision": 1.000000,
+    "recall": 1.000000
+  },
+  "trainedAt": "2026-11-21T12:41:49Z"
+}

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 
 namespace CampusMarket.ML.DatasetGenerator;
 
@@ -8,138 +9,188 @@ public sealed record Row(
     Category Category,
     Condition Condition,
     int Price,
-    bool IsSpam);
+    bool IsSpam,
+    string TemplateId);
 
-public static class Generator
+// Dataset v2. Reads the full item catalog from JSON (see Catalog.LoadAll) and layers on top of it
+// the kinds of noise a scraped student marketplace would actually contain: stripped diacritics,
+// typos, abbreviations, casing changes, emojis, missing or very long descriptions, spam that does
+// not shout, label-noise where the seller picked the wrong category, and prices that drift. The
+// rng is always the seeded Random from Program.cs so two runs produce identical rows.
+public sealed class Generator
 {
-    public const int TotalRows = 3000;
+    public const int TotalRows = 5000;
     public const int MaxTitleLength = 100;
     public const int MinTitleLength = 3;
     public const int MaxDescriptionLength = 1000;
     public const double SpamRate = 0.10;
-    public const double HardExamplesRate = 0.10;
-    public const double EmptyDescriptionRate = 0.15;
     public const double DisguisedSpamShare = 1.0 / 3.0;
+    public const double WrongCategoryRate = 0.03;
+    public const double EmptyDescriptionRate = 0.12;
+    public const double LongDescriptionRate = 0.08;
+    public const double StripDiacriticsRate = 0.55;
+    public const double RandomCapsRate = 0.10;
+    public const double AllCapsRate = 0.04;
+    public const double EmojiRate = 0.12;
+    public const double TypoRate = 0.18;
+    public const double AbbreviationRate = 0.35;
+    public const double NormalWithSpamyWordRate = 0.06;
 
-    private static readonly int[] Years = { 2015, 2017, 2018, 2019, 2020, 2021, 2022 };
-    private static readonly string[] Volumes = { "I", "II", "III" };
-    private static readonly string[] Semesters = { "1", "2" };
+    private static readonly string[] Emojis =
+    {
+        "📚", "💻", "📱", "🎧", "🔬", "⚡", "🔥", "✨", "👌", "🎓", "🏷️", "💡", "🛒", "📖",
+    };
 
-    public static IEnumerable<Row> Generate(Random rng)
+    private static readonly (string Pattern, string Replacement)[] Abbreviations =
+    {
+        ("vand ", "vand "),
+        ("Vand ", "Vand "),
+        ("stare foarte buna", "stare f buna"),
+        ("Stare foarte buna", "Stare f buna"),
+        ("pentru", "pt"),
+        ("Pentru", "Pt"),
+        ("negociabil", "neg."),
+        ("Negociabil", "Neg."),
+        ("semestru", "sem"),
+        ("semestrul", "sem"),
+        ("editie", "ed."),
+        ("volum", "vol."),
+        ("ca nou", "ca nou, impecabil"),
+    };
+
+    private static readonly string[] SpamyWordsForNormal =
+    {
+        "urgent", "promotie", "pret final", "rapid", "nu ratati", "oferta",
+    };
+
+    private readonly Random _rng;
+    private readonly ItemTemplate[] _items;
+    private readonly Dictionary<Category, ItemTemplate[]> _byCategory;
+    private readonly Category[] _allCategories;
+
+    public Generator(Random rng, IReadOnlyList<ItemTemplate> items)
+    {
+        _rng = rng;
+        _items = items.ToArray();
+        _byCategory = _items
+            .GroupBy(i => i.Category)
+            .ToDictionary(g => g.Key, g => g.ToArray());
+        _allCategories = _byCategory.Keys.OrderBy(c => (int)c).ToArray();
+    }
+
+    public IReadOnlyDictionary<Category, int> ItemTypeCountPerCategory() =>
+        _byCategory.ToDictionary(kv => kv.Key, kv => kv.Value.Length);
+
+    public IEnumerable<Row> Generate()
     {
         var spamCount = (int)Math.Round(TotalRows * SpamRate);
-        var hardCount = (int)Math.Round((TotalRows - spamCount) * HardExamplesRate);
-        var normalCount = TotalRows - spamCount - hardCount;
+        var normalCount = TotalRows - spamCount;
 
         var kinds = new List<int>(TotalRows);
         kinds.AddRange(Enumerable.Repeat(0, normalCount));
-        kinds.AddRange(Enumerable.Repeat(1, hardCount));
-        kinds.AddRange(Enumerable.Repeat(2, spamCount));
-        Shuffle(kinds, rng);
+        kinds.AddRange(Enumerable.Repeat(1, spamCount));
+        Shuffle(kinds, _rng);
 
         foreach (var kind in kinds)
         {
-            yield return kind switch
-            {
-                0 => GenerateNormal(rng),
-                1 => GenerateHard(rng),
-                _ => GenerateSpam(rng),
-            };
+            yield return kind == 0 ? GenerateNormal() : GenerateSpam();
         }
     }
 
-    private static Row GenerateNormal(Random rng)
+    private Row GenerateNormal()
     {
-        var category = PickCategory(rng);
-        var items = ItemsFor(category);
-        var item = items[rng.Next(items.Length)];
-        var title = FillPlaceholders(item.Titles[rng.Next(item.Titles.Length)], rng);
-        title = TrimTitle(title);
-        var condition = PickCondition(rng);
-        var description = BuildDescription(item, rng);
-        var price = ComputePrice(item.BasePriceMin, item.BasePriceMax, condition, rng);
-        return new Row(title, description, category, condition, price, IsSpam: false);
+        var item = _items[_rng.Next(_items.Length)];
+        var title = PickTitle(item);
+        var condition = PickCondition();
+        var description = BuildDescription(item.DescriptionLines);
+        var price = ComputePrice(item.BasePriceMin, item.BasePriceMax, condition);
+
+        if (_rng.NextDouble() < NormalWithSpamyWordRate)
+        {
+            description = SprinkleSpamyWord(description);
+        }
+
+        var label = item.Category;
+        if (_rng.NextDouble() < WrongCategoryRate)
+        {
+            label = PickDifferentCategory(item.Category);
+        }
+
+        title = DecorateTitle(title);
+        description = DecorateDescription(description);
+
+        return new Row(
+            Title: ClampTitle(title),
+            Description: ClampDescription(description),
+            Category: label,
+            Condition: condition,
+            Price: price,
+            IsSpam: false,
+            TemplateId: item.Id);
     }
 
-    private static Row GenerateHard(Random rng)
+    private Row GenerateSpam()
     {
-        var example = Catalog.HardExamples[rng.Next(Catalog.HardExamples.Length)];
-        var title = TrimTitle(example.Title);
-        var condition = PickCondition(rng);
-        var description = rng.NextDouble() < EmptyDescriptionRate
-            ? string.Empty
-            : TrimDescription(example.Description ?? string.Empty);
-        var price = ComputePrice(example.BasePriceMin, example.BasePriceMax, condition, rng);
-        return new Row(title, description, example.Category, condition, price, IsSpam: false);
-    }
-
-    private static Row GenerateSpam(Random rng)
-    {
-        var disguised = rng.NextDouble() < DisguisedSpamShare;
-        Category category;
-        string title;
-        ItemTemplate? item = null;
+        var disguised = _rng.NextDouble() < DisguisedSpamShare;
 
         if (disguised)
         {
-            category = PickNonOtherCategory(rng);
-            var items = ItemsFor(category);
-            item = items[rng.Next(items.Length)];
-            title = TrimTitle(FillPlaceholders(item.Titles[rng.Next(item.Titles.Length)], rng));
+            var item = _items[_rng.Next(_items.Length)];
+            var title = PickTitle(item);
+            var condition = PickCondition();
+            var description = Spam.PickDescription(_rng);
+            var price = ComputePrice(item.BasePriceMin, item.BasePriceMax, condition);
+
+            title = DecorateTitle(title);
+            description = DecorateDescription(description, allowAbbrev: false);
+
+            return new Row(
+                Title: ClampTitle(title),
+                Description: ClampDescription(description),
+                Category: item.Category,
+                Condition: condition,
+                Price: price,
+                IsSpam: true,
+                TemplateId: item.Id);
         }
         else
         {
-            category = Category.Other;
-            title = TrimTitle(Spam.PickTitle(rng));
-        }
+            var title = Spam.PickTitle(_rng);
+            var condition = PickCondition();
+            var (description, descriptionIndex) = Spam.PickDescriptionWithIndex(_rng);
 
-        var condition = PickCondition(rng);
-        var description = TrimDescription(Spam.PickDescription(rng));
+            int price;
+            var trick = _rng.Next(3);
+            if (trick == 0)
+            {
+                price = 1;
+            }
+            else if (trick == 1)
+            {
+                price = _rng.Next(50000, 100000);
+            }
+            else
+            {
+                price = _rng.Next(5, 50);
+            }
 
-        int price;
-        var trick = rng.Next(3);
-        if (trick == 0)
-        {
-            price = 1;
+            return new Row(
+                Title: ClampTitle(title),
+                Description: ClampDescription(description),
+                Category: Category.Other,
+                Condition: condition,
+                Price: price,
+                IsSpam: true,
+                TemplateId: $"spam-{descriptionIndex:D2}");
         }
-        else if (trick == 1)
-        {
-            price = rng.Next(50000, 100000);
-        }
-        else if (item is not null)
-        {
-            price = ComputePrice(item.BasePriceMin, item.BasePriceMax, condition, rng);
-        }
-        else
-        {
-            price = rng.Next(5, 50);
-        }
-
-        return new Row(title, description, category, condition, price, IsSpam: true);
     }
 
-    private static Category PickCategory(Random rng)
-    {
-        var roll = rng.NextDouble();
-        return roll switch
-        {
-            < 0.22 => Category.Textbook,
-            < 0.42 => Category.Notes,
-            < 0.65 => Category.Electronics,
-            < 0.83 => Category.LabEquipment,
-            _ => Category.Other,
-        };
-    }
+    private string PickTitle(ItemTemplate item) =>
+        item.Titles[_rng.Next(item.Titles.Length)];
 
-    private static Category PickNonOtherCategory(Random rng)
+    private Condition PickCondition()
     {
-        var options = new[] { Category.Textbook, Category.Notes, Category.Electronics, Category.LabEquipment };
-        return options[rng.Next(options.Length)];
-    }
-
-    private static Condition PickCondition(Random rng)
-    {
-        var roll = rng.NextDouble();
+        var roll = _rng.NextDouble();
         return roll switch
         {
             < 0.25 => Condition.New,
@@ -148,40 +199,59 @@ public static class Generator
         };
     }
 
-    private static ItemTemplate[] ItemsFor(Category category) => category switch
+    private Category PickDifferentCategory(Category exclude)
     {
-        Category.Textbook => Catalog.Textbooks,
-        Category.Notes => Catalog.Notes,
-        Category.Electronics => Catalog.Electronics,
-        Category.LabEquipment => Catalog.LabEquipment,
-        Category.Other => Catalog.Others,
-        _ => throw new InvalidOperationException($"Unknown category {category}"),
-    };
+        while (true)
+        {
+            var pick = _allCategories[_rng.Next(_allCategories.Length)];
+            if (pick != exclude)
+            {
+                return pick;
+            }
+        }
+    }
 
-    private static string BuildDescription(ItemTemplate item, Random rng)
+    private string BuildDescription(string[] source)
     {
-        if (rng.NextDouble() < EmptyDescriptionRate)
+        var roll = _rng.NextDouble();
+        if (roll < EmptyDescriptionRate)
         {
             return string.Empty;
         }
 
-        var sentences = 1 + rng.Next(3);
+        int sentences;
+        if (roll < EmptyDescriptionRate + LongDescriptionRate)
+        {
+            sentences = 4 + _rng.Next(3);
+        }
+        else
+        {
+            sentences = 1 + _rng.Next(3);
+        }
+
+        sentences = Math.Min(sentences, source.Length);
         var picked = new HashSet<int>();
         var parts = new List<string>(sentences);
-        while (parts.Count < sentences && picked.Count < item.DescriptionLines.Length)
+        while (parts.Count < sentences)
         {
-            var index = rng.Next(item.DescriptionLines.Length);
+            var index = _rng.Next(source.Length);
             if (picked.Add(index))
             {
-                parts.Add(item.DescriptionLines[index]);
+                parts.Add(source[index]);
             }
         }
-        return TrimDescription(string.Join(" ", parts));
+        return string.Join(" ", parts);
     }
 
-    private static int ComputePrice(int basePriceMin, int basePriceMax, Condition condition, Random rng)
+    private string SprinkleSpamyWord(string description)
     {
-        var baseValue = basePriceMin + rng.NextDouble() * (basePriceMax - basePriceMin);
+        var word = SpamyWordsForNormal[_rng.Next(SpamyWordsForNormal.Length)];
+        return string.IsNullOrEmpty(description) ? word : description + " " + word + ".";
+    }
+
+    private int ComputePrice(int basePriceMin, int basePriceMax, Condition condition)
+    {
+        var baseValue = basePriceMin + _rng.NextDouble() * (basePriceMax - basePriceMin);
         var multiplier = condition switch
         {
             Condition.New => 1.0,
@@ -189,20 +259,144 @@ public static class Generator
             Condition.Worn => 0.45,
             _ => 1.0,
         };
-        var noise = 0.85 + rng.NextDouble() * 0.30;
+        var noise = 0.80 + _rng.NextDouble() * 0.40;
         var price = (int)Math.Round(baseValue * multiplier * noise, MidpointRounding.AwayFromZero);
         return Math.Max(1, price);
     }
 
-    private static string FillPlaceholders(string template, Random rng)
+    private string DecorateTitle(string title)
     {
-        return template
-            .Replace("{VOL}", Volumes[rng.Next(Volumes.Length)])
-            .Replace("{ED}", Years[rng.Next(Years.Length)].ToString(CultureInfo.InvariantCulture))
-            .Replace("{SEM}", Semesters[rng.Next(Semesters.Length)]);
+        var text = title;
+        if (_rng.NextDouble() < StripDiacriticsRate)
+        {
+            text = StripDiacritics(text);
+        }
+        if (_rng.NextDouble() < TypoRate)
+        {
+            text = IntroduceTypo(text);
+        }
+        if (_rng.NextDouble() < AbbreviationRate)
+        {
+            text = ApplyAbbreviations(text);
+        }
+        var capsRoll = _rng.NextDouble();
+        if (capsRoll < AllCapsRate)
+        {
+            text = text.ToUpperInvariant();
+        }
+        else if (capsRoll < AllCapsRate + RandomCapsRate)
+        {
+            text = RandomizeCaps(text);
+        }
+        if (_rng.NextDouble() < EmojiRate)
+        {
+            text = AddEmoji(text);
+        }
+        return text;
     }
 
-    private static string TrimTitle(string title)
+    private string DecorateDescription(string description, bool allowAbbrev = true)
+    {
+        if (string.IsNullOrEmpty(description))
+        {
+            return description;
+        }
+        var text = description;
+        if (_rng.NextDouble() < StripDiacriticsRate)
+        {
+            text = StripDiacritics(text);
+        }
+        if (allowAbbrev && _rng.NextDouble() < AbbreviationRate)
+        {
+            text = ApplyAbbreviations(text);
+        }
+        if (_rng.NextDouble() < TypoRate)
+        {
+            text = IntroduceTypo(text);
+        }
+        if (_rng.NextDouble() < EmojiRate)
+        {
+            text = AddEmoji(text);
+        }
+        return text;
+    }
+
+    private static string StripDiacritics(string value)
+    {
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(normalized.Length);
+        foreach (var ch in normalized)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (category != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(ch);
+            }
+        }
+        return sb.ToString()
+            .Normalize(NormalizationForm.FormC)
+            .Replace('ș', 's')
+            .Replace('Ș', 'S')
+            .Replace('ț', 't')
+            .Replace('Ț', 'T');
+    }
+
+    private string ApplyAbbreviations(string value)
+    {
+        var text = value;
+        foreach (var (pattern, replacement) in Abbreviations)
+        {
+            if (_rng.NextDouble() < 0.6)
+            {
+                text = text.Replace(pattern, replacement, StringComparison.Ordinal);
+            }
+        }
+        return text;
+    }
+
+    private string IntroduceTypo(string value)
+    {
+        if (value.Length < 4)
+        {
+            return value;
+        }
+        var chars = value.ToCharArray();
+        var attempts = 0;
+        while (attempts++ < 6)
+        {
+            var idx = _rng.Next(chars.Length - 1);
+            if (char.IsLetter(chars[idx]) && char.IsLetter(chars[idx + 1]) && chars[idx] != ' ')
+            {
+                (chars[idx], chars[idx + 1]) = (chars[idx + 1], chars[idx]);
+                return new string(chars);
+            }
+        }
+        return value;
+    }
+
+    private string RandomizeCaps(string value)
+    {
+        var chars = value.ToCharArray();
+        for (var i = 0; i < chars.Length; i++)
+        {
+            if (!char.IsLetter(chars[i]))
+            {
+                continue;
+            }
+            chars[i] = _rng.NextDouble() < 0.5
+                ? char.ToUpperInvariant(chars[i])
+                : char.ToLowerInvariant(chars[i]);
+        }
+        return new string(chars);
+    }
+
+    private string AddEmoji(string value)
+    {
+        var emoji = Emojis[_rng.Next(Emojis.Length)];
+        return _rng.NextDouble() < 0.5 ? emoji + " " + value : value + " " + emoji;
+    }
+
+    private static string ClampTitle(string title)
     {
         if (title.Length > MaxTitleLength)
         {
@@ -215,7 +409,7 @@ public static class Generator
         return title;
     }
 
-    private static string TrimDescription(string description)
+    private static string ClampDescription(string description)
     {
         if (description.Length > MaxDescriptionLength)
         {

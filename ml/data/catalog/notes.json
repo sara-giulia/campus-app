@@ -1,0 +1,1255 @@
+{
+  "category": "Notes",
+  "items": [
+    {
+      "id": "notes-analiza-mate-y1",
+      "titles": [
+        "Notițe Analiză matematică, anul I semestrul 1",
+        "Rezumat examen Analiza, scris de mana",
+        "Notite curs Analiza matematica, caiet A4",
+        "Probleme rezolvate analiza, examen iunie",
+        "NOTITE ANALIZA MATEMATICA anul 1 Mate-Info",
+        "Rezumat Analiza, cu teoreme si demonstratii",
+        "Caiet notite Analiza, scrise citet",
+        "Fise examen Analiza, rezumat compact"
+      ],
+      "descriptions": [
+        "Notițe făcute la curs, acopera aproape toata materia.",
+        "Scrise de mana, cu demonstratii si exemple din seminar.",
+        "60 de pagini, cuprind si exercitii rezolvate.",
+        "Perfect pentru pregatirea rapida in sesiune.",
+        "Rezumat clar al cursului, cu toate teoremele.",
+        "Am luat 10 la examen folosind aceste notite.",
+        "Vine si cu un rezumat pe 10 pagini pentru oral.",
+        "Scris citet, cu culori pentru teoreme si exemple."
+      ],
+      "priceMin": 15,
+      "priceMax": 45
+    },
+    {
+      "id": "notes-algebra-liniara",
+      "titles": [
+        "Notițe algebra liniara, an I semestru 2",
+        "Rezumat Algebra Liniara, pentru examenul din iunie",
+        "Notite curs si seminar Algebra Liniara",
+        "Fise algebra liniara, format A4",
+        "NOTITE ALGEBRA LINIARA, matrici si vectori",
+        "Caiet algebra liniara, scrise de mana",
+        "Rezumat algebra liniara, 30 pagini",
+        "Fise Algebra Liniara, pentru examen oral"
+      ],
+      "descriptions": [
+        "Notite complete de la curs, cu exemple.",
+        "Scrise citet, cu culori pentru teoreme.",
+        "Rezumat de 25 pagini pentru revizuire rapida.",
+        "Contine exercitii rezolvate pas cu pas.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am luat 9 la examen.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Format compact, usor de recapitulat."
+      ],
+      "priceMin": 12,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-geometrie-analitica",
+      "titles": [
+        "Notițe Geometrie analitica, an I",
+        "Rezumat Geometrie, pentru examen",
+        "Notite curs Geometrie Analitica",
+        "Caiet Geometrie Analitica, A4 cu figuri",
+        "NOTITE GEOMETRIE, conice si cuadrice",
+        "Fise examen Geometrie, cu probleme rezolvate",
+        "Rezumat Geometrie Analitica, compact",
+        "Notite seminar Geometrie, cu exemple"
+      ],
+      "descriptions": [
+        "Notite scrise de mana la curs si seminar.",
+        "Contine toate figurile importante.",
+        "Perfect pentru pregatirea examenului.",
+        "Scrise citet, cu culori pentru figuri.",
+        "Am invatat din ele si am trecut examenul.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Format compact, cu rezumat teoretic.",
+        "Vine si cu caietul meu de seminar, cadou."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-poo",
+      "titles": [
+        "Notițe POO, anul II C++ si Java",
+        "Rezumat Programare orientata pe obiecte",
+        "Notite laborator POO, toate laboratoarele",
+        "Probleme rezolvate pentru examen POO",
+        "NOTITE POO, mostenire si polimorfism",
+        "Fise examen POO, UML si design patterns",
+        "Caiet POO, scris de mana la curs",
+        "Rezumat POO, pentru examenul din iunie"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include cod exemplu si probleme de examen.",
+        "Acopera mostenire, polimorfism, template-uri.",
+        "Scris citet, cu diagrame UML.",
+        "Am invatat din ele si am luat 10 la examen.",
+        "Caiet A4, 70 de pagini scrise.",
+        "Format compact, cu exemple de cod.",
+        "Perfect pentru pregatirea examenului oral."
+      ],
+      "priceMin": 12,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-structuri-date",
+      "titles": [
+        "Notițe Structuri de date si algoritmi",
+        "Rezumat Algoritmi, pentru examen",
+        "Notite curs ASD, caiet A4",
+        "Fise examen Structuri de date, cu scheme",
+        "NOTITE ASD, arbori si grafuri",
+        "Caiet Algoritmi, scrise de mana",
+        "Rezumat ASD, pentru examenul din iunie",
+        "Notite laborator Structuri de date"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Contine arbori, grafuri si hash-uri.",
+        "Scrise citet, cu scheme didactice.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am luat 10 la examen.",
+        "Caiet A4, 65 de pagini scrise.",
+        "Format compact, cu complexitati algoritmice.",
+        "Vine cu caietul meu de seminar, cadou."
+      ],
+      "priceMin": 12,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-baze-date",
+      "titles": [
+        "Notițe Baze de date - an II",
+        "Rezumat SQL pentru examen BD",
+        "Laboratoare BD rezolvate, an II",
+        "NOTITE curs BAZE DE DATE normalizare",
+        "Probleme BD cu SQL rezolvate",
+        "Fise examen BD, forme normale",
+        "Caiet BD, scrise de mana",
+        "Rezumat BD, pentru examenul din iunie"
+      ],
+      "descriptions": [
+        "Notite de la cursul de BD, 40 de pagini.",
+        "Include exemple SQL Server si diagrame ER.",
+        "Toate formele normale explicate pe exemple.",
+        "Rezumat ideal pentru pregatire rapida.",
+        "Scrise lizibil, cu culori pentru elemente diferite.",
+        "Am luat 10 la examen folosind acest rezumat.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Format compact, cu exercitii rezolvate."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-retele",
+      "titles": [
+        "Notițe Rețele de calculatoare, an III",
+        "Rezumat Retele pentru CCNA",
+        "Notite curs Retele, OSI si TCP/IP",
+        "Fise examen Retele, cu scheme IP",
+        "NOTITE RETELE DE CALCULATOARE",
+        "Caiet Retele, scrise de mana la curs",
+        "Rezumat Retele, pentru examenul din iunie",
+        "Notite laborator Retele, Cisco Packet Tracer"
+      ],
+      "descriptions": [
+        "Notite complete pentru pregatirea CCNA.",
+        "Include scheme OSI si TCP/IP.",
+        "Contine exemple de configurare Cisco.",
+        "Scris citet, cu culori pentru protocoale.",
+        "Am invatat din ele si am trecut CCNA.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Format compact, cu rezumat teoretic.",
+        "Vine cu laboratoare rezolvate, cadou."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-sisteme-operare",
+      "titles": [
+        "Notițe Sisteme de operare, an II",
+        "Rezumat SO pentru examen",
+        "Notite curs Sisteme de calcul, scheme",
+        "Fise examen Sisteme de operare",
+        "NOTITE SO, procese si fire",
+        "Caiet Sisteme de operare, scrise de mana",
+        "Rezumat SO, pentru examenul din iunie",
+        "Notite laborator SO, cu scripturi"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Contine procese, fire si deadlock-uri.",
+        "Scrise citet, cu scheme pentru scheduling.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am luat 10 la examen.",
+        "Caiet A4, 55 de pagini scrise.",
+        "Format compact, cu exemple de cod.",
+        "Vine cu laboratoare rezolvate, cadou."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-arhitectura-calc",
+      "titles": [
+        "Notițe Arhitectura calculatoarelor, an II",
+        "Rezumat Arhitectura pentru examen",
+        "Notite curs MIPS si pipeline",
+        "Fise examen Arhitectura, cu scheme",
+        "NOTITE ARHITECTURA, cache si memorie",
+        "Caiet Arhitectura, scrise de mana",
+        "Rezumat Arhitectura, pentru examenul din iunie",
+        "Notite laborator Arhitectura, cu assembly"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Contine MIPS, pipeline si cache.",
+        "Scrise citet, cu scheme didactice.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am luat 9 la examen.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Format compact, cu exemple in assembly.",
+        "Vine cu laboratoare rezolvate, cadou."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-fizica-mecanica",
+      "titles": [
+        "Notițe Fizică - mecanică, an I",
+        "Rezumat termodinamică, examen fizică",
+        "Notite seminar fizica mecanica",
+        "Fizica - formule esentiale pentru examen",
+        "Probleme rezolvate fizica, admitere politehnica",
+        "NOTITE FIZICA mecanica, scrise de mana",
+        "Caiet mecanica, A4 cu figuri",
+        "Rezumat mecanica, pentru examen"
+      ],
+      "descriptions": [
+        "Notite scrise de mana la curs.",
+        "Contine toate formulele importante.",
+        "Exercitii rezolvate pas cu pas.",
+        "Format A5 compact pentru examen.",
+        "Scrise frumos, fara greseli.",
+        "Am invatat din ele si am luat 10 la examen.",
+        "Caiet A4, 45 de pagini scrise.",
+        "Vine cu caietul meu de laborator, cadou."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-fizica-electromagnetism",
+      "titles": [
+        "Notițe Electromagnetism, an I",
+        "Rezumat Electromagnetism pentru examen",
+        "Notite curs Electricitate si magnetism",
+        "Fise examen Electromagnetism, Maxwell",
+        "NOTITE ELECTROMAGNETISM, campuri si unde",
+        "Caiet Electromagnetism, scrise de mana",
+        "Rezumat Electromagnetism, pentru ETTI",
+        "Notite seminar Electromagnetism"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Contine ecuatiile Maxwell cu demonstratii.",
+        "Scrise citet, cu scheme electrice.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am trecut examenul.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Format compact, cu formule evidentiate.",
+        "Vine cu caietul meu de laborator, cadou."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-fizica-termodinamica",
+      "titles": [
+        "Notițe Termodinamica, an I semestrul II",
+        "Rezumat Termodinamica pentru examen",
+        "Notite curs Termodinamica si statistica",
+        "Fise examen Termodinamica, cu cicluri",
+        "NOTITE TERMODINAMICA, entropie si entalpie",
+        "Caiet Termodinamica, scrise de mana",
+        "Rezumat Termodinamica, pentru examenul din iunie",
+        "Notite seminar Termodinamica"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Contine toate ciclurile termice.",
+        "Scrise citet, cu diagrame PV.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am luat 10 la examen.",
+        "Caiet A4, 45 de pagini scrise.",
+        "Format compact, cu formule evidentiate.",
+        "Vine cu caietul meu de laborator, cadou."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-chimie-generala",
+      "titles": [
+        "Notițe Chimie generala, an I",
+        "Rezumat Chimie pentru examen",
+        "Notite curs Chimie generala, caiet A4",
+        "Fise examen Chimie, cu formule",
+        "NOTITE CHIMIE, tabelul lui Mendeleev",
+        "Caiet Chimie, scrise de mana",
+        "Rezumat Chimie, pentru examenul din iunie",
+        "Notite laborator Chimie"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Contine toate formulele si calculele.",
+        "Scrise citet, cu scheme chimice.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am luat 9 la examen.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Format compact, cu exemple rezolvate.",
+        "Vine cu tabele cadou."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-chimie-organica",
+      "titles": [
+        "Notițe Chimie organica, an I farmacie",
+        "Rezumat Chimie organica pentru examen",
+        "Notite curs Chimie organica, mecanisme",
+        "Fise examen Chimie organica, cu reactii",
+        "NOTITE CHIMIE ORGANICA, hidrocarburi",
+        "Caiet Chimie organica, scrise de mana",
+        "Rezumat Chimie organica, pentru examenul din iunie",
+        "Notite laborator Chimie organica"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Contine mecanismele de reactie.",
+        "Scrise citet, cu scheme chimice color.",
+        "Perfect pentru pregatirea examenului.",
+        "Am invatat din ele si am luat 10 la examen.",
+        "Caiet A4, 65 de pagini scrise.",
+        "Format compact, cu exemple rezolvate.",
+        "Vine cu tabele de reactivitate."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-anatomie-osteologie",
+      "titles": [
+        "Notițe anatomie osteologie, an I medicina",
+        "Rezumat osteologie si artrologie",
+        "Fise osteologie, oase si articulatii",
+        "NOTITE OSTEOLOGIE, scheme anatomice",
+        "Caiet osteologie, scrise de mana UMF",
+        "Rezumat osteologie pentru examenul oral",
+        "Notite curs osteologie si artrologie",
+        "Fise anatomie, aparatul locomotor"
+      ],
+      "descriptions": [
+        "Notite UMF anul I, scrise de mana.",
+        "Include scheme desenate cu culori.",
+        "Acopera toate oasele si articulatiile.",
+        "Rezumat clar pentru examenul scris.",
+        "Fise de recapitulare pentru oral.",
+        "Scris citet, cu numele oaselor evidentiate.",
+        "Caiet A4, 80 de pagini scrise.",
+        "Am trecut examenul cu ajutorul lor."
+      ],
+      "priceMin": 20,
+      "priceMax": 50
+    },
+    {
+      "id": "notes-anatomie-miologie",
+      "titles": [
+        "Notițe miologie, an I medicina",
+        "Rezumat muschi, pentru examenul oral",
+        "Fise miologie, toate grupele musculare",
+        "NOTITE MIOLOGIE, scheme detaliate",
+        "Caiet miologie, scrise de mana UMF",
+        "Rezumat miologie pentru examen scris",
+        "Notite curs miologie, cu inervatie",
+        "Fise anatomie, muschi si tendoane"
+      ],
+      "descriptions": [
+        "Notite UMF anul I, scrise de mana.",
+        "Include scheme desenate cu culori.",
+        "Acopera toate grupele musculare.",
+        "Rezumat clar pentru examenul scris.",
+        "Fise de recapitulare pentru oral.",
+        "Scris citet, cu originea si insertia.",
+        "Caiet A4, 75 de pagini scrise.",
+        "Am trecut examenul cu ajutorul lor."
+      ],
+      "priceMin": 20,
+      "priceMax": 50
+    },
+    {
+      "id": "notes-anatomie-cardiovascular",
+      "titles": [
+        "Notițe aparatul cardiovascular",
+        "Rezumat aparat circulator, UMF",
+        "Fise anatomie cardiovasculara",
+        "NOTITE APARAT CARDIO, inima si vase",
+        "Caiet cardio, scrise de mana UMF",
+        "Rezumat aparat cardiovascular, examen",
+        "Notite curs aparat circulator, UMF",
+        "Fise anatomie, inima si artere"
+      ],
+      "descriptions": [
+        "Notite UMF anul I, scrise de mana.",
+        "Include scheme desenate cu culori.",
+        "Acopera toata anatomia cardiovasculara.",
+        "Rezumat clar pentru examenul scris.",
+        "Fise de recapitulare pentru oral.",
+        "Scris citet, cu arborele vascular detaliat.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am trecut examenul cu ajutorul lor."
+      ],
+      "priceMin": 20,
+      "priceMax": 50
+    },
+    {
+      "id": "notes-anatomie-digestiv",
+      "titles": [
+        "Notițe aparatul digestiv, UMF",
+        "Rezumat aparat digestiv, examen",
+        "Fise anatomie digestiva",
+        "NOTITE APARAT DIGESTIV, scheme detaliate",
+        "Caiet digestiv, scrise de mana UMF",
+        "Rezumat aparat digestiv, pentru examen oral",
+        "Notite curs aparat digestiv, UMF",
+        "Fise anatomie, stomac si intestine"
+      ],
+      "descriptions": [
+        "Notite UMF anul I, scrise de mana.",
+        "Include scheme desenate cu culori.",
+        "Acopera tot aparatul digestiv.",
+        "Rezumat clar pentru examenul scris.",
+        "Fise de recapitulare pentru oral.",
+        "Scris citet, cu detalii histologice.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am trecut examenul cu ajutorul lor."
+      ],
+      "priceMin": 20,
+      "priceMax": 50
+    },
+    {
+      "id": "notes-anatomie-respirator",
+      "titles": [
+        "Notițe aparatul respirator, UMF",
+        "Rezumat aparat respirator, examen",
+        "Fise anatomie respiratorie",
+        "NOTITE APARAT RESPIRATOR, scheme",
+        "Caiet respirator, scrise de mana UMF",
+        "Rezumat aparat respirator, pentru oral",
+        "Notite curs aparat respirator, UMF",
+        "Fise anatomie, plaman si bronhii"
+      ],
+      "descriptions": [
+        "Notite UMF anul I, scrise de mana.",
+        "Include scheme desenate cu culori.",
+        "Acopera tot aparatul respirator.",
+        "Rezumat clar pentru examenul scris.",
+        "Fise de recapitulare pentru oral.",
+        "Scris citet, cu detalii histologice.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am trecut examenul cu ajutorul lor."
+      ],
+      "priceMin": 20,
+      "priceMax": 50
+    },
+    {
+      "id": "notes-fiziologie",
+      "titles": [
+        "Notițe Fiziologie, an II medicina",
+        "Rezumat Fiziologie pentru examen",
+        "Fise Fiziologie, cu Guyton",
+        "NOTITE FIZIOLOGIE, scheme detaliate",
+        "Caiet Fiziologie, scrise de mana UMF",
+        "Rezumat Fiziologie, pentru examen oral",
+        "Notite curs Fiziologie, UMF",
+        "Fise Fiziologie, organe si functii"
+      ],
+      "descriptions": [
+        "Notite UMF anul II, scrise de mana.",
+        "Include scheme desenate cu culori.",
+        "Acopera toate sistemele fiziologice.",
+        "Rezumat clar pentru examenul scris.",
+        "Fise de recapitulare pentru oral.",
+        "Scris citet, cu formule biochimice.",
+        "Caiet A4, 90 de pagini scrise.",
+        "Am trecut examenul cu ajutorul lor."
+      ],
+      "priceMin": 20,
+      "priceMax": 55
+    },
+    {
+      "id": "notes-biochimie",
+      "titles": [
+        "Notițe Biochimie, an I medicina",
+        "Rezumat Biochimie pentru examen",
+        "Fise Biochimie, cu Lehninger",
+        "NOTITE BIOCHIMIE, cai metabolice",
+        "Caiet Biochimie, scrise de mana UMF",
+        "Rezumat Biochimie, pentru examen oral",
+        "Notite curs Biochimie, UMF",
+        "Fise Biochimie, aminoacizi si proteine"
+      ],
+      "descriptions": [
+        "Notite UMF anul I, scrise de mana.",
+        "Include cai metabolice schematice.",
+        "Acopera toate temele din programa.",
+        "Rezumat clar pentru examenul scris.",
+        "Fise de recapitulare pentru oral.",
+        "Scris citet, cu formule chimice.",
+        "Caiet A4, 70 de pagini scrise.",
+        "Am trecut examenul cu ajutorul lor."
+      ],
+      "priceMin": 18,
+      "priceMax": 50
+    },
+    {
+      "id": "notes-economie-micro",
+      "titles": [
+        "Notițe Microeconomie, an I ASE",
+        "Rezumat Microeconomie pentru examen",
+        "Fise Microeconomie, cu grafice",
+        "NOTITE MICROECONOMIE, Mankiw",
+        "Caiet Microeconomie, scrise de mana",
+        "Rezumat Microeconomie, pentru examenul din iunie",
+        "Notite curs Microeconomie, ASE",
+        "Fise Microeconomie, oferta si cerere"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include grafice si exemple reale.",
+        "Acopera toata programa de anul I.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu grafice color.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple rezolvate."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-economie-macro",
+      "titles": [
+        "Notițe Macroeconomie, an I ASE",
+        "Rezumat Macroeconomie pentru examen",
+        "Fise Macroeconomie, cu grafice",
+        "NOTITE MACROECONOMIE, Blanchard",
+        "Caiet Macroeconomie, scrise de mana",
+        "Rezumat Macroeconomie, pentru examenul din iunie",
+        "Notite curs Macroeconomie, ASE",
+        "Fise Macroeconomie, PIB si inflatie"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include grafice si exemple reale.",
+        "Acopera toata programa de anul I.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu grafice color.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple rezolvate."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-contabilitate",
+      "titles": [
+        "Notițe Contabilitate, an I ASE",
+        "Rezumat Contabilitate pentru examen",
+        "Fise Contabilitate, cu exercitii",
+        "NOTITE CONTABILITATE, balanta",
+        "Caiet Contabilitate, scrise de mana",
+        "Rezumat Contabilitate, pentru examen",
+        "Notite curs Contabilitate, ASE",
+        "Fise Contabilitate, registru jurnal"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include exercitii rezolvate pas cu pas.",
+        "Acopera toata programa de anul I.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme explicative.",
+        "Caiet A4, 55 de pagini scrise.",
+        "Am invatat din ele si am luat 9.",
+        "Format compact, cu exemple rezolvate."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-drept-civil",
+      "titles": [
+        "Notițe Drept civil, an II Drept",
+        "Rezumat Drept civil pentru examen",
+        "Fise Drept civil, cu spete",
+        "NOTITE DREPT CIVIL, contracte",
+        "Caiet Drept civil, scrise de mana",
+        "Rezumat Drept civil, pentru examen barou",
+        "Notite curs Drept civil, UBB",
+        "Fise Drept civil, persoane"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include spete rezolvate.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu articole din cod.",
+        "Caiet A4, 70 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple practice."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-drept-penal",
+      "titles": [
+        "Notițe Drept penal, an II Drept",
+        "Rezumat Drept penal pentru examen",
+        "Fise Drept penal, cu spete",
+        "NOTITE DREPT PENAL, partea generala",
+        "Caiet Drept penal, scrise de mana",
+        "Rezumat Drept penal, pentru examen barou",
+        "Notite curs Drept penal, UBB",
+        "Fise Drept penal, infractiuni"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include spete rezolvate.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu articole din cod.",
+        "Caiet A4, 65 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple practice."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-management",
+      "titles": [
+        "Notițe Management, an II ASE",
+        "Rezumat Management pentru examen",
+        "Fise Management, studii de caz",
+        "NOTITE MANAGEMENT, Drucker",
+        "Caiet Management, scrise de mana",
+        "Rezumat Management, pentru examen",
+        "Notite curs Management, ASE",
+        "Fise Management strategic"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include studii de caz.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme didactice.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple reale."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-marketing",
+      "titles": [
+        "Notițe Marketing, an II ASE",
+        "Rezumat Marketing pentru examen",
+        "Fise Marketing, cu studii de caz",
+        "NOTITE MARKETING, Kotler",
+        "Caiet Marketing, scrise de mana",
+        "Rezumat Marketing, pentru examen",
+        "Notite curs Marketing, ASE",
+        "Fise Marketing digital"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include studii de caz.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme didactice.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 9.",
+        "Format compact, cu exemple reale."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-matematici-speciale",
+      "titles": [
+        "Notițe Matematici Speciale, ETTI",
+        "Rezumat Matematici Speciale",
+        "Fise Matematici Speciale, Fourier",
+        "NOTITE MATE SPECIALE, Laplace",
+        "Caiet Matematici Speciale, scrise de mana",
+        "Rezumat Matematici Speciale, pentru examen",
+        "Notite curs Matematici Speciale, UTCN",
+        "Fise Matematici Speciale, ecuatii"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include serii Fourier si Laplace.",
+        "Acopera toata programa de ETTI.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu formule evidentiate.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu demonstratii."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-probabilitati",
+      "titles": [
+        "Notițe Probabilitati, an II",
+        "Rezumat Probabilitati pentru examen",
+        "Fise Probabilitati si Statistica",
+        "NOTITE PROBABILITATI, cu exercitii",
+        "Caiet Probabilitati, scrise de mana",
+        "Rezumat Probabilitati, pentru examen",
+        "Notite curs Probabilitati, UB",
+        "Fise Probabilitati, variabile aleatoare"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include probabilitati conditionate si Bayes.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu exercitii rezolvate.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu formule statistice."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-statistica",
+      "titles": [
+        "Notițe Statistica, an II ASE",
+        "Rezumat Statistica pentru examen",
+        "Fise Statistica cu SPSS",
+        "NOTITE STATISTICA descriptiva",
+        "Caiet Statistica, scrise de mana",
+        "Rezumat Statistica, pentru examen",
+        "Notite curs Statistica, ASE",
+        "Fise Statistica, teste de ipoteze"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include teste de ipoteze si regresie.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu tabele statistice.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exercitii rezolvate."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-electronica-digitala",
+      "titles": [
+        "Notițe Electronica digitala, an II",
+        "Rezumat Electronica digitala pentru examen",
+        "Fise Electronica digitala, scheme",
+        "NOTITE ELECTRONICA DIGITALA, logica",
+        "Caiet Electronica digitala, scrise de mana",
+        "Rezumat Electronica digitala, pentru examen",
+        "Notite curs Electronica digitala, UTCN",
+        "Fise Electronica digitala, VHDL"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include scheme logice si tabele de adevar.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme digitale.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exercitii rezolvate."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-electronica-analogica",
+      "titles": [
+        "Notițe Electronica analogica, an II",
+        "Rezumat Electronica analogica pentru examen",
+        "Fise Electronica analogica, scheme",
+        "NOTITE ELECTRONICA ANALOGICA, tranzistoare",
+        "Caiet Electronica analogica, scrise de mana",
+        "Rezumat Electronica analogica, pentru examen",
+        "Notite curs Electronica analogica, UTCN",
+        "Fise Electronica analogica, amplificatoare"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include scheme electrice si analize.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme analogice.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am invatat din ele si am luat 9.",
+        "Format compact, cu exercitii rezolvate."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-metode-numerice",
+      "titles": [
+        "Notițe Metode numerice, an II",
+        "Rezumat Metode numerice pentru examen",
+        "Fise Metode numerice, cu Matlab",
+        "NOTITE METODE NUMERICE, algoritmi",
+        "Caiet Metode numerice, scrise de mana",
+        "Rezumat Metode numerice, pentru examen",
+        "Notite curs Metode numerice, UB",
+        "Fise Metode numerice, interpolare"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si seminar.",
+        "Include algoritmi si cod Matlab.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu exemple de cod.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exercitii rezolvate."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-ml-curs",
+      "titles": [
+        "Notițe Machine Learning, an III",
+        "Rezumat ML pentru examen",
+        "Fise Machine Learning, cu formule",
+        "NOTITE ML, algoritmi supervizat",
+        "Caiet Machine Learning, scrise de mana",
+        "Rezumat ML, pentru examen",
+        "Notite curs Machine Learning, UB",
+        "Fise ML, retele neuronale"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include algoritmi supervizati si nesupravegheati.",
+        "Acopera toata programa de anul III.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu formule matematice.",
+        "Caiet A4, 70 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple Python."
+      ],
+      "priceMin": 18,
+      "priceMax": 50
+    },
+    {
+      "id": "notes-ia-curs",
+      "titles": [
+        "Notițe Inteligenta Artificiala, an III",
+        "Rezumat IA pentru examen",
+        "Fise AI, cu algoritmi de cautare",
+        "NOTITE IA, planificare si invatare",
+        "Caiet IA, scrise de mana",
+        "Rezumat IA, pentru examen",
+        "Notite curs IA, Russell Norvig",
+        "Fise IA, retele semantice"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include cautare A*, minimax si CSP.",
+        "Acopera toata programa de anul III.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme algoritmice.",
+        "Caiet A4, 65 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu cod Python."
+      ],
+      "priceMin": 15,
+      "priceMax": 45
+    },
+    {
+      "id": "notes-ingineria-software",
+      "titles": [
+        "Notițe Ingineria software, an III",
+        "Rezumat IS pentru examen",
+        "Fise Ingineria programarii, cu UML",
+        "NOTITE IS, design patterns",
+        "Caiet Ingineria software, scrise de mana",
+        "Rezumat IS, pentru examen",
+        "Notite curs Ingineria software, UB",
+        "Fise IS, metodologii Agile"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include diagrame UML si design patterns.",
+        "Acopera toata programa de anul III.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme didactice.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple reale."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-compilere",
+      "titles": [
+        "Notițe Compilere, an III",
+        "Rezumat Compilere pentru examen",
+        "Fise Compilere, cu Dragon Book",
+        "NOTITE COMPILERE, parsare",
+        "Caiet Compilere, scrise de mana",
+        "Rezumat Compilere, pentru examen",
+        "Notite curs Compilere, UB informatica",
+        "Fise Compilere, analiza lexicala"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include analiza lexicala si parsare.",
+        "Acopera toata programa de anul III.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme algoritmice.",
+        "Caiet A4, 70 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple cod."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-testare-software",
+      "titles": [
+        "Notițe Testare software, an III",
+        "Rezumat Testare software pentru examen",
+        "Fise Testare, cu Selenium",
+        "NOTITE TESTARE SOFTWARE, unit tests",
+        "Caiet Testare software, scrise de mana",
+        "Rezumat Testare software, pentru examen",
+        "Notite curs Testare software, UB",
+        "Fise Testare, TDD si BDD"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include JUnit, TestNG si Selenium.",
+        "Acopera toata programa de anul III.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme didactice.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple cod."
+      ],
+      "priceMin": 12,
+      "priceMax": 38
+    },
+    {
+      "id": "notes-grafuri-algoritmi",
+      "titles": [
+        "Notițe Grafuri si algoritmi, an II",
+        "Rezumat Teoria grafurilor pentru examen",
+        "Fise Grafuri, cu algoritmi Dijkstra",
+        "NOTITE GRAFURI, Kruskal si Prim",
+        "Caiet Grafuri, scrise de mana",
+        "Rezumat Grafuri, pentru examen",
+        "Notite curs Algoritmi grafuri, UB",
+        "Fise Grafuri, parcurgeri BFS DFS"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include algoritmi BFS, DFS, Dijkstra.",
+        "Acopera toata programa de anul II.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme algoritmice.",
+        "Caiet A4, 55 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu cod C++."
+      ],
+      "priceMin": 15,
+      "priceMax": 40
+    },
+    {
+      "id": "notes-robotica-lab",
+      "titles": [
+        "Notițe Robotica, laborator",
+        "Rezumat Robotica pentru examen",
+        "Fise Robotica, cu Arduino",
+        "NOTITE ROBOTICA, cinematica",
+        "Caiet Robotica, scrise de mana",
+        "Rezumat Robotica, pentru examen",
+        "Notite curs Robotica, UTCN",
+        "Fise Robotica, senzori si actuatori"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include laboratoarele de robotica cu Arduino.",
+        "Acopera toata programa de anul III.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme electrice.",
+        "Caiet A4, 65 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu cod Arduino."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-cybersec-lab",
+      "titles": [
+        "Notițe Cybersecurity, laborator",
+        "Rezumat Cybersecurity pentru examen",
+        "Fise Securitate cibernetica",
+        "NOTITE CYBERSEC, criptografie",
+        "Caiet Cybersecurity, scrise de mana",
+        "Rezumat Cybersecurity, pentru examen",
+        "Notite curs Cybersecurity, UB",
+        "Fise Cybersecurity, pentesting"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include atacuri si masuri de aparare.",
+        "Acopera toata programa de anul IV.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme didactice.",
+        "Caiet A4, 55 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple reale."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-devops-curs",
+      "titles": [
+        "Notițe DevOps, curs facultate",
+        "Rezumat DevOps pentru examen",
+        "Fise DevOps, cu Docker si K8s",
+        "NOTITE DEVOPS, CI/CD",
+        "Caiet DevOps, scrise de mana",
+        "Rezumat DevOps, pentru examen",
+        "Notite curs DevOps, UBB",
+        "Fise DevOps, Jenkins si Ansible"
+      ],
+      "descriptions": [
+        "Notite complete de la curs si laborator.",
+        "Include CI/CD cu Jenkins si GitLab.",
+        "Acopera toata programa de master.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme arhitecturale.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am invatat din ele si am luat 10.",
+        "Format compact, cu exemple YAML."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-admitere-politehnica",
+      "titles": [
+        "Notițe admitere Politehnica, matematica",
+        "Rezumat admitere UPB",
+        "Fise admitere politehnica, fizica",
+        "NOTITE ADMITERE POLITEHNICA",
+        "Caiet admitere UPB, scrise de mana",
+        "Rezumat admitere politehnica, mate si fizica",
+        "Notite pregatire admitere UTCN",
+        "Fise admitere UPT, probleme rezolvate"
+      ],
+      "descriptions": [
+        "Notite pentru pregatirea admiterii la Politehnica.",
+        "Include probleme rezolvate pas cu pas.",
+        "Acopera toata materia de admitere.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu formule evidentiate.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am luat admiterea cu ajutorul lor.",
+        "Format compact, cu exemple detaliate."
+      ],
+      "priceMin": 15,
+      "priceMax": 42
+    },
+    {
+      "id": "notes-admitere-medicina",
+      "titles": [
+        "Notițe admitere medicina, biologie",
+        "Rezumat admitere UMF",
+        "Fise admitere medicina, chimie",
+        "NOTITE ADMITERE UMF",
+        "Caiet admitere UMF, scrise de mana",
+        "Rezumat admitere medicina, bio si chimie",
+        "Notite pregatire admitere Carol Davila",
+        "Fise admitere UMF Cluj, bio organica"
+      ],
+      "descriptions": [
+        "Notite pentru pregatirea admiterii la medicina.",
+        "Include scheme bio si chimie organica.",
+        "Acopera toata materia de admitere.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme biologice.",
+        "Caiet A4, 70 de pagini scrise.",
+        "Am luat admiterea cu ajutorul lor.",
+        "Format compact, cu exemple rezolvate."
+      ],
+      "priceMin": 18,
+      "priceMax": 45
+    },
+    {
+      "id": "notes-admitere-informatica",
+      "titles": [
+        "Notițe admitere informatica, matematica",
+        "Rezumat admitere Mate-Info UB",
+        "Fise admitere informatica, algoritmi",
+        "NOTITE ADMITERE INFORMATICA",
+        "Caiet admitere Info, scrise de mana",
+        "Rezumat admitere informatica, mate si algoritmi",
+        "Notite pregatire admitere FMI",
+        "Fise admitere informatica, probleme rezolvate"
+      ],
+      "descriptions": [
+        "Notite pentru pregatirea admiterii la informatica.",
+        "Include probleme de algoritmica rezolvate.",
+        "Acopera toata materia de admitere.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu pseudocod.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am luat admiterea cu ajutorul lor.",
+        "Format compact, cu exemple detaliate."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-fise-bac-mate",
+      "titles": [
+        "Notițe BAC matematica",
+        "Rezumat BAC mate M1 si M2",
+        "Fise BAC matematica, cu subiecte",
+        "NOTITE BAC MATE, formule",
+        "Caiet BAC mate, scrise de mana",
+        "Rezumat BAC matematica, M1",
+        "Notite pregatire BAC matematica",
+        "Fise BAC matematica, probleme rezolvate"
+      ],
+      "descriptions": [
+        "Notite pentru pregatirea BAC-ului de matematica.",
+        "Include subiecte BAC rezolvate.",
+        "Acopera toata materia pentru M1 si M2.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu formule evidentiate.",
+        "Caiet A4, 45 de pagini scrise.",
+        "Am luat 9 la BAC cu ajutorul lor.",
+        "Format compact, cu exemple rezolvate."
+      ],
+      "priceMin": 12,
+      "priceMax": 35
+    },
+    {
+      "id": "notes-fise-bac-romana",
+      "titles": [
+        "Notițe BAC romana, comentarii",
+        "Rezumat BAC romana, texte obligatorii",
+        "Fise BAC romana, autori",
+        "NOTITE BAC ROMANA, fise literatura",
+        "Caiet BAC romana, scrise de mana",
+        "Rezumat BAC romana, poezie si proza",
+        "Notite pregatire BAC romana",
+        "Fise BAC romana, personaje"
+      ],
+      "descriptions": [
+        "Notite pentru pregatirea BAC-ului de romana.",
+        "Include comentarii la textele obligatorii.",
+        "Acopera toata materia pentru BAC.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu teme si motive.",
+        "Caiet A4, 60 de pagini scrise.",
+        "Am luat 10 la BAC cu ajutorul lor.",
+        "Format compact, cu exemple detaliate."
+      ],
+      "priceMin": 10,
+      "priceMax": 30
+    },
+    {
+      "id": "notes-fise-bac-istorie",
+      "titles": [
+        "Notițe BAC istorie, evenimente",
+        "Rezumat BAC istoria romanilor",
+        "Fise BAC istorie, cu date cheie",
+        "NOTITE BAC ISTORIE, evenimente",
+        "Caiet BAC istorie, scrise de mana",
+        "Rezumat BAC istorie, teme obligatorii",
+        "Notite pregatire BAC istorie",
+        "Fise BAC istorie, personalitati"
+      ],
+      "descriptions": [
+        "Notite pentru pregatirea BAC-ului de istorie.",
+        "Include cronologie si evenimente cheie.",
+        "Acopera toata materia pentru BAC.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu nume si date.",
+        "Caiet A4, 55 de pagini scrise.",
+        "Am luat 9 la BAC cu ajutorul lor.",
+        "Format compact, cu harti si imagini."
+      ],
+      "priceMin": 10,
+      "priceMax": 30
+    },
+    {
+      "id": "notes-fise-bac-anatomie",
+      "titles": [
+        "Notițe BAC anatomie si fiziologie",
+        "Rezumat BAC biologie, anatomie",
+        "Fise BAC anatomie, sisteme",
+        "NOTITE BAC BIO ANATOMIE",
+        "Caiet BAC bio, scrise de mana",
+        "Rezumat BAC anatomie, cu scheme",
+        "Notite pregatire BAC biologie",
+        "Fise BAC anatomie, celule si tesuturi"
+      ],
+      "descriptions": [
+        "Notite pentru pregatirea BAC-ului de biologie.",
+        "Include scheme anatomice color.",
+        "Acopera toata materia pentru BAC.",
+        "Rezumat clar pentru examen.",
+        "Scris citet, cu scheme biologice.",
+        "Caiet A4, 50 de pagini scrise.",
+        "Am luat 9 la BAC cu ajutorul lor.",
+        "Format compact, cu exemple detaliate."
+      ],
+      "priceMin": 10,
+      "priceMax": 30
+    }
+  ]
+}
