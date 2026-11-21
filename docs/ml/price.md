@@ -93,6 +93,29 @@ The winner beats the baseline on every headline metric and on every
 category. Electronics is where the money is (and the error, because of the
 high-priced items in the tail); the model still cuts the MAE by ~30 % there.
 
+## External evaluation
+
+On top of the grouped hold-out, the saved `price-regression.zip` is also
+scored on `ml/data/external.csv` (122 out-of-catalog rows, 102 non-spam,
+written by the team after real listings — see the "External evaluation"
+section in the README for provenance). Same metrics, same non-spam
+filter, same `Category × Condition` mean baseline computed from the
+training part:
+
+| Metric | Test (winner) | Test (baseline) | External (winner) | External (baseline) |
+|--------|---------------|-----------------|-------------------|---------------------|
+| R²     | **0.451**     | 0.274           | **0.511**         | 0.011               |
+| MAE    | **268.53** lei | 345.44 lei     | **112.10** lei    | 192.05 lei          |
+| MAPE   | **75.3%**     | 176.5%          | **55.1%**         | 132.1%              |
+
+The MAE and MAPE are lower on the external set than on the hold-out
+because the external rows are concentrated around the catalog averages,
+without the Electronics long tail that dominates the test MAE
+(see the per-category table above). The winner beats the baseline by a
+larger margin on R² too (0.50 vs 0.01): the baseline collapses on
+out-of-catalog Conditions and item mixes, while the model's text
+features still carry signal.
+
 ## 5-fold grouped cross-validation
 
 On top of the single hold-out, the winner is validated with a **5-fold

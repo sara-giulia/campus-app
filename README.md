@@ -757,6 +757,50 @@ Spam (all rows, test):
 | Recall | 1.000 | 1.000 |
 | F1 score | **1.000** | 0.800 |
 
+### External evaluation
+
+`ml/data/external.csv` is an out-of-catalog sanity check: an AI was asked
+to draft 125 second-hand student listings without access to our catalog or
+`listings.csv`, then the team rewrote the first 30 rows after real
+listings we have seen (titles and phrasing we did not generate) and kept
+the rest as review-light drafts. Columns match `listings.csv` exactly
+(`Title,Description,Category,Condition,Price,IsSpam,TemplateId`, all with
+`TemplateId = external`), and the file carries no personal data — no
+names, phone numbers, email addresses or links to real sellers. 122 rows
+load as data (the last 3 lines are blank), of which 102 are non-spam and
+20 are spam, roughly balanced across the five categories (Electronics 27,
+LabEquipment 23, Notes 24, Other 25, Textbook 23). After training, the
+program loads the saved `.zip` models — the same files the API serves —
+and scores them on these rows next to the baselines from `Baselines.cs`.
+
+Last run (seed `2026`):
+
+| Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
+|---|---|---|---|---|---|
+| Price (non-spam) | R² | **0.451** | 0.274 | **0.511** | 0.011 |
+| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **112.10** | 192.05 |
+| Price (non-spam) | MAPE | **75.3%** | 176.5% | **55.1%** | 132.1% |
+| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.735** | 0.196 |
+| Category (non-spam) | Macro accuracy | **0.857** | 0.200 | **0.737** | 0.200 |
+| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.934 |
+| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.929 |
+| Spam (all) | Recall | 1.000 | 1.000 | 0.500 | 0.650 |
+| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.765 |
+
+The price and category models still beat their baselines on external
+data, and by a larger R² margin than on the test part — the external
+prices are more concentrated around the catalog averages, so the baseline
+collapses while the model generalizes. Spam is the honest miss: the test
+part is saturated because synthetic spam signals the generator plants
+(links, phone numbers, `!!!`, 1-leu prices) are the same the rule
+baseline catches, so both reach 1.000. The external set has ten subtle
+spam rows with normal titles, normal prices and no scam keywords
+(`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet festival
+Untold"`), which neither the model nor the rule catch — recall drops to
+0.500 for the model and 0.650 for the rule. That gap is a dataset-v2
+limit and a task for the next iteration of the spam generator, not a
+regression in the committed model.
+
 ### Dataset v2
 
 - **Seed:** `const int Seed = 2026` in both the generator and the trainer, so
