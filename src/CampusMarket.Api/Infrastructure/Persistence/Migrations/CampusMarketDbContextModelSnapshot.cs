@@ -15,7 +15,7 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.15");
 
             modelBuilder.Entity("CampusMarket.Api.Domain.Favorites.Favorite", b =>
                 {
@@ -111,6 +111,38 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
                     b.HasIndex("ListingId");
 
                     b.ToTable("Reservations", (string)null);
+                });
+
+            modelBuilder.Entity("CampusMarket.Api.Domain.Listings.SaleRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ListingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("SoldAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("SoldPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("SuggestedPrice")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SoldAt");
+
+                    b.ToTable("SaleRecords", (string)null);
                 });
 
             modelBuilder.Entity("CampusMarket.Api.Domain.Members.Member", b =>
