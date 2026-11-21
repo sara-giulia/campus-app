@@ -58,15 +58,26 @@ foreach (var trainer in trainers)
     Console.WriteLine();
     Console.WriteLine($"=== {trainer.Name} ===");
 
-    var (model, metrics) = trainer.Train(mlContext, trainSet, validationSet, testSet);
+    var result = trainer.Train(mlContext, trainSet, validationSet, testSet);
 
-    Console.WriteLine(metrics);
+    Console.WriteLine(result.MetricsText);
 
     var modelPath = Path.Combine(modelsDir, trainer.ModelFileName);
-    mlContext.Model.Save(model, data.Schema, modelPath);
+    mlContext.Model.Save(result.Model, data.Schema, modelPath);
     Console.WriteLine($"Saved model to {modelPath}");
 
-    trainedModels[trainer.ModelFileName] = model;
+    ModelMetadata.Save(
+        modelFilePath: modelPath,
+        modelName: trainer.Name,
+        algorithm: result.Algorithm,
+        testMetrics: result.TestMetrics,
+        csvPath: csvPath,
+        trainRowCount: trainCount,
+        validationRowCount: validationCount,
+        testRowCount: testCount);
+    Console.WriteLine($"Saved metadata to {Path.ChangeExtension(modelPath, ".json")}");
+
+    trainedModels[trainer.ModelFileName] = result.Model;
 }
 
 Console.WriteLine();
@@ -109,6 +120,9 @@ Console.WriteLine($"| Accuracy  | {F3(spamModelMetrics.Accuracy)} | {F3(spamBase
 Console.WriteLine($"| Precision | {F3(spamModelMetrics.Precision)} | {F3(spamBaseline.Precision)} |");
 Console.WriteLine($"| Recall    | {F3(spamModelMetrics.Recall)} | {F3(spamBaseline.Recall)} |");
 Console.WriteLine($"| F1 score  | {F3(spamModelMetrics.F1)} | {F3(spamBaseline.F1)} |");
+
+var externalCsvPath = Path.Combine(mlDir, "data", "external.csv");
+ExternalEvaluation.Run(mlContext, externalCsvPath, modelsDir, trainSet, testSet);
 
 static string F3(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
 static string F2(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);

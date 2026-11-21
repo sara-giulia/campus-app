@@ -562,6 +562,79 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`. Build the messages from `Review.MinRating`, `Review.MaxRating` and `Review.MaxCommentLength`, the same way the domain does. The message of `Review.Duplicate` contains the generated Id: use `.Match("A review with id '*' already exists.")`, as for `Favorite.Duplicate`.
 - Never use real time: `Now` is fixed.
 
+## Feature: Condition filter (Carina)
+
+Production code: `Features/Listings/GetListings/GetListingsHandler.cs`, the new optional `Condition` filter of `GetListingsQuery`. `Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument (`Condition: Condition.Good`).
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it, keep every existing test).
+
+Tests to add:
+- three Active listings (New, Good, Worn), query with `Condition = Good` → only the Good one, `TotalCount` 1.
+- `Category` and `Condition` together → only the listings that match both.
+- no `Condition` → every Active listing comes back (unchanged behaviour).
+
+Rules for this feature:
+- The handler is a query handler: the repository content is unchanged after every call.
+- Never use real time; every `createdAt` is a fixed `DateTimeOffset`.
+
+## Feature: My profile (Carina)
+
+Production code (written by hand, read it before generating):
+- `Features/Members/GetMyProfile/GetMyProfileHandler.cs`: a query handler with only `IMemberRepository` (no `IUnitOfWork`). Unknown member → `NotFound` `Member.NotFound`; otherwise `GetMyProfileResponse.From(member)` with `Id`, `Name`, `Email` (the email value), `Role` (as text) and `CreatedAt`. There is no password field in the response.
+- `Features/Members/UpdateMyProfile/UpdateMyProfileHandler.cs`: unknown member → `NotFound` `Member.NotFound`; otherwise `member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same; a validation error from `Update` is returned as it is; then `repository.Update` and one `CommitAsync`.
+
+Files (new): `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs`, `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs`.
+
+Arrange: `FakeMemberRepository`, `FakeUnitOfWork`, a fixed `Now`. Build members with `Member.Register(name, email, new FakePasswordHasher().Hash("secret12"), Now)` (or with `MemberRole.Admin` as the last argument for an Admin) and put them straight into `FakeMemberRepository.Items`.
+
+Tests to add:
+- GetMyProfile:
+  - a stored Student → success with its `Id`, `Name`, `Email` (lower case), `Role` `"Student"` and `CreatedAt` = `Now`; the repository is unchanged.
+  - a stored Admin → `Role` is `"Admin"`.
+  - unknown id → `NotFound` `Member.NotFound`.
+- UpdateMyProfile:
+  - a valid new name → success, returns the member's `Id`; the stored member has the new (trimmed) name and the same email; `UpdateCount` 1; `SaveCount` 1.
+  - a name of 1 character → `Validation` `Member.InvalidName`; the name is unchanged; `UpdateCount` 0; `SaveCount` 0.
+  - unknown id → `NotFound` `Member.NotFound`; `SaveCount` 0.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Public profile (Carina)
+
+Production code (written by hand, read it before generating): `Features/Members/GetPublicProfile/GetPublicProfileHandler.cs`, a query handler with `IMemberRepository`, `IListingRepository` and `IReviewRepository` (no `IUnitOfWork`).
+- Unknown member → `NotFound` `Member.NotFound`.
+- Otherwise: only the listings with `SellerId` = the member's id and `Status` = `Active`, ordered by `CreatedAt` descending, then `Id` ascending, as `PublicListingItem(Id, Title, Price.Amount)`.
+- Reviews come from `GetBySellerAsync`: `AverageRating` is null when there are none, otherwise `Math.Round(average, 2)`; `ReviewCount` is their number.
+- The response has no email and no role.
+
+File (new): `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`.
+
+Fakes: `FakeMemberRepository`, `FakeListingRepository`, and `FakeReviewRepository`. If `FakeReviewRepository` already exists in `Fakes/`, use it as it is; if not, add one in the same hand-written style (`Items` by `Id`, `GetBySellerAsync` returns the reviews with that `SellerId`).
+
+Arrange (read `Listing.cs` and `Review.cs` for the exact signatures; fixed `Now` and fixed, named ids such as `SellerId`, `BuyerId`, `OtherSellerId`):
+- Draft listing: `Listing.Create(...).Value`. Active: then `Publish()`. Sold: `Publish()`, `Reserve(BuyerId, Now)`, then `ConfirmSale(reservationId, Now)`.
+- A review: `Review.Create(BuyerId, soldListing, rating, null, Now).Value` (the sold listing's completed reservation belongs to `BuyerId`).
+- Give the listings different fixed `createdAt` values, so the expected order is known.
+
+Tests to add:
+- the member has 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with the right title and price.
+- an Active listing of another seller is not included.
+- no reviews → `AverageRating` null, `ReviewCount` 0.
+- reviews with ratings 5 and 4 → `AverageRating` 4.5, `ReviewCount` 2.
+- reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals).
+- unknown id → `NotFound` `Member.NotFound`.
+- In every test the repositories are unchanged after the call (it is a query).
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 Production code: `Features/Listings/SuggestCategory/SuggestCategoryHandler.cs`, `MinConfidence` = 0.7; `SuggestCategoryResponse.Category` is now nullable.
@@ -584,3 +657,44 @@ Tests to add:
 - exactly `Money.MaxAmount` → success.
 - `Money.MaxAmount + 0.01m` → `Validation`, code `Money.TooHigh`, exact message from the code.
 - `Listing.Create` with a price above the maximum → the same error.
+
+## Feature: Price feedback loop (Sara)
+Production code (written by hand, read it before generating):
+- `Domain/Listings/SaleRecord.cs`: `SaleRecord.Create(...)` returns `Result<SaleRecord>`; prices must be > 0.
+- `Features/Listings/ConfirmSale/ConfirmSaleHandler.cs`: new dependencies `ISaleRecordRepository`, `IPriceSuggester`, `ILogger<ConfirmSaleHandler>`. After a successful confirm sale it asks the suggester and adds a `SaleRecord` (same `CommitAsync`). If the suggester throws or returns a price <= 0, the sale still succeeds and no record is added.
+- `Features/Admin/PriceAccuracy/PriceAccuracyHandler.cs` (query handler): count, MAE, MAPE, per category, last 10 newest first; with no records count 0 and null metrics.
+  Existing tests: `Features/Listings/ConfirmSale/ConfirmSaleHandlerTests.cs` no longer compiles (the constructor has 6 parameters). Update every `new ConfirmSaleHandler(...)` to pass a `FakeSaleRecordRepository`, a fake price suggester and `NullLogger<ConfirmSaleHandler>.Instance`; change nothing else in those tests.
+  Fakes: reuse the existing fake price suggester if there is one; otherwise add `FakePriceSuggester` (configurable price, or throws when asked) in the same hand-written style. Add `FakeSaleRecordRepository` (`Items`, `Add`, `GetAllAsync`).
+  Tests to add:
+- `SaleRecord.Create`: valid → success with all fields; suggested price 0 → validation error; sold price 0 → validation error (exact code and message from the code).
+- ConfirmSale success with suggester returning 120 → one record with suggested 120, sold = listing price, the listing's category and condition; `SaveCount` 1.
+- ConfirmSale success with suggester throwing → sale succeeds, no record, `SaveCount` 1.
+- ConfirmSale success with suggester returning 0 → sale succeeds, no record.
+- ConfirmSale failure (any existing failure case) → no record.
+- PriceAccuracy: no records → count 0, metrics null; records (suggested 100/sold 80, suggested 50/sold 50) → count 2, MAE 10, MAPE 12.5; per category grouped; last records newest first, at most 10.
+  Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100% lines and branches.
+
+## Feature: Change password (Carina)
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/Member.cs`, `ChangePassword(newPasswordHash)`: an empty or whitespace hash → `Validation` `Member.PasswordRequired` ("A password is required."); otherwise it sets `PasswordHash` and returns the same member.
+- `Features/Auth/ChangePassword/ChangePasswordHandler.cs`, in this order: member not found → `NotFound` `Member.NotFound`; `PasswordHash` null or `Verify` false → `Validation` `Auth.InvalidCredentials` ("The email or the password is wrong."); new password null, empty or shorter than `RegisterHandler.MinPasswordLength` (8) → `Validation` `Auth.WeakPassword`; `NewPassword` different from `ConfirmNewPassword` → `Validation` `Auth.PasswordsDoNotMatch`; otherwise `Hash(new)`, `ChangePassword`, `repository.Update`, one `CommitAsync`, and it returns the member's `Id`.
+
+Files: `Domain/Members/MemberTests.cs` (add to it), `Features/Auth/ChangePassword/ChangePasswordHandlerTests.cs` (new). Use the existing `FakeMemberRepository`, `FakePasswordHasher` and `FakeUnitOfWork`; read them first to see how the fake hash is built and what they count.
+
+Tests to add:
+- `Member.ChangePassword`: a hash → stored, the same instance is returned; `""` and `"   "` (`[Theory]`) → `Member.PasswordRequired`, the hash is unchanged.
+- success → `PasswordHash` is the fake hash of the new password, returns the member's `Id`, `UpdateCount` 1, `SaveCount` 1.
+- wrong current password → `Auth.InvalidCredentials`; hash unchanged; `UpdateCount` 0; `SaveCount` 0.
+- a member without a password (`Member.Create`) → `Auth.InvalidCredentials`.
+- new password of 7 characters → `Auth.WeakPassword`; exactly 8 characters → success (the boundary); empty → `Auth.WeakPassword`.
+- confirmation different → `Auth.PasswordsDoNotMatch`; `SaveCount` 0.
+- unknown member → `NotFound` `Member.NotFound`; `SaveCount` 0.
+- the `changed.IsFailure` branch of the handler: `FakePasswordHasher` never returns an empty hash, so add one small private class in `ChangePasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` and `Verify` returns `true` → `Validation` `Member.PasswordRequired` (from `Member.ChangePassword`); the hash is unchanged; `UpdateCount` 0; `SaveCount` 0. This extra hasher is allowed only for this test.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a branch of `ChangePasswordHandler` or `Member.ChangePassword` still cannot be reached with these fakes, stop and report it; do not remove code from `src/`.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.

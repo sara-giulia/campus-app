@@ -696,6 +696,61 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
+### Run 21, skill v23 (Feature: Condition filter)
+
+- **Why a new version:** task 1 (issue #72). `GET /api/v1/listings` got an optional `condition` filter (`New`, `Good`, `Worn`); the new branch in `GetListingsHandler` had no tests.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the condition filter. | New section *"Feature: Condition filter (Carina)"*: the file and three tests (condition alone, condition with category, no condition). | Covers the new filter and proves that the default behaviour did not change. |
+| 2 | — | *"`Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument"*. | Existing tests build the query by position; if the parameter were in the middle, a literal `0` meant for `Page` would silently become `Condition.New`. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Condition filter (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v23, commit 1be82be; section written and run by Carina Coman
+- **Result:** 3 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs` (`Given_ListingsWithDifferentConditions_When_FilteringByCondition_Then_ReturnsOnlyThatCondition`, a test for `Category` and `Condition` together, `Given_NoConditionFilter_When_Handling_Then_ReturnsEveryActiveListing`); the 37 existing tests in the file are unchanged. Each test seeds its own `FakeListingRepository`, sets `Condition` with a named argument and checks that the repository still has its 3 items. 435/435 unit tests pass; coverage stays **100%**: 1026/1026 lines and 358/358 branches (`Domain/` 11 classes, handlers 30). The report in `coverage-report/` was generated again. Nothing changed in `src/`.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 1be82be; generated code ab95b6d
+
+### Run 22, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). New slices `GetMyProfile` (`GET /api/v1/members/me`) and `UpdateMyProfile` (`PUT /api/v1/members/me`, only the name changes) without tests.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile of the logged-in member. | New section *"Feature: My profile (Carina)"*: what each handler does, how to build the members (`Member.Register` with `FakePasswordHasher`, Student or Admin), and 6 tests. | Without it Claude would have to guess the order of the checks and what the response contains. |
+| 2 | — | *"`member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same"* + a test that checks the email after the update. | Proves that the profile update can never change the email. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v24, commit f197c2c (numbered after the condition filter PR, #72, which makes v23); section written and run by Carina Coman
+- **Result:** 6 new tests in two new files: `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs` (a Student with its id, name, lower-case email, role and `CreatedAt`, the repository unchanged; an Admin → role `"Admin"`; unknown id → `Member.NotFound`) and `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs` (a valid name with spaces → trimmed, email unchanged, `UpdateCount` 1, `SaveCount` 1; a 1-character name → `Member.InvalidName`, name unchanged, `UpdateCount` 0, `SaveCount` 0; unknown id → `Member.NotFound`, `SaveCount` 0). Every error checks type, code and the exact message. No existing test, fake or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1045/1045 lines and 362/362 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill f197c2c; generated code b9461db
+
+### Run 23, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). New query slice `GetPublicProfile` (`GET /api/v1/members/{id}/profile`): name, member since, average rating, review count and Active listings, without email or role. The handler had no tests.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: what the handler returns, how to build Draft, Active and Sold listings and a review (`Publish`, `Reserve`, `ConfirmSale`, `Review.Create`), and 6 tests. | Building a review needs a sold listing with a completed reservation; without the steps Claude would have to guess them. |
+| 2 | — | *"reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals)"*. | Proves the rounding, not only an average that is already exact. |
+| 3 | — | *"If `FakeReviewRepository` already exists in `Fakes/`, use it as it is"*. | So the run does not write a second fake for the same interface. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests (and the fake, if it is missing) from the "Feature: Public profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v25, commit f4cb94c (numbered after the condition filter and my profile PRs, #72 and #76, which make v23 and v24); section written and run by Carina Coman
+- **Result:** one new file, `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`, with the 6 tests of the section: 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with title and price (also the member's id, name and `MemberSince`); another seller's Active listing is not included; no reviews → `AverageRating` null, `ReviewCount` 0; ratings 5 and 4 → 4.5 and 2; ratings 5, 4 and 4 → 4.33; unknown id → `Member.NotFound`. The existing `FakeReviewRepository` was used, so no fake changed. No existing test or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1044/1044 lines, 362/362 branches, 167/167 methods. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill f4cb94c; generated code 155cf71
+
 ### Run 25, skill v27 (Feature: Minimum category confidence)
 
 - **Why a new version:** `SuggestCategoryHandler` has a new rule: below `MinConfidence` (0.7) the response has `Category` null and keeps the confidence. `SuggestCategoryResponse.Category` is now nullable. The new branch had no tests, and one existing test used a confidence of 0.5 and expected a category.
@@ -732,6 +787,27 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v28 is the final version.
 - **Commits:** skill 0d26845; generated code c989e44
+
+### Run 27, skill v29 (Feature: Change password)
+
+- **Why a new version:** task 11 (issue #101). New `Member.ChangePassword` and the slice `Features/Auth/ChangePassword/` (`POST /api/v1/auth/change-password`); the new domain method and the handler had no tests.
+
+#### Change to SKILL.md (v28 → v29) and why
+
+| # | v28 (before) | v29 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about changing the password. | New section *"Feature: Change password (Carina)"*: the order of the checks in `ChangePasswordHandler` (404, `Auth.InvalidCredentials`, `Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`), `Member.ChangePassword`, and the test list, with the 7/8-character boundary. | Without it Claude would have to guess the order of the checks and the exact messages. |
+| 2 | — | *"the `changed.IsFailure` branch ... add one small private class in `ChangePasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` ... This extra hasher is allowed only for this test."* (added after the first run) | `FakePasswordHasher` never returns an empty hash, so the branch could not be reached and the handler was not at 100%. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Change password (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed. Do not commit.` (new session)
+- **Skill version:** v29, commits e1cb9f3 and 9df3a7c (the second adds the private hasher rule after the first run); numbered after #77 and #79 (v24, v25), the skill update v26 and the entries on main up to v28; section written and run by Carina Coman
+- **Result:** `Domain/Members/MemberTests.cs`: 2 tests added (a hash is stored and the same instance is returned; `""` and `"   "` as a `[Theory]` → `Member.PasswordRequired`, hash unchanged). New `Features/Auth/ChangePassword/ChangePasswordHandlerTests.cs`: success (new fake hash stored, the member's id returned, `UpdateCount` 1, `SaveCount` 1); wrong current password and a member without a password → `Auth.InvalidCredentials`; 7 characters and `""` (`[Theory]`) → `Auth.WeakPassword`; exactly 8 characters → success; confirmation different → `Auth.PasswordsDoNotMatch`; unknown member → `Member.NotFound`; the `changed.IsFailure` branch with a private `EmptyHashPasswordHasher` → `Member.PasswordRequired`. Every error checks type, code and the exact message, and every failure checks `SaveCount` 0. 469/469 unit tests pass; `Member` and `ChangePasswordHandler` at 100%; total for `Domain/` and the handlers 99.7% lines (1159/1162) and 99.7% branches (393/394).
+- **Problems seen:**
+  1. The first run (same prompt) stopped and reported that the `changed.IsFailure` branch cannot be reached with `FakePasswordHasher`. Its output was discarded, rule 2 was added to the section (commit 9df3a7c) and the run was repeated in a new session.
+  2. `ConfirmSaleHandler.cs`, lines 72-75 (the `record.IsFailure` branch, from the price feedback loop, not from this feature) cannot be reached either: a listing price is always above 0. This is the only gap; reported to Sara, nothing changed in `src/`.
+  3. The run regenerated `coverage-report/`; it was restored to the version on main and not committed, because generated files do not go into PRs (see the skill update v25 → v26).
+- **Change to SKILL.md:** none after the second run; v29 is the final version.
+- **Commits:** skill e1cb9f3, 9df3a7c; generated code a19f159
 
 ## integration-testing
 
@@ -1154,11 +1230,84 @@ saved.Should().BeEquivalentTo(listing);
 | 1 | Nothing about analyzer warnings. | Section 7: a private helper returns its concrete type (`List<T>`, not `IReadOnlyList<T>`); after generating, build with a SARIF log and check that the test files have no CA or IDE diagnostic. | Sonar imports these Roslyn suggestions as issues, but `dotnet build` does not show them, so the run could not see them. |
 
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them all. SonarCloud reports CA1859 on ReservationExpiryServiceTests.cs line 47. Apply the new rule in section 7 to the existing integration tests: fix that helper and any other helper that breaks the same rule. Do not change test names, assertions or behaviour.` (new session)
-- **Skill version:** v21, commit TODO (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Skill version:** v21, commit 99f5fa3 (rule written by Ancuța Ilenei with Claude Code; run in a new session)
 - **Result:** one line changed: `ServiceErrors` returns `List<CapturingLoggerProvider.Entry>`. No other helper broke the rule (the other interface return types are public members of interfaces). The SARIF log of the test project has no diagnostics. 674 tests pass, the integration tests three times in a row.
 - **Problems seen:** the rule says "the new test files"; when it is applied to existing tests it should mean the whole test project, which is what the run checked.
 - **Change to SKILL.md after the run:** none.
-- **Commits:** skill TODO; generated code TODO
+- **Commits:** skill 99f5fa3; generated code 80b724d
+
+### Run 23, skill v22 (Feature: Condition filter)
+
+- **Why a new version:** task 1 (issue #72). The new `condition` query parameter has to be tested over HTTP, including the 400 that ASP.NET Core returns for an unknown value.
+
+#### Change to SKILL.md (v21 → v22) and why
+
+| # | v21 (before) | v22 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the condition filter. | New section *"Feature: Condition filter (Carina)"*: the arrange (published `Good` and `Worn` listings with fixed `CreatedAt`) and two tests. | The endpoint has a new parameter, so Claude needs the contract to test it. |
+| 2 | — | *"`?condition=Banana` → 400. ASP.NET Core rejects it before the handler runs, so check only the status code."* | There is no handler `Error` to read for this case. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Condition filter (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v22, commit c3861b4; section written and run by Carina Coman
+- **Result:** 2 new tests in `Listings/GetListingsTests.cs`: `?condition=Good` → 200 with only the Good listing (`totalCount` 1, `count` 1, its id and condition checked); `?condition=Banana` → 400, status only. Both use a private helper `SeedGoodAndWornListingsAsync`, which publishes the listings before `SeedAsync`, and check that the database still has the 2 listings. Existing tests unchanged, nothing changed in `src/`. `dotnet build` 0 warnings, 0 errors (no CA or IDE diagnostics in the SARIF log); integration tests 221/221 three runs in a row; full run: 10 architecture, 435 unit, 13 ML, 221 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v22 is the final version.
+- **Commits:** skill c3861b4; generated code 8c18e23
+
+### Run 24, skill v23 (Feature: API documentation)
+
+- **Why a new version:** task 8 (issue #74). The API got an OpenAPI document (`/openapi/v1.json`) and a documentation page (`/scalar`), both only in Development. The new endpoint had no test.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the API documentation. | New section *"Feature: API documentation (Carina)"*: the production code (`AddOpenApi`, and `MapOpenApi` and `MapScalarApiReference` only in Development; the test host runs in Development), the new file and one test. | The document is a new endpoint, and Claude needs to know that it exists only in Development. |
+| 2 | Every test checks the database (section 4). | *"The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of 'Feature: Error handling (Anca)' do."* | Keeps the status, body and database checks without inventing data. |
+| 3 | — | *"Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document."* | The test only has to prove that the paths are listed; a typed OpenAPI model would need a new package. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the test from the "Feature: API documentation (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v23, commit 0e90f1e (numbered after the condition filter PR, #72, which makes v22); section written and run by Carina Coman
+- **Result:** new file `Infrastructure/OpenApiTests.cs`, class `OpenApiTests : IntegrationTestBase`, with one test, `Given_DevelopmentEnvironment_When_GettingOpenApiDocument_Then_Returns200WithApiPaths`: `GET /openapi/v1.json` → 200, content type `application/json`, the body (read as text) contains `/api/v1/listings` and `/api/v1/auth/login`, and the database still has 0 listings. No existing test changed, nothing changed in `src/`. `dotnet build` 0 warnings, 0 errors (built with the SARIF error log, no CA or IDE diagnostics); integration tests 220/220 three runs in a row; full run: 10 architecture, 432 unit, 13 ML, 220 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 0e90f1e; generated code 5cd4f6c
+
+### Run 25, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). `GET /api/v1/members/me` and `PUT /api/v1/members/me` are new endpoints that need a token.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile endpoints. | New section *"Feature: My profile (Carina)"*: a table with the success and failures of both endpoints, which errors are ProblemDetails (401) and which keep `{ code, message, type }` (400, 404), and 6 tests. | The endpoints are new, so Claude needs the contract to test them. |
+| 2 | — | *"the raw body ... does not contain `password`"* and *"in the database the member has the new name and the old email"*. | Proves that the response never shows the password hash and that the update cannot change the email. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v24, commit e28342c (numbered after the condition filter and API documentation PRs, #72 and #74, which make v22 and v23); section written and run by Carina Coman
+- **Result:** new file `Members/MyProfileTests.cs` with 6 tests: logged in → GET 200 with id, name, lower-case email, role `Student` and `createdAt`, no `password` in the raw body; a token of a member that is not in the database → 404 `Member.NotFound`; no token → GET 401 and PUT 401 (ProblemDetails `Auth.Unauthorized`), member unchanged; a valid name → 204, new name and old email in the database; a 1-character name → 400 `Member.InvalidName`, member unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no CA or IDE diagnostics; 10 architecture, 438 unit and 13 ML tests pass; the 6 new tests pass in every run.
+- **Problems seen:** the existing `ReservationExpiryTests` (job on) failed in 2 of 4 integration runs with `SqliteException: SQLite Error 5: 'database is locked'`, so the "three runs in a row" check did not pass. The test was not touched by this run: the expiry job and the test use the same in-memory SQLite connection at the same time. Reported to the team, not fixed here.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill e28342c; generated code 35d92a4
+
+### Run 26, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). `GET /api/v1/members/{id}/profile` is a new public endpoint; it must never show the email, and it shows only Active listings and the review summary.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: the response, the 404 from the handler and from the route, how to seed a sold listing with a review, and 4 tests. | The endpoint is new, so Claude needs the contract to test it. |
+| 2 | — | *"the raw body (`ReadAsStringAsync`) does not contain the seller's email"*. | Proves over HTTP that the email, which is personal data, never leaves the API here. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Public profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v25, commit 4394edd (numbered after the condition filter, API documentation and my profile PRs, #72, #74 and #76, which make v22, v23 and v24); section written and run by Carina Coman
+- **Result:** new file `Members/PublicProfileTests.cs` with 4 tests, none of them logged in: an Active and a Draft listing → 200 with only the Active one (id, title, price), the right name, 0 reviews, no average, and the raw body does not contain the email; a sold listing reviewed with 4 → `averageRating` 4, `reviewCount` 1, no active listings; unknown id → 404 `Member.NotFound`, type `NotFound`; `/members/abc/profile` → 404 (status only). Every test checks that the seeded data is unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no diagnostics in the SARIF log; integration tests 223/223 three runs in a row; full run: 10 architecture, 438 unit, 13 ML, 223 integration.
+- **Problems seen:** the first version of the first test ordered the listings by date inside the database query, which SQLite cannot do with `DateTimeOffset`, so it failed. The run fixed its own test in the same session (no sort in the query, the two listings compared without order); the API was not involved.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill 4394edd; generated code 9febc5f
 
 ### Run 28, skill v27 (Feature: Minimum category confidence)
 
@@ -1194,47 +1343,138 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v28 is the final version.
 - **Commits:** skill 0d26845; generated code c989e44
 
-### Run 32, skill v31 (Feature: Listings cache)
 
-- **Why a new version:** `GET /api/v1/listings` is now cached for 30 seconds (output cache, tag `listings`) and every endpoint that changes a listing clears the tag. A wrong or missing clear shows old data, which only a request after a cached request can show; no unit test can.
+### Run 30, skill v29 (Feature: CORS for the frontend)
+
+- **Why a new version:** Weeks 6–7, the frontend skeleton. The web frontend (`frontend/`, Vite on `http://localhost:5173`) calls the API from another origin, so the API now answers CORS for the origins in `Cors:AllowedOrigins`. No integration test covered it. (Sara's sections "Production configuration and demo data" and "Price feedback loop" were added to the skill before this run without a PROMPTS entry; v29 counts after them.)
+
+#### Change to SKILL.md (v28 → v29) and why
+
+| # | v28 (before) | v29 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about CORS. | New section *"Feature: CORS for the frontend (Anca)"*: the production code to read, the file (`Cors/CorsTests.cs`, new) and the tests: allowed preflight (204, origin, methods, headers, no credentials), preflight from another origin (no `Access-Control-Allow-Origin`), 201 with `Location` exposed, 401 and 500 ProblemDetails that still carry the CORS header, a request without `Origin` (no CORS headers), an origin set through `Cors:AllowedOrigins:0`. | CORS is middleware: only a real HTTP request through the whole pipeline shows the headers, and only an error answer shows that `UseCors` runs before the exception handler. |
+| 2 | (after the run) the configured origin was one bullet with two preflights; the not-allowed preflight had no status; nothing said that `git status` lists the hand-made changes. | Two tests with one HTTP call each, from a private helper; the not-allowed preflight is still 204; a rule lists the files changed by hand before the run. | The run found these three gaps (section 6 allows one HTTP call per test). |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: CORS for the frontend (Anca)". Add only those tests. Then run dotnet build and dotnet test tests/CampusMarket.IntegrationTests three times in a row, and the whole solution once. Follow section 10, including the SARIF check from section 7. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v29, commit a6a5c1c (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** 8 tests in `Cors/CorsTests.cs`: preflight from the frontend (204, exact `Access-Control-Allow-Origin`, `POST` and `authorization` allowed, no `Access-Control-Allow-Credentials`), preflight from `http://evil.example` (204, no `Access-Control-Allow-Origin`), `POST /listings` with the origin (201, origin, `Location` exposed and set, listing saved), no token (401 `Auth.Unauthorized` with the origin), `ThrowingUnitOfWork` (500 `Server.Error` with the origin, listing still `Draft`), no `Origin` header (200, no CORS header), and two tests with `Cors:AllowedOrigins:0` = `https://campusmarket.example` (that origin allowed, `localhost:5173` no longer). Every test checks the database. No existing test changed. Build 0 warnings, 0 errors; the SARIF log of the test project is empty; full run: 10 architecture, 454 unit, 13 ML, 235 integration; the integration tests passed three times in a row.
+- **Problems seen:**
+    1. The section asked for two preflights in one test; split into two tests (fixed in the section after the run).
+    2. One integration test failed once in the first full run with coverage and was not seen again in 8 more runs (5 integration, 3 full); its name was not printed. Most likely the old timing issue of the reservation expiry tests, not CORS.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill a6a5c1c; generated code 820290e
+
+### Run 31, skill v30 (Feature: Register rate limiting)
+
+- **Why a new version:** task 5 (issue #98). `POST /api/v1/auth/register` got the rate limiter policy "register": at most 5 registrations per minute from the same IP, then 429, with the limit read from `RateLimiting:RegisterPermitLimit`. The integration test factory raises it to 1000 so the other tests are not blocked, so the real limit needed its own tests.
+
+#### Change to SKILL.md (v29 → v30) and why
+
+| # | v29 (before) | v30 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the register rate limit. | New section *"Feature: Register rate limiting (Carina)"*: the policy, the factory setting (1000), a second copy of the API with `UseSetting("RateLimiting:RegisterPermitLimit", "5")`, and 3 tests. | Without the second copy the tests would run with the raised limit and never see a 429. |
+| 2 | — | *"5 registrations whose passwords do not match → 400 each (they also count toward the limit); a 6th, valid → 429"*. | Proves that the limiter counts every request, not only the successful ones. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Register rate limiting (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v30, commit 3d0ee62 (numbered after #73, #75, #77 and #79, which make v22 to v25, and after the entries on main up to v29, the CORS run of #99); section written and run by Carina Coman
+- **Result:** new file `Auth/RegisterRateLimitTests.cs` with 3 tests: six valid registrations with the limit at 5 → the first five 201, the sixth 429, exactly 5 members and none with the sixth email; five registrations whose passwords do not match → 400 each, then a sixth valid one → 429, no members; the normal factory (limit 1000) → six registrations 201, 6 members. The first two use a second copy of the API (`WithWebHostBuilder`, disposed with `await using`); the five earlier calls are in a private helper `RegisterFiveAsync`, written as five explicit calls like `ExhaustLoginRateLimitAsync`, so no test has a loop. Nothing changed in `src/`, the factory, `IntegrationTestBase` or the skill. Integration tests 230/230 three runs in a row.
+- **Problems seen:** none. Notes from the run: the 429 is checked only by status code, as the section says (the error handling section may turn it into ProblemDetails, but its body is not checked); the status codes of the five earlier calls are collected in the Arrange and checked at the start of the Assert, so the Act stays the single sixth call.
+- **Change to SKILL.md:** none after the run; v30 is the final version.
+- **Commits:** skill 3d0ee62; generated code 9e9c0fb
+
+### Run 32, skill v31 (Feature: Change password)
+
+- **Why a new version:** task 11 (issue #101). `POST /api/v1/auth/change-password` is a new endpoint that needs a token; the change must be saved and must change how login behaves.
 
 #### Change to SKILL.md (v30 → v31) and why
 
 | # | v30 (before) | v31 (after) | Why |
 |---|---|---|---|
-| 1 | Nothing about the cache. | New section *"Feature: Listings cache (Diana)"*: the file (`Listings/ListingsCacheTests.cs`, new) and 3 tests: search, then create and publish, then the same search; search, then update the title, then the same search; search, then reserve, then the same search. | Each test makes the first search fill the cache, so the second search only shows the change if the tag was cleared. |
-| 2 | — | Which endpoints clear the cache: create, update, delete, publish, reserve, cancel reservation, confirm sale, hide. | Tells Claude the contract; the section tests three of them, one for each kind of change (new, changed, no longer `Active`). |
+| 1 | Nothing about changing the password. | New section *"Feature: Change password (Carina)"*: a table with the success and the failures, which errors are ProblemDetails (401) and which keep `{ code, message, type }` (400, 404), the arrange with a real hash and `AuthenticateAs`, and the test list. | The endpoint is new, so Claude needs the contract to test it. |
+| 2 | — | *"in the database `AspNetPasswordHasher.Verify` accepts the new password and rejects the old one"* and the login tests after a change (new password → 200, old → 401). | Proves that the new hash is really stored and used by login. |
 
-- **Prompt:** `Run the integration-testing skill for the section "Feature: Listings cache (Diana)". Add only those tests. Run dotnet test.`
-- **Skill version:** v31, commit 030e958 (section written and run by Diana Preutu with Claude Code)
-- **Result:** New file `Listings/ListingsCacheTests.cs` with 3 tests, each doing a search before the change and the same search after it: the new listing is in the second result; the new title is in the second result; the reserved listing is gone from the second result. No existing test changed. There is no unit-testing run for this feature: the endpoints have no unit tests. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 432 unit, 13 ML, 222 integration.
-- **Problems seen:** none.
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Change password (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results. Do not commit.` (new session)
+- **Skill version:** v31, commit 0c22b8e (numbered after the CORS run of #99, v29, and the register rate limiting PR, issue #98, v30); section written and run by Carina Coman
+- **Result:** new file `Auth/ChangePasswordTests.cs` with 8 tests: valid request → 204 and the stored hash verifies the new password, not the old one; after a change, login with the new password → 200 and with the old one → 401; wrong current password → 400 `Auth.InvalidCredentials`, hash unchanged; 7 characters → 400 `Auth.WeakPassword`; confirmation different → 400 `Auth.PasswordsDoNotMatch`; a token of a member that is not in the database → 404 `Member.NotFound`; no token → 401. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no CA or IDE diagnostics in the SARIF log; 469 unit, 10 architecture, 13 ML and 237 integration tests pass.
+- **Problems seen:** in the repeated integration runs one run had 1 failure out of 237. Run again by hand: the failing test is the existing `ReservationExpiryTests.Given_JobOnWithExpiredAndValidReservations_When_JobRuns_Then_ExpiresOnlyTheExpiredOne`, 1 failure in 4 runs, still flaky after #97. The 8 new tests passed in every run. Reported to Sara, not fixed here.
 - **Change to SKILL.md:** none after the run; v31 is the final version.
-- **Commits:** skill 030e958; generated code 9f480ad
+- **Commits:** skill 0c22b8e; generated code 5498907
 
-### Run 33, skill v32 (Feature: Listings cache, review fix)
+### Run 33, skill v32 (Feature: Live and ready health checks)
 
-- **Why a new version:** Sara's review on PR #84 found that the Run 32 tests did not test the cache. The ASP.NET Core output cache does not store a response to a request with an `Authorization` header, and those tests searched after `AuthenticateAs`, so every search went to the database and the tests would pass without `ListingsCache.ClearAsync`.
+- **Why a new version:** `GET /health/live` (no checks) and `GET /health/ready` (database + the 3 ML models) were added next to `/health`; none had an integration test, and the Unhealthy branch of `MlModelsHealthCheck` cannot be reached over HTTP.
 
 #### Change to SKILL.md (v31 → v32) and why
 
 | # | v31 (before) | v32 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about `/health/live` and `/health/ready`. | New section *"Feature: Live and ready health checks (Diana)"*: the file (`Infrastructure/HealthTests.cs`) and 4 tests: `/health/live` → 200 `Healthy`; `/health/ready` → 200 `Healthy`; `/health` → 200; `CheckHealthAsync` with a `ModelsPath` that does not exist → Unhealthy, the message lists the 3 missing files. | The ready check depends on the models copied to the test output, which only a real request through the host proves; the Unhealthy branch is reached by calling the check directly. |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Live and ready health checks (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v32, commit e90123a (section written and run by Diana Preutu with Claude Code)
+- **Result:** 4 new tests in the new file `Infrastructure/HealthTests.cs`; the three HTTP tests check the status, the plain text body `Healthy` and that the database is still empty. The Unhealthy test calls `MlModelsHealthCheck.CheckHealthAsync` directly (no HTTP call, the only way to reach that branch) and checks the status and that the message names `price-regression.zip`, `category-classification.zip` and `spam-detection.zip`. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 226 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v32 is the final version.
+- **Commits:** skill e90123a; generated code 341a311
+
+### Run 34, skill v33 (Feature: Correlation id)
+
+- **Why a new version:** every response now has an `X-Correlation-Id` header, set by a new middleware that runs before every other one. It is a behaviour of the whole pipeline (also on 404 and error answers), so only a real request can show it.
+
+#### Change to SKILL.md (v32 → v33) and why
+
+| # | v32 (before) | v33 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the correlation id. | New section *"Feature: Correlation id (Diana)"*: the file (`Infrastructure/CorrelationIdTests.cs`, new) and 3 tests: no header → a header that is a valid Guid; `X-Correlation-Id: test-123` → the same value; a 404 answer also has the header. | The three cases are the three paths of the middleware (new id, id from the client, id on an error answer). |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Correlation id (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v33, commit 1de3dc2 (section written and run by Diana Preutu with Claude Code)
+- **Result:** new file `Infrastructure/CorrelationIdTests.cs` with 3 tests: `GET /api/v1/listings` without the header → 200 and one `X-Correlation-Id` value that is not empty and is a Guid; the same request with `test-123` → the header is exactly `test-123`; `GET /api/v1/listings/{random Guid}` → 404 with the header. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 225 integration. With coverage like the CI, every line and branch of `CorrelationIdMiddleware` is covered by the integration tests (the unit test report has no hit, as expected).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v33 is the final version.
+- **Commits:** skill 1de3dc2; generated code 873dccb
+
+### Run 35, skill v34 (Feature: Listings cache)
+
+- **Why a new version:** `GET /api/v1/listings` is now cached for 30 seconds (output cache, tag `listings`) and every endpoint that changes a listing clears the tag. A wrong or missing clear shows old data, which only a request after a cached request can show; no unit test can.
+
+#### Change to SKILL.md (v33 → v34) and why
+
+| # | v33 (before) | v34 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the cache. | New section *"Feature: Listings cache (Diana)"*: the file (`Listings/ListingsCacheTests.cs`, new) and 3 tests: search, then create and publish, then the same search; search, then update the title, then the same search; search, then reserve, then the same search. | Each test makes the first search fill the cache, so the second search only shows the change if the tag was cleared. |
+| 2 | — | Which endpoints clear the cache: create, update, delete, publish, reserve, cancel reservation, confirm sale, hide. | Tells Claude the contract; the section tests three of them, one for each kind of change (new, changed, no longer `Active`). |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Listings cache (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v34, commit 030e958 (section written and run by Diana Preutu with Claude Code)
+- **Result:** New file `Listings/ListingsCacheTests.cs` with 3 tests, each doing a search before the change and the same search after it: the new listing is in the second result; the new title is in the second result; the reserved listing is gone from the second result. No existing test changed. There is no unit-testing run for this feature: the endpoints have no unit tests. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 432 unit, 13 ML, 222 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v34 is the final version.
+- **Commits:** skill 030e958; generated code 9f480ad
+
+### Run 36, skill v35 (Feature: Listings cache, review fix)
+
+- **Why a new version:** Sara's review on PR #84 found that the Run 35 tests did not test the cache. The ASP.NET Core output cache does not store a response to a request with an `Authorization` header, and those tests searched after `AuthenticateAs`, so every search went to the database and the tests would pass without `ListingsCache.ClearAsync`.
+
+#### Change to SKILL.md (v34 → v35) and why
+
+| # | v34 (before) | v35 (after) | Why |
 |---|---|---|---|
 | 1 | Section *"Feature: Listings cache (Diana)"*: file `Listings/ListingsCacheTests.cs` (new); 3 tests: *"search, then create and publish a listing, then search again with the same query"*, *"search, then update a listing's title, then search again"*, *"search, then reserve the listing, then search again"*. Nothing about tokens. | Same section with the note *"the ASP.NET Core output cache does not store responses to requests that have an `Authorization` header. Every search in these tests is sent **without a token**; only the change (create, publish, update, reserve) is sent with a token."*, and the file is *"(replace its tests)"*. | The old tests logged in before the first search, so the cache was never filled. |
 | 2 | No setup. | New *Setup*: every test starts by evicting the tag `ListingsCache.Tag` from `IOutputCacheStore` taken from `Factory.Services`. | The tests do not affect each other. |
 | 3 | 3 tests. | 4 tests: the 3 above, each with searches without a token (the create/publish one is *"search without a token → create a listing with a token → the same search without a token (the draft is not there, and this fills the cache) → publish with a token → the same search without a token → the new listing is there"*), and a new first one: search without a token → change a published listing in the database through the DbContext (no endpoint) → the same search still returns the old title. | A test that proves the cache is used; without it, the other three could pass with no cache at all. |
 
 - **Prompt:** `Run the integration-testing skill for "Feature: Listings cache (Diana)". Replace the old tests in Listings/ListingsCacheTests.cs with the ones the section describes. Run dotnet test. Then remove the ListingsCache.ClearAsync line from one endpoint (for example UpdateListingEndpoint), run only ListingsCacheTests and confirm the update test fails, then put the line back and confirm all pass again.`
-- **Skill version:** v32, commit a93eb36 (section written by Diana Preutu with Claude Code)
+- **Skill version:** v35, commit a93eb36 (section written by Diana Preutu with Claude Code)
 - **Result:** `Listings/ListingsCacheTests.cs` now has 4 tests. Searches use an anonymous client (`Factory.CreateClient()`), changes use the logged-in `Client`; the title change in the first test is a SQL `UPDATE` through the DbContext. The create/publish test has a search between create and publish, because create already clears the cache and a single search before it could not show a missing clear in publish. Check: `ListingsCache.ClearAsync` was removed from `UpdateListingEndpoint`, `PublishListingEndpoint` and `ReserveListingEndpoint`, one at a time; each time exactly the matching test failed (update, publish, reserve) and the other 3 passed; with the lines back all 4 pass. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 226 integration.
 - **Problems seen:** the first build failed on missing `using` lines in the test file (`DependencyInjection`, `Persistence`); fixed in the test.
-- **Change to SKILL.md:** none after the run; v32 is the final version.
+- **Change to SKILL.md:** none after the run; v35 is the final version.
 - **Commits:** skill a93eb36; generated code 8631881
-
 
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
+
 ### Run 1, skill v1 (our repository)
 
 - **Prompt:** `Use the code-review skill in .claude/skills/code-review/SKILL.md to review this repository. Follow the skill exactly. Do not edit any file. Give me only the output the skill asks for.`
@@ -1855,7 +2095,7 @@ Team final step: 100% coverage of the whole project in SonarCloud, not only of `
     - `ReservationExpiryServiceTests.cs`, CA1859: fixed by the skill (Run 22 of integration-testing).
     - Coverage: with the coverage of all test projects merged, the only lines left were the `Down()` methods of the EF Core migrations, which never run (the app only applies migrations). `**/Migrations/**` was added to `sonar.coverage.exclusions` in the CI, next to `Program.cs` and `ml/**`, and written in the README under "Coverage exclusions".
     - The SARIF logs still show CA1861 in two migrations; those files are generated by EF Core and Sonar does not report them.
-- **Commits:** code TODO; tests generated in TODO (see Run 22 of integration-testing)
+- **Commits:** code 977eaaf; tests generated in 80b724d (see Run 22 of integration-testing)
 
 ## category-min-confidence
 
@@ -1893,9 +2133,123 @@ Week 6, task 2 (maximum price). The production code is the one from the task lis
 - **Result:** `Money.MaxAmount` is `public static readonly decimal`. Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 222 integration tests pass. In both coverage reports of `CampusMarket.Api`, every sequence point and branch of `Money` is covered, including the static constructor (line 8, 1 visit) and both sides of `amount > MaxAmount`.
 - **Commits:** code 7e6a4c6
 
+## frontend-skeleton
+
+Weeks 6–7 (plan of Sara and Anca), Anca's first task: the skeleton of the web frontend, so Sara can start her pages. Written by Ancuța Ilenei with Claude Code; the CORS tests were generated with the integration-testing skill (Run 30).
+
+### Run 1
+
+- **Prompt:** `Do the frontend skeleton from the plan, completely and correctly: the frontend/ project (React + Vite + TypeScript), routing, the menu, the API client with the token and automatic refresh, the login page, CORS in the API.`
+- **Decisions:**
+    - React + Vite + TypeScript (chosen with Sara), React Router; no UI library and no state library, only what the skeleton needs.
+    - CORS policy `Frontend` with the origins from `Cors:AllowedOrigins` (`http://localhost:5173` in `appsettings.json`; the deployed address goes in `Cors__AllowedOrigins__0`). Any header and method, `Location` exposed, no credentials, because the token goes in the `Authorization` header and never in a cookie. `UseCors` is the first middleware, so 401/404/500 answers also carry the CORS header and the frontend can read the error.
+    - The origins are read with `GetChildren()` instead of `Get<string[]>() ?? []`, so there is no branch that the tests can never reach (Sonar coverage).
+    - API client (`frontend/src/api/client.ts`): adds the token, refreshes it 30 s before it expires and once more after a 401, then repeats the request. Requests that get a 401 together share one refresh, because the API rotates the refresh token and a second refresh with the old one would log the user out. A failed refresh clears the tokens; a network error does not.
+    - Both error shapes of the API (`{ code, message, type }` and ProblemDetails) become one `ApiError { status, code, message }`, so pages check only `code`.
+    - The tokens are kept in `localStorage`, so a page refresh keeps the user logged in, and other tabs follow a login or logout. The user (`id`, `email`, `role`) is read from the access token claims, only for the UI.
+    - So two people do not edit the same lines: `src/api/` and `src/app/` are Anca's; every feature has its folder `src/features/<feature>/` and a `routes.tsx`; `router.tsx` and `menu.ts` only get added lines. The login page lives in `src/app/pages/` (part of the skeleton), so `features/auth/` stays free for Sara (register, forgot password).
+    - `frontend/**` added to `sonar.coverage.exclusions` (TypeScript, outside the .NET coverage) and to `.dockerignore` (the API image does not need it).
+- **Checks:** `npm run build` (type check + build) and `npm run lint` with no errors. With the API running: CORS checked with curl (allowed preflight, other origin, 200, 401, 404, 201 with `Location`). The API client checked with a scratch script against the running API, 12 cases, all passed: wrong password → `Auth.InvalidCredentials`, login, the role read from the token, a broken token → one refresh and the request repeated, three parallel 401s → one refresh, a token about to expire → refresh before the request, an invalid refresh token → logged out, logout → the old refresh token is refused, a 404 → the code from the body.
+- **Result:** new `frontend/` (the skeleton, `README.md`, `.env.example`); `CampusMarketSetup.cs` (CORS policy), `Program.cs` (`UseCors`), `appsettings.json` (`Cors:AllowedOrigins`); README (how to run the frontend, CORS, tech stack, coverage exclusions); CI and `.dockerignore`. Build 0 warnings; 10 architecture, 454 unit, 13 ML and 235 integration tests pass. In the merged coverage every new line of `CampusMarketSetup.cs` is covered; the lines still uncovered are from the deploy and price feedback PRs (#95, #96).
+- **Commits:** code 5b3d6a9; tests generated in 820290e (see Run 30 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `Rearrange it so it looks much nicer: an interesting, well-made look that fits the idea of the app, something "wow".`
+- **Decisions:**
+    - One idea for the whole look: the campus notice board. Light theme = squared notebook paper, notes pinned with pushpins, yellow highlighter, ballpoint-blue accent; dark theme = a chalkboard with yellow chalk. The choice is saved in `localStorage` (system setting by default) and applied in `index.html` before the page paints, so it does not flash.
+    - Fonts from npm (`@fontsource`), not from a CDN: Bricolage Grotesque for titles, Inter for text, Caveat for the handwritten notes, all with the Romanian letters.
+    - A shared UI kit in `frontend/src/app/ui/` (Button, TextField, Card, PageHeader, Alert, Badge, EmptyState, Loading, Note, Pagination, icons, theme toggle, logo), so Sara's pages and Anca's pages look the same. Colours only through CSS variables in `index.css`.
+    - Top bar with logo, menu (active page underlined with the highlighter), theme button, account chip (initials, email, Admin badge, logout); on phones the menu folds into a burger. The phone menu closes on navigation by remembering the page where it was opened (no `setState` in an effect).
+    - Home page: hero, a cork board with four example notes (labelled "exemple", not real listings), the five categories as sticky notes, the three steps (publish, reserve, confirm the sale) and the three ML helpers (price, category, spam). The texts only describe what the API already does.
+    - Login: chalkboard on the left, form on the right, password show/hide. 404: a sticky note "pagina asta s-a vândut deja…".
+    - `prefers-reduced-motion` turns the animations off; visible focus ring; labels and `aria` on the icon buttons.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings. Screenshots with headless Chrome of the home page (light, dark, 500 px wide), the login page and the 404 page; two problems seen and fixed (one note covered the AI price of the next one; the ML section was too narrow in three columns).
+- **Result:** new `frontend/src/app/ui/` (components + `ui.css`), `layout.css`, `pages/home.css`, `login.css`, `not-found.css`, new favicon; `index.css`, `Layout.tsx`, `menu.ts` (the login button is now on the right, not in the menu), the three pages, `index.html`, `main.tsx` (fonts) and `frontend/README.md` (look and UI kit) changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 3
+
+- **Prompt:** `Make it look more professional, less like AI and simpler: well organised and structured, but simpler and clean.`
+- **Decisions:**
+    - The notice board look of Run 2 was dropped before any commit: no notebook grid, cork board, tilted notes, handwritten font or chalkboard. A neutral look instead: light grey background, white panels with a thin border, one blue accent, Inter only (the two decorative fonts were uninstalled). The dark theme is a plain dark grey.
+    - The UI kit keeps the same components and props, only their style is simpler; `Note` became `Chip` (categories and filters), the badge tone `marker` became `warning`.
+    - Home page: a short intro with the login button and the five categories, then "Cum funcționează" (three steps) and "Funcționalități" (price, category, anti-spam), as plain cards. Login: one centred card. 404: a short message and a link back.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots with headless Chrome of the home page (light, dark, 500 px wide) and the login page.
+- **Result:** `index.css`, `ui.css`, `layout.css`, the page styles and pages, `Logo.tsx`, `favicon.svg`, `Layout.tsx` (footer), `ui/Layout.tsx` (`Chip`), `main.tsx` (only Inter) and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 4
+
+- **Prompt:** `A bit nicer and better ordered, the text more centred, simple; colours white, cream, beige; for now not too many things, only what the task asked, and working as the task says.`
+- **Decisions:**
+    - Warm palette in the tokens of `index.css`: cream background, warm white panels, beige borders, caramel-brown accent; the dark theme uses the same warm tones. Logo and favicon follow the accent.
+    - The home page keeps only what the skeleton needs: a centred welcome, the login button, and after login who is logged in. The "how it works" and "features" sections were removed; the listings search replaces this page later.
+    - Footer is one centred line.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots (home light and dark, login, 500 px wide). The whole login flow driven in a headless Chrome through the DevTools protocol against the running API, 9 checks, all passed: wrong password → "Email sau parolă greșită.", login → home with the email and the Admin badge in the menu, tokens stored, still logged in after a page refresh, `/login` while logged in goes home, logout clears the user and the tokens, an unknown address shows the 404 page.
+- **Result:** `index.css`, `HomePage.tsx`, `home.css`, `layout.css`, `Layout.tsx` (footer), `Logo.tsx`, `favicon.svg`, `index.html` and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 5
+
+- **Prompt:** `The colours and the top bar are fine, but add something here so the home page looks a bit more professional.`
+- **Decisions:** the home page keeps the centred welcome and adds, in the same colours: a small label above the title, "CampusMarket" in the accent colour, a soft warm glow behind the title, the five categories as chips under the button, and one panel with three highlights (suggested price, automatic category, spam sent to moderation) that describe what the API already does.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots of the home page (light, dark, 500 px wide).
+- **Follow-up:** `Remove the text under the title; the three highlights should not describe how the app works inside, only what the user gets.` The sentence under the title was removed and the highlights became user-facing: *Preț corect* (a price suggestion), *Rezervare simplă* (a colleague reserves, you confirm), *Doar între studenți* (buy and sell on campus); `HandshakeIcon` added to `Icons.tsx`.
+- **Follow-up 2:** `Remove the email and the Admin badge from the top bar.` The top bar keeps only the initials (the email shows on hover) and the logout button.
+- **Result:** `HomePage.tsx`, `home.css`, `Icons.tsx`, `Layout.tsx` and `layout.css` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 6
+
+- **Prompt:** `Change it to the style Sara asked for in her conversations and that you see in the HTML (her page sketches), for my part of the task, and it must work correctly.`
+- **Decisions:**
+    - Sara's sketches (a Claude canvas exported to HTML) were rendered with headless Chrome and read page by page. Her final direction: white background, coral-red accent, Figtree, rounded corners, a coral wordmark, a top bar with the links on the right, a landing page with a big title on the left and a 2×2 photo collage on the right, a login page with the form on the left and a big picture on the right. The export shows only four pages correctly (home, explore, listing, publish); register, login and profile repeat the listing page.
+    - Only the parts of the sketches that belong to the skeleton and work today: the colours, the font, the top bar, the footer, the landing hero and the login layout. Left out until their pages exist: the search bar, "Vinde ceva", "Creează cont", "Ai uitat parola?", the listings grid, campus/faculty fields (not in the API).
+    - The collage tiles show four of the API categories, because listings have no photos yet; the login picture is a soft coral panel for the same reason.
+    - Tokens in `index.css` (light and dark), Figtree instead of Inter, buttons and inputs a bit taller and bolder as in the sketches, the secondary button outlined in dark.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings. Against the running API, in a headless Chrome driven through the DevTools protocol: wrong password → "Email sau parolă greșită.", login → home with the avatar, still logged in after reload, `/login` while logged in goes home, logout clears the tokens, unknown address → 404; all passed (one run hit the login rate limit of 5 per minute and was repeated a minute later). Screenshots of home (light, dark, logged in, 500 px) and login.
+- **Result:** `index.css`, `ui.css`, `layout.css`, `Logo.tsx`, `Layout.tsx` (footer), `HomePage.tsx`, `home.css`, `LoginPage.tsx`, `login.css`, `main.tsx`, `index.html`, `favicon.svg`, `package.json` (Figtree instead of Inter) and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b4d094
+
+### Run 7
+
+- **Prompt:** `SonarCloud shows 1 new issue on PR #99: frontend/src/api/config.ts line 3, "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking."`
+- **Decision:** the regex `/\/+$/` (remove the slashes at the end of `VITE_API_URL`) was replaced by a small loop, `withoutTrailingSlashes`, that walks back from the end; same result, no regex, so nothing can backtrack.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings.
+- **Commits:** code and this entry in the same commit (the one that changes `frontend/src/api/config.ts`)
+
+## health-checks
+
+Liveness and readiness endpoints for the container. The production code is the one from the task, applied by Diana Preutu with Claude Code; the tests were generated afterwards with the integration-testing skill (Run 31).
+
+### Run 1
+
+- **Prompt:** `Do the whole task, exactly as written: add MlModelsHealthCheck, tag the database and ML checks "ready", map /health/live (no checks) and /health/ready, add both to the README endpoints table and to the Postman Health folder, append the section "Feature: Live and ready health checks (Diana)" to the integration-testing SKILL.md, then run the skill for that section, add only those tests and run dotnet test. Do not commit, push or run coverage.`
+- **Decisions:**
+  - `/health/live` runs no checks (`Predicate = _ => false`), so it answers 200 as long as the process runs; `/health/ready` runs only the checks tagged `ready` (database and `ml-models`). `/health` is unchanged and still runs every check.
+  - `MlModelsHealthCheck` reads `MlOptions.ModelsPath` and checks that the three model files exist, the same names `AddCampusMarketMl` loads. The names and the options matched the code, so nothing was renamed.
+- **Result:** `Infrastructure/ML/MlModelsHealthCheck.cs` (new), `CampusMarketSetup.cs`, `Program.cs`, README endpoints table, two Postman requests ("Health live (200)", "Health ready (200)"), the skill section, and 4 integration tests (see Run 33 of integration-testing). Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 226 integration tests pass.
+- **Commits:** code ab246dd; skill section e90123a; tests generated in 341a311 (see Run 33 of integration-testing)
+
+## correlation-id
+
+Week 6, observability (correlation id). Small middleware written by Diana Preutu with Claude Code from the task list; the tests were generated afterwards with the integration-testing skill (Run 34). There are no unit tests: the class is only a middleware, covered by the integration tests.
+
+### Run 1
+
+- **Prompt:** `New task on branch feature/correlation-id. Do it exactly as written: add Infrastructure/Logging/CorrelationIdMiddleware.cs, register it first in Program.cs, turn on IncludeScopes for the console logs in appsettings.json, add a note to the README, append the section "Feature: Correlation id (Diana)" to the integration-testing SKILL.md, run the skill, run the tests with coverage and log the run in PROMPTS.md. Do NOT commit, do NOT push.`
+- **Decisions:**
+  - The id is taken from `X-Correlation-Id` when the client sends one (so a client or a gateway can follow a request through the logs), otherwise it is a new Guid. It is put in the response header and in a logging scope (`CorrelationId`), so every log line of the request has it.
+  - The middleware is the first one in `Program.cs`, before the exception handler and `UseStatusCodePages`, so 401, 403, 404 and 500 answers also have the header.
+  - `Logging:Console:IncludeScopes` is `true` in `appsettings.json`: without it the console provider does not print scopes and the id would be in no log line.
+  - The value from the client is used as it is (no length or format check), as the task asked.
+- **Result:** `Infrastructure/Logging/CorrelationIdMiddleware.cs`, two lines in `Program.cs`, `Logging:Console:IncludeScopes` in `appsettings.json`, a "Correlation id" note in the README, the skill section and 3 integration tests. Build 0 errors, 0 warnings; 438 unit and 225 integration tests pass. Coverage like the CI: every new line and branch in `src/` is covered (`Program.cs` is excluded from the Sonar coverage in the CI).
+- **Commits:** code 46c62dd; skill section 1de3dc2; tests generated in 873dccb (see Run 34 of integration-testing)
+
 ## listings-cache
 
-Performance change on `GET /api/v1/listings`, written by Diana with Claude Code; the tests were generated afterwards with the integration-testing skill (Run 32). There are no unit tests: the endpoints are covered by the integration tests only.
+Performance change on `GET /api/v1/listings`, written by Diana with Claude Code; the tests were generated afterwards with the integration-testing skill (Run 35). There are no unit tests: the endpoints are covered by the integration tests only.
 
 ### Run 1
 
@@ -1909,7 +2263,7 @@ Performance change on `GET /api/v1/listings`, written by Diana with Claude Code;
 - **Problems seen:**
     1. The first build failed: `HideListingEndpoint` could not see `ListingsCache` (missing `using`).
     2. `ReservationExpiryTests.Given_JobOnWithExpiredAndValidReservations_...` failed once with a locked SQLite database; it passed in the three following runs and was not changed.
-- **Commits:** code f332e9d; skill section 030e958; tests generated in 9f480ad (see Run 32 of integration-testing)
+- **Commits:** code f332e9d; skill section 030e958; tests generated in 9f480ad (see Run 35 of integration-testing)
 
 ### Run 2
 
@@ -1920,4 +2274,4 @@ Performance change on `GET /api/v1/listings`, written by Diana with Claude Code;
     - Each test first evicts the tag from `IOutputCacheStore`, as the review asked, so the tests never depend on each other.
     - The check was done with `UpdateListingEndpoint`: one endpoint is enough to show that the test fails when the clearing is missing.
 - **Result:** `ListingsCacheTests.cs` has 4 tests. Without `ListingsCache.ClearAsync` in `UpdateListingEndpoint`, the update test fails (3 pass); with the line back, all 4 pass. Full run: 10 architecture, 438 unit, 13 ML, 226 integration, 0 warnings. `src/` unchanged (the line was put back).
-- **Commits:** skill section a93eb36; tests regenerated in 8631881 (see Run 33 of integration-testing)
+- **Commits:** skill section a93eb36; tests regenerated in 8631881 (see Run 36 of integration-testing)
