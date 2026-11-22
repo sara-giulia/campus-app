@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/errors'
 import { useAuth } from '../auth/AuthContext'
 import { Alert, Button, TextField } from '../ui'
@@ -57,6 +57,9 @@ export function LoginPage() {
         <form onSubmit={handleSubmit} className="login__form">
           <TextField label="Email" type="email" autoComplete="email" placeholder="nume@student.ro" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
           <TextField label="Parolă" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <p className="login__forgot">
+            <Link to="/forgot-password">Ai uitat parola?</Link>
+          </p>
           {error && <Alert tone="error">{error}</Alert>}
           <Button type="submit" size="lg" block loading={submitting}>
             {submitting ? 'Se verifică…' : 'Intră în cont'}

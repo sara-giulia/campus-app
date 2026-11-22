@@ -28,6 +28,24 @@ export function register(body: RegisterRequest): Promise<RegisterResponse> {
   return api.post<RegisterResponse>('/auth/register', body, { auth: false })
 }
 
+export interface ForgotPasswordResponse {
+  message: string
+}
+
+export function forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+  return api.post<ForgotPasswordResponse>('/auth/forgot-password', { email }, { auth: false })
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  newPassword: string
+  confirmNewPassword: string
+}
+
+export function resetPassword(body: ResetPasswordRequest): Promise<void> {
+  return api.post<void>('/auth/reset-password', body, { auth: false })
+}
+
 // Revokes the refresh token on the server, then forgets the tokens locally.
 // The local logout happens even if the server call fails (expired token, API down).
 export async function logout(): Promise<void> {
