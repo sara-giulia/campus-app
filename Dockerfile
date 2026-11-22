@@ -5,7 +5,8 @@ RUN dotnet publish src/CampusMarket.Api/CampusMarket.Api.csproj -c Release -o /a
 # Fail the build if one of the trained ML models was not copied
 RUN test -f /app/ml-models/price-regression.zip \
     && test -f /app/ml-models/category-classification.zip \
-    && test -f /app/ml-models/spam-detection.zip
+    && test -f /app/ml-models/spam-detection.zip \
+    && test -f /app/ml-models/similar-listings.zip
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 # curl is used only by the health check below
