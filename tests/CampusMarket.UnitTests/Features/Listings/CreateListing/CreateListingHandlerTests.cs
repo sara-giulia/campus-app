@@ -14,7 +14,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var sellerId = Guid.NewGuid();
         var command = new CreateListingCommand(sellerId, "Algebra book", Category.Textbook, Condition.Good, 25m);
 
@@ -38,7 +38,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new CreateListingCommand(Guid.NewGuid(), " ", Category.Textbook, Condition.Good, 25m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -56,7 +56,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new CreateListingCommand(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 0m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -74,7 +74,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new CreateListingCommand(Guid.Empty, "Algebra book", Category.Textbook, Condition.Good, 25m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -91,7 +91,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new CreateListingCommand(
             Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, "  Looks almost new.  ");
 
@@ -107,7 +107,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new CreateListingCommand(
             Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m);
 
@@ -123,7 +123,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var description = new string('a', 1001);
         var command = new CreateListingCommand(
             Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, description);
@@ -143,7 +143,7 @@ public class CreateListingHandlerTests
     {
         var repository = new FakeListingRepository { RejectAdd = true };
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new CreateListingCommand(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -152,6 +152,44 @@ public class CreateListingHandlerTests
         result.Error.Type.Should().Be(ErrorType.Conflict);
         result.Error.Code.Should().Be("Listing.Duplicate");
         result.Error.Message.Should().Match("A listing with id '*' already exists.");
+        repository.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_InactiveCategory_When_Handling_Then_ReturnsCategoryInactiveAndDoesNotStoreOrSave()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var categories = new FakeCategoryRepository();
+        categories.Deactivate(Category.Notes);
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), categories);
+        var command = new CreateListingCommand(Guid.NewGuid(), "Algebra notes", Category.Notes, Condition.Good, 25m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryInactive");
+        result.Error.Message.Should().Be("The category 'Notes' is not active, a listing cannot be put in it.");
+        repository.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_UndefinedCategory_When_Handling_Then_ReturnsCategoryInvalidAndDoesNotStoreOrSave()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
+        var command = new CreateListingCommand(Guid.NewGuid(), "Algebra book", (Category)99, Condition.Good, 25m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryInvalid");
+        result.Error.Message.Should().Be("Unknown category.");
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }

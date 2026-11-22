@@ -28,7 +28,7 @@ public class PublishListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var spamDetector = new FakeSpamDetector();
         var reports = new FakeReportRepository();
-        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new PublishListingCommand(listing.Id, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -50,7 +50,7 @@ public class PublishListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var spamDetector = new FakeSpamDetector();
         var reports = new FakeReportRepository();
-        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new PublishListingCommand(listing.Id, AdminId, true);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -71,7 +71,7 @@ public class PublishListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var spamDetector = new FakeSpamDetector();
         var reports = new FakeReportRepository();
-        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new PublishListingCommand(listing.Id, OtherMemberId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -94,7 +94,7 @@ public class PublishListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var spamDetector = new FakeSpamDetector();
         var reports = new FakeReportRepository();
-        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var unknownId = Guid.NewGuid();
         var command = new PublishListingCommand(unknownId, SellerId, false);
 
@@ -119,7 +119,7 @@ public class PublishListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var spamDetector = new FakeSpamDetector();
         var reports = new FakeReportRepository();
-        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new PublishListingCommand(listing.Id, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -143,7 +143,7 @@ public class PublishListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var spamDetector = new FakeSpamDetector();
         var reports = new FakeReportRepository();
-        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new PublishListingCommand(listing.Id, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -166,7 +166,7 @@ public class PublishListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var spamDetector = new FakeSpamDetector { Result = new SpamCheck(true, 0.97) };
         var reports = new FakeReportRepository();
-        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now));
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), new FakeCategoryRepository());
         var command = new PublishListingCommand(listing.Id, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -179,6 +179,54 @@ public class PublishListingHandlerTests
         reports.Items[0].Reason.Should().Be(Report.AutomaticReason);
         reports.Items[0].SpamProbability.Should().Be(0.97);
         reports.Items[0].CreatedAt.Should().Be(Now);
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_DraftInInactiveCategory_When_SellerPublishes_Then_ReturnsCategoryInactiveAndDoesNotSave()
+    {
+        var listing = BuildDraftListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var spamDetector = new FakeSpamDetector();
+        var reports = new FakeReportRepository();
+        var categories = new FakeCategoryRepository();
+        categories.Deactivate(Category.Textbook);
+        var handler = new PublishListingHandler(repository, unitOfWork, spamDetector, reports, new FixedTimeProvider(Now), categories);
+        var command = new PublishListingCommand(listing.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryInactive");
+        result.Error.Message.Should().Be("The category 'Textbook' is not active, a listing cannot be put in it.");
+        listing.Status.Should().Be(ListingStatus.Draft);
+        listing.Version.Should().Be(1);
+        repository.UpdateCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
+        spamDetector.CallCount.Should().Be(0);
+        reports.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_DraftWhoseCategoryIsNotInRepository_When_SellerPublishes_Then_ActivatesListingAndSavesOnce()
+    {
+        var listing = BuildDraftListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var categories = new FakeCategoryRepository();
+        categories.Items.Remove(Category.Textbook);
+        var handler = new PublishListingHandler(repository, unitOfWork, new FakeSpamDetector(), new FakeReportRepository(), new FixedTimeProvider(Now), categories);
+        var command = new PublishListingCommand(listing.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Active);
+        repository.UpdateCount.Should().Be(1);
         unitOfWork.SaveCount.Should().Be(1);
     }
 }
