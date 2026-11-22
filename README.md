@@ -1137,6 +1137,55 @@ model's `.json` file, and configured in `src/CampusMarket.Api/appsettings.json`:
   training program to `appsettings.json`: a test in `CampusMarket.ML.Tests` fails when
   the settings and the models' `.json` files disagree.
 
+### Explainability (which words matter)
+
+Both classifiers are linear, so every feature has a weight: the bigger it is, the more the
+feature pushes the prediction towards a class. `Evaluation/FeatureWeights.cs` reads the
+weights from the trained models (`MaximumEntropyModelParameters` for the category, one row
+per class; `LinearBinaryModelParameters` for spam) and the feature names from the
+`FeaturizeText` slot names, and the training program prints the 10 strongest **words** (and
+pairs of words) for each category and for both sides of the spam model. The groups of three
+letters that `FeaturizeText` also produces are left out: they are not readable. Every text
+vector is normalised, so the weights of different words can be compared. Last run
+(T = title, D = description):
+
+| Category | Strongest words |
+|---|---|
+| Electronics | canon, sony, 1tb, mouse, asus, laser, wacom, casio, bac, watch (all T) |
+| LabEquipment | breadboard, buc, medicina, kit, letcon, sursa, stetoscop, sonda, balanta, pipeta (all T) |
+| Notes | fise, notite, rezumat, fsie, fsie securitate, scrise, si, mana, bd, scrise de (all T) |
+| Other | ski, haltere, abonament, philips, microunde, sah, raft, copii (T), toate (D), set (T) |
+| Textbook | - (T), carte, editia, manual (T), contine (D), vol., culegere (T), cu rezumat, ✨, explicatii (D) |
+
+| Towards spam | Weight | Towards a normal listing | Weight |
+|---|---|---|---|
+| pe (D) | 7.65 | cu (D) | -3.33 |
+| telegram (D) | 2.82 | fara (D) | -2.28 |
+| link / link in (D) | 2.80 | perfect (D) | -1.44 |
+| suna (D) | 2.79 | include (D) | -0.90 |
+| pe telegram (D) | 2.56 | vine (D) | -0.89 |
+| doar (D) | 2.08 | perfect pentru (D) | -0.87 |
+| livrare (D) | 1.75 | zgarieturi (D) | -0.65 |
+| scrie-mi (D) | 1.57 | vand (D) | -0.58 |
+
+The price bins have a weight of -0.55 (one feature for the whole price).
+
+What the tables show:
+- Most words are the expected ones: brands for electronics, lab instruments, "fise / notite /
+  rezumat" for notes, "carte / editia / manual" for textbooks. The category model decides
+  almost only from the **title**.
+- Some are **artefacts of the generated data**, not meaning: "-" is the strongest Textbook
+  word because 32% of the generated textbook titles are "Title - Author" ("Retele de
+  calculatoare - Andrew Tanenbaum") against under 1% in the other categories; an emoji ("✨")
+  and "si" also make the lists, and typos like "fsie" got their own weight. A real listing written differently can
+  miss these cues, which is part of why the external set scores lower than the test part.
+- Spam is recognised from **moving the talk elsewhere and urgency**: "pe telegram", "link
+  in", "suna", "scrie-mi", "doar", "livrare". The strongest single word is the plain "pe",
+  because it is part of "pe telegram / pe WhatsApp". Normal listings describe the object
+  ("cu", "fara zgarieturi", "perfect pentru", "include"). Spam with a normal description and
+  no contact request, like the subtle rows of the external set, has none of these words,
+  which explains the recall of 0.5 there.
+
 ### Classification report (category and spam)
 
 `ml/CampusMarket.ML.Training/Evaluation/ClassificationReport.cs` evaluates the two

@@ -53,6 +53,9 @@ public sealed class CategoryTrainer : IModelTrainer
         var minConfidence = ThresholdSelection.ChooseMinConfidence(validationTable);
         var onTest = ThresholdSelection.ConfidenceTable(Predictions(selection, scored), [minConfidence]).Single();
 
+        // Explainability: the words with the biggest weight for each category.
+        var topWords = FeatureWeights.ForCategory(model, labelMap.Transform(trainNonSpam).Schema);
+
         var text =
             $"Micro accuracy: {metrics.MicroAccuracy:0.000}" + Environment.NewLine +
             $"Macro accuracy: {metrics.MacroAccuracy:0.000}" + Environment.NewLine +
@@ -63,7 +66,9 @@ public sealed class CategoryTrainer : IModelTrainer
             FormattableString.Invariant($"Minimum confidence, chosen on validation (smallest threshold whose shown suggestions are right at least {ThresholdSelection.TargetAccuracy:0%} of the time):") + Environment.NewLine +
             ThresholdSelection.ToMarkdown(validationTable, minConfidence) + Environment.NewLine +
             FormattableString.Invariant($"On test at {minConfidence:0.00}: {onTest.Coverage:0.0%} of the listings get a suggestion, right {onTest.Accuracy:0.0%} of the time.") + Environment.NewLine +
-            FormattableString.Invariant($"API setting: Ml:Category:MinConfidence = {minConfidence:0.00}");
+            FormattableString.Invariant($"API setting: Ml:Category:MinConfidence = {minConfidence:0.00}") + Environment.NewLine +
+            Environment.NewLine +
+            FeatureWeights.ToMarkdown(topWords);
 
         var structured = new Dictionary<string, double>(StringComparer.Ordinal)
         {
