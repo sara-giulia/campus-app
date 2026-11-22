@@ -1,4 +1,5 @@
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Features.Listings.ExpireReservations;
 using CampusMarket.UnitTests.Fakes;
 
@@ -41,7 +42,7 @@ public class ExpireReservationsHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ExpireReservationsHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
+        var handler = new ExpireReservationsHandler(repository, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
 
         var result = await handler.HandleAsync(new ExpireReservationsCommand(), CancellationToken.None);
 
@@ -62,7 +63,7 @@ public class ExpireReservationsHandlerTests
         repository.Items[stillValid.Id] = stillValid;
         repository.Items[draft.Id] = draft;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ExpireReservationsHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
+        var handler = new ExpireReservationsHandler(repository, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
         var stillValidVersionBefore = stillValid.Version;
         var draftVersionBefore = draft.Version;
 
@@ -89,7 +90,7 @@ public class ExpireReservationsHandlerTests
         repository.Items[firstExpired.Id] = firstExpired;
         repository.Items[secondExpired.Id] = secondExpired;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ExpireReservationsHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
+        var handler = new ExpireReservationsHandler(repository, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
 
         var result = await handler.HandleAsync(new ExpireReservationsCommand(), CancellationToken.None);
 
@@ -114,7 +115,7 @@ public class ExpireReservationsHandlerTests
         repository.Items[draft.Id] = draft;
         repository.Items[active.Id] = active;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ExpireReservationsHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(48).AddSeconds(-1)));
+        var handler = new ExpireReservationsHandler(repository, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now.AddHours(48).AddSeconds(-1)));
         var stillValidVersionBefore = stillValid.Version;
 
         var result = await handler.HandleAsync(new ExpireReservationsCommand(), CancellationToken.None);
@@ -125,5 +126,68 @@ public class ExpireReservationsHandlerTests
         unitOfWork.SaveCount.Should().Be(0);
         stillValid.Status.Should().Be(ListingStatus.Reserved);
         stillValid.Version.Should().Be(stillValidVersionBefore);
+    }
+
+    [Fact]
+    public async Task Given_TwoExpiredListings_When_Handling_Then_NotifiesEachBuyerOnce()
+    {
+        var firstExpired = ReservedListing(BuyerId, "First");
+        var secondExpired = ReservedListing(OtherBuyerId, "Second");
+        var repository = new FakeListingRepository();
+        repository.Items[firstExpired.Id] = firstExpired;
+        repository.Items[secondExpired.Id] = secondExpired;
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new ExpireReservationsHandler(repository, notifications, unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
+
+        var result = await handler.HandleAsync(new ExpireReservationsCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        notifications.Items.Should().HaveCount(2);
+        notifications.Items.Should().OnlyContain(n => n.Type == NotificationType.ReservationExpired && n.CreatedAt == Now.AddHours(48));
+        notifications.Items.Single(n => n.MemberId == BuyerId).ListingId.Should().Be(firstExpired.Id);
+        notifications.Items.Single(n => n.MemberId == BuyerId).Message.Should().Be("Your reservation for First expired");
+        notifications.Items.Single(n => n.MemberId == OtherBuyerId).ListingId.Should().Be(secondExpired.Id);
+        notifications.Items.Single(n => n.MemberId == OtherBuyerId).Message.Should().Be("Your reservation for Second expired");
+    }
+
+    [Fact]
+    public async Task Given_OneExpiredAndOneStillValid_When_Handling_Then_NotifiesOnlyTheExpiredBuyer()
+    {
+        var expired = ReservedListing(BuyerId, Now, "Expired");
+        var stillValid = ReservedListing(OtherBuyerId, Now.AddHours(1), "Still valid");
+        var repository = new FakeListingRepository();
+        repository.Items[expired.Id] = expired;
+        repository.Items[stillValid.Id] = stillValid;
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new ExpireReservationsHandler(repository, notifications, unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
+
+        var result = await handler.HandleAsync(new ExpireReservationsCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        notifications.Items.Should().ContainSingle();
+        notifications.Items[0].MemberId.Should().Be(BuyerId);
+        notifications.Items[0].ListingId.Should().Be(expired.Id);
+    }
+
+    [Fact]
+    public async Task Given_NothingExpired_When_Handling_Then_DoesNotNotify()
+    {
+        var stillValid = ReservedListing(BuyerId, "Still valid");
+        var draft = DraftListing("Draft");
+        var repository = new FakeListingRepository();
+        repository.Items[stillValid.Id] = stillValid;
+        repository.Items[draft.Id] = draft;
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new ExpireReservationsHandler(repository, notifications, unitOfWork, new FixedTimeProvider(Now.AddHours(48).AddSeconds(-1)));
+
+        var result = await handler.HandleAsync(new ExpireReservationsCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(0);
+        notifications.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
     }
 }

@@ -1,6 +1,7 @@
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Features.Listings.ReserveListing;
 using CampusMarket.UnitTests.Fakes;
 
@@ -34,7 +35,7 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         members.Items[buyer.Id] = buyer;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var command = new ReserveListingCommand(listing.Id, buyer.Id);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -58,7 +59,7 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         members.Items[buyer.Id] = buyer;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var unknownListingId = Guid.NewGuid();
         var command = new ReserveListingCommand(unknownListingId, buyer.Id);
 
@@ -79,7 +80,7 @@ public class ReserveListingHandlerTests
         listings.Items[listing.Id] = listing;
         var members = new FakeMemberRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var unknownBuyerId = Guid.NewGuid();
         var command = new ReserveListingCommand(listing.Id, unknownBuyerId);
 
@@ -103,7 +104,7 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         members.Items[buyer.Id] = buyer;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var command = new ReserveListingCommand(listing.Id, buyer.Id);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -126,7 +127,7 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         members.Items[seller.Id] = seller;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var command = new ReserveListingCommand(listing.Id, seller.Id);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -158,7 +159,7 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         members.Items[buyer.Id] = buyer;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var command = new ReserveListingCommand(target.Id, buyer.Id);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -186,7 +187,7 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         members.Items[buyer.Id] = buyer;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var command = new ReserveListingCommand(target.Id, buyer.Id);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -217,7 +218,7 @@ public class ReserveListingHandlerTests
         var members = new FakeMemberRepository();
         members.Items[buyer.Id] = buyer;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ReserveListingHandler(listings, members, unitOfWork, new FixedTimeProvider(Now));
+        var handler = new ReserveListingHandler(listings, members, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
         var command = new ReserveListingCommand(target.Id, buyer.Id);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -227,5 +228,78 @@ public class ReserveListingHandlerTests
         result.Value.ListingId.Should().Be(target.Id);
         target.Status.Should().Be(ListingStatus.Reserved);
         unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_ActiveListingAndExistingBuyer_When_Reserving_Then_NotifiesSellerOnce()
+    {
+        var listing = BuildActiveListing(SellerId);
+        var buyer = BuildBuyer();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new ReserveListingHandler(listings, members, notifications, unitOfWork, new FixedTimeProvider(Now));
+        var command = new ReserveListingCommand(listing.Id, buyer.Id);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        notifications.Items.Should().ContainSingle();
+        notifications.Items[0].MemberId.Should().Be(SellerId);
+        notifications.Items[0].Type.Should().Be(NotificationType.ReservationCreated);
+        notifications.Items[0].Message.Should().Be("Buyer reserved Algebra book");
+        notifications.Items[0].ListingId.Should().Be(listing.Id);
+        notifications.Items[0].CreatedAt.Should().Be(Now);
+        notifications.Items[0].ReadAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_DraftListing_When_Reserving_Then_DoesNotNotify()
+    {
+        var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
+        var buyer = BuildBuyer();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new ReserveListingHandler(listings, members, notifications, unitOfWork, new FixedTimeProvider(Now));
+        var command = new ReserveListingCommand(listing.Id, buyer.Id);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.NotActive");
+        result.Error.Message.Should().Be("Only an active listing can be reserved.");
+        notifications.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_UnknownBuyer_When_Reserving_Then_DoesNotNotify()
+    {
+        var listing = BuildActiveListing(SellerId);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new ReserveListingHandler(listings, members, notifications, unitOfWork, new FixedTimeProvider(Now));
+        var unknownBuyerId = Guid.NewGuid();
+        var command = new ReserveListingCommand(listing.Id, unknownBuyerId);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.NotFound);
+        result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{unknownBuyerId}' was not found.");
+        notifications.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
     }
 }
