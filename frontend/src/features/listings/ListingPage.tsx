@@ -83,7 +83,8 @@ function ListingView({ id }: { id: string }) {
       })
     api
       .get<GetSimilarListingsResponse>(`/listings/${id}/similar`, { signal, auth: false })
-      .then((data) => setSimilar(data.items))
+      // Four, one full row of the grid.
+      .then((data) => setSimilar(data.items.slice(0, 4)))
       .catch(() => setSimilar([]))
 
     return () => controller.abort()

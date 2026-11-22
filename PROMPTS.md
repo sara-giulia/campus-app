@@ -1890,6 +1890,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 0865eb0 (feat), 236c00d (skills), 89c2b88 (tests)
 
+### Run 47, skill v46 (Feature: Spam rules)
+
+- **Why a new version:** `SpamDetector` now also flags a listing when a clear rule matches (`Infrastructure/ML/SpamRules.cs`: link, phone, `@handle`, WhatsApp / money bait / pay-in-advance phrases, `!!!`); the rule branch and every rule had no test.
+
+#### Change to SKILL.md (v45 → v46) and why
+
+| # | v45 (before) | v46 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the spam rules. | New section *"Feature: Spam rules (Anca)"*: publish through the real endpoint with the real model; each rule on its own (probability exactly 0.9), a text the model flags (its own probability), and two normal texts (one with an email) with no report. | Only the real model shows which texts reach the rule branch; each rule needs its own case for the branch coverage. |
+| 2 | (after the first run) the phrase and handle cases were "Calculator stiintific / Scrie-mi pe WhatsApp…" and "Notite curs POO / Mai multe pe @notite_poo"; no price or category given. | "Manual de fizica / Plata in avans prin transfer" and "Halat laborator / Mesaj la @halat_m"; every listing `Category.Other`, price 40. | The first run found that the model already flags the two old texts (0.97 and 0.57), so they never reached the rule; the new texts were checked against the model first. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Spam rules (Anca)": the new file Moderation/SpamRulesTests.cs with only the tests it lists. Build, run the integration tests three times and the whole solution once, and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` Then, after row 2: `Re-read the section and update the data of SpamRulesTests.cs; same tests.` (new session)
+- **Skill version:** v46, commit 1cba445 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `Moderation/SpamRulesTests.cs` (9 cases). Integration tests 404/404 three times; full run 10 architecture, 720 unit, 69 ML, 404 integration; SARIF log empty; `SpamRules.cs` and `SpamDetector.cs` fully covered.
+- **Problems seen:** the two texts of row 2, reported by the run instead of being changed.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill 1cba445; generated code 4912528
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -2908,4 +2926,21 @@ Weeks 6–7 (plan of Sara and Anca), Anca's frontend pages: home and search with
 - **Checks:** `npm run build` and `npm run lint` clean. On a running API with seeded data, screenshots of every page (guest, buyer, seller, Admin; desktop and 600px) and a headless Chrome script that clicks the real buttons: save / unsave, reserve, write to the seller (lands in the conversation), report, upload and delete a photo, answer in the chat, Admin hides a listing, search sorted by price. All pass.
 - **Result:** new `app/errorMessage.ts`, `features/listings/` (`BrowsePage`, `ListingPage`, `ListingCard`, `LatestListings`, `PhotoManager`, `photoSrc`, `publicTypes`, `browse.css`), `features/messages/`, `features/favorites/`, `features/reviews/`, `features/moderation/`; `api/client.ts`, `app/router.tsx`, `app/menu.ts`, `app/layout.css`, `app/pages/HomePage.tsx` (the newest listings under the hero) and `home.css`, `features/listings/routes.tsx`, `frontend/README.md` (pages table, upload, error texts).
 - **Commits:** code 86a8e07
+
+## demo-polish
+
+The evening before the demo, Sara listed what did not look or work right: the pagination, the notifications, the messages, the Admin pages with a horizontal scroll, the categories page, and a spam listing that was not caught. Fixed by Ancuța Ilenei with Claude Code; the spam rules tests generated with the integration-testing skill (Run 47).
+
+### Run 1
+
+- **Prompt:** `Sara says: the pagination looks bad (the last row is not full), notifications don't work, the messages all look like they come from the same person, the admin pages scroll sideways, the categories page is unclear, and a spam listing was not caught. Check everything and make it all work.`
+- **Findings and decisions:**
+    - Messages and notifications work: tried with two separate users, the bubbles and the notification go to the right person. The login is kept in the browser (`localStorage`), so two tabs of the same browser are always the same account; the second account has to be in a private window or another browser. Nothing to change in the code; the notifications were in English (the API's texts), so `features/notifications/messageText.ts` turns the three known shapes into Romanian on the page (the API and its tests keep the English text).
+    - The horizontal scroll: an Admin had 12 links in the top bar. The top bar now keeps Acasă, Anunțuri, Publică anunț, Mesaje, Notificări; the personal pages and the Admin pages are in a menu that opens from the avatar (with Ieșire), and in the phone menu below 900px (`menu.ts` has `place: 'account'`).
+    - The pagination: the grid has 4 columns on a wide screen (3 and 2 on narrower ones), so the 12 listings of a page and the 8 on the home page fill whole rows; the listing page shows 4 similar listings (one row).
+    - The categories page: a clearer explanation of what the names do and why the 5 categories are fixed.
+    - Spam: the model (trained on generated data) catches "Vand cont Netflix… whatsapp" but misses short real-world spam ("click aici www…", "telegram @…", "plata in avans", "!!!"). `SpamDetector` now also flags a listing when a clear rule matches (`SpamRules`: phrases, links, Romanian phone numbers, `@handles`, `!!!`; diacritics removed, email addresses ignored), with probability 0.9 for the Admin. Clean listings (with an email in the description too) and the demo seed listings are not flagged. A flagged listing still appears in the search until an Admin hides it, as before (the model only reports, the Admin decides).
+- **Checks:** `npm run build` and `npm run lint` clean; build 0 warnings; 10 architecture, 720 unit, 69 ML and 404 integration tests pass; SARIF of the API clean; on a running API with seeded data: two users chat and get notifications correctly, the Admin's top bar has 5 links and no horizontal scroll, the avatar menu opens and navigates (clicked in headless Chrome), 11 hand-picked texts (7 spam, 4 clean) all classified as expected.
+- **Result:** new `Infrastructure/ML/SpamRules.cs`, `frontend/src/features/notifications/messageText.ts`; `SpamDetector.cs`, `frontend/src/app/Layout.tsx`, `menu.ts`, `layout.css`, `features/listings/browse.css`, `ListingPage.tsx`, `features/notifications/NotificationsPage.tsx`, `features/admin-categories/AdminCategoriesPage.tsx`; README and `docs/ml/spam.md` (the rules).
+- **Commits:** code a727e25; skill section 1cba445; tests generated in 4912528
 
