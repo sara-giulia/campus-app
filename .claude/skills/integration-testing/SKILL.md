@@ -551,6 +551,7 @@ Rules for this feature:
 - Never use a fixed `Task.Delay` as the assertion: poll the database with a timeout.
 - Every test checks the database at the end.
 - The copy of the API with the job on runs a tick every 200 ms on the shared in-memory SQLite connection, so it must never be running while the test sends its Act request or reads the database for its assertions: a tick at the same moment gives "database is locked" and a 500. Start it with `await using (var withJob = WithExpiryJob()) { withJob.CreateClient(); ... }`, poll inside that block until the reservation is `Expired`, and leave the block (the job stops) before the Act and the assertions. In "another member reserves", the Act is sent with the normal `Client` after `AuthenticateAs(...)`, where the job is off.
+- The polling reads also run while the job ticks on the same connection, and one of them can fail now and then (the read collides with the job's write). In the polling helper, a read that throws a `SqliteException` or an `InvalidOperationException` (which also covers `ObjectDisposedException`) counts as "not yet": wait 100 ms and read again until the timeout. Catch only those two (`catch (Exception ex) when (ex is SqliteException or InvalidOperationException)`), never every exception: Sonar flags a general catch. After the timeout, read once more without catching anything, so an error that never goes away still fails the test with its own message.
 
 
 
