@@ -1490,6 +1490,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v35 is the final version.
 - **Commits:** skill a93eb36; generated code 8631881
 
+### Run 37, skill v36 (Reservation expiry: stop the job before the Act)
+
+- **Why a new version:** `ReservationExpiryTests.Given_JobExpiredTheReservation_When_AnotherMemberReserves_Then_Returns201` still failed in CI now and then (500 instead of 201, last time on PR #103). After #97 the copy of the API with the expiry job was stopped before the final database reads, but the reservation POST was still sent through that copy while the job ticked every 200 ms on the shared in-memory SQLite connection; a tick at the same moment gives "database is locked" and the API answers 500.
+
+#### Change to SKILL.md (v35 → v36) and why
+
+| # | v35 (before) | v36 (after) | Why |
+|---|---|---|---|
+| 1 | "Feature: Reservation expiry (Sara)" only said to poll with a timeout and to check the database at the end. | New rule: the copy with the job on must not run while the test sends its Act request or reads the database for its assertions; poll inside `await using (var withJob = WithExpiryJob())`, leave the block (the job stops), then send the Act with the normal `Client` after `AuthenticateAs(...)`. | The POST does not need the job; running it next to the job is the only way the two can meet on the same connection. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). The section "Feature: Reservation expiry (Sara)" has a new last rule. The test Given_JobExpiredTheReservation_When_AnotherMemberReserves_Then_Returns201 breaks it: apply the rule to the tests of that section in ReservationExpiryTests.cs, change only what the rule requires, keep names, arrange and assertions. Build, run the ReservationExpiryTests 20 times in a row, the whole solution once, and the SARIF check.` (new session)
+- **Skill version:** v36, commit 988ce9c (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** only that test changed: it waits for `Expired` inside the block with the job, checks the status after the block, then logs in the second buyer on the normal `Client` and sends the POST with the job stopped. The unused `using System.Net.Http.Headers;` was removed. The other two tests already followed the rule. `ReservationExpiryTests` passed 20 runs out of 20; full run: 10 architecture, 481 unit, 13 ML, 270 integration; build 0 warnings; the SARIF log of the test project is empty.
+- **Problems seen:** the rule says to leave the block before "the Act and the assertions"; the check that the job expired the reservation reads only a local variable, so it stays right after the block, before the Act, to fail early with a clear message.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 988ce9c; generated code d431dc4
+
 ### Run 38, skill v37 (Feature: Validation thresholds)
 
 - **Why a new version:** the two decision thresholds of the ML models became settings chosen on validation data (`Ml:Category:MinConfidence` 0.6, `Ml:Spam:Threshold` 0.4), validated at startup. The category tests compared with the removed constant `SuggestCategoryHandler.MinConfidence`, and nothing tested that the settings are read and checked. (Numbered after Run 37, the reservation expiry fix in its own PR.)
@@ -1507,6 +1524,7 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** `AuthenticateAs` only logs in the base client, so the copies use the `Bearer` header (rule added); the 0.6 floor in the 0.99 test is written as a number, the defaults test checks that it is the configured value.
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill 2d54c3f; generated code 31f3668
+
 
 ## code-review
 
