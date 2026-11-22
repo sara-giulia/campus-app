@@ -18,13 +18,21 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
+using CampusMarket.Api.Domain.Photos;
+using CampusMarket.Api.Common.Storage;
+using CampusMarket.Api.Infrastructure.Storage;
+using CampusMarket.Api.Features.Photos;
+using CampusMarket.Api.Features.Conversations;
 using CampusMarket.Api.Features.Favorites;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Moderation;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews;
 using CampusMarket.Api.Features.Admin;
+using CampusMarket.Api.Common.Email;
+using CampusMarket.Api.Infrastructure.Mailing;
 
 namespace CampusMarket.Api;
 
@@ -32,6 +40,8 @@ namespace CampusMarket.Api;
 /// and the API tests use it to start the same API on a free port.
 public static class CampusMarketSetup
 {
+    public const string FrontendCorsPolicy = "Frontend";
+
     public static IServiceCollection AddCampusMarket(this IServiceCollection services, IConfiguration configuration)
     {
         // Application clock: tests can replace it with a fake clock
@@ -50,6 +60,11 @@ public static class CampusMarketSetup
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
+        services.AddScoped<IConversationRepository, EfConversationRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, EfPasswordResetTokenRepository>();
+        services.AddScoped<IPhotoRepository, EfPhotoRepository>();
+        services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
+        services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -73,7 +88,7 @@ public static class CampusMarketSetup
         services.AddAuthorizationBuilder()
             .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
         
-        // At most 5 login attempts per minute from the same IP address, then 429.
+        // At most 5 login attempts and 5 registrations per minute from the same IP address, then 429.
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -85,9 +100,24 @@ public static class CampusMarketSetup
                         PermitLimit = 5,
                         Window = TimeSpan.FromMinutes(1)
                     }));
+
+            // Same idea as login: a burst of sign-ups from one IP is blocked (429). The limit is
+            // configurable so the integration tests, which register many members, can raise it.
+            var registerLimit = configuration.GetValue("RateLimiting:RegisterPermitLimit", 5);
+            options.AddPolicy("register", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = registerLimit,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
         });
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
+        
+        // API description for the documentation page (served only in Development, see Program.cs).
+        services.AddOpenApi();
 
         // Background reservation expiry: registered only when enabled, so tests and
         // scenarios that need a quiet host can turn it off through configuration.
@@ -105,15 +135,44 @@ public static class CampusMarketSetup
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+        // Email: SMTP when Email:Host is set (e.g. Mailpit on docker compose),
+        // otherwise a logger-only sender so the API runs without SMTP in dev
+        // and in tests. Username and password are read from env vars by the
+        // SMTP sender itself; they must never be in appsettings.*.json.
+        services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.SectionName);
+        services.AddOptions<FrontendOptions>().BindConfiguration(FrontendOptions.SectionName);
+        var emailHost = configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (string.IsNullOrWhiteSpace(emailHost))
+            services.AddSingleton<IEmailSender, LoggingEmailSender>();
+        else
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+
         // GET /health: the API is up and can reach the database.
-        services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
-        
+        services.AddHealthChecks()
+            .AddDbContextCheck<CampusMarketDbContext>(tags: ["ready"])
+            .AddCheck<MlModelsHealthCheck>("ml-models", tags: ["ready"]);
+        services.AddOutputCache();
+
+        // The web frontend runs on another origin (Vite on :5173 in development),
+        // so the browser needs CORS. Only the origins in Cors:AllowedOrigins are allowed;
+        // the token goes in the Authorization header, so no cookies (no AllowCredentials).
+        // GetChildren instead of Get<string[]>() ?? []: a missing section simply gives no origins.
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").GetChildren()
+            .Select(origin => origin.Value!)
+            .ToArray();
+        services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders("Location")));
+
         return services;
     }
 
-    // Fails fast in Production when the JWT signing key is missing or too
-    // short. Dev and Test keep their own keys (appsettings.Development.json /
-    // the integration-test factory), so this check is production-only.
+    // Fails fast in Production when the JWT signing key is missing or too short,
+    // or when the SMTP sender is used without TLS. Dev and Test keep their own
+    // keys (appsettings.Development.json / the integration-test factory) and
+    // talk to Mailpit without TLS, so these checks are production-only.
     public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
     {
         if (!app.Environment.IsProduction())
@@ -126,6 +185,19 @@ public static class CampusMarketSetup
                 $"Jwt:Key is missing or shorter than {MinJwtKeyLength} characters. " +
                 "Set the Jwt__Key environment variable to a random value of at least " +
                 $"{MinJwtKeyLength} characters before starting the API in Production.");
+        }
+
+        var emailHost = app.Configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (!string.IsNullOrWhiteSpace(emailHost))
+        {
+            var useSsl = app.Configuration.GetValue($"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)}", true);
+            if (!useSsl)
+            {
+                throw new InvalidOperationException(
+                    $"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)} must be true in Production when an SMTP host is configured. " +
+                    $"Set the {EmailOptions.SectionName}__{nameof(EmailOptions.UseSsl)} environment variable to true (STARTTLS on port 587) " +
+                    "before starting the API in Production.");
+            }
         }
 
         return app;
@@ -266,6 +338,8 @@ public static class CampusMarketSetup
         api.MapModerationEndpoints();
         api.MapReviewsEndpoints();
         api.MapAdminEndpoints();
+        api.MapConversationsEndpoints();
+        api.MapPhotosEndpoints();
 
         return app;
     }

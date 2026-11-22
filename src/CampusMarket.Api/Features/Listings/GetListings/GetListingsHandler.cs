@@ -21,6 +21,9 @@ public sealed class GetListingsHandler(IListingRepository repository)
             return Result<GetListingsResponse>.Failure(
                 Error.Validation("Listings.InvalidPriceRange",
                     "Minimum price cannot be greater than maximum price."));
+        if (query.Sort is not null && !GetListingsQuery.AllowedSorts.Contains(query.Sort))
+            return Result<GetListingsResponse>.Failure(
+                Error.Validation("Listings.InvalidSort", "Sort must be newest, price_asc or price_desc."));
 
         var listings = await repository.GetAllAsync(ct);
         IEnumerable<Listing> filtered = listings.Where(l => l.Status == ListingStatus.Active);
@@ -37,17 +40,20 @@ public sealed class GetListingsHandler(IListingRepository repository)
             filtered = filtered.Where(l =>
                 l.Title.Contains(query.Search.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        var ordered = filtered
-            .OrderByDescending(l => l.CreatedAt)
-            .ThenBy(l => l.Id)
-            .ToList();
+        var ordered = (query.Sort ?? "newest") switch
+        {
+            "price_asc" => filtered.OrderBy(l => l.Price.Amount).ThenBy(l => l.Id),
+            "price_desc" => filtered.OrderByDescending(l => l.Price.Amount).ThenBy(l => l.Id),
+            _ => filtered.OrderByDescending(l => l.CreatedAt).ThenBy(l => l.Id)
+        };
+        var sorted = ordered.ToList();
 
-        var items = ordered
+        var items = sorted
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(GetListingsItem.From)
             .ToList();
 
-        return new GetListingsResponse(items, items.Count, ordered.Count, query.Page, query.PageSize);
+        return new GetListingsResponse(items, items.Count, sorted.Count, query.Page, query.PageSize);
     }
 }

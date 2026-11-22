@@ -8,8 +8,21 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 1. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
 2. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
 3. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
+4. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
 
 Unit tests: `dotnet test` from the repository root.
+
+### Web frontend
+
+The web interface is in `frontend/` (React + Vite + TypeScript). It needs Node.js 20 or newer and the API running on `http://localhost:5112`.
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+It opens on `http://localhost:5173`. The API allows only the origins in `Cors:AllowedOrigins` (`appsettings.json`: `http://localhost:5173` and the deployed frontend, `https://campus-app-pucf.onrender.com`); for another address set `Cors__AllowedOrigins__2` in the API's environment. To use another API address in the frontend, copy `frontend/.env.example` to `frontend/.env.local` and change `VITE_API_URL`. How the frontend is organised (where to add a page, the API client, login): [frontend/README.md](frontend/README.md).
 
 ### With Docker
 
@@ -20,7 +33,7 @@ Unit tests: `dotnet test` from the repository root.
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
 - The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container, on the named volume `campusmarket-data`, so the data is kept after `docker compose down`. `docker compose down -v` also removes the volume and starts from an empty database.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
-- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) was not copied to `ml-models/`.
+- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
 ### Deploy
@@ -85,7 +98,7 @@ before Render is wired up and remains idempotent afterwards.
   cold start, so the database is wiped whenever a new image is pulled or
   the instance is rebuilt. Set `Seed__DemoData=true` to repopulate a bit
   of data after each redeploy; attach a disk (paid tier) if the data has
-  to survive.
+  to survive. The uploaded photos (`/app/data/photos`) are wiped the same way.
 - **One instance, no scaling.** Fine for a student demo, not for traffic.
 
 ---
@@ -143,6 +156,7 @@ before Render is wired up and remains idempotent afterwards.
 - **Postman** collections for API tests
 - **SonarQube Cloud** for code quality and coverage, with a quality gate of **100% coverage on new code**
 - **ML.NET** (`Microsoft.ML`, `Microsoft.ML.FastTree`, `Microsoft.ML.LightGbm`) for the AI module
+- **React + Vite + TypeScript** for the web frontend (`frontend/`), with React Router
 
 ## 3. Use cases
 
@@ -195,6 +209,9 @@ flowchart LR
 | Cancel reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin; only if active |
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
+| Member | `GetMyProfile` | `GET /api/v1/members/me` | anyone logged in; only their own profile | 200, 401, 404 |
+| Member | `UpdateMyProfile` | `PUT /api/v1/members/me` | anyone logged in; only their own name (the email does not change) | 204, 400 `Member.InvalidName`, 401, 404 |
+| Member | `GetPublicProfile` | `GET /api/v1/members/{id}/profile` | everyone; no email and no role in the response, only `Active` listings | 200, 404 `Member.NotFound` |
 | Get suggested price | `SuggestPrice` (AI) | `POST /api/v1/listings/price-suggestion` | suggestion only, never applied |
 | Get suggested category | `SuggestCategory` (AI) | `POST /api/v1/listings/category-suggestion` | suggestion only, the seller still picks the category |
 | Report a listing | `ReportListing` | `POST /api/v1/listings/{id}/reports` | not own listing; only `Active` or `Reserved`; at most once per member |
@@ -202,6 +219,13 @@ flowchart LR
 | Hide a listing | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only; only `Active` or `Reserved` |
 | Review the seller | `AddReview` | `POST /api/v1/listings/{id}/reviews` | only the buyer; only after the sale is confirmed; rating 1 to 5; once per sale |
 | See a member's reviews | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews` | public; newest first, with the average rating |
+| Write to the seller | `StartConversation` | `POST /api/v1/listings/{id}/conversations` | not own listing; a new conversation only on an `Active` or `Reserved` listing; one conversation per buyer and listing |
+| Answer in a conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | only the buyer and the seller |
+| Read a conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | only the buyer and the seller |
+| See my conversations | `GetMyConversations` | `GET /api/v1/members/me/conversations` | as buyer and as seller; the latest message first |
+| Add a photo | `UploadPhoto` | `POST /api/v1/listings/{id}/photos` | only the seller; JPEG, PNG or WebP; at most 2 MB; at most 5 per listing |
+| Remove a photo | `DeletePhoto` | `DELETE /api/v1/listings/{id}/photos/{photoId}` | only the seller |
+| See the photos | `GetListingPhotos`, `GetPhotoFile` | `GET /api/v1/listings/{id}/photos`, `GET /api/v1/photos/{id}` | public |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -221,27 +245,41 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
-| Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below 0.7), 400, 401 |
+| Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below `Ml:Category:MinConfidence`, 0.6, chosen on validation data), 400, 401 |
+| Listing | `GetSimilarListings` | `GET /api/v1/listings/{id}/similar` | everyone | 200 `{ items: [{ id, title, category, condition, price, similarity }] }` (at most 5 Active listings, never the listing itself, most similar first, similarity 0–1), 404 `Listing.NotFound` |
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
 | Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
+| Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, 401, 404 |
+| Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `GetMyConversations` | `GET /api/v1/members/me/conversations` | anyone logged in; only their own conversations | 200, 401 |
+| Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form) |
+| Photo | `GetListingPhotos` | `GET /api/v1/listings/{listingId}/photos` | everyone | 200, 404 |
+| Photo | `GetPhotoFile` | `GET /api/v1/photos/{id}` | everyone | 200 (the image), 404 `Photo.NotFound` |
+| Photo | `DeletePhoto` | `DELETE /api/v1/listings/{listingId}/photos/{photoId}` | the seller | 204, 401, 403 `Photo.NotSeller`, 404 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
-| Auth | `Register` | `POST /api/v1/auth/register` | everyone | 201 + `Location`, 400, 409 |
+| Auth | `Register` | `POST /api/v1/auth/register` | everyone, at most 5 registrations per minute per IP | 201 + `Location`, 400, 409, 429 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
+| Auth | `ChangePassword` | `POST /api/v1/auth/change-password` | anyone logged in; only their own password | 204, 400 `Auth.InvalidCredentials` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`, 401, 404 `Member.NotFound` |
 | Auth | `Refresh` | `POST /api/v1/auth/refresh` | anyone with a valid refresh token | 200, 401 `Auth.InvalidRefreshToken` |
 | Auth | `Logout` | `POST /api/v1/auth/logout` | anyone with a valid refresh token | 204, 401 `Auth.InvalidRefreshToken` |
+| Auth | `ForgotPassword` | `POST /api/v1/auth/forgot-password` | everyone, rate-limited like `Login` | 202 with the same body whether the email exists or not, 429 |
+| Auth | `ResetPassword` | `POST /api/v1/auth/reset-password` | anyone with a valid reset token | 204, 400 `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch` / `Auth.InvalidResetToken` |
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
+| Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
+| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -254,10 +292,11 @@ GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except 
 | `minPrice` | lowest price, inclusive | no limit |
 | `maxPrice` | highest price, inclusive | no limit |
 | `search` | text in the title, upper and lower case ignored | no search |
+| `sort` | `newest`, `price_asc` or `price_desc` | `newest` |
 | `page` | page number, from 1 | `1` |
 | `pageSize` | listings per page, from 1 to 100 | `20` |
 
-Listings come newest first (`createdAt` descending, then `id`), so the same query always returns the same pages.
+Listings come newest first by default (`createdAt` descending, then `id`); with `sort=price_asc` or `sort=price_desc` they are ordered by price, then `id`. The same query always returns the same pages.
 
 Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search=oop&page=1&pageSize=20`
 
@@ -270,6 +309,10 @@ Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search
   "pageSize": 20
 }
 ```
+
+### Listings cache
+
+`GET /api/v1/listings` is cached for 30 seconds per query string. Every successful change of a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide) clears the cache, so the next search sees it at once. The reservation expiry job changes listings without going through an endpoint, so its changes can appear up to 30 seconds later, which is acceptable.
 
 A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 
@@ -294,6 +337,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
+| 400 `Listings.InvalidSort` | `sort` is not `newest`, `price_asc` or `price_desc` |
 | 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
 Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
@@ -305,12 +349,33 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 3. Send the access token on every protected request: `Authorization: Bearer <token>`.
 4. When the access token expires, `POST /api/v1/auth/refresh` with `{ "refreshToken" }` returns a new `{ "token", "expiresAt", "refreshToken" }`, without the password. The old refresh token stops working (rotation), so always keep the new one.
 5. `POST /api/v1/auth/logout` with `{ "refreshToken" }` cancels the refresh token (204). After that it can no longer be used.
+6. `POST /api/v1/auth/change-password` with `{ "currentPassword", "newPassword", "confirmNewPassword" }` (logged in) changes your password (204). A wrong current password gives 400 `Auth.InvalidCredentials`; the new password follows the same rules as Register (`Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`).
 
 - Passwords are stored only as a hash, never returned.
 - Refresh tokens are long random strings (64 bytes from `RandomNumberGenerator`). Only their SHA-256 hash is stored, so a copy of the database cannot be used to log in. An unknown, expired, already used or cancelled refresh token gets the same 401 `Auth.InvalidRefreshToken`.
 - A wrong email and a wrong password get the same 401 `Auth.InvalidCredentials`, so nobody can find out which emails have an account.
 - Login allows 5 attempts per minute from the same IP, then 429.
 - Roles: `Student` and `Admin`. In the Development environment an Admin account is created at startup from `Seed:AdminEmail` / `Seed:AdminPassword` in `appsettings.Development.json`. The JWT key is also there, for development only.
+- CORS: browsers may call the API only from the origins in `Cors:AllowedOrigins` (the web frontend: `http://localhost:5173` in development, `https://campus-app-pucf.onrender.com` deployed). Any header and method is allowed, `Location` is readable by the frontend, and no cookies are used: the token always goes in the `Authorization` header. The CORS headers are also on error answers (401, 404, 500), so the frontend can read the error.
+
+### Email
+
+Transactional emails (password-reset link, "your password was changed" notice) go through `IEmailSender` (`Common/Email/`). Two implementations are registered: `SmtpEmailSender` (`Infrastructure/Mailing/`, `System.Net.Mail`) when `Email:Host` is set in configuration, and `LoggingEmailSender` otherwise — the fallback only writes `email to {to}: {subject}` to the log and drops the body, so no reset link ever appears in logs or tests.
+
+- **Local dev with Mailpit.** `docker-compose.yml` now ships a `mailpit` service (image `axllent/mailpit`). The web UI is at **`http://localhost:8025`** (every email the API sends appears there, no credentials). The API container points at it via `Email__Host=mailpit`, `Email__Port=1025`, `Email__UseSsl=false`.
+- **Environment variables (names only; values set in your own environment, never committed):**
+
+  | Name | Meaning |
+  |---|---|
+  | `Email__Host` | SMTP host. Leave unset to keep the logger-only fallback. |
+  | `Email__Port` | SMTP port (default 587). |
+  | `Email__From` | From address (default `noreply@campusmarket.local`). |
+  | `Email__UseSsl` | `true`/`false` (default `true`). |
+  | `Email__Username` | SMTP auth username. **Only** read from the environment, never from appsettings. |
+  | `Email__Password` | SMTP auth password. Same rule as `Email__Username`. |
+  | `Frontend__BaseUrl` | Base URL of the frontend, embedded in the reset link as `{BaseUrl}/reset-password?token=...` (default `http://localhost:5173`). |
+
+- **Password reset flow.** `POST /api/v1/auth/forgot-password { email }` always answers **202** with the same body whether the email exists or not (no user enumeration); rate-limited by the same `login` policy. If a member is found, a 32-byte URL-safe-Base64 token is saved as its SHA-256 hash in `PasswordResetTokens` (migration `AddPasswordResetTokens`), valid 30 minutes, and the reset link is emailed. `POST /api/v1/auth/reset-password { token, newPassword, confirmNewPassword }` → **204**; same password rules as `Register` (`Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`); unknown / expired / already-used token → **400** `Auth.InvalidResetToken`. On success the token is marked used, every active refresh token of the member is revoked, and a "your password was changed" email is sent (the password itself never appears in the body).
 
 ### Error codes
 
@@ -320,6 +385,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Auth.InvalidCredentials` | 401 | wrong email or password (same answer for both) |
 | `Auth.PasswordsDoNotMatch` | 400 | `confirmPassword` is not the same as `password` |
 | `Auth.InvalidRefreshToken` | 401 | the refresh token is unknown, expired, already used by a refresh, or cancelled by logout |
+| `Auth.InvalidResetToken` | 400 | the password-reset token is unknown, expired or already used (same answer for all three, no enumeration) |
 | `Member.EmailTaken` | 409 | another member already uses the email |
 | `Member.NotFound` | 404 | no member with that id, also when the buyer of a reservation does not exist |
 | `Member.NotOwner` | 403 | you change or delete a profile that is not yours |
@@ -336,6 +402,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
 | `Money.TooHigh` | 400 | the price is above 100000 lei |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
+| `Listings.InvalidSort` | 400 | sort is not newest, price_asc or price_desc |
 | `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
 | `Favorite.ListingNotAvailable` | 400 | the listing is still a draft, or it was hidden by an Admin |
 | `Favorite.AlreadyExists` | 409 | the listing is already in your favorites |
@@ -391,6 +458,8 @@ Every error body has a `code`. There are two shapes, depending on who answers:
 
 The code is in `Infrastructure/ErrorHandling/`: `GlobalExceptionHandler` turns exceptions into ProblemDetails, and `AddCampusMarketErrorHandling` adds `code`, `instance` and `traceId` to every ProblemDetails. In `Program.cs`, `UseExceptionHandler` and `UseStatusCodePages` come before authentication, authorization and rate limiting, so the empty 401/403/429 answers get a body too.
 
+**Correlation id.** Every response has an `X-Correlation-Id` header. It is the value the client sent in the same header, or a new Guid when there is none, and it is written in every console log line of the request (`CorrelationId` in the log scope). The code is in `Infrastructure/Logging/CorrelationIdMiddleware.cs`, the first middleware in `Program.cs`, so error responses have the header too.
+
 ### Example scenario: reserving a listing
 
 1. Ana publishes "Calculus textbook, Good condition, 40 RON".
@@ -436,7 +505,7 @@ A listing hidden by an Admin cannot be saved (400 `Favorite.ListingNotAvailable`
 Members report listings, the spam model reports suspicious ones on its own, and Admins decide.
 
 - `POST /api/v1/listings/{id}/reports` with `{ "reason": "..." }` (1–500 characters): 201 with `{ id, listingId, createdAt }`. Any logged-in member can report an `Active` or `Reserved` listing of someone else, once (409 `Report.AlreadyExists`).
-- When a listing is published, the spam model (see [Machine learning](#machine-learning)) checks its title, description and price. A listing that looks like spam is still published, but gets an **automatic report** (no reporter, with the spam probability).
+- When a listing is published, the spam model (see [Machine learning](#machine-learning)) checks its title, description and price. A listing that looks like spam (probability at least `Ml:Spam:Threshold`, 0.4, chosen on validation data) is still published, but gets an **automatic report** (no reporter, with the spam probability).
 - `GET /api/v1/moderation/listings?page=1&pageSize=20` (Admins only) lists the reported listings that are not hidden, one row per listing, the most reported first:
 
 ```json
@@ -473,6 +542,28 @@ After a sale is confirmed, the buyer rates the seller once.
 ```
 
 Reviews are stored in their own table (`Reviews`, migration `AddReviews`), with a unique index on the listing (one sale, one review) and foreign keys to `Listings` and to `Members` for the seller and the reviewer (cascade delete).
+
+### Messages between buyer and seller
+
+A buyer writes to the seller about a listing; only the two of them can read or write in that conversation (anyone else, an Admin too, gets 403 `Conversation.NotParticipant`).
+
+- `POST /api/v1/listings/{id}/conversations` with `{ "text": "Mai e disponibil?" }`: 201 with the message `{ conversationId, id, number, senderId, text, sentAt }` and `Location` to the conversation. The first message starts the conversation; if the buyer already has one about this listing, the message is added to it, so the "write to the seller" button always works the same way. A new conversation needs an `Active` or `Reserved` listing (400 `Conversation.ListingNotAvailable`); the seller cannot write about their own listing (400 `Conversation.OwnListing`). An existing conversation keeps working after the sale.
+- `POST /api/v1/conversations/{id}/messages` with `{ "text": "..." }`: the buyer or the seller answers, 201 with the same body.
+- `GET /api/v1/conversations/{id}`: the listing title, the two members' names and every message, in the order they were sent.
+- `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message and the number of messages.
+
+A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `AddConversations`.
+
+### Listing photos
+
+The seller adds up to 5 photos to a listing (any status), each a JPEG, PNG or WebP of at most 2 MB.
+
+- `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, contentType, sizeBytes, createdAt }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 2 MB is ever read into memory.
+- `GET /api/v1/listings/{id}/photos` (public): the photos in the order they were added. `url` is what an `<img src>` uses.
+- `GET /api/v1/photos/{id}` (public): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id).
+- `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
+
+The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, inside the same volume as the database, so the photos survive a restart. The database (`Photos` table, migration `AddPhotos`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
 
 ## 4. Domain model
 
@@ -727,8 +818,10 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
 - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 - `ml/**`: dev tools for the AI module (synthetic dataset generator), not app code shipped by the API.
+- `load-tests/**`: k6 scripts, not application code, no unit tests.
+- `frontend/**`: the web frontend (TypeScript), outside the .NET coverage (also excluded in the CI).
 
-SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
+SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**`, `load-tests/**`, `frontend/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
 
 ---
 
@@ -844,29 +937,33 @@ Last run (seed `2026`):
 
 | Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
 |---|---|---|---|---|---|
-| Price (non-spam) | R² | **0.451** | 0.274 | **0.511** | 0.011 |
-| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **112.10** | 192.05 |
-| Price (non-spam) | MAPE | **75.3%** | 176.5% | **55.1%** | 132.1% |
-| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.735** | 0.196 |
-| Category (non-spam) | Macro accuracy | **0.857** | 0.200 | **0.737** | 0.200 |
-| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.934 |
-| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.929 |
+| Price (non-spam) | R² | **0.451** | 0.274 | **0.239** | 0.232 |
+| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **174.27** | 200.77 |
+| Price (non-spam) | MAPE | **75.3%** | 176.5% | **79.3%** | 132.7% |
+| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.618** | 0.196 |
+| Category (non-spam) | Macro accuracy | **0.856** | 0.200 | **0.616** | 0.200 |
+| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.910 |
+| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.765 |
 | Spam (all) | Recall | 1.000 | 1.000 | 0.500 | 0.650 |
-| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.765 |
+| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.703 |
 
-The price and category models still beat their baselines on external
-data, and by a larger R² margin than on the test part — the external
-prices are more concentrated around the catalog averages, so the baseline
-collapses while the model generalizes. Spam is the honest miss: the test
-part is saturated because synthetic spam signals the generator plants
-(links, phone numbers, `!!!`, 1-leu prices) are the same the rule
-baseline catches, so both reach 1.000. The external set has ten subtle
-spam rows with normal titles, normal prices and no scam keywords
-(`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet festival
-Untold"`), which neither the model nor the rule catch — recall drops to
-0.500 for the model and 0.650 for the rule. That gap is a dataset-v2
-limit and a task for the next iteration of the spam generator, not a
-regression in the committed model.
+The category model still beats its baseline on external by a wide margin
+(0.618 vs 0.196 micro), and the price model keeps the lower MAE
+(174.27 lei vs 200.77 lei) and MAPE (79.3% vs 132.7%). On R² the two are
+close (0.239 vs 0.232): the rewritten external rows carry a long
+Electronics tail — HDD extern 20TB, Macbook Air M1, Samsung Galaxy Tab
+S9 FE+ — where the model systematically under-shoots the most expensive
+items, while the Category × Condition mean recovers variance from
+out-of-catalog mixes it had not seen on the test part. Spam is the
+honest miss: the test part is saturated because synthetic spam signals
+the generator plants (links, phone numbers, `!!!`, 1-leu prices) are the
+same the rule baseline catches, so both reach 1.000. The external set
+has ten subtle spam rows with normal titles, normal prices and no scam
+keywords (`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet
+festival Untold"`), which neither the model nor the rule catch — recall
+drops to 0.500 for the model and 0.650 for the rule. That gap is a
+dataset-v2 limit and a task for the next iteration of the spam
+generator, not a regression in the committed model.
 
 ### Dataset v2
 
@@ -913,7 +1010,7 @@ The first command rewrites `ml/data/listings.csv` (seed `2026`) and prints the
 row count, the number of item types per category, the rows per `Category` and
 `Condition`, the spam percentage, the min / avg / max price per `Category`,
 and 10 sample rows. Two runs produce identical bytes; compare the printed
-SHA256 hashes to check. The second command trains the three models with
+SHA256 hashes to check. The second command trains the four models with
 seed `2026` and writes them to `ml/models/`. The `PredictionEnginePool`
 registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
 
@@ -1022,6 +1119,8 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 
 ### Category suggestion model (B4)
 
+Model card (what it does, data, metrics, error analysis, limits): [docs/ml/category.md](docs/ml/category.md).
+
 - Trainer: `CategoryTrainer` in `ml/CampusMarket.ML.Training`, multiclass
   classification with SDCA maximum entropy on the non-spam rows only. Features:
   `Title` and `Description` through `FeaturizeText`, concatenated. Label: `Category`.
@@ -1029,9 +1128,10 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 
   | Metric | Value |
   |---|---|
-  | Micro accuracy | **0.935** |
-  | Macro accuracy | 0.928 |
-  | Log loss | 0.294 |
+  | Micro accuracy | **0.853** |
+  | Macro accuracy | 0.856 |
+  | Macro-F1 | 0.864 |
+  | Log loss | 0.473 |
 
   The accuracy is no longer saturated: dataset v2 adds label noise, overlapping
   vocabulary across categories and seller-style noise, so the model has to work
@@ -1043,11 +1143,35 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 - There is no category for items like clothes, so the model always picks the
   closest of the five; it is only a suggestion and the seller can change it.
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on its own split (seed 42, 20%) and fails if the micro accuracy drops below
-  0.9, or if three listings written by hand (not in the CSV) get the wrong
-  category.
+  on the same test part as training (`DatasetSplit`, grouped by `TemplateId`) and
+  fails if the micro accuracy drops below 0.8, the macro-F1 below 0.8 or the
+  calibration error (ECE) goes above 0.1, or if three listings written by hand
+  (not in the CSV) get the wrong category.
+
+### Similar listings model
+
+Model card (what it does, how it is evaluated, metrics, limits): [docs/ml/similar.md](docs/ml/similar.md).
+
+- Trainer: `SimilarTrainer` in `ml/CampusMarket.ML.Training`: every listing becomes a
+  text vector (`FeaturizeText` on the title and the description, concatenated, unit
+  length), and two listings are as similar as the cosine of their vectors. Non-spam
+  rows only.
+- Evaluation (`Evaluation/SimilarityEvaluation.cs`): precision@5, the share of the 5
+  closest listings that have the same category, leaving out the listings of the same
+  `TemplateId` (variations of the same item). Title only 0.597 and title + description
+  0.672 on validation; the second is kept. Test: **0.668**, against 0.202 for 5
+  listings picked at random.
+- The saved model (`ml/models/similar-listings.zip`) is loaded by the API through
+  `PredictionEnginePool<SimilarInput, SimilarVector>`; `GetSimilarListings` depends on
+  `ISimilarListingsFinder` (in `Common/Similarity/`), which returns the similarity of
+  every Active listing to the target; the handler keeps the five highest.
+- Quality gate: `CampusMarket.ML.Tests` fails if precision@5 drops below 0.6 or is less
+  than 0.3 above the random pick, or if three pairs written by hand are in the wrong
+  order.
 
 ### Spam detection model (B5)
+
+Model card (what it does, data, metrics, error analysis, limits): [docs/ml/spam.md](docs/ml/spam.md).
 
 - Trainer: `SpamTrainer` in `ml/CampusMarket.ML.Training`, binary classification
   with SDCA logistic regression on all rows. Features: `Title` and `Description`
@@ -1070,8 +1194,140 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
   `ISpamDetector` (in `Common/Moderation/`) and adds an automatic report when the
   model says spam (see [Moderation](#moderation)).
 - Quality gate: the `CampusMarket.ML.Tests` project reloads the committed model
-  on its own split (seed 42, 20%) and fails if the AUC drops below 0.95 or the
-  F1 score below 0.9, or if four listings written by hand (two spam, two normal)
-  are classified wrongly.
+  on the same test part as training (`DatasetSplit`) and fails if the AUC drops
+  below 0.95, the F1 score below 0.9 or the PR-AUC below 0.95, or if four listings
+  written by hand (two spam, two normal) are classified wrongly.
+
+### Decision thresholds (chosen on validation)
+
+The two classifiers need a decision threshold in the API: the minimum confidence under
+which no category is suggested, and the probability from which a listing counts as spam.
+Both are chosen by the training program on the **validation** part (never on test) by
+`Evaluation/ThresholdSelection.cs`, printed as a table, saved under `"settings"` in the
+model's `.json` file, and configured in `src/CampusMarket.Api/appsettings.json`:
+
+```json
+"Ml": {
+  "Category": { "MinConfidence": 0.6 },
+  "Spam": { "Threshold": 0.4 }
+}
+```
+
+- **`Ml:Category:MinConfidence` = 0.60:** the smallest threshold (0.30 to 0.95, step 0.05)
+  at which the suggestions still shown are right at least 90% of the time. On validation,
+  0.55 gives 89.2% and 0.60 gives 90.3% with 85.1% of the listings getting a suggestion;
+  0.70, the value used before, would hide 8 more points of suggestions for 2 points of
+  accuracy. On test, at 0.60: 85.6% of the listings get a suggestion, right 91.1% of the time.
+- **`Ml:Spam:Threshold` = 0.40:** the threshold with the best F1, the balance between spam
+  let through and good listings flagged. On validation every threshold from 0.15 to 0.65
+  has F1 1.000 (below 0.15 good listings start to be flagged, above 0.65 spam is missed),
+  so the middle of that range is kept, as far as possible from both edges. On test, at
+  0.40: precision, recall and F1 1.000.
+- `SuggestCategoryHandler` and `SpamDetector` read them through `IOptions`
+  (`CategorySuggestionOptions`, `SpamDetectionOptions`); the API refuses to start with a
+  value outside 0–1. After retraining, copy the two "API setting" lines printed by the
+  training program to `appsettings.json`: a test in `CampusMarket.ML.Tests` fails when
+  the settings and the models' `.json` files disagree.
+
+### Explainability (which words matter)
+
+Both classifiers are linear, so every feature has a weight: the bigger it is, the more the
+feature pushes the prediction towards a class. `Evaluation/FeatureWeights.cs` reads the
+weights from the trained models (`MaximumEntropyModelParameters` for the category, one row
+per class; `LinearBinaryModelParameters` for spam) and the feature names from the
+`FeaturizeText` slot names, and the training program prints the 10 strongest **words** (and
+pairs of words) for each category and for both sides of the spam model. The groups of three
+letters that `FeaturizeText` also produces are left out: they are not readable. Every text
+vector is normalised, so the weights of different words can be compared. Last run
+(T = title, D = description):
+
+| Category | Strongest words |
+|---|---|
+| Electronics | canon, sony, 1tb, mouse, asus, laser, wacom, casio, bac, watch (all T) |
+| LabEquipment | breadboard, buc, medicina, kit, letcon, sursa, stetoscop, sonda, balanta, pipeta (all T) |
+| Notes | fise, notite, rezumat, fsie, fsie securitate, scrise, si, mana, bd, scrise de (all T) |
+| Other | ski, haltere, abonament, philips, microunde, sah, raft, copii (T), toate (D), set (T) |
+| Textbook | - (T), carte, editia, manual (T), contine (D), vol., culegere (T), cu rezumat, ✨, explicatii (D) |
+
+| Towards spam | Weight | Towards a normal listing | Weight |
+|---|---|---|---|
+| pe (D) | 7.65 | cu (D) | -3.33 |
+| telegram (D) | 2.82 | fara (D) | -2.28 |
+| link / link in (D) | 2.80 | perfect (D) | -1.44 |
+| suna (D) | 2.79 | include (D) | -0.90 |
+| pe telegram (D) | 2.56 | vine (D) | -0.89 |
+| doar (D) | 2.08 | perfect pentru (D) | -0.87 |
+| livrare (D) | 1.75 | zgarieturi (D) | -0.65 |
+| scrie-mi (D) | 1.57 | vand (D) | -0.58 |
+
+The price bins have a weight of -0.55 (one feature for the whole price).
+
+What the tables show:
+- Most words are the expected ones: brands for electronics, lab instruments, "fise / notite /
+  rezumat" for notes, "carte / editia / manual" for textbooks. The category model decides
+  almost only from the **title**.
+- Some are **artefacts of the generated data**, not meaning: "-" is the strongest Textbook
+  word because 32% of the generated textbook titles are "Title - Author" ("Retele de
+  calculatoare - Andrew Tanenbaum") against under 1% in the other categories; an emoji ("✨")
+  and "si" also make the lists, and typos like "fsie" got their own weight. A real listing written differently can
+  miss these cues, which is part of why the external set scores lower than the test part.
+- Spam is recognised from **moving the talk elsewhere and urgency**: "pe telegram", "link
+  in", "suna", "scrie-mi", "doar", "livrare". The strongest single word is the plain "pe",
+  because it is part of "pe telegram / pe WhatsApp". Normal listings describe the object
+  ("cu", "fara zgarieturi", "perfect pentru", "include"). Spam with a normal description and
+  no contact request, like the subtle rows of the external set, has none of these words,
+  which explains the recall of 0.5 there.
+
+### Classification report (category and spam)
+
+`ml/CampusMarket.ML.Training/Evaluation/ClassificationReport.cs` evaluates the two
+classifiers on the test part and the training program prints it after each model.
+It works only on (true label, predicted label, probability) rows, so it can be
+reused on any data set:
+
+- **Category:** confusion matrix (rows = true, columns = predicted), precision,
+  recall and F1 per class, and **macro-F1**: the plain mean of the five F1 values,
+  so a small category (Notes) counts as much as a big one (Other).
+- **Spam:** TP / FP / TN / FN at the model's threshold (0.5), precision, recall,
+  F1 and **PR-AUC** (average precision). Spam is 10% of the data set and only
+  18 of the 711 test rows, so accuracy would look good even for a model that never
+  says spam; PR-AUC does not.
+- **Calibration:** the probabilities are cut into 10 equal bins and, for each bin,
+  the mean predicted probability is compared with how often it was really true
+  (for the category: how often the chosen class was right; for spam: how many
+  rows were really spam). **ECE** is the gap between the two, weighted by the
+  number of rows in each bin: 0 means "when it says 90%, it is right 90% of the
+  time".
+
+`macroF1` and `ece` (category) and `prAuc` and `ece` (spam) are also written in the
+`testMetrics` of the models' `.json` files. Last run (seed 2026, test part):
+
+| true \ predicted | Electronics | LabEquipment | Notes | Other | Textbook |
+|---|---|---|---|---|---|
+| Electronics | **132** | 1 | 0 | 20 | 2 |
+| LabEquipment | 3 | **98** | 2 | 27 | 1 |
+| Notes | 0 | 0 | **58** | 1 | 5 |
+| Other | 19 | 8 | 1 | **167** | 0 |
+| Textbook | 3 | 2 | 1 | 6 | **136** |
+
+| Class | Support | Precision | Recall | F1 |
+|---|---|---|---|---|
+| Electronics | 155 | 0.841 | 0.852 | 0.846 |
+| LabEquipment | 131 | 0.899 | 0.748 | 0.817 |
+| Notes | 64 | 0.935 | 0.906 | 0.921 |
+| Other | 195 | 0.756 | 0.856 | 0.803 |
+| Textbook | 148 | 0.944 | 0.919 | 0.932 |
+| **Macro-F1** | | | | **0.864** |
+
+Most mistakes go to and from `Other`: lab equipment and electronics described in
+general words end up there (27 and 20 rows), which is also why `LabEquipment` has
+the lowest recall. The category model is well calibrated (ECE **0.036**): in the
+0.9–1.0 bin (380 rows) it says 0.968 on average and is right 95.5% of the time;
+below 0.6 it is right only about half of the time, which is where a minimum
+confidence makes sense.
+
+Spam on the test part: TP 18, FP 0, TN 693, FN 0, precision, recall, F1 and PR-AUC
+all **1.000**, ECE **0.007**. The test part is saturated because the generated
+spam is easy to spot; the external set (above) is where spam is missed.
 
 ---

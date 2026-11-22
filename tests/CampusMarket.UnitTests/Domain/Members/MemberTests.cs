@@ -176,4 +176,42 @@ public class MemberTests
         result.Error.Code.Should().Be("Email.Invalid");
         result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
     }
+
+    [Fact]
+    public void Given_RegisteredMember_When_ChangingPasswordWithHash_Then_StoresHashAndReturnsSameInstance()
+    {
+        var member = Member.Register("Ada", "ada@ubb.ro", "hashed:secret12", Now).Value;
+
+        var result = member.ChangePassword("hashed:newsecret");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeSameAs(member);
+        member.PasswordHash.Should().Be("hashed:newsecret");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Given_RegisteredMember_When_ChangingPasswordWithEmptyHash_Then_ReturnsValidationErrorAndKeepsHash(string newPasswordHash)
+    {
+        var member = Member.Register("Ada", "ada@ubb.ro", "hashed:secret12", Now).Value;
+
+        var result = member.ChangePassword(newPasswordHash);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Member.PasswordRequired");
+        result.Error.Message.Should().Be("A password is required.");
+        member.PasswordHash.Should().Be("hashed:secret12");
+    }
+
+    [Fact]
+    public void Given_RegisteredMember_When_ChangingPassword_Then_StoresTheNewHash()
+    {
+        var member = Member.Register("Ada", "ada@student.ro", "hashed:old", Now).Value;
+
+        member.ChangePassword("hashed:new");
+
+        member.PasswordHash.Should().Be("hashed:new");
+    }
 }

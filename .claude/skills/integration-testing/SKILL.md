@@ -231,6 +231,7 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 - Never commit or push; report the results.
 - Never edit `postman/`, `.github/`, or anything in `tests/CampusMarket.UnitTests`.
 - Never declare a private helper with an interface return type when it always returns one concrete type (for example `IReadOnlyList<T>` for a method that returns `.ToList()`): return the concrete type (`List<T>`). SonarCloud reports it as CA1859. After generating, build with `-p:ErrorLog=<file>.sarif%2Cversion=2.1` and check that the new test files have no CA or IDE diagnostic.
+- Never pass a constant array literal as an argument (CA1861): put it in a `private static readonly` field.
 
 ## 8. Old API tests
 
@@ -550,6 +551,8 @@ Tests to add:
 Rules for this feature:
 - Never use a fixed `Task.Delay` as the assertion: poll the database with a timeout.
 - Every test checks the database at the end.
+- The copy of the API with the job on runs a tick every 200 ms on the shared in-memory SQLite connection, so it must never be running while the test sends its Act request or reads the database for its assertions: a tick at the same moment gives "database is locked" and a 500. Start it with `await using (var withJob = WithExpiryJob()) { withJob.CreateClient(); ... }`, poll inside that block until the reservation is `Expired`, and leave the block (the job stops) before the Act and the assertions. In "another member reserves", the Act is sent with the normal `Client` after `AuthenticateAs(...)`, where the job is off.
+- The polling reads also run while the job ticks on the same connection, and one of them can fail now and then (the read collides with the job's write). In the polling helper, a read that throws a `SqliteException` or an `InvalidOperationException` (which also covers `ObjectDisposedException`) counts as "not yet": wait 100 ms and read again until the timeout. Catch only those two (`catch (Exception ex) when (ex is SqliteException or InvalidOperationException)`), never every exception: Sonar flags a general catch. After the timeout, read once more without catching anything, so an error that never goes away still fails the test with its own message.
 
 
 
@@ -798,6 +801,68 @@ Rules for this feature:
 - Build the query string exactly as a client would send it, in the URL of `Client.GetAsync`.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: API documentation (Carina)
+
+Production code: `services.AddOpenApi()` in `CampusMarketSetup.AddCampusMarket`; in `Program.cs`, only when `app.Environment.IsDevelopment()`: `app.MapOpenApi()` (the document at `/openapi/v1.json`) and `app.MapScalarApiReference()` (the page at `/scalar`). The test host runs in the Development environment, so both are mapped in the tests.
+
+File: `Infrastructure/OpenApiTests.cs` (new), class `OpenApiTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /openapi/v1.json` → 200, a JSON content type, and the body contains `/api/v1/listings` and `/api/v1/auth/login`. Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document.
+- The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of "Feature: Error handling (Anca)" do.
+
+Rules for this feature:
+- Do not change `Program.cs`, `CampusMarketSetup.cs` or the test factory.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: My profile (Carina)
+
+Endpoints (`Features/Members/GetMyProfile/`, `Features/Members/UpdateMyProfile/`), both need a token ("me" is the member in the token):
+
+| Slice | Route | Success | Failures |
+|---|---|---|---|
+| GetMyProfile | `GET /api/v1/members/me` | 200 `{ id, name, email, role, createdAt }` | 401; 404 `Member.NotFound` (the member in the token does not exist) |
+| UpdateMyProfile | `PUT /api/v1/members/me` with `{ "name" }` | 204, empty body | 401; 400 `Member.InvalidName`; 404 `Member.NotFound` |
+
+The 401 is a ProblemDetails answer: check it as "Feature: Error handling (Anca)" says. The 400 and 404 come from the handlers and keep `{ code, message, type }`: read them into `Error` and check `Code` and `Type`.
+
+File: `Members/MyProfileTests.cs` (new), class `MyProfileTests : IntegrationTestBase`.
+
+Arrange: seed the member with `SeedAsync` (`Member.Create(...).Value`, fixed `CreatedAt`) and log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database):
+- logged in → GET 200 with my `id`, `name`, `email` (lower case) and `role` `"Student"`; the raw body (`ReadAsStringAsync`, compared in lower case) does not contain `password`; the member is unchanged in the database.
+- logged in as a member that is not in the database (`AuthenticateAs` with a fixed id that was never seeded) → GET 404 `Member.NotFound`.
+- no token → GET 401 and PUT 401 (two tests); the seeded member is unchanged.
+- PUT with a valid new name → 204, empty body; in the database the member has the new name and the old email.
+- PUT with a 1-character name → 400 `Member.InvalidName`, type `Validation`; the member is unchanged.
+
+Rules for this feature:
+- Fixed ids and times; never compare to `DateTime.Now`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Public profile (Carina)
+
+Endpoint: `GET /api/v1/members/{id}/profile` (`Features/Members/GetPublicProfile/`). Public: never use `AuthenticateAs` in these tests.
+- 200: `{ id, name, memberSince, averageRating, reviewCount, activeListings: [ { id, title, price } ] }`. No email and no role.
+- 404 `Member.NotFound` from the handler, with `{ code, message, type }` (read it into `Error`, check `Code` and `Type`).
+- An id that is not a Guid (`/members/abc/profile`) does not match the route → 404; check only the status.
+
+File (new): `Members/PublicProfileTests.cs`, class `PublicProfileTests : IntegrationTestBase`.
+
+Arrange: seed with `SeedAsync`, fixed ids and times.
+- The seller: `Member.Create(...).Value`. Its listings: `Listing.Create(sellerId, ...)`, published with `Publish()` for an `Active` one, left as is for a `Draft`.
+- For a review: a sold listing (`Publish()`, `Reserve(buyer.Id, CreatedAt)`, `ConfirmSale(reservation.Id, CreatedAt)`) and `Review.Create(buyer.Id, soldListing, rating, null, CreatedAt).Value`; seed the buyer, the listing and the review together.
+
+Tests to add (status, body, then the database):
+- a seller with one Active and one Draft listing → 200; `activeListings` has only the Active one (its id, title and price); the right `name`; `reviewCount` 0 and `averageRating` null; the raw body (`ReadAsStringAsync`) does not contain the seller's email; the database is unchanged.
+- a seller with one sold listing reviewed with rating 4 → 200, `averageRating` 4, `reviewCount` 1, `activeListings` empty.
+- unknown id → 404 `Member.NotFound`, type `NotFound`; the seeded data is unchanged.
+- `/api/v1/members/abc/profile` → 404 (status only).
+
+Rules for this feature:
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 File: `Listings/SuggestCategoryTests.cs` (add to it).
@@ -838,3 +903,267 @@ Tests to add:
 - seed a seller, a buyer and a published listing; reserve as the buyer, confirm the sale as the seller (204) → the database has 1 `SaleRecord` for that listing with sold price = listing price and suggested price > 0; then Admin GET → count 1 and the record in `lastRecords`.
   Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: CORS for the frontend (Anca)
+
+The web frontend (`frontend/`, Vite on `http://localhost:5173`) calls the API from another origin, so the browser needs CORS. Read `CampusMarketSetup.cs` (`AddCors`, policy `CampusMarketSetup.FrontendCorsPolicy` = `"Frontend"`), `Program.cs` (`app.UseCors(...)` is the first middleware, before `UseExceptionHandler`) and `appsettings.json` (`Cors:AllowedOrigins` = `["http://localhost:5173"]`) before generating.
+
+Production code:
+- Only the origins in `Cors:AllowedOrigins` are allowed; any header and any method; `Location` is an exposed header; no credentials (the token goes in the `Authorization` header, never in a cookie).
+- The test host reads the same `appsettings.json`, so `http://localhost:5173` is allowed in every test without extra setup.
+
+File: `Cors/CorsTests.cs`, class `CorsTests : IntegrationTestBase` (fixed `SellerId` as in the other classes; `private const string FrontendOrigin = "http://localhost:5173";`).
+
+Tests to add:
+- Preflight: `OPTIONS /api/v1/auth/login` with headers `Origin: http://localhost:5173`, `Access-Control-Request-Method: POST`, `Access-Control-Request-Headers: content-type,authorization` → 204; `Access-Control-Allow-Origin` is exactly `http://localhost:5173`; `Access-Control-Allow-Methods` contains `POST`; `Access-Control-Allow-Headers` contains `authorization` (compare case-insensitively); there is no `Access-Control-Allow-Credentials` header; no member in the database.
+- Preflight from an origin that is not allowed (`http://evil.example`) → still 204, but there is no `Access-Control-Allow-Origin` header (the browser then blocks the call); no member in the database.
+- Logged in as `SellerId`, `POST /api/v1/listings` with a valid body and `Origin: http://localhost:5173` → 201; `Access-Control-Allow-Origin` is the origin; `Access-Control-Expose-Headers` contains `Location`; the `Location` header is set; the listing is in the database.
+- No token, `GET /api/v1/members/me/favorites` with the origin → 401 ProblemDetails `Auth.Unauthorized` and `Access-Control-Allow-Origin` is the origin (the browser can only read an error when the CORS header is there).
+- A seeded draft of `SellerId`, client with `ThrowingUnitOfWork` (see "Feature: Error handling (Anca)"), the seller publishes it with the origin → 500 ProblemDetails `Server.Error` and `Access-Control-Allow-Origin` is still the origin; the listing is still `Draft`.
+- The same request without an `Origin` header (`GET /api/v1/listings`) → 200 and no `Access-Control-Allow-Origin` header (clients that are not browsers see no change).
+- Another origin through configuration, two tests (one HTTP call each), both with `Factory.WithWebHostBuilder(b => b.UseSetting("Cors:AllowedOrigins:0", "https://campusmarket.example"))` from a private helper, disposed with `await using`: a preflight from `https://campusmarket.example` gets `Access-Control-Allow-Origin: https://campusmarket.example`; a preflight from `http://localhost:5173` gets no `Access-Control-Allow-Origin` (index 0 was replaced). This is how the deployed frontend's address is set (`Cors__AllowedOrigins__0`). Both check that no member was saved.
+
+Rules for this feature:
+- Build the preflight with `new HttpRequestMessage(HttpMethod.Options, url)` and add the headers with `request.Headers.Add(...)`; read the CORS headers from `response.Headers` with `TryGetValues`, never from `response.Content.Headers`.
+- Never change `appsettings.json`, `CampusMarketApiFactory` or `IntegrationTestBase`.
+- This section goes with changes made by hand before the run (`CampusMarketSetup.cs`, `Program.cs`, `appsettings.json`, the new `frontend/` folder, `README.md`, `.dockerignore`, `.github/workflows/build.yml`), so the section 10 check on `git status` also lists them.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Register rate limiting (Carina)
+
+Production code: `CampusMarketSetup.AddCampusMarket` adds the rate limiter policy "register": a fixed window of 1 minute per IP (`context.Connection.RemoteIpAddress`, or "unknown"), with the limit from `RateLimiting:RegisterPermitLimit` (default 5). `RegisterEndpoint` uses `.RequireRateLimiting("register")`. A rejected request gets 429 (status only, from `options.RejectionStatusCode`). `CampusMarketApiFactory` sets the limit to 1000 so the other tests are not blocked; do not change the factory or `IntegrationTestBase`.
+
+File: `Auth/RegisterRateLimitTests.cs` (new), class `RegisterRateLimitTests : IntegrationTestBase`.
+
+Test host: start a second copy of the API with the real limit, `Factory.WithWebHostBuilder(b => b.UseSetting("RateLimiting:RegisterPermitLimit", "5"))`, the same way the Admin seed tests do; use only the client from its `CreateClient()` and dispose the copy with `await using`. In the test server every request falls in the same partition, so all of them count against one limit.
+
+Request body: `{ name, email, password, confirmPassword }`, with a valid name, a different email for each request and a password of at least 8 characters.
+
+Tests to add (status, body, then the database):
+- 5 registrations with different emails → all 201; a 6th, valid, with a new email → 429; the database has exactly 5 members and none with the 6th email.
+- 5 registrations whose passwords do not match → 400 each (they also count toward the limit); a 6th, valid → 429; the database has no members.
+- with the normal factory (limit 1000), 6 registrations with different emails → all 201; the database has 6 members.
+
+Rules for this feature:
+- Check the members with `QueryDbAsync` on `db.Set<Member>()`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Change password (Carina)
+
+Endpoint: `POST /api/v1/auth/change-password` with `{ "currentPassword", "newPassword", "confirmNewPassword" }`, needs a token ("me" is the member in the token).
+
+| Success | Failures |
+|---|---|
+| 204, empty body | 400 `Auth.InvalidCredentials` (wrong current password), 400 `Auth.WeakPassword`, 400 `Auth.PasswordsDoNotMatch`, 404 `Member.NotFound`, 401 (no token) |
+
+The 401 is a ProblemDetails answer: check it as "Feature: Error handling (Anca)" says. The 400 and 404 come from the handler and keep `{ code, message, type }`: read them into `Error` and check `Code` and `Type`.
+
+File: `Auth/ChangePasswordTests.cs` (new), class `ChangePasswordTests : IntegrationTestBase`.
+
+Arrange: seed the member with a real hash, as `LoginTests` does (`new AspNetPasswordHasher().Hash("secret12")`), and log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database):
+- valid request → 204, empty body; in the database `AspNetPasswordHasher.Verify` accepts the new password and rejects the old one.
+- after a successful change (Arrange), `POST /api/v1/auth/login` with the new password → 200 with a token; in another test, with the old password → 401.
+- wrong current password → 400 `Auth.InvalidCredentials`; the stored hash is unchanged (the old password still verifies).
+- new password of 7 characters → 400 `Auth.WeakPassword`; confirmation different → 400 `Auth.PasswordsDoNotMatch`; the hash is unchanged in both.
+- a token of a member that is not in the database → 404 `Member.NotFound`.
+- no token → 401; the member is unchanged.
+
+Rules for this feature:
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Live and ready health checks (Diana)
+
+Production code: `Infrastructure/ML/MlModelsHealthCheck.cs`; `/health/live` (no checks) and `/health/ready` (database + ML models) in `Program.cs`.
+
+File: `Infrastructure/HealthTests.cs` (new or add to it).
+
+Tests to add:
+- `/health/live` → 200, body "Healthy".
+- `/health/ready` → 200, body "Healthy" (the models are copied to the test output).
+- `/health` → 200 (unchanged).
+- If MlModelsHealthCheck has lines the HTTP tests cannot reach (the Unhealthy branch), add a test that calls CheckHealthAsync with a ModelsPath folder that does not exist → Unhealthy, message lists the missing files.
+
+## Feature: Correlation id (Diana)
+
+Production code: `Infrastructure/Logging/CorrelationIdMiddleware.cs`, registered first in `Program.cs`.
+
+File: `Infrastructure/CorrelationIdTests.cs` (new), class `CorrelationIdTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /api/v1/listings` without the header → the response has `X-Correlation-Id`, not empty, and it is a valid Guid.
+- the same request with `X-Correlation-Id: test-123` → the response header is exactly `test-123`.
+- an error response (`GET /api/v1/listings/{random guid}` → 404) also has the header.
+
+## Feature: Listings cache (Diana)
+
+Production code: `GetListingsEndpoint` caches for 30 s with tag "listings"; `ListingsCache.ClearAsync` is called after every successful change of a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide).
+
+Important: the ASP.NET Core output cache does not store responses to requests that have an `Authorization` header. Every search in these tests is sent **without a token**; only the change (create, publish, update, reserve) is sent with a token.
+
+File: `Listings/ListingsCacheTests.cs` (replace its tests).
+
+Setup: every test starts with an empty cache: at the start, get `IOutputCacheStore` from `Factory.Services` and call `EvictByTagAsync(ListingsCache.Tag, ...)`, so the tests do not affect each other.
+
+Tests to add:
+- the cache is used: search without a token → change a published listing directly in the database (through the DbContext, no endpoint, for example its title) → the same search without a token still returns the old title.
+- search without a token → create a listing with a token → the same search without a token (the draft is not there, and this fills the cache) → publish with a token → the same search without a token → the new listing is there.
+- search without a token → update a listing's title with a token → the same search without a token → the new title is there.
+- search without a token → reserve the listing with a token → the same search without a token → it is gone (no longer Active).
+
+## Feature: Validation thresholds (Anca)
+
+Production code (read it before generating): the two decision thresholds of the ML models are settings, chosen on the validation data when the models are trained (`ml/models/*.json`, `"settings"`), not constants.
+- `Ml:Category:MinConfidence` (`CategorySuggestionOptions` in `Common/Categories/`, 0.6 in `appsettings.json`): `SuggestCategoryHandler` returns `category` null below it. `SuggestCategoryHandler.MinConfidence` does not exist any more.
+- `Ml:Spam:Threshold` (`SpamDetectionOptions` in `Common/Moderation/`, 0.4 in `appsettings.json`): `SpamDetector` reports spam when the model's probability reaches it, so `PublishListing` adds the automatic report from that value.
+- Both are validated at startup (`ValidateOnStart` in `Infrastructure/ML/MlServiceCollectionExtensions.cs`): a value outside 0–1 stops the API with an `OptionsValidationException` whose message names the setting.
+
+Changes to the existing tests (keep every test and its name):
+- `Listings/SuggestCategoryTests.cs`: the two tests that compare the confidence with `SuggestCategoryHandler.MinConfidence` compare it with the configured value instead: `Factory.Services.GetRequiredService<IOptions<CategorySuggestionOptions>>().Value.MinConfidence`.
+
+File: `Infrastructure/MlThresholdsTests.cs` (new), class `MlThresholdsTests : IntegrationTestBase` (fixed `SellerId`). A different setting goes through `Factory.WithWebHostBuilder(b => b.UseSetting(...))`, disposed with `await using`, like the Admin seed tests.
+
+Tests to add:
+- The normal test host reads `appsettings.json`: `IOptions<CategorySuggestionOptions>` has `MinConfidence` 0.6 and `IOptions<SpamDetectionOptions>` has `Threshold` 0.4 (resolve them from `Factory.Services`; no HTTP call in this one, the Act is resolving the options). The database is empty.
+- `Ml:Category:MinConfidence` = `0.99`, logged in as `SellerId`, `POST /api/v1/listings/category-suggestion` with title `"Notite Analiza matematica, an I"` → 200, `category` null, `confidence` below 0.99 and at least 0.6 (the same text gives `Notes` with the normal setting). No listing saved.
+- `Ml:Spam:Threshold` = `0`, a seeded draft of `SellerId` with the normal text of `SpamOnPublishTests` (`"Manual Algebra liniara, editia 2"`, `"Putin folosit, fara sublinieri."`, `Textbook`, price 40), the seller publishes it → 204, the listing is `Active` and one automatic report exists for it (`ReporterId` null): with threshold 0 every listing counts as spam.
+- `Ml:Category:MinConfidence` = `1.5` → creating the client throws `OptionsValidationException` whose message contains `Ml:Category:MinConfidence`.
+- `Ml:Spam:Threshold` = `-0.1` → creating the client throws `OptionsValidationException` whose message contains `Ml:Spam:Threshold`.
+
+Rules for this feature:
+- Never assert an exact confidence or probability from the real models, only ranges.
+- For the two startup failures there is no HTTP call: the Act is `CreateClient()`; check that the database has no listing.
+- In a copy made with `WithWebHostBuilder`, `AuthenticateAs` does not apply: set `Authorization: Bearer` with `TestTokens.Create(SellerId)` on the copy's client, as `ErrorHandlingTests` and `CorsTests` do.
+- This section goes with changes made by hand before the run (`src/`, `ml/`, the unit tests generated by the unit-testing skill and the hand-written ML tests), so the section 10 check on `git status` also lists them.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Similar listings (Anca)
+
+Endpoint: `GET /api/v1/listings/{id}/similar`, public (no token needed). It uses the **real** similar-listings model (`ml/models/similar-listings.zip`, copied to `ml-models/` like the others; do not replace `ISimilarListingsFinder` in the test factory). Read `Features/Listings/GetSimilarListings/` and `Infrastructure/ML/SimilarListingsFinder.cs` before generating.
+- 200 `{ items: [{ id, title, category, condition, price, similarity }] }`: at most 5 `Active` listings, never the listing itself, the most similar first, `similarity` between 0 and 1.
+- 404 `Listing.NotFound` (handler error body `{ code, message, type }`) for an unknown id.
+- The target can have any status (a draft has similar listings too).
+
+File: `Listings/GetSimilarListingsTests.cs` (new), class `GetSimilarListingsTests : IntegrationTestBase` (fixed `SellerId`, each listing with its own fixed `CreatedAt`).
+
+Arrange for the ranking tests: published listings of `SellerId`, condition `Good`, each with this title and description:
+- `"Manual Analiza matematica, editia 2"` — `"Manual pentru anul I, cu exercitii rezolvate."` (Textbook, 40)
+- `"Culegere Analiza matematica, exercitii rezolvate"` — `"Culegere pentru examen, exercitii rezolvate pe capitole."` (Textbook, 30)
+- `"Laptop Lenovo ThinkPad, i5, 8GB"` — `"Laptop pentru facultate, baterie buna, 8GB RAM."` (Electronics, 1500)
+- `"Laptop Dell Latitude, i7, 16GB"` — `"Laptop rapid, 16GB RAM, SSD 512GB."` (Electronics, 2200)
+- `"Notite curs Structuri de date"` — `"Notite scrise de mana, cursurile din anul II."` (Notes, 20)
+- `"Bicicleta de oras"` — **no description** (Other, 300)
+- plus a draft textbook `"Manual Analiza matematica, editia 1"` — `"Editie mai veche, cu sublinieri."` (Textbook, 25, not published).
+Both kinds of description (with text and none) must be there: `SimilarListingsFinder` handles a missing description separately.
+
+Tests to add:
+- target the published `"Manual Analiza matematica, editia 2"` → 200; at most 5 items; the first item is the other math textbook; the draft and the target are not in the list; every item is `Active` in the database; similarities between 0 and 1, in decreasing order.
+- target one laptop → 200; the first item is the other laptop.
+- target the draft textbook → 200; the first item is a math textbook (the draft is not a candidate of itself, but it can be a target).
+- the only published listing is the target (plus a draft) → 200 with an empty `items`.
+- unknown id → 404 `Listing.NotFound`.
+- every call is made without a token; the database is unchanged at the end (same number of listings).
+
+Change to an existing test (keep it and its name): `Infrastructure/HealthTests.cs`, the "models folder does not exist" test also checks that the description contains `similar-listings.zip`.
+
+Rules for this feature:
+- Never assert an exact similarity from the real model; only the order of the clear cases above and the 0–1 range.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Password reset (Sara)
+
+Endpoints:
+- `POST /api/v1/auth/forgot-password` `{ email }` → 202 with the same body for a known email and for an unknown email (so the API never leaks whether the email exists).
+- `POST /api/v1/auth/reset-password` `{ token, newPassword, confirmNewPassword }` → 204 on success, or 400 ProblemDetails with `Auth.InvalidResetToken` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`.
+
+File: `Auth/PasswordResetTests.cs` (new), class `PasswordResetTests : IntegrationTestBase` (fixed `SellerId`, a seeded member with a known password).
+
+Test host: replace `IEmailSender` with a capturing fake (a `TestEmailSender` in the test project that records every email in a thread-safe list) through `ConfigureTestServices` in a host started with `Factory.WithWebHostBuilder(...)`, disposed with `await using`. The handler builds the reset link with the plain token as `?token=...`; read it from the captured email's body with a private static helper (store the terminators in a `private static readonly char[]` field — CA1861). For the expiry test, the same `WithWebHostBuilder` host also replaces `TimeProvider` with a fake that returns a fixed `Now`. The `forgot-password` endpoint shares the "login" rate limit (if configured): keep each test to a few calls, and when the test needs to call it more often, the host is a fresh copy.
+
+Tests to add:
+- `POST /auth/forgot-password` always 202:
+  - registered email → 202 with the standard body, one email captured for that address.
+  - unknown email → 202 with exactly the same body, no email captured, no token in the database.
+- Full flow: a registered member sends `forgot-password`, the test reads the plain token from the captured email's link, then `POST /auth/reset-password` with that token and a strong new password → 204; `POST /auth/login` with the new password → 200 and returns an access token; `POST /auth/login` with the old password → 401 `Auth.InvalidCredentials`. One extra email is captured for "password changed" and its body does not contain the new password. The token row in the database has `UsedAt` set.
+- Reused token: the same token used a second time → 400 ProblemDetails with `Auth.InvalidResetToken`; the member's password is not changed again and no new email is captured.
+- Expired token: through a fake `TimeProvider` set to `Now + PasswordResetToken.Lifetime` (30 minutes), reset with the token → 400 ProblemDetails with `Auth.InvalidResetToken`; the member's password is unchanged and no email is captured.
+- Random token (never issued) → 400 ProblemDetails with `Auth.InvalidResetToken`.
+- Weak password (`""` and a 7-character value, `[Theory]`) → 400 ProblemDetails with `Auth.WeakPassword`; a confirmation different from the new password → 400 ProblemDetails with `Auth.PasswordsDoNotMatch`.
+- Rate limiting (only if `forgot-password` has a configured limit): call the endpoint until the limit is reached; the next call returns 429. Check it on a fresh `WithWebHostBuilder` host so the other tests are not touched; skip this test if no limit is configured.
+
+Rules for this feature:
+- Never send a real email: the capturing `IEmailSender` is registered in every test host; never open an SMTP connection.
+- Never use real time for the 30-minute boundary: the expired-token test uses the fake `TimeProvider` through `ConfigureTestServices`. For `sentAt`/`createdAt` that come from HTTP, assert that they are close to now (`BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))`), never an exact value.
+- Never put a constant array literal in an argument (CA1861): the token-extraction helper reads terminators from a `private static readonly char[]` field.
+- 400 bodies are ProblemDetails, as in "Feature: Error handling (Anca)": assert on the response body's `Extensions`/`Detail` for `Code`, or on the response status plus the `Code` that the handler puts in ProblemDetails.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+
+## Feature: Conversations (Anca)
+
+Endpoints (all need a token; the member is the user in the token):
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/conversations`, body `{ text }` | a member who is not the seller | 201, body `{ conversationId, id, number, senderId, text, sentAt }`, `Location` ends with `/api/v1/conversations/{conversationId}`. The first message starts the conversation; if this member already has one about the listing, the message is added to it (same `conversationId`, next `number`) | 404 `Listing.NotFound`; 404 `Member.NotFound`; 400 `Conversation.OwnListing` (the seller), `Conversation.ListingNotAvailable` (draft, sold or hidden listing, only for a new conversation), `Message.Empty`, `Message.TooLong` (over 1000 characters after trim); 401 |
+| `POST /api/v1/conversations/{id}/messages`, body `{ text }` | the buyer or the seller of the conversation | 201, same body and `Location` | 404 `Conversation.NotFound`; 403 `Conversation.NotParticipant` (anyone else, an Admin too; body is our `Error`); 400 `Message.Empty`, `Message.TooLong`; 401 |
+| `GET /api/v1/conversations/{id}` | the buyer or the seller | 200 `{ id, listingId, listingTitle, sellerId, sellerName, buyerId, buyerName, createdAt, messages: [{ id, number, senderId, text, sentAt }] }`, messages in `number` order | 404 `Conversation.NotFound`; 403 `Conversation.NotParticipant`; 401 |
+| `GET /api/v1/members/me/conversations` | any member | 200 `{ items: [{ id, listingId, listingTitle, otherMemberId, otherMemberName, lastMessage, lastMessageSenderId, lastMessageAt, messageCount }], count }`, as buyer and as seller, the latest message first | 401 |
+
+Read `Features/Conversations/`, `Domain/Conversations/` and `Infrastructure/Persistence/Configurations/ConversationConfiguration.cs` / `MessageConfiguration.cs` before generating. The `Conversations` table has foreign keys to `Listings` and to `Members` twice (seller and buyer), all with cascade delete, and a unique index on `(ListingId, BuyerId)`; `Messages` belong to their conversation (cascade). So the seller **and** the buyer must be seeded as members.
+
+Files: `Conversations/StartConversationTests.cs`, `Conversations/SendMessageTests.cs`, `Conversations/GetConversationTests.cs`, `Conversations/GetMyConversationsTests.cs`, same base class and login helper as the other classes. Read the bodies into `MessageResponse`, `GetConversationResponse` and `GetMyConversationsResponse` from `Features/Conversations/`.
+
+Arrange: seed the seller, the buyer and (when needed) another member with `Member.Create(...).Value`; a published listing is `Listing.Create(seller.Id, ...).Value` then `Publish()` (sold: `Reserve` then `ConfirmSale`). An existing conversation is `Conversation.Start(buyer.Id, listing, "text", CreatedAt).Value`, more messages with `conversation.Send(memberId, "text", CreatedAt.AddMinutes(n))`, seeded together with the members and the listing in one `SeedAsync`. Log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database through `db.Set<Conversation>()` / `db.Set<Message>()`):
+- `StartConversationTests`: the buyer on a published listing with `"  Mai e disponibil?  "` → 201 with number 1, the buyer as sender, the trimmed text and `Location`; one conversation (this listing, seller and buyer) and one message saved; the same buyer again → 201 with the same `conversationId` and number 2, still one conversation and two messages; a reserved listing → 201; the seller → 400 `Conversation.OwnListing`; a draft → 400 `Conversation.ListingNotAvailable`; a sold listing with no conversation → 400 `Conversation.ListingNotAvailable`; a sold listing where the buyer already has a conversation (seed it before the sale) → 201, number 2; empty text → 400 `Message.Empty`; 1001 characters → 400 `Message.TooLong`; unknown listing → 404 `Listing.NotFound`; logged in as a member that is not in the database → 404 `Member.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`. Nothing saved in any failure.
+- `SendMessageTests`: the seller answers → 201, number 2, sender the seller, `Location`; the message is saved and the conversation's `LastMessageAt` is the time of the answer; the buyer answers again → number 3; another member → 403 `Conversation.NotParticipant` with `Type` `Forbidden`; an Admin (`AuthenticateAs(AdminId, "Admin")`, as in the moderation tests) → 403; empty → 400 `Message.Empty`; unknown conversation → 404 `Conversation.NotFound`; no token → 401. No message saved in any failure.
+- `GetConversationTests`: as the buyer and as the seller → 200 with every field (names and listing title), three messages in number order; another member → 403 `Conversation.NotParticipant`; unknown → 404 `Conversation.NotFound`; no token → 401. The database is unchanged after every call.
+- `GetMyConversationsTests`: the seller with two conversations (two buyers) → 200, `count` 2, the latest message first, `otherMemberId`/`otherMemberName` = the buyer, `lastMessage`, `lastMessageSenderId` and `messageCount` checked; the buyer → one item with the seller as the other member; another member → empty `items`, `count` 0; no token → 401. The database is unchanged after every call.
+- Cascade, in `StartConversationTests`: the seller deletes the listing (`DELETE /api/v1/listings/{id}` logged in as the seller) → 204, and its conversation and messages are gone from the database.
+
+Rules for this feature:
+- Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- Real time is used for the messages sent through HTTP: assert that `sentAt` is close to now (`BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))`), never an exact value.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Listing photos (Anca)
+
+Endpoints:
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/photos`, `multipart/form-data` with the image in the `file` field | the seller (any listing status) | 201, body `{ id, listingId, url, contentType, sizeBytes, createdAt }` (`url` = `/api/v1/photos/{id}`), `Location` ends with `/api/v1/photos/{id}`; the file is saved on disk | 404 `Listing.NotFound`; 403 `Photo.NotSeller` (body is our `Error`); 400 `Photo.LimitReached` (already 5), `Photo.Empty` (no `file` field or an empty file), `Photo.TooLarge` (over 2 MB = 2 097 152 bytes), `Photo.InvalidFormat` (not JPEG/PNG/WebP by its first bytes, whatever the name and type sent); 401 |
+| `GET /api/v1/listings/{listingId}/photos` | everyone | 200 `{ items: [...same fields...], count }` in the order they were added | 404 `Listing.NotFound` |
+| `GET /api/v1/photos/{id}` | everyone | 200 with the image bytes, `Content-Type` of the photo, `Cache-Control: public, max-age=86400` | 404 `Photo.NotFound` (unknown, or the file is missing on disk) |
+| `DELETE /api/v1/listings/{listingId}/photos/{photoId}` | the seller | 204; the row and the file are gone | 404 `Listing.NotFound`, `Photo.NotFound` (also a photo of another listing); 403 `Photo.NotSeller`; 401 |
+
+Also: `DELETE /api/v1/listings/{id}` now removes the listing's photo folder from disk (the rows go by cascade).
+
+Read `Features/Photos/`, `Domain/Photos/`, `Common/Storage/`, `Infrastructure/Storage/LocalPhotoStorage.cs` and `Infrastructure/Persistence/Configurations/PhotoConfiguration.cs` before generating. Files are stored as `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>`.
+
+Change to the test infrastructure (keep everything else): `Infrastructure/CampusMarketApiFactory.cs` sets `Storage:PhotosPath` to a new folder under `Path.GetTempPath()` (a new `Guid` in the name, one per factory), exposes it as a public `PhotosPath` property and deletes the folder (if it exists) in `Dispose`. No test may write photos into the source tree.
+
+Files: `Photos/UploadPhotoTests.cs`, `Photos/GetListingPhotosTests.cs`, `Photos/GetPhotoFileTests.cs`, `Photos/DeletePhotoTests.cs`, same base class and login helper as the other classes. Read the bodies into `PhotoResponse` and `GetListingPhotosResponse` from `Features/Photos/`. Upload with `MultipartFormDataContent` and a `ByteArrayContent` named `file` (with a file name). Test images are byte arrays that start with the signatures (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WebP `"RIFF"` + 4 bytes + `"WEBP"`) followed by zeros, as `static readonly` fields.
+
+Arrange: seed the seller (and another member when needed) and a listing of the seller. Existing photos: upload them through the endpoint as the seller (so the file is on disk), except for the "already 5" case, where 5 `Photo.Create(...)` rows may be seeded directly (no files needed).
+
+Tests to add (status, body, then the database through `db.Set<Photo>()` and the disk under `Factory.PhotosPath`):
+- `UploadPhotoTests`: the seller uploads a PNG → 201 with `contentType` `image/png`, the size, `url` and `Location`; one row (this listing, `FileName` = `<id>.png`) and the file on disk with the same bytes; a JPEG and a WebP → 201 with their types; a draft listing → 201; a GIF sent as `image/png` with name `a.png` → 400 `Photo.InvalidFormat`; a file of 2 097 153 bytes (PNG start) → 400 `Photo.TooLarge`; exactly 2 097 152 bytes → 201; no `file` field (another field name) → 400 `Photo.Empty`; 5 photos already → 400 `Photo.LimitReached`; another member → 403 `Photo.NotSeller`; unknown listing → 404 `Listing.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`; a JSON body instead of a form → 415. No row and no file in any failure.
+- `GetListingPhotosTests`: no token, three uploaded photos → 200, `count` 3, in upload order, every field; a listing with no photo → empty `items`; photos of another listing are not returned; unknown listing → 404. The database is unchanged.
+- `GetPhotoFileTests`: no token, an uploaded PNG → 200, the same bytes, `Content-Type` `image/png`, the `Cache-Control` header; unknown id → 404 `Photo.NotFound`; the row exists but the file was deleted from disk by the test → 404 `Photo.NotFound`.
+- `DeletePhotoTests`: the seller deletes one of two photos → 204, the row and the file are gone, the other photo stays (row and file), then `GET /api/v1/photos/{id}` → 404; another member → 403 `Photo.NotSeller`; a photo of another listing (same seller) → 404 `Photo.NotFound`; unknown photo → 404; unknown listing → 404 `Listing.NotFound`; no token → 401. Nothing removed in any failure.
+- Cascade, in `DeletePhotoTests`: the seller deletes the listing (`DELETE /api/v1/listings/{id}`) → 204, its photo rows are gone and its folder under `Factory.PhotosPath` no longer exists; deleting a listing that never had a photo → 204 (no folder, no error).
+
+Rules for this feature:
+- Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Sorting (Diana)
+
+File: `Listings/GetListingsTests.cs` (add to it).
+
+Tests to add:
+- `?sort=price_asc` → 200, prices in ascending order.
+- `?sort=abc` → 400 `Listings.InvalidSort`.

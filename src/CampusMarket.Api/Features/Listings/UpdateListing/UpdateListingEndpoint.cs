@@ -3,6 +3,7 @@ using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace CampusMarket.Api.Features.Listings.UpdateListing;
 
@@ -20,6 +21,7 @@ public static class UpdateListingEndpoint
         UpdateListingRequest request,
         ClaimsPrincipal user,
         ICommandHandler<UpdateListingCommand, Guid> handler,
+        IOutputCacheStore cache,
         CancellationToken ct)
     {
         var command = new UpdateListingCommand(
@@ -35,6 +37,8 @@ public static class UpdateListingEndpoint
                 ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };
+
+        await ListingsCache.ClearAsync(cache, ct);
 
         return TypedResults.NoContent();
     }
