@@ -52,6 +52,7 @@ var trainers = new List<IModelTrainer>
 };
 
 var trainedModels = new Dictionary<string, ITransformer>();
+var trainedSettings = new Dictionary<string, IReadOnlyDictionary<string, double>?>();
 
 foreach (var trainer in trainers)
 {
@@ -79,6 +80,7 @@ foreach (var trainer in trainers)
     Console.WriteLine($"Saved metadata to {Path.ChangeExtension(modelPath, ".json")}");
 
     trainedModels[trainer.ModelFileName] = result.Model;
+    trainedSettings[trainer.ModelFileName] = result.Settings;
 }
 
 Console.WriteLine();
@@ -124,6 +126,32 @@ Console.WriteLine($"| F1 score  | {F3(spamModelMetrics.F1)} | {F3(spamBaseline.F
 
 var externalCsvPath = Path.Combine(mlDir, "data", "external.csv");
 ExternalEvaluation.Run(mlContext, externalCsvPath, modelsDir, trainSet, testSet);
+
+// Error analysis for the model cards: the mistakes worth reading, on test and on the external set,
+// with the thresholds chosen on validation.
+var minConfidence = trainedSettings["category-classification.zip"]!["minConfidence"];
+var spamThreshold = trainedSettings["spam-detection.zip"]!["threshold"];
+var testRows = mlContext.Data.CreateEnumerable<ListingRow>(testSet, reuseRowObject: false).ToList();
+var externalRows = File.Exists(externalCsvPath)
+    ? mlContext.Data.CreateEnumerable<ListingRow>(
+        mlContext.Data.LoadFromTextFile<ListingRow>(externalCsvPath, hasHeader: true, separatorChar: ',', allowQuoting: true),
+        reuseRowObject: false).ToList()
+    : [];
+
+Console.WriteLine();
+Console.WriteLine("=== Error analysis ===");
+foreach (var (part, rows) in new[] { ("test part", testRows), ("external set", externalRows) })
+{
+    if (rows.Count == 0)
+        continue;
+
+    Console.WriteLine();
+    Console.WriteLine($"Category, most confident mistakes on the {part} (shown by the API when confidence >= {F2(minConfidence)}):");
+    Console.WriteLine(ErrorAnalysis.ToMarkdown(ErrorAnalysis.CategoryMistakes(mlContext, categoryModel, rows)));
+    Console.WriteLine();
+    Console.WriteLine($"Spam mistakes on the {part}:");
+    Console.WriteLine(ErrorAnalysis.ToMarkdown(ErrorAnalysis.SpamMistakesOf(mlContext, spamModel, rows, spamThreshold), spamThreshold));
+}
 
 static string F3(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
 static string F2(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);
