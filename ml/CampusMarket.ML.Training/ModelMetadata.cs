@@ -22,7 +22,8 @@ public static class ModelMetadata
         string csvPath,
         int trainRowCount,
         int validationRowCount,
-        int testRowCount)
+        int testRowCount,
+        IReadOnlyDictionary<string, double>? settings = null)
     {
         var json = Build(
             modelName,
@@ -33,7 +34,8 @@ public static class ModelMetadata
             trainRowCount,
             validationRowCount,
             testRowCount,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            settings);
 
         var jsonPath = Path.ChangeExtension(modelFilePath, ".json");
         File.WriteAllText(jsonPath, json);
@@ -48,7 +50,8 @@ public static class ModelMetadata
         int trainRowCount,
         int validationRowCount,
         int testRowCount,
-        DateTimeOffset trainedAt)
+        DateTimeOffset trainedAt,
+        IReadOnlyDictionary<string, double>? settings = null)
     {
         var sha = ComputeSha256(csvPath);
         var trainedAtText = trainedAt.ToUniversalTime().ToString(DateFormat, CultureInfo.InvariantCulture);
@@ -70,16 +73,14 @@ public static class ModelMetadata
         AppendString(sb, 1, "modelFileName", modelFileName, comma: true);
         AppendString(sb, 1, "modelName", modelName, comma: true);
         AppendInt(sb, 1, "seed", DatasetSplit.Seed, comma: true);
+
+        // Values chosen during training that the API must use (only models that have some).
+        if (settings is { Count: > 0 })
+            AppendDoubles(sb, "settings", settings);
+
         AppendString(sb, 1, "split", SplitDescription, comma: true);
 
-        sb.Append(Indent(1)).Append("\"testMetrics\": {").Append('\n');
-        var sortedKeys = testMetrics.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
-        for (var i = 0; i < sortedKeys.Count; i++)
-        {
-            var key = sortedKeys[i];
-            AppendDouble(sb, 2, key, testMetrics[key], comma: i < sortedKeys.Count - 1);
-        }
-        sb.Append(Indent(1)).Append("},").Append('\n');
+        AppendDoubles(sb, "testMetrics", testMetrics);
 
         AppendString(sb, 1, "trainedAt", trainedAtText, comma: false);
 
@@ -88,6 +89,19 @@ public static class ModelMetadata
     }
 
     private static string Indent(int level) => new(' ', level * 2);
+
+    // A nested object of numbers, keys sorted (ordinal), followed by a comma.
+    private static void AppendDoubles(StringBuilder sb, string name, IReadOnlyDictionary<string, double> values)
+    {
+        sb.Append(Indent(1)).Append('"').Append(name).Append("\": {").Append('\n');
+        var sortedKeys = values.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
+        for (var i = 0; i < sortedKeys.Count; i++)
+        {
+            var key = sortedKeys[i];
+            AppendDouble(sb, 2, key, values[key], comma: i < sortedKeys.Count - 1);
+        }
+        sb.Append(Indent(1)).Append("},").Append('\n');
+    }
 
     private static void AppendString(StringBuilder sb, int indent, string key, string value, bool comma)
     {

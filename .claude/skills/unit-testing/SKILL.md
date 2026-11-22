@@ -561,6 +561,79 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`. Build the messages from `Review.MinRating`, `Review.MaxRating` and `Review.MaxCommentLength`, the same way the domain does. The message of `Review.Duplicate` contains the generated Id: use `.Match("A review with id '*' already exists.")`, as for `Favorite.Duplicate`.
 - Never use real time: `Now` is fixed.
 
+## Feature: Condition filter (Carina)
+
+Production code: `Features/Listings/GetListings/GetListingsHandler.cs`, the new optional `Condition` filter of `GetListingsQuery`. `Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument (`Condition: Condition.Good`).
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it, keep every existing test).
+
+Tests to add:
+- three Active listings (New, Good, Worn), query with `Condition = Good` → only the Good one, `TotalCount` 1.
+- `Category` and `Condition` together → only the listings that match both.
+- no `Condition` → every Active listing comes back (unchanged behaviour).
+
+Rules for this feature:
+- The handler is a query handler: the repository content is unchanged after every call.
+- Never use real time; every `createdAt` is a fixed `DateTimeOffset`.
+
+## Feature: My profile (Carina)
+
+Production code (written by hand, read it before generating):
+- `Features/Members/GetMyProfile/GetMyProfileHandler.cs`: a query handler with only `IMemberRepository` (no `IUnitOfWork`). Unknown member → `NotFound` `Member.NotFound`; otherwise `GetMyProfileResponse.From(member)` with `Id`, `Name`, `Email` (the email value), `Role` (as text) and `CreatedAt`. There is no password field in the response.
+- `Features/Members/UpdateMyProfile/UpdateMyProfileHandler.cs`: unknown member → `NotFound` `Member.NotFound`; otherwise `member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same; a validation error from `Update` is returned as it is; then `repository.Update` and one `CommitAsync`.
+
+Files (new): `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs`, `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs`.
+
+Arrange: `FakeMemberRepository`, `FakeUnitOfWork`, a fixed `Now`. Build members with `Member.Register(name, email, new FakePasswordHasher().Hash("secret12"), Now)` (or with `MemberRole.Admin` as the last argument for an Admin) and put them straight into `FakeMemberRepository.Items`.
+
+Tests to add:
+- GetMyProfile:
+  - a stored Student → success with its `Id`, `Name`, `Email` (lower case), `Role` `"Student"` and `CreatedAt` = `Now`; the repository is unchanged.
+  - a stored Admin → `Role` is `"Admin"`.
+  - unknown id → `NotFound` `Member.NotFound`.
+- UpdateMyProfile:
+  - a valid new name → success, returns the member's `Id`; the stored member has the new (trimmed) name and the same email; `UpdateCount` 1; `SaveCount` 1.
+  - a name of 1 character → `Validation` `Member.InvalidName`; the name is unchanged; `UpdateCount` 0; `SaveCount` 0.
+  - unknown id → `NotFound` `Member.NotFound`; `SaveCount` 0.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Public profile (Carina)
+
+Production code (written by hand, read it before generating): `Features/Members/GetPublicProfile/GetPublicProfileHandler.cs`, a query handler with `IMemberRepository`, `IListingRepository` and `IReviewRepository` (no `IUnitOfWork`).
+- Unknown member → `NotFound` `Member.NotFound`.
+- Otherwise: only the listings with `SellerId` = the member's id and `Status` = `Active`, ordered by `CreatedAt` descending, then `Id` ascending, as `PublicListingItem(Id, Title, Price.Amount)`.
+- Reviews come from `GetBySellerAsync`: `AverageRating` is null when there are none, otherwise `Math.Round(average, 2)`; `ReviewCount` is their number.
+- The response has no email and no role.
+
+File (new): `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`.
+
+Fakes: `FakeMemberRepository`, `FakeListingRepository`, and `FakeReviewRepository`. If `FakeReviewRepository` already exists in `Fakes/`, use it as it is; if not, add one in the same hand-written style (`Items` by `Id`, `GetBySellerAsync` returns the reviews with that `SellerId`).
+
+Arrange (read `Listing.cs` and `Review.cs` for the exact signatures; fixed `Now` and fixed, named ids such as `SellerId`, `BuyerId`, `OtherSellerId`):
+- Draft listing: `Listing.Create(...).Value`. Active: then `Publish()`. Sold: `Publish()`, `Reserve(BuyerId, Now)`, then `ConfirmSale(reservationId, Now)`.
+- A review: `Review.Create(BuyerId, soldListing, rating, null, Now).Value` (the sold listing's completed reservation belongs to `BuyerId`).
+- Give the listings different fixed `createdAt` values, so the expected order is known.
+
+Tests to add:
+- the member has 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with the right title and price.
+- an Active listing of another seller is not included.
+- no reviews → `AverageRating` null, `ReviewCount` 0.
+- reviews with ratings 5 and 4 → `AverageRating` 4.5, `ReviewCount` 2.
+- reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals).
+- unknown id → `NotFound` `Member.NotFound`.
+- In every test the repositories are unchanged after the call (it is a query).
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 Production code: `Features/Listings/SuggestCategory/SuggestCategoryHandler.cs`, `MinConfidence` = 0.7; `SuggestCategoryResponse.Category` is now nullable.
@@ -600,3 +673,100 @@ Production code (written by hand, read it before generating):
 - PriceAccuracy: no records → count 0, metrics null; records (suggested 100/sold 80, suggested 50/sold 50) → count 2, MAE 10, MAPE 12.5; per category grouped; last records newest first, at most 10.
   Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100% lines and branches.
 
+## Feature: Change password (Carina)
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/Member.cs`, `ChangePassword(newPasswordHash)`: an empty or whitespace hash → `Validation` `Member.PasswordRequired` ("A password is required."); otherwise it sets `PasswordHash` and returns the same member.
+- `Features/Auth/ChangePassword/ChangePasswordHandler.cs`, in this order: member not found → `NotFound` `Member.NotFound`; `PasswordHash` null or `Verify` false → `Validation` `Auth.InvalidCredentials` ("The email or the password is wrong."); new password null, empty or shorter than `RegisterHandler.MinPasswordLength` (8) → `Validation` `Auth.WeakPassword`; `NewPassword` different from `ConfirmNewPassword` → `Validation` `Auth.PasswordsDoNotMatch`; otherwise `Hash(new)`, `ChangePassword`, `repository.Update`, one `CommitAsync`, and it returns the member's `Id`.
+
+Files: `Domain/Members/MemberTests.cs` (add to it), `Features/Auth/ChangePassword/ChangePasswordHandlerTests.cs` (new). Use the existing `FakeMemberRepository`, `FakePasswordHasher` and `FakeUnitOfWork`; read them first to see how the fake hash is built and what they count.
+
+Tests to add:
+- `Member.ChangePassword`: a hash → stored, the same instance is returned; `""` and `"   "` (`[Theory]`) → `Member.PasswordRequired`, the hash is unchanged.
+- success → `PasswordHash` is the fake hash of the new password, returns the member's `Id`, `UpdateCount` 1, `SaveCount` 1.
+- wrong current password → `Auth.InvalidCredentials`; hash unchanged; `UpdateCount` 0; `SaveCount` 0.
+- a member without a password (`Member.Create`) → `Auth.InvalidCredentials`.
+- new password of 7 characters → `Auth.WeakPassword`; exactly 8 characters → success (the boundary); empty → `Auth.WeakPassword`.
+- confirmation different → `Auth.PasswordsDoNotMatch`; `SaveCount` 0.
+- unknown member → `NotFound` `Member.NotFound`; `SaveCount` 0.
+- the `changed.IsFailure` branch of the handler: `FakePasswordHasher` never returns an empty hash, so add one small private class in `ChangePasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` and `Verify` returns `true` → `Validation` `Member.PasswordRequired` (from `Member.ChangePassword`); the hash is unchanged; `UpdateCount` 0; `SaveCount` 0. This extra hasher is allowed only for this test.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a branch of `ChangePasswordHandler` or `Member.ChangePassword` still cannot be reached with these fakes, stop and report it; do not remove code from `src/`.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Validation thresholds (Anca)
+
+Production code (read it before generating): the minimum confidence of the category suggestion is no longer a constant in the handler. `SuggestCategoryHandler(ICategorySuggester suggester, IOptions<CategorySuggestionOptions> options)` returns the category only when `suggestion.Confidence >= options.Value.MinConfidence`, otherwise `Category` null (the confidence is always returned). `CategorySuggestionOptions` is in `Common/Categories/`, property `MinConfidence` (default 0.6). `SuggestCategoryHandler.MinConfidence` does not exist any more.
+
+File: `Features/Listings/SuggestCategory/SuggestCategoryHandlerTests.cs` (update it).
+
+Changes to the existing tests (keep every test, its name and its assertions):
+- Build the handler with `new SuggestCategoryHandler(suggester, Options.Create(new CategorySuggestionOptions { MinConfidence = 0.7 }))` in every test, through one private helper in the class, so the tests written for the 0.7 limit keep their meaning (0.9 and exactly 0.7 give the category, 0.69 gives null).
+
+Tests to add:
+- `MinConfidence` 0.6 and a suggestion with confidence 0.6 → the category is returned (the limit is inclusive); with confidence 0.59 → `Category` null and `Confidence` 0.59.
+- `MinConfidence` 0.95 and confidence 0.9 → `Category` null: the handler uses the configured value, not a fixed one.
+- Each of these checks that the fake suggester was called once with the trimmed title.
+
+Rules for this feature:
+- `Options.Create` comes from `Microsoft.Extensions.Options`; never mock `IOptions`.
+- Never use real time.
+
+## Feature: Similar listings (Anca)
+
+Production code (read it before generating): `Features/Listings/GetSimilarListings/GetSimilarListingsHandler.cs`, a query handler with `IListingRepository` and `ISimilarListingsFinder` (`Common/Similarity/`, method `Similarities(ListingText target, IReadOnlyList<ListingText> candidates)` returning one similarity per candidate, in the same order). `GetSimilarListingsQuery.MaxResults` is 5.
+- Unknown id → `NotFound` `Listing.NotFound` (message `Listing '<id>' was not found.`); the finder is not called.
+- The target can have any status. The candidates are every `Active` listing except the target; when there is none, the result is an empty list and the finder is not called.
+- The finder gets the target's title and description and the candidates' titles and descriptions. The items are ordered by similarity (highest first), equal similarities by `CreatedAt` (newest first) then by `Id`; at most 5; each item has id, title, category, condition, price and the similarity rounded to two decimals (`MidpointRounding.AwayFromZero`).
+
+New fake: `Fakes/FakeSimilarListingsFinder.cs` implementing `ISimilarListingsFinder`: the test gives a similarity per candidate title (a dictionary; a title not in it gets 0); it records the call count, the last target and the last candidates.
+
+File: `Features/Listings/GetSimilarListings/GetSimilarListingsHandlerTests.cs` (new).
+
+Tests to add:
+- unknown id → `NotFound` `Listing.NotFound` with the exact message; finder call count 0.
+- the target is the only `Active` listing (the others are a draft, a reserved, a sold and a hidden listing) → success with an empty list; finder call count 0.
+- with a draft target and three `Active` listings → success; the finder got the target's title and description and exactly the three `Active` listings (never the target, never a non-`Active` one).
+- seven `Active` candidates with different similarities → five items, highest similarity first.
+- two candidates with the same similarity and different `CreatedAt` → the newer first; same similarity and same `CreatedAt` → the smaller `Id` first.
+- similarities 0.456 and 0.125 → 0.46 and 0.13 in the items; the item carries the candidate's id, title, category, condition and price.
+- the repository content is unchanged after every call.
+
+Rules for this feature:
+- Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
+- Build hidden, reserved and sold listings through the domain methods (`Publish`, `Reserve`, `ConfirmSale`, `Hide`), like the other handler tests.
+
+## Feature: Conversations (Anca)
+
+Production code (read it before generating):
+- `Domain/Conversations/Conversation.cs`:
+    - `Conversation.Start(buyerId, listing, text, now)` checks, in this order: `Guid.Empty` → `Conversation.BuyerEmpty`; the buyer is the seller → `Conversation.OwnListing`; the listing is not `Active` or `Reserved` (draft, sold, hidden) → `Conversation.ListingNotAvailable`; then the errors of the first message (see `Send`). Otherwise a conversation with a new `Id`, `listing.Id`, `listing.SellerId`, the buyer, `CreatedAt` and `LastMessageAt` = `now`, and one message (number 1, from the buyer).
+    - `Send(senderId, text, now)` checks, in this order: the sender is neither the buyer nor the seller → `Conversation.NotParticipant` (`ErrorType.Forbidden`); the text is null, empty or blank → `Message.Empty`; longer than `Message.MaxTextLength` (1000) after trim → `Message.TooLong`. Otherwise it adds a message with a new `Id`, the conversation id, `Number` = count + 1, the sender, the **trimmed** text and `now`, sets `LastMessageAt` = `now` and returns the message. A failed `Send` changes nothing.
+    - `IsParticipant(memberId)`; `OtherParticipant(memberId)`: the buyer for the seller, the seller for anyone else.
+- `Domain/Conversations/IConversationRepository.cs`: `AddAsync`, `GetByIdAsync`, `GetByListingAndBuyerAsync(listingId, buyerId)`, `GetForMemberAsync(memberId)` (buyer or seller).
+- `Features/Conversations/StartConversation/`: `StartConversationCommand(BuyerId, ListingId, Text)`. Order: 404 `Listing.NotFound`, 404 `Member.NotFound`; if the buyer already has a conversation about this listing, the message is sent in it (`Send` errors), otherwise `Conversation.Start` (its errors) and `AddAsync`; then one `CommitAsync`. Returns `MessageResponse(ConversationId, Id, Number, SenderId, Text, SentAt)`.
+- `Features/Conversations/SendMessage/`: `SendMessageCommand(SenderId, ConversationId, Text)`. 404 `Conversation.NotFound`, then the `Send` errors, then one `CommitAsync`. Same `MessageResponse`.
+- `Features/Conversations/GetConversation/`: `GetConversationQuery(MemberId, ConversationId)`. 404 `Conversation.NotFound`; not the buyer or the seller → Forbidden `Conversation.NotParticipant` (message `Only the buyer and the seller can read this conversation.`). Returns the id, listing id and title, seller id and name, buyer id and name, `CreatedAt` and the messages ordered by `Number`.
+- `Features/Conversations/GetMyConversations/`: `GetMyConversationsQuery(MemberId)`. Every conversation where the member is the buyer or the seller; each item: id, listing id and title, the other member's id and name, the text, sender and time of the last message (highest `Number`), `LastMessageAt`, the message count; ordered by `LastMessageAt` descending, then by `Id`. `Count` = number of items. No conversation → empty list (the listing and member repositories are not needed).
+
+New fake `Fakes/FakeConversationRepository.cs`: a `List<Conversation>` exposed as `Items`; `AddAsync` stores; the three reads look in `Items` (`GetForMemberAsync` returns a snapshot with `ToList()`).
+
+Files: `Domain/Conversations/ConversationTests.cs`, `Features/Conversations/StartConversation/StartConversationHandlerTests.cs`, `Features/Conversations/SendMessage/SendMessageHandlerTests.cs`, `Features/Conversations/GetConversation/GetConversationHandlerTests.cs`, `Features/Conversations/GetMyConversations/GetMyConversationsHandlerTests.cs` (all new).
+
+Arrange: fixed, named ids `SellerId`, `BuyerId`, `OtherMemberId`; a published listing is `Listing.Create(SellerId, ...).Value` then `Publish()`; reserved, sold and hidden through the domain methods (`Reserve`, `ConfirmSale`, `Hide`). For the handlers the members must exist in `FakeMemberRepository` (create them with `Member.Create(...)` and use their `Id`s) and the listings in `FakeListingRepository`. `Now` is fixed and reaches the handlers through `FixedTimeProvider`; for later messages call `Send` with `Now.AddMinutes(...)`.
+
+Tests to add:
+- `Conversation.Start`: an active listing and `"  Mai e disponibil?  "` → success with a non-empty `Id`, `listing.Id`, `SellerId`, the buyer, `CreatedAt` and `LastMessageAt` = `Now`, one message with number 1, the buyer, `"Mai e disponibil?"`, `Now` and the conversation id; a reserved listing → success; a draft, a sold and a hidden listing → `Conversation.ListingNotAvailable`; the seller → `Conversation.OwnListing`; `Guid.Empty` → `Conversation.BuyerEmpty`; text `null`, `""`, `"   "` → `Message.Empty`; 1000 characters → success; 1001 → `Message.TooLong`. Order: `Guid.Empty` on a draft → `Conversation.BuyerEmpty`; the seller on a draft → `Conversation.OwnListing`; empty text on a draft → `Conversation.ListingNotAvailable`.
+- `Send`: the seller answers → number 2, `LastMessageAt` is the new time; the buyer again → number 3; another member → Forbidden `Conversation.NotParticipant`, still the same messages and `LastMessageAt`; empty and too long text → their errors, nothing added; another member with an empty text → `Conversation.NotParticipant`. `IsParticipant` true for the two, false for another member; `OtherParticipant` gives the buyer for the seller and the seller for the buyer.
+- `StartConversationHandler`: no conversation yet → the response (conversation id of the stored conversation, number 1, the buyer, the trimmed text, `Now`), one conversation in the fake, `SaveCount` 1; the buyer already has one → the message is added to it (number 2), still one conversation, `SaveCount` 1; the existing conversation's listing is now sold → the message is still sent; unknown listing → `Listing.NotFound`; unknown member → `Member.NotFound`; both unknown → `Listing.NotFound`; the seller → `Conversation.OwnListing`; a draft → `Conversation.ListingNotAvailable`; empty text, new and existing conversation → `Message.Empty`. In every failure `SaveCount` 0 and nothing new in the fake.
+- `SendMessageHandler`: the seller answers → the response (number 2, the seller, the trimmed text, `Now`), the message is in the stored conversation, `SaveCount` 1; unknown conversation → `Conversation.NotFound`; another member → Forbidden `Conversation.NotParticipant`; empty and too long → their errors. In every failure `SaveCount` 0 and no new message.
+- `GetConversationHandler`: as the buyer and as the seller → every field, messages in number order (seed three messages); another member → Forbidden `Conversation.NotParticipant`; unknown → `Conversation.NotFound`. The fakes are unchanged after every call.
+- `GetMyConversationsHandler`: a member with no conversation → empty list, `Count` 0; the seller with two conversations (two buyers, two listings) → both, the one with the latest message first, other member = the buyer, every field checked (last message text and sender, count); the buyer → other member = the seller; conversations of other members are not returned; two conversations with the same `LastMessageAt` → ordered by `Id`. The fakes are unchanged after every call.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the `Message.TooLong` message from `Message.MaxTextLength`.
+- Never use real time: `Now` is fixed.

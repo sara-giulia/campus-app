@@ -10,7 +10,8 @@ public static class GetListingsEndpoint
     public static void Map(RouteGroupBuilder group)
     {
         group.MapGet("/", Handle)
-            .WithName("GetListings");
+            .WithName("GetListings")
+            .CacheOutput(p => p.Expire(TimeSpan.FromSeconds(30)).SetVaryByQuery("*").Tag(ListingsCache.Tag));
     }
 
     private static async Task<Results<Ok<GetListingsResponse>, BadRequest<Error>>> Handle(
@@ -19,6 +20,7 @@ public static class GetListingsEndpoint
         decimal? minPrice,
         decimal? maxPrice,
         string? search,
+        Condition? condition,
         int? page,
         int? pageSize,
         CancellationToken ct)
@@ -29,7 +31,8 @@ public static class GetListingsEndpoint
             maxPrice,
             search,
             page ?? GetListingsQuery.DefaultPage,
-            pageSize ?? GetListingsQuery.DefaultPageSize);
+            pageSize ?? GetListingsQuery.DefaultPageSize,
+            condition);
 
         var result = await handler.HandleAsync(query, ct);
 

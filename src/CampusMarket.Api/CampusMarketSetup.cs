@@ -18,7 +18,9 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
+using CampusMarket.Api.Features.Conversations;
 using CampusMarket.Api.Features.Favorites;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Moderation;
@@ -32,6 +34,8 @@ namespace CampusMarket.Api;
 /// and the API tests use it to start the same API on a free port.
 public static class CampusMarketSetup
 {
+    public const string FrontendCorsPolicy = "Frontend";
+
     public static IServiceCollection AddCampusMarket(this IServiceCollection services, IConfiguration configuration)
     {
         // Application clock: tests can replace it with a fake clock
@@ -50,6 +54,7 @@ public static class CampusMarketSetup
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
+        services.AddScoped<IConversationRepository, EfConversationRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -73,7 +78,7 @@ public static class CampusMarketSetup
         services.AddAuthorizationBuilder()
             .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
         
-        // At most 5 login attempts per minute from the same IP address, then 429.
+        // At most 5 login attempts and 5 registrations per minute from the same IP address, then 429.
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -85,9 +90,24 @@ public static class CampusMarketSetup
                         PermitLimit = 5,
                         Window = TimeSpan.FromMinutes(1)
                     }));
+
+            // Same idea as login: a burst of sign-ups from one IP is blocked (429). The limit is
+            // configurable so the integration tests, which register many members, can raise it.
+            var registerLimit = configuration.GetValue("RateLimiting:RegisterPermitLimit", 5);
+            options.AddPolicy("register", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = registerLimit,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
         });
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
+        
+        // API description for the documentation page (served only in Development, see Program.cs).
+        services.AddOpenApi();
 
         // Background reservation expiry: registered only when enabled, so tests and
         // scenarios that need a quiet host can turn it off through configuration.
@@ -106,8 +126,24 @@ public static class CampusMarketSetup
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         // GET /health: the API is up and can reach the database.
-        services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
-        
+        services.AddHealthChecks()
+            .AddDbContextCheck<CampusMarketDbContext>(tags: ["ready"])
+            .AddCheck<MlModelsHealthCheck>("ml-models", tags: ["ready"]);
+        services.AddOutputCache();
+
+        // The web frontend runs on another origin (Vite on :5173 in development),
+        // so the browser needs CORS. Only the origins in Cors:AllowedOrigins are allowed;
+        // the token goes in the Authorization header, so no cookies (no AllowCredentials).
+        // GetChildren instead of Get<string[]>() ?? []: a missing section simply gives no origins.
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").GetChildren()
+            .Select(origin => origin.Value!)
+            .ToArray();
+        services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders("Location")));
+
         return services;
     }
 
@@ -266,6 +302,7 @@ public static class CampusMarketSetup
         api.MapModerationEndpoints();
         api.MapReviewsEndpoints();
         api.MapAdminEndpoints();
+        api.MapConversationsEndpoints();
 
         return app;
     }

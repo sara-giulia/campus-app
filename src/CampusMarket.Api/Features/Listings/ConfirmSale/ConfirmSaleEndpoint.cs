@@ -3,6 +3,7 @@ using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace CampusMarket.Api.Features.Listings.ConfirmSale;
 
@@ -20,6 +21,7 @@ public static class ConfirmSaleEndpoint
         Guid reservationId,
         ClaimsPrincipal user,
         ICommandHandler<ConfirmSaleCommand, Guid> handler,
+        IOutputCacheStore cache,
         CancellationToken ct)
     {
         var command = new ConfirmSaleCommand(id, reservationId, user.GetMemberId(), user.IsAdmin());
@@ -33,6 +35,8 @@ public static class ConfirmSaleEndpoint
                 ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };
+
+        await ListingsCache.ClearAsync(cache, ct);
 
         return TypedResults.NoContent();
     }
