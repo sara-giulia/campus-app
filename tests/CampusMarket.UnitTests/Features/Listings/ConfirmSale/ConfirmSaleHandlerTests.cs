@@ -2,6 +2,7 @@ using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Features.Listings.ConfirmSale;
 using CampusMarket.UnitTests.Fakes;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CampusMarket.UnitTests.Features.Listings.ConfirmSale;
@@ -309,5 +310,60 @@ public class ConfirmSaleHandlerTests
         result.IsFailure.Should().BeTrue();
         saleRecords.Items.Should().BeEmpty();
         suggester.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_SuggesterThrows_When_SellerConfirms_Then_LogsOneWarning()
+    {
+        var (listing, reservation) = BuildReservedListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var suggester = new FakePriceSuggester { ThrowOnSuggest = true };
+        var logger = new FakeLogger<ConfirmSaleHandler>();
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), suggester, new FakeUnitOfWork(), new FixedTimeProvider(Now.AddHours(1)), logger);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().Equal(new FakeLogger<ConfirmSaleHandler>.LogEntry(
+            LogLevel.Warning,
+            "Price suggester threw while recording a sale; no SaleRecord saved for this confirmation."));
+    }
+
+    [Fact]
+    public async Task Given_SuggesterReturnsZero_When_SellerConfirms_Then_LogsOneWarningWithListingId()
+    {
+        var (listing, reservation) = BuildReservedListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var suggester = new FakePriceSuggester { SuggestedPrice = 0 };
+        var logger = new FakeLogger<ConfirmSaleHandler>();
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), suggester, new FakeUnitOfWork(), new FixedTimeProvider(Now.AddHours(1)), logger);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().Equal(new FakeLogger<ConfirmSaleHandler>.LogEntry(
+            LogLevel.Warning,
+            $"Price suggester returned no usable suggestion (<= 0) for listing {listing.Id}; no SaleRecord saved."));
+    }
+
+    [Fact]
+    public async Task Given_SuggesterReturnsPositivePrice_When_SellerConfirms_Then_LogsNothing()
+    {
+        var (listing, reservation) = BuildReservedListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var suggester = new FakePriceSuggester { SuggestedPrice = 120 };
+        var logger = new FakeLogger<ConfirmSaleHandler>();
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), suggester, new FakeUnitOfWork(), new FixedTimeProvider(Now.AddHours(1)), logger);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        logger.Entries.Should().BeEmpty();
     }
 }

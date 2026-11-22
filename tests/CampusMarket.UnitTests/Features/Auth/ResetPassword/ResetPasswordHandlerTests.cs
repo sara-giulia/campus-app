@@ -1,5 +1,6 @@
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Features.Auth.Register;
 using CampusMarket.Api.Features.Auth.ResetPassword;
 using CampusMarket.UnitTests.Fakes;
 
@@ -53,12 +54,43 @@ public class ResetPasswordHandlerTests
         tokens.Items.Values.Single().UsedAt.Should().Be(Now);
         refreshTokens.Items.Values.Single().RevokedAt.Should().Be(Now);
         unitOfWork.SaveCount.Should().Be(1);
+        members.UpdateCount.Should().Be(1);
+        tokens.UpdateCount.Should().Be(1);
+        refreshTokens.UpdateCount.Should().Be(1);
 
         emailSender.Items.Should().HaveCount(1);
         var email = emailSender.Items.Single();
         email.To.Should().Be("ada@student.ro");
         email.Subject.Should().Be("Your CampusMarket password was changed");
         email.Body.Should().NotContain(ValidPassword);
+        email.Body.Should().Be(
+            $"Hello Ada,{Environment.NewLine}{Environment.NewLine}" +
+            "Your CampusMarket password was just changed. If this wasn't you, contact support right away." + Environment.NewLine);
+    }
+
+    [Fact]
+    public async Task Given_NewPasswordOfExactlyMinLength_When_Handling_Then_ChangesPassword()
+    {
+        var member = BuildMember();
+        var (token, plain) = PasswordResetToken.Create(member.Id, Now);
+        var tokens = new FakePasswordResetTokenRepository();
+        tokens.Items[token.Id] = token;
+        var members = new FakeMemberRepository();
+        members.Items[member.Id] = member;
+        var refreshTokens = new FakeRefreshTokenRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var hasher = new FakePasswordHasher();
+        var emailSender = new FakeEmailSender();
+        var handler = BuildHandler(tokens, members, refreshTokens, unitOfWork, hasher, emailSender);
+        var password = new string('a', RegisterHandler.MinPasswordLength);
+        var command = new ResetPasswordCommand(plain, password, password);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(member.Id);
+        member.PasswordHash.Should().Be(FakePasswordHasher.Prefix + password);
+        unitOfWork.SaveCount.Should().Be(1);
     }
 
     [Fact]

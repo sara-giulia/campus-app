@@ -188,4 +188,28 @@ public class GetPublicProfileHandlerTests
         listings.Items.Should().ContainSingle();
         reviews.Items.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Given_TwoActiveListingsWithSameCreatedAt_When_Handling_Then_AreOrderedByIdAscending()
+    {
+        var seller = BuildSeller();
+        var members = BuildMembers(seller);
+        var first = BuildActiveListing(seller.Id, "Algebra book", 25m, Now);
+        var second = BuildActiveListing(seller.Id, "OOP textbook", 40m, Now);
+        var listings = new FakeListingRepository();
+        listings.Items[first.Id] = first;
+        listings.Items[second.Id] = second;
+        var reviews = new FakeReviewRepository();
+        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var query = new GetPublicProfileQuery(seller.Id);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ActiveListings.Should().HaveCount(2);
+        result.Value.ActiveListings.Should().BeInAscendingOrder(i => i.Id);
+        members.Items.Should().ContainSingle();
+        listings.Items.Should().HaveCount(2);
+        reviews.Items.Should().BeEmpty();
+    }
 }
