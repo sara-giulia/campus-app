@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import type { CurrentUser } from '../api/jwt'
+import { useNotifications } from '../features/notifications/NotificationsContext'
+import { NotificationsProvider } from '../features/notifications/NotificationsProvider'
 import { useAuth } from './auth/AuthContext'
 import { menuItems, type MenuItem } from './menu'
 import { ButtonLink, CloseIcon, Logo, LogoutIcon, MenuIcon, ThemeToggle } from './ui'
@@ -27,7 +29,16 @@ function initials(email: string): string {
 
 // The frame of every page: the top bar (logo, menu, theme, account), the page (<Outlet />), the footer.
 export function Layout() {
+  return (
+    <NotificationsProvider>
+      <LayoutShell />
+    </NotificationsProvider>
+  )
+}
+
+function LayoutShell() {
   const { user, logout } = useAuth()
+  const { unreadCount } = useNotifications()
   const navigate = useNavigate()
   const location = useLocation()
   // The phone menu stays open only on the page where it was opened, so it closes on navigation.
@@ -53,6 +64,11 @@ export function Layout() {
             {links.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.to === '/'} className="nav__link">
                 {item.label}
+                {item.to === '/notifications' && unreadCount !== null && unreadCount > 0 && (
+                  <span className="nav__badge" aria-label={`${unreadCount} notificări necitite`}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>

@@ -19,6 +19,7 @@ export const menuItems: MenuItem[] = [
   { to: '/my/reservations', label: 'Rezervările mele', show: 'user' },
   { to: '/messages', label: 'Mesaje', show: 'user' },
   { to: '/my/favorites', label: 'Favorite', show: 'user' },
+  { to: '/notifications', label: 'Notificări', show: 'user' },
   { to: '/admin/moderation', label: 'Moderare', show: 'Admin' },
   { to: '/admin/categories', label: 'Categorii', show: 'Admin' },
 ]
