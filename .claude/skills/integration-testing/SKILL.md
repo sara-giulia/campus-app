@@ -231,6 +231,7 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 - Never commit or push; report the results.
 - Never edit `postman/`, `.github/`, or anything in `tests/CampusMarket.UnitTests`.
 - Never declare a private helper with an interface return type when it always returns one concrete type (for example `IReadOnlyList<T>` for a method that returns `.ToList()`): return the concrete type (`List<T>`). SonarCloud reports it as CA1859. After generating, build with `-p:ErrorLog=<file>.sarif%2Cversion=2.1` and check that the new test files have no CA or IDE diagnostic.
+- Never pass a constant array literal as an argument (CA1861): put it in a `private static readonly` field.
 
 ## 8. Old API tests
 

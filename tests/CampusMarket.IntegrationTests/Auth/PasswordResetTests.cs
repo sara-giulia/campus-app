@@ -22,6 +22,7 @@ namespace CampusMarket.IntegrationTests.Auth;
 public sealed class PasswordResetTests : IntegrationTestBase
 {
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
+    private static readonly char[] TokenLinkTerminators = ['\r', '\n', ' '];
     private const string OldPassword = "old-secret12";
     private const string NewPassword = "new-secret12";
 
@@ -219,7 +220,7 @@ public sealed class PasswordResetTests : IntegrationTestBase
     {
         const string marker = "token=";
         var start = body.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
-        var end = body.IndexOfAny(new[] { '\r', '\n', ' ' }, start);
+        var end = body.IndexOfAny(TokenLinkTerminators, start);
         return end < 0 ? body[start..] : body[start..end];
     }
 

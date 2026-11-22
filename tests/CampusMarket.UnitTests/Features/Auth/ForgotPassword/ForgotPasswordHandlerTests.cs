@@ -9,6 +9,7 @@ namespace CampusMarket.UnitTests.Features.Auth.ForgotPassword;
 public class ForgotPasswordHandlerTests
 {
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly char[] TokenLinkTerminators = ['\r', '\n', ' '];
 
     private static ForgotPasswordHandler BuildHandler(
         FakeMemberRepository members,
@@ -99,7 +100,7 @@ public class ForgotPasswordHandlerTests
     {
         const string marker = "token=";
         var start = body.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
-        var end = body.IndexOfAny(new[] { '\r', '\n', ' ' }, start);
+        var end = body.IndexOfAny(TokenLinkTerminators, start);
         return end < 0 ? body[start..] : body[start..end];
     }
 }

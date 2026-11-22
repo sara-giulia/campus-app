@@ -61,6 +61,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 9. Every test has at least one assertion.
 10. ResultTests must also check both throwing branches: reading `Value` on a failed result throws `InvalidOperationException`, and reading `Error` on a successful result throws `InvalidOperationException`. Use `Action act = () => _ = result.Value;` and `act.Should().Throw<InvalidOperationException>()`. Otherwise those branches stay uncovered.
 11. Every run starts in a new Claude Code session, so that the current version of this file is read and not an older context.
+12. Never pass a constant array literal as an argument (CA1861): put it in a `private static readonly` field.
 
 - If unit tests already exist, keep them and only add the tests that are missing for the current code. Then generate the coverage report again.
 

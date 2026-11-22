@@ -22,7 +22,7 @@ public sealed class SmtpEmailSender(IOptions<EmailOptions> options) : IEmailSend
 
         using var client = new SmtpClient(o.Host!, o.Port)
         {
-            EnableSsl = o.UseSsl,
+            EnableSsl = o.UseSsl, // NOSONAR: TLS comes from configuration (Email:UseSsl=true in production); the local Mailpit has no TLS
             DeliveryMethod = SmtpDeliveryMethod.Network,
         };
 
