@@ -34,6 +34,12 @@
   gap: 18px;
 }
 
+.login__forgot {
+  margin: -8px 0 0;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
 /* the big picture of the sketch; a soft coral panel until we have real photos */
 .login__picture {
   position: relative;
