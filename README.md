@@ -1057,6 +1057,8 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 
 ### Category suggestion model (B4)
 
+Model card (what it does, data, metrics, error analysis, limits): [docs/ml/category.md](docs/ml/category.md).
+
 - Trainer: `CategoryTrainer` in `ml/CampusMarket.ML.Training`, multiclass
   classification with SDCA maximum entropy on the non-spam rows only. Features:
   `Title` and `Description` through `FeaturizeText`, concatenated. Label: `Category`.
@@ -1106,6 +1108,8 @@ Model card (what it does, how it is evaluated, metrics, limits): [docs/ml/simila
   order.
 
 ### Spam detection model (B5)
+
+Model card (what it does, data, metrics, error analysis, limits): [docs/ml/spam.md](docs/ml/spam.md).
 
 - Trainer: `SpamTrainer` in `ml/CampusMarket.ML.Training`, binary classification
   with SDCA logistic regression on all rows. Features: `Title` and `Description`
