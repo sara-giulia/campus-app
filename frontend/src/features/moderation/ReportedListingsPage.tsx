@@ -97,8 +97,11 @@ export function ReportedListingsPage() {
                     <span>ultima: {formatDateTime(item.lastReportedAt)}</span>
                   </div>
                   <ul className="moderation__reasons">
-                    {item.reasons.map((r, i) => (
-                      <li key={`${item.listingId}-${i}`}>{r}</li>
+                    {groupReasons(item.reasons).map(([reason, times]) => (
+                      <li key={reason}>
+                        {reason}
+                        {times > 1 && <span className="moderation__times"> (×{times})</span>}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -115,4 +118,11 @@ export function ReportedListingsPage() {
       )}
     </div>
   )
+}
+
+// The same reason given by several members is shown once, with how many times (newest first, as the API sends them).
+function groupReasons(reasons: string[]): [string, number][] {
+  const counts = new Map<string, number>()
+  for (const reason of reasons) counts.set(reason, (counts.get(reason) ?? 0) + 1)
+  return [...counts.entries()]
 }

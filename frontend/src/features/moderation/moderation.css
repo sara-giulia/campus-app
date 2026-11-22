@@ -16,3 +16,7 @@
 .moderation__reasons li + li {
   margin-top: 2px;
 }
+
+.moderation__times {
+  color: var(--muted);
+}
