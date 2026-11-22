@@ -176,4 +176,14 @@ public class MemberTests
         result.Error.Code.Should().Be("Email.Invalid");
         result.Error.Message.Should().Be("Email must contain one @ with text before and after it.");
     }
+
+    [Fact]
+    public void Given_RegisteredMember_When_ChangingPassword_Then_StoresTheNewHash()
+    {
+        var member = Member.Register("Ada", "ada@student.ro", "hashed:old", Now).Value;
+
+        member.ChangePassword("hashed:new");
+
+        member.PasswordHash.Should().Be("hashed:new");
+    }
 }
