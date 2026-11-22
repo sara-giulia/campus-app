@@ -40,6 +40,9 @@ public sealed class SpamTrainer : IModelTrainer
         var threshold = ThresholdSelection.ChooseSpamThreshold(validationTable);
         var atThreshold = ClassificationReport.Binary(Predictions(selection, scored), threshold);
 
+        // Explainability: the words that push the most towards spam and towards a normal listing.
+        var topWords = FeatureWeights.ForSpam(model, trainData.Schema);
+
         var text =
             $"Accuracy:  {metrics.Accuracy:F3}{Environment.NewLine}" +
             $"AUC:       {metrics.AreaUnderRocCurve:F3}{Environment.NewLine}" +
@@ -52,7 +55,9 @@ public sealed class SpamTrainer : IModelTrainer
             "Spam threshold, chosen on validation (best F1; the middle one when several tie):" + Environment.NewLine +
             ThresholdSelection.ToMarkdown(validationTable, threshold) + Environment.NewLine +
             FormattableString.Invariant($"On test at {threshold:0.00}: precision {atThreshold.Precision:0.000}, recall {atThreshold.Recall:0.000}, F1 {atThreshold.F1:0.000} (FP {atThreshold.FalsePositives}, FN {atThreshold.FalseNegatives}).") + Environment.NewLine +
-            FormattableString.Invariant($"API setting: Ml:Spam:Threshold = {threshold:0.00}");
+            FormattableString.Invariant($"API setting: Ml:Spam:Threshold = {threshold:0.00}") + Environment.NewLine +
+            Environment.NewLine +
+            FeatureWeights.ToMarkdown(topWords);
 
         var structured = new Dictionary<string, double>(StringComparer.Ordinal)
         {
