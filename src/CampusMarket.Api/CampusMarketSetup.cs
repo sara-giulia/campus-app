@@ -25,6 +25,8 @@ using CampusMarket.Api.Features.Moderation;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews;
 using CampusMarket.Api.Features.Admin;
+using CampusMarket.Api.Domain.Notifications;
+using CampusMarket.Api.Features.Notifications;
 
 namespace CampusMarket.Api;
 
@@ -52,6 +54,7 @@ public static class CampusMarketSetup
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
+        services.AddScoped<INotificationRepository, EfNotificationRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -299,6 +302,7 @@ public static class CampusMarketSetup
         api.MapModerationEndpoints();
         api.MapReviewsEndpoints();
         api.MapAdminEndpoints();
+        api.MapNotificationsEndpoints();
 
         return app;
     }

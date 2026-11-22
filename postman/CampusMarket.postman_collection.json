@@ -6202,6 +6202,140 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List my notifications (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/members/me/notifications?unreadOnly=false&page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "members",
+                "me",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "unreadOnly",
+                  "value": "false"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has items, count, totalCount, unreadCount and paging\", () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property(\"items\");",
+                  "  pm.expect(body.items).to.be.an(\"array\");",
+                  "  pm.expect(body).to.have.property(\"count\");",
+                  "  pm.expect(body).to.have.property(\"totalCount\");",
+                  "  pm.expect(body).to.have.property(\"unreadCount\");",
+                  "  pm.expect(body).to.have.property(\"page\");",
+                  "  pm.expect(body).to.have.property(\"pageSize\");",
+                  "});",
+                  "const items = pm.response.json().items;",
+                  "if (items.length > 0) {",
+                  "  pm.collectionVariables.set(\"notificationId\", items[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark notification as read (204)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/members/me/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "members",
+                "me",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const id = pm.collectionVariables.get(\"notificationId\");",
+                  "if (!id) {",
+                  "  pm.test(\"Skipped (no notification seeded)\", () => pm.expect(true).to.be.true);",
+                  "} else {",
+                  "  pm.test(\"Status is 204\", () => pm.response.to.have.status(204));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark all notifications as read (204)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/members/me/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "members",
+                "me",
+                "notifications",
+                "read-all"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "auth": {
@@ -6289,6 +6423,10 @@
     },
     {
       "key": "sellerId",
+      "value": ""
+    },
+    {
+      "key": "notificationId",
       "value": ""
     }
   ]
