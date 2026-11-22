@@ -1,0 +1,18 @@
+.moderation {
+  max-width: 900px;
+}
+
+.moderation__body {
+  min-width: 0;
+}
+
+.moderation__reasons {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.moderation__reasons li + li {
+  margin-top: 2px;
+}
