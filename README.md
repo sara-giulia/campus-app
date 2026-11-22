@@ -219,6 +219,10 @@ flowchart LR
 | Hide a listing | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only; only `Active` or `Reserved` |
 | Review the seller | `AddReview` | `POST /api/v1/listings/{id}/reviews` | only the buyer; only after the sale is confirmed; rating 1 to 5; once per sale |
 | See a member's reviews | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews` | public; newest first, with the average rating |
+| Write to the seller | `StartConversation` | `POST /api/v1/listings/{id}/conversations` | not own listing; a new conversation only on an `Active` or `Reserved` listing; one conversation per buyer and listing |
+| Answer in a conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | only the buyer and the seller |
+| Read a conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | only the buyer and the seller |
+| See my conversations | `GetMyConversations` | `GET /api/v1/members/me/conversations` | as buyer and as seller; the latest message first |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -245,6 +249,10 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
 | Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
+| Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, 401, 404 |
+| Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `GetMyConversations` | `GET /api/v1/members/me/conversations` | anyone logged in; only their own conversations | 200, 401 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
@@ -502,6 +510,17 @@ After a sale is confirmed, the buyer rates the seller once.
 ```
 
 Reviews are stored in their own table (`Reviews`, migration `AddReviews`), with a unique index on the listing (one sale, one review) and foreign keys to `Listings` and to `Members` for the seller and the reviewer (cascade delete).
+
+### Messages between buyer and seller
+
+A buyer writes to the seller about a listing; only the two of them can read or write in that conversation (anyone else, an Admin too, gets 403 `Conversation.NotParticipant`).
+
+- `POST /api/v1/listings/{id}/conversations` with `{ "text": "Mai e disponibil?" }`: 201 with the message `{ conversationId, id, number, senderId, text, sentAt }` and `Location` to the conversation. The first message starts the conversation; if the buyer already has one about this listing, the message is added to it, so the "write to the seller" button always works the same way. A new conversation needs an `Active` or `Reserved` listing (400 `Conversation.ListingNotAvailable`); the seller cannot write about their own listing (400 `Conversation.OwnListing`). An existing conversation keeps working after the sale.
+- `POST /api/v1/conversations/{id}/messages` with `{ "text": "..." }`: the buyer or the seller answers, 201 with the same body.
+- `GET /api/v1/conversations/{id}`: the listing title, the two members' names and every message, in the order they were sent.
+- `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message and the number of messages.
+
+A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `AddConversations`.
 
 ## 4. Domain model
 
