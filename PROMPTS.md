@@ -2731,3 +2731,23 @@ Sara's notifications (#111), brought up to date and finished by Ancuța Ilenei w
     - Two integration tests added through the skill (row 2 of the integration run) for the list order and the paging errors.
 - **Checks:** build 0 warnings; 10 architecture, 654 unit, 69 ML and 361 integration tests pass; the new notification code covered in the merged coverage; SARIF of the API clean; newman against a fresh database: 178 requests, 346 assertions, 0 failed.
 - **Commits:** 4a1b0bb (fix), 4d5a11a (tests), c288b04 (merge with main, endpoint, row 2 tests), this PROMPTS commit
+
+## frontend-browse
+
+Weeks 6–7 (plan of Sara and Anca), Anca's frontend pages: home and search with filters and paging; the listing page with photos, similar listings, report and favorite buttons; messages (chat); my favorites; reviews on the seller's profile; Admin: the spam reports and hiding listings. (Publish and edit with the suggestions were already done by Sara in #117.) Written by Ancuța Ilenei with Claude Code.
+
+### Run 1
+
+- **Prompt:** `Next: my frontend pages from the plan (search with filters and paging, listing page with photos, similar, report and favorite, chat, my favorites, seller reviews, admin moderation). Same structure and look as the skeleton and Sara's pages.`
+- **Decisions:**
+    - Pages in the folders of the plan: `features/listings/` (search, listing page, card, photo controls; added next to Sara's files, her files unchanged), `features/messages/`, `features/favorites/`, `features/reviews/` (seller profile), `features/moderation/`; one `routes.tsx` each, one line each in `router.tsx`, new links in `menu.ts`.
+    - Search: the filters (`search`, `category`, `condition`, `minPrice`, `maxPrice`, `sort` from #86) and the page are in the address, so a search can be shared and the back button works. Cards show the first photo of the listing, or a tile in the category colour.
+    - Listing page: the buyer reserves, saves, writes to the seller (the first message opens the conversation) and reports; the seller adds and removes photos (`FormData` upload; `api/client.ts` now leaves the multipart `Content-Type` to the browser) and gets a link to Sara's edit page. Whether a listing is in my favorites is read from the first 100 favorites (there is no single-listing check).
+    - Chat: the conversation reloads every 5 seconds (real time with SignalR is one of the extras, not done).
+    - Romanian messages for the error codes of these pages in `app/errorMessage.ts`.
+    - The menu: links stay on one line (the phone menu below 1180px, since a logged-in member has ten links); the "Ieșire" link was removed because the top bar already has the logout button (noted in the review of #115).
+    - Every effect loads with `.then` and an `AbortController`; a change (hide, remove, send, photo) bumps a counter to load again, so the linter has nothing to say.
+- **Checks:** `npm run build` and `npm run lint` clean. On a running API with seeded data, screenshots of every page (guest, buyer, seller, Admin; desktop and 600px) and a headless Chrome script that clicks the real buttons: save / unsave, reserve, write to the seller (lands in the conversation), report, upload and delete a photo, answer in the chat, Admin hides a listing, search sorted by price. All pass.
+- **Result:** new `app/errorMessage.ts`, `features/listings/` (`BrowsePage`, `ListingPage`, `ListingCard`, `LatestListings`, `PhotoManager`, `photoSrc`, `publicTypes`, `browse.css`), `features/messages/`, `features/favorites/`, `features/reviews/`, `features/moderation/`; `api/client.ts`, `app/router.tsx`, `app/menu.ts`, `app/layout.css`, `app/pages/HomePage.tsx` (the newest listings under the hero) and `home.css`, `features/listings/routes.tsx`, `frontend/README.md` (pages table, upload, error texts).
+- **Commits:** code 86a8e07
+
