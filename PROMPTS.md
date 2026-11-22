@@ -892,6 +892,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 59b3660; generated code 237ab25
 
+### Run 32, skill v34 (Feature: Notifications)
+
+- **Why a new version:** Sara's notifications (#111): new domain `Notification`, three handlers (my notifications, mark one as read, mark all as read) and a notification written by `ReserveListingHandler`, `ConfirmSaleHandler` and `ExpireReservationsHandler`, with no unit test.
+
+#### Change to SKILL.md (v33 → v34) and why
+
+| # | v33 (before) | v34 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about notifications. | Section *"Feature: Notifications (Sara)"* (written by Sara, commit 155811a): the domain rules, the three handlers, a `FakeNotificationRepository`, and the notification checks to add to the reserve, confirm-sale and expiry handler tests. | The notification is written in the same unit of work as the action; only the handler tests show it is (or is not) added. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them, do not change them, only add the tests from the "Feature: Notifications (Sara)" section. Run dotnet test. Do not commit.` (new session, run by Ancuța Ilenei at Sara's request)
+- **Skill version:** v34, commit 155811a
+- **Result:** `Fakes/FakeNotificationRepository.cs`, `Domain/Notifications/NotificationTests.cs`, one test file per notification handler, and notification checks added to `ReserveListingHandlerTests`, `ConfirmSaleHandlerTests` and `ExpireReservationsHandlerTests`. After the merge with main: 654 unit tests pass.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 155811a; generated code 4d5a11a
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1661,7 +1678,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 59b3660; generated code 237ab25
 
+### Run 43, skill v42 (Feature: Notifications)
 
+- **Why a new version:** three new endpoints under `/api/v1/members/me/notifications` (list, mark one as read, mark all as read) and notifications written when a listing is reserved, sold or a reservation expires.
+
+#### Change to SKILL.md (v41 → v42) and why
+
+| # | v41 (before) | v42 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about notifications. | Section *"Feature: Notifications (Sara)"* (written by Sara, commit 155811a): reserve → the seller is notified, confirm sale → the buyer is notified, mark one / all as read, 404 for another member's notification, 401 without a token. | The notifications are written through the real reserve and confirm-sale endpoints and read back over HTTP. |
+| 2 | (after the first run) | Two more tests: two notifications come newest first (every field) and `unreadOnly` after reading one; `page=0` and `pageSize=101` → 400. | The coverage run after the merge with main showed the sorting in `EfNotificationRepository` and the 400 answer of the list endpoint were never run (Sonar needs 100% of the new code). |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, only add the tests from the "Feature: Notifications (Sara)" section. Run dotnet test three times. Do not commit.` Then, after row 2: `Add only the tests for the two new bullets of the section to NotificationsTests.cs.` (new sessions, run by Ancuța Ilenei at Sara's request)
+- **Skill version:** v42, commit 155811a; row 2 in the merge commit c288b04
+- **Result:** `Notifications/NotificationsTests.cs`, 11 tests in the first run, 15 after row 2. Integration tests 361/361 three times; full run 10 architecture, 654 unit, 69 ML, 361 integration; SARIF log empty.
+- **Problems seen:** the first run found a real bug: `GET /members/me/notifications` answered 500, because SQLite cannot `ORDER BY` a `DateTimeOffset` column. Fixed in `EfNotificationRepository.GetByMemberAsync` (read, then sort in memory, like the other repositories), commit 4a1b0bb.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill 155811a; generated code 4d5a11a, c288b04
 
 ## code-review
 
@@ -2632,4 +2665,19 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Poze la listări": upload only
     - Compared with the main before these merges (`4568297`), some content was lost in earlier conflict resolutions and is put back unchanged: the "Feature: Similar listings (Anca)" sections of both test skills; unit-testing Runs 21–23 in this file (before "Skill update v25 → v26"); 11 Postman requests (filter by condition, public profile, my profile, health live/ready) with their folders; the `sellerId` line of "Create listing - valid" and the `sellerId`, `convListingId`, `conversationId` collection variables. Every Postman request of main is unchanged.
 - **Checks:** build 0 warnings; 10 architecture, 605 unit, 69 ML and 346 integration tests pass; newman against a fresh database: 175 requests, 342 assertions, 0 failed.
 - **Commits:** the merge commit of this run
+
+## notifications
+
+Sara's notifications (#111), brought up to date and finished by Ancuța Ilenei with Claude Code at Sara's request: the tests generated with the skills (unit Run 32, integration Run 43), the merge with main and the fixes the tests and the coverage showed.
+
+### Run 1
+
+- **Prompt:** `Run the unit and integration skills on PR 111 (Sara's notifications), then bring it up to date with main and make everything work.`
+- **Decisions:**
+    - `EfNotificationRepository.GetByMemberAsync`: sort in memory (SQLite cannot order by `DateTimeOffset`; found by the first integration run).
+    - Merge with main (conversations, password reset, photos): both sides kept; the migration `AddNotifications` regenerated on top of `AddPhotos` (one `Notifications` table); `has-pending-model-changes` is clean. The Postman collection keeps every request of main plus the three notification requests.
+    - `MarkNotificationReadEndpoint`: the `_ => BadRequest` branch was removed, because the handler's only failure is `Notification.NotFound`; the endpoint answers 204 or 404.
+    - Two integration tests added through the skill (row 2 of the integration run) for the list order and the paging errors.
+- **Checks:** build 0 warnings; 10 architecture, 654 unit, 69 ML and 361 integration tests pass; the new notification code covered in the merged coverage; SARIF of the API clean; newman against a fresh database: 178 requests, 346 assertions, 0 failed.
+- **Commits:** 4a1b0bb (fix), 4d5a11a (tests), c288b04 (merge with main, endpoint, row 2 tests), this PROMPTS commit
 
