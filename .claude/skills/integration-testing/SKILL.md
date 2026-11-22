@@ -807,3 +807,14 @@ Tests to add:
 - seed a seller, a buyer and a published listing; reserve as the buyer, confirm the sale as the seller (204) → the database has 1 `SaleRecord` for that listing with sold price = listing price and suggested price > 0; then Admin GET → count 1 and the record in `lastRecords`.
   Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Password reset (Sara)
+Endpoints: `POST /api/v1/auth/forgot-password` `{ email }` (always 202, same body), `POST /api/v1/auth/reset-password` `{ token, newPassword, confirmNewPassword }` (204, or 400 `Auth.InvalidResetToken` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`).
+File: `Auth/PasswordResetTests.cs` (new).
+Test host: replace `IEmailSender` with a capturing fake (`ConfigureTestServices`) in a host started with `Factory.WithWebHostBuilder(...)`, disposed with `await using`; read the plain token from the captured email's link (`?token=`). The forgot-password endpoint shares the "login" rate limit: keep each test to a few calls.
+Tests to add:
+- registered member: forgot → 202, one email captured; reset with the token → 204; login with the new password 200 and with the old one 401; a second email "password changed" does not contain the new password; the database has the token marked used.
+- unknown email → 202 with exactly the same body as for a known email, no email captured, no token in the database.
+- the same token used twice → second reset 400 `Auth.InvalidResetToken`.
+- reset with a random token → 400 `Auth.InvalidResetToken`; weak password → 400 `Auth.WeakPassword`.
+  Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+

@@ -601,3 +601,15 @@ Production code (written by hand, read it before generating):
 - PriceAccuracy: no records → count 0, metrics null; records (suggested 100/sold 80, suggested 50/sold 50) → count 2, MAE 10, MAPE 12.5; per category grouped; last records newest first, at most 10.
   Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100% lines and branches.
 
+## Feature: Password reset (Sara)
+Production code (written by hand, read it before generating): `Domain/Members/PasswordResetToken.cs` (factory returns the token and the plain value once; only the SHA-256 hash is stored; valid 30 minutes; single use), `Member.ChangePassword`, `Features/Auth/ForgotPassword/ForgotPasswordHandler.cs`, `Features/Auth/ResetPassword/ResetPasswordHandler.cs`.
+Fakes: `FakePasswordResetTokenRepository` (new, same hand-written style), `FakeEmailSender` (new: records every sent email in a list), the existing `FakeMemberRepository`, `FakeRefreshTokenRepository`, `FakePasswordHasher`, `FakeUnitOfWork`; fixed `Now` through a fake `TimeProvider` if the handlers use one.
+Tests to add:
+- `PasswordResetToken`: the stored hash is not the plain token and equals SHA-256 of it; valid before 30 minutes, invalid at/after; invalid after `MarkUsed`.
+- Forgot password, existing email → success, one token saved, one email to that address whose body contains the plain token, `SaveCount` 1.
+- Forgot password, unknown email → the same success response, no token, no email, `SaveCount` 0.
+- Reset, valid token and matching strong password → success; the member's hash is the fake hash of the new password; the token is used; every active refresh token of the member is revoked; one email "password changed" whose body does not contain the new password; `SaveCount` 1.
+- Reset with unknown, expired or already used token → `Auth.InvalidResetToken` (exact message), nothing changed, `SaveCount` 0, no email.
+- Reset with weak password → `Auth.WeakPassword`; different confirmation → `Auth.PasswordsDoNotMatch`; nothing changed.
+  Rules: every error checks type, code and exact message; Domain and handlers stay at 100% lines and branches.
+
