@@ -338,7 +338,11 @@ public static class CampusMarketSetup
 
     public static IEndpointRouteBuilder MapCampusMarket(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/", () => "CampusMarket API is running");
+        // GET / is NOT mapped here on purpose: UseDefaultFiles + UseStaticFiles
+        // serve wwwroot/index.html for the root in Production (the React SPA on
+        // Render). An endpoint on "/" would win over the static files middleware.
+        // When wwwroot is missing (tests, dotnet run without a frontend build)
+        // the SPA fallback in Program.cs returns 404 for "/", which is fine.
 
         // All endpoints live under /api/v1; each group is created in its own *Endpoints class
         var api = app.MapGroup("/api/v1");
