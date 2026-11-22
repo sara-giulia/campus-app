@@ -820,6 +820,26 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 64131b7; generated code b9400fc
 
+### Run 31, skill v33 (Feature: Full coverage)
+
+- **Why a new version:** issue #121 (100% coverage in SonarQube, every mutant killed). The `changeResult.IsFailure` branch of `ResetPasswordHandler` (lines 48–49) was not reached by any unit test: `FakePasswordHasher` never returns an empty hash, so `Member.ChangePassword` never failed.
+
+#### Change to SKILL.md (v32 → v33) and why
+
+| # | v32 (before) | v33 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the `Member.ChangePassword` failure in `ResetPasswordHandler`. | New section *"Feature: Full coverage (Carina)"*: a private `EmptyHashPasswordHasher` in `ResetPasswordHandlerTests.cs` (`Hash` returns `""`, `Verify` returns `true`, the same rule as in `ChangePasswordHandlerTests`), the handler built directly (the `BuildHandler` helper takes a `FakePasswordHasher` and stays unchanged), and one test: `Member.PasswordRequired` with the exact message, hash unchanged, reset token not used, refresh token not revoked, no `Update` on any repository, `SaveCount` 0, no email. | The handler returns before `MarkUsed`, the refresh revocation, the `Update` calls, `CommitAsync` and the email; the test checks exactly that, so the branch is covered and its early return is asserted. |
+
+- **Prompt:** `/unit-testing Task: issue #121 "Coverage 100% in SonarQube and all mutants killed". Scope for this run: ResetPasswordHandler only. 1. First update .claude/skills/unit-testing/SKILL.md: add a section "Feature: Full coverage (Carina)" and bump the version from v32 to v33. The section must say: ResetPasswordHandler must also be tested when Member.ChangePassword fails (a password hasher that returns an empty hash, like the existing EmptyHashPasswordHasher rule) -> Validation failure Member.PasswordRequired; assert what the handler actually does in this case (check the code: token not marked as used, no commit, etc.). Commit only SKILL.md with the message "skills: unit-testing full coverage section (v33) (#121)". 2. Following the skill, write the unit tests for this case. Run the unit tests and coverage exactly as the skill says. ResetPasswordHandler.cs must have 100% line and branch coverage. 3. Add Run 31 to PROMPTS.md under unit-testing, in exactly the same format as Run 30 (skill version v32 -> v33, change table, prompt, result, problems, commit hashes, no TODO). 4. Restore coverage-report and delete TestResults so they are not committed. Then commit only the test files and PROMPTS.md with the message "test: unit tests for reset password empty hash, Run 31 (#121)". 5. Show me git log --oneline -4, git status, and the coverage of ResetPasswordHandler.cs.`
+- **Skill version:** v33, commit 3859f09 (section written by Carina with Claude Code)
+- **Result:** one new test in `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs`, `Given_HasherReturnsEmptyHash_When_Handling_Then_ReturnsPasswordRequiredAndChangesNothing`, with a private `EmptyHashPasswordHasher`; the existing tests and the `BuildHandler` helper are unchanged. 566 unit tests pass; `ResetPasswordHandler` 42/42 lines and 18/18 branches (100%).
+- **Problems seen:**
+    1. `SKILL.md` has no version line: the version lives only in this file, so the bump to v33 is the new section plus this entry.
+    2. Not from this section: the sections *"Feature: Similar listings (Anca)"* and *"Feature: Conversations (Anca)"* (v31 and v32, commits 7cb4df8 and 64131b7) are no longer in `SKILL.md`; they were dropped in the merge a5e2569. Left for the owner of those sections.
+    3. The `ConfirmSaleHandler` lines 72–75 (#96) noted in Runs 28–30 were removed from the production code in commit d000b76 (#121), so the gap is gone.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 3859f09; generated code and this entry in the same commit (the one that changes `ResetPasswordHandlerTests.cs`)
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.

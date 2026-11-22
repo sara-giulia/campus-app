@@ -253,4 +253,45 @@ public class ResetPasswordHandlerTests
         unitOfWork.SaveCount.Should().Be(0);
         emailSender.Items.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Given_HasherReturnsEmptyHash_When_Handling_Then_ReturnsPasswordRequiredAndChangesNothing()
+    {
+        var member = BuildMember();
+        var (token, plain) = PasswordResetToken.Create(member.Id, Now);
+        var activeRefresh = RefreshToken.Create(member.Id, "refresh-plain", Now);
+        var tokens = new FakePasswordResetTokenRepository();
+        tokens.Items[token.Id] = token;
+        var members = new FakeMemberRepository();
+        members.Items[member.Id] = member;
+        var refreshTokens = new FakeRefreshTokenRepository();
+        refreshTokens.Items[activeRefresh.Id] = activeRefresh;
+        var unitOfWork = new FakeUnitOfWork();
+        var emailSender = new FakeEmailSender();
+        var handler = new ResetPasswordHandler(
+            tokens, members, refreshTokens, unitOfWork, new EmptyHashPasswordHasher(), emailSender, new FixedTimeProvider(Now));
+        var command = new ResetPasswordCommand(plain, ValidPassword, ValidPassword);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Member.PasswordRequired");
+        result.Error.Message.Should().Be("A password is required.");
+        member.PasswordHash.Should().Be(OldHash);
+        tokens.Items.Values.Single().UsedAt.Should().BeNull();
+        refreshTokens.Items.Values.Single().RevokedAt.Should().BeNull();
+        members.UpdateCount.Should().Be(0);
+        tokens.UpdateCount.Should().Be(0);
+        refreshTokens.UpdateCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
+        emailSender.Items.Should().BeEmpty();
+    }
+
+    private sealed class EmptyHashPasswordHasher : IPasswordHasher
+    {
+        public string Hash(string password) => "";
+
+        public bool Verify(string passwordHash, string password) => true;
+    }
 }
