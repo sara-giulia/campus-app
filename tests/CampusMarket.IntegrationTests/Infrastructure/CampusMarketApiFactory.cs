@@ -24,6 +24,8 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:Key", TestTokens.Key);
         // The reservation expiry background service must not run during tests.
         builder.UseSetting("ReservationExpiry:Enabled", "false");
+        // Tests register many members; the real limit is tested on purpose in RegisterRateLimitTests.
+        builder.UseSetting("RateLimiting:RegisterPermitLimit", "1000");
         builder.ConfigureTestServices(services =>
         {
             // Remove the app's SQLite file registration, then use the open in-memory connection.

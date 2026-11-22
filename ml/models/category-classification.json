@@ -1,0 +1,27 @@
+{
+  "algorithm": "SDCA maximum entropy",
+  "dataset": {
+    "rowCountTest": 711,
+    "rowCountTrain": 3380,
+    "rowCountValidation": 909,
+    "sha256": "0b1ad7f4e36f5c01a9da90897252770d7c840e57bdd9275c678602940cd451ad"
+  },
+  "gitCommit": null,
+  "modelFileName": "category-classification.zip",
+  "modelName": "Category classification (SDCA maximum entropy)",
+  "seed": 2026,
+  "settings": {
+    "minConfidence": 0.600000
+  },
+  "split": "70/15/15 grouped by TemplateId",
+  "testMetrics": {
+    "accuracyAtMinConfidence": 0.910624,
+    "coverageAtMinConfidence": 0.855700,
+    "ece": 0.035965,
+    "logLoss": 0.473041,
+    "macroAccuracy": 0.856257,
+    "macroF1": 0.863569,
+    "microAccuracy": 0.852814
+  },
+  "trainedAt": "2026-11-21T12:41:49Z"
+}

@@ -1,13 +1,17 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Pricing;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 
 namespace CampusMarket.Api.Features.Listings.ConfirmSale;
 
-public sealed class ConfirmSaleHandler(
+public sealed partial class ConfirmSaleHandler(
     IListingRepository repository,
+    ISaleRecordRepository saleRecords,
+    IPriceSuggester suggester,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ILogger<ConfirmSaleHandler> logger)
     : ICommandHandler<ConfirmSaleCommand, Guid>
 {
     public async Task<Result<Guid>> HandleAsync(
@@ -23,14 +27,63 @@ public sealed class ConfirmSaleHandler(
             return Result<Guid>.Failure(
                 Error.Forbidden("Listing.NotOwner", "Only the seller or an Admin can confirm this sale."));
 
-        var confirmed = listing.ConfirmSale(command.ReservationId, timeProvider.GetUtcNow());
+        var now = timeProvider.GetUtcNow();
+        var confirmed = listing.ConfirmSale(command.ReservationId, now);
 
         if (confirmed.IsFailure)
             return Result<Guid>.Failure(confirmed.Error);
 
         repository.Update(listing);
+        TryAddSaleRecord(listing, now);
         await unitOfWork.CommitAsync(ct);
 
         return command.ReservationId;
     }
+
+    // Ask the price suggester for what it would have asked for this listing, pair
+    // it with what the seller actually got, and add a SaleRecord. The sale itself
+    // is already confirmed above — a suggester throw or a missing suggestion
+    // (<= 0) only means we skip this feedback row, never that we lose the sale.
+    private void TryAddSaleRecord(Listing listing, DateTimeOffset now)
+    {
+        int suggested;
+        try
+        {
+            suggested = suggester.Suggest(listing.Title, listing.Description, listing.Category, listing.Condition);
+        }
+        catch (Exception ex)
+        {
+            LogSuggesterFailed(logger, ex);
+            return;
+        }
+
+        if (suggested <= 0)
+        {
+            LogSuggesterReturnedNothing(logger, listing.Id);
+            return;
+        }
+
+        var record = SaleRecord.Create(
+            listing.Id, listing.Category, listing.Condition,
+            suggestedPrice: suggested,
+            soldPrice: listing.Price.Amount,
+            soldAt: now);
+
+        if (record.IsFailure)
+        {
+            LogSaleRecordInvalid(logger, listing.Id, record.Error.Code, record.Error.Message);
+            return;
+        }
+
+        saleRecords.Add(record.Value);
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Price suggester threw while recording a sale; no SaleRecord saved for this confirmation.")]
+    private static partial void LogSuggesterFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Price suggester returned no usable suggestion (<= 0) for listing {ListingId}; no SaleRecord saved.")]
+    private static partial void LogSuggesterReturnedNothing(ILogger logger, Guid listingId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "SaleRecord.Create failed for listing {ListingId}: {Code} {Message}")]
+    private static partial void LogSaleRecordInvalid(ILogger logger, Guid listingId, string code, string message);
 }

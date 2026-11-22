@@ -1,0 +1,21 @@
+{
+  "algorithm": "FastTree / log1p(Price)",
+  "dataset": {
+    "rowCountTest": 711,
+    "rowCountTrain": 3380,
+    "rowCountValidation": 909,
+    "sha256": "0b1ad7f4e36f5c01a9da90897252770d7c840e57bdd9275c678602940cd451ad"
+  },
+  "gitCommit": null,
+  "modelFileName": "price-regression.zip",
+  "modelName": "Price regression (model selection on validation)",
+  "seed": 2026,
+  "split": "70/15/15 grouped by TemplateId",
+  "testMetrics": {
+    "mae": 268.526796,
+    "mape": 75.256721,
+    "r2": 0.451174,
+    "rmse": 606.213880
+  },
+  "trainedAt": "2026-11-21T12:41:46Z"
+}

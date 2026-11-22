@@ -550,6 +550,8 @@ Tests to add:
 Rules for this feature:
 - Never use a fixed `Task.Delay` as the assertion: poll the database with a timeout.
 - Every test checks the database at the end.
+- The copy of the API with the job on runs a tick every 200 ms on the shared in-memory SQLite connection, so it must never be running while the test sends its Act request or reads the database for its assertions: a tick at the same moment gives "database is locked" and a 500. Start it with `await using (var withJob = WithExpiryJob()) { withJob.CreateClient(); ... }`, poll inside that block until the reservation is `Expired`, and leave the block (the job stops) before the Act and the assertions. In "another member reserves", the Act is sent with the normal `Client` after `AuthenticateAs(...)`, where the job is off.
+- The polling reads also run while the job ticks on the same connection, and one of them can fail now and then (the read collides with the job's write). In the polling helper, a read that throws a `SqliteException` or an `InvalidOperationException` (which also covers `ObjectDisposedException`) counts as "not yet": wait 100 ms and read again until the timeout. Catch only those two (`catch (Exception ex) when (ex is SqliteException or InvalidOperationException)`), never every exception: Sonar flags a general catch. After the timeout, read once more without catching anything, so an error that never goes away still fails the test with its own message.
 
 
 
@@ -782,6 +784,84 @@ Rules for this feature:
 - Never change `src/`. If a line is still not covered after these tests, stop and report which one.
 - Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
 
+## Feature: Condition filter (Carina)
+
+Endpoint: `GET /api/v1/listings?condition=...` (`New`, `Good` or `Worn`), public, no `AuthenticateAs`. Only `Active` listings are returned, as before.
+
+File: `Listings/GetListingsTests.cs` (add to it, keep every existing test).
+
+Arrange: seed published listings (`listing.Publish()` before `SeedAsync`) with the same `SellerId`, one in `Good` and one in `Worn` condition, each with its own fixed `CreatedAt`.
+
+Tests to add (status, body, then the database still has the seeded listings):
+- `?condition=Good` → 200, only the Good listing, `totalCount` 1.
+- `?condition=Banana` → 400. ASP.NET Core rejects it before the handler runs, so check only the status code.
+
+Rules for this feature:
+- Build the query string exactly as a client would send it, in the URL of `Client.GetAsync`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: API documentation (Carina)
+
+Production code: `services.AddOpenApi()` in `CampusMarketSetup.AddCampusMarket`; in `Program.cs`, only when `app.Environment.IsDevelopment()`: `app.MapOpenApi()` (the document at `/openapi/v1.json`) and `app.MapScalarApiReference()` (the page at `/scalar`). The test host runs in the Development environment, so both are mapped in the tests.
+
+File: `Infrastructure/OpenApiTests.cs` (new), class `OpenApiTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /openapi/v1.json` → 200, a JSON content type, and the body contains `/api/v1/listings` and `/api/v1/auth/login`. Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document.
+- The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of "Feature: Error handling (Anca)" do.
+
+Rules for this feature:
+- Do not change `Program.cs`, `CampusMarketSetup.cs` or the test factory.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: My profile (Carina)
+
+Endpoints (`Features/Members/GetMyProfile/`, `Features/Members/UpdateMyProfile/`), both need a token ("me" is the member in the token):
+
+| Slice | Route | Success | Failures |
+|---|---|---|---|
+| GetMyProfile | `GET /api/v1/members/me` | 200 `{ id, name, email, role, createdAt }` | 401; 404 `Member.NotFound` (the member in the token does not exist) |
+| UpdateMyProfile | `PUT /api/v1/members/me` with `{ "name" }` | 204, empty body | 401; 400 `Member.InvalidName`; 404 `Member.NotFound` |
+
+The 401 is a ProblemDetails answer: check it as "Feature: Error handling (Anca)" says. The 400 and 404 come from the handlers and keep `{ code, message, type }`: read them into `Error` and check `Code` and `Type`.
+
+File: `Members/MyProfileTests.cs` (new), class `MyProfileTests : IntegrationTestBase`.
+
+Arrange: seed the member with `SeedAsync` (`Member.Create(...).Value`, fixed `CreatedAt`) and log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database):
+- logged in → GET 200 with my `id`, `name`, `email` (lower case) and `role` `"Student"`; the raw body (`ReadAsStringAsync`, compared in lower case) does not contain `password`; the member is unchanged in the database.
+- logged in as a member that is not in the database (`AuthenticateAs` with a fixed id that was never seeded) → GET 404 `Member.NotFound`.
+- no token → GET 401 and PUT 401 (two tests); the seeded member is unchanged.
+- PUT with a valid new name → 204, empty body; in the database the member has the new name and the old email.
+- PUT with a 1-character name → 400 `Member.InvalidName`, type `Validation`; the member is unchanged.
+
+Rules for this feature:
+- Fixed ids and times; never compare to `DateTime.Now`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Public profile (Carina)
+
+Endpoint: `GET /api/v1/members/{id}/profile` (`Features/Members/GetPublicProfile/`). Public: never use `AuthenticateAs` in these tests.
+- 200: `{ id, name, memberSince, averageRating, reviewCount, activeListings: [ { id, title, price } ] }`. No email and no role.
+- 404 `Member.NotFound` from the handler, with `{ code, message, type }` (read it into `Error`, check `Code` and `Type`).
+- An id that is not a Guid (`/members/abc/profile`) does not match the route → 404; check only the status.
+
+File (new): `Members/PublicProfileTests.cs`, class `PublicProfileTests : IntegrationTestBase`.
+
+Arrange: seed with `SeedAsync`, fixed ids and times.
+- The seller: `Member.Create(...).Value`. Its listings: `Listing.Create(sellerId, ...)`, published with `Publish()` for an `Active` one, left as is for a `Draft`.
+- For a review: a sold listing (`Publish()`, `Reserve(buyer.Id, CreatedAt)`, `ConfirmSale(reservation.Id, CreatedAt)`) and `Review.Create(buyer.Id, soldListing, rating, null, CreatedAt).Value`; seed the buyer, the listing and the review together.
+
+Tests to add (status, body, then the database):
+- a seller with one Active and one Draft listing → 200; `activeListings` has only the Active one (its id, title and price); the right `name`; `reviewCount` 0 and `averageRating` null; the raw body (`ReadAsStringAsync`) does not contain the seller's email; the database is unchanged.
+- a seller with one sold listing reviewed with rating 4 → 200, `averageRating` 4, `reviewCount` 1, `activeListings` empty.
+- unknown id → 404 `Member.NotFound`, type `NotFound`; the seeded data is unchanged.
+- `/api/v1/members/abc/profile` → 404 (status only).
+
+Rules for this feature:
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Minimum category confidence (Diana)
 
 File: `Listings/SuggestCategoryTests.cs` (add to it).
@@ -796,3 +876,162 @@ File: `Listings/CreateListingTests.cs` (add to it).
 
 Tests to add:
 - POST a listing with price 200000 → 400 `Money.TooHigh`, nothing saved.
+
+## Feature: Production configuration and demo data (Sara)
+Production code: in `CampusMarketSetup.cs`, `ValidateCampusMarketProductionConfiguration` (only in Production: throws `InvalidOperationException` when `Jwt:Key` is missing or shorter than 32 characters) and `SeedDemoDataIfRequested` (only when `Seed:DemoData` is true and the database is empty: 3 published listings; a Student demo member only when `Seed:DemoPassword` has at least 8 characters, otherwise a warning and no member).
+File: `Infrastructure/ProductionConfigurationTests.cs` (new).
+Test host: start a separate host with `Factory.WithWebHostBuilder(b => ...)` and `UseSetting(...)` / `UseEnvironment(...)`, like the Admin seed tests; dispose it with `await using`.
+Tests to add:
+- Environment Production, `Jwt:Key` of 10 characters → creating the client throws `InvalidOperationException` whose message mentions `Jwt__Key`.
+- Environment Production, `Jwt:Key` of 40 characters → `GET /health` 200.
+- `Seed:DemoData` = true and `Seed:DemoPassword` = 8+ characters → `GET /api/v1/listings` gives `totalCount` 3; the database has exactly 1 member, with the Student role.
+- `Seed:DemoData` = true without `Seed:DemoPassword` → 3 listings, 0 members.
+- `Seed:DemoData` not set → 0 listings and 0 members (unchanged behaviour).
+  Rules for this feature:
+- Never hard-code a real key; use generated test strings.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+
+
+## Feature: Price feedback loop (Sara)
+Endpoint: `GET /api/v1/admin/ml/price-accuracy`, Admin only. Confirm sale now saves a `SaleRecord` (suggested price from the real price model, sold price = listing price).
+File: `Admin/PriceAccuracyTests.cs` (new).
+Tests to add:
+- no token → 401; Student token → 403.
+- Admin, no sales → 200, count 0, metrics null.
+- seed a seller, a buyer and a published listing; reserve as the buyer, confirm the sale as the seller (204) → the database has 1 `SaleRecord` for that listing with sold price = listing price and suggested price > 0; then Admin GET → count 1 and the record in `lastRecords`.
+  Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: CORS for the frontend (Anca)
+
+The web frontend (`frontend/`, Vite on `http://localhost:5173`) calls the API from another origin, so the browser needs CORS. Read `CampusMarketSetup.cs` (`AddCors`, policy `CampusMarketSetup.FrontendCorsPolicy` = `"Frontend"`), `Program.cs` (`app.UseCors(...)` is the first middleware, before `UseExceptionHandler`) and `appsettings.json` (`Cors:AllowedOrigins` = `["http://localhost:5173"]`) before generating.
+
+Production code:
+- Only the origins in `Cors:AllowedOrigins` are allowed; any header and any method; `Location` is an exposed header; no credentials (the token goes in the `Authorization` header, never in a cookie).
+- The test host reads the same `appsettings.json`, so `http://localhost:5173` is allowed in every test without extra setup.
+
+File: `Cors/CorsTests.cs`, class `CorsTests : IntegrationTestBase` (fixed `SellerId` as in the other classes; `private const string FrontendOrigin = "http://localhost:5173";`).
+
+Tests to add:
+- Preflight: `OPTIONS /api/v1/auth/login` with headers `Origin: http://localhost:5173`, `Access-Control-Request-Method: POST`, `Access-Control-Request-Headers: content-type,authorization` → 204; `Access-Control-Allow-Origin` is exactly `http://localhost:5173`; `Access-Control-Allow-Methods` contains `POST`; `Access-Control-Allow-Headers` contains `authorization` (compare case-insensitively); there is no `Access-Control-Allow-Credentials` header; no member in the database.
+- Preflight from an origin that is not allowed (`http://evil.example`) → still 204, but there is no `Access-Control-Allow-Origin` header (the browser then blocks the call); no member in the database.
+- Logged in as `SellerId`, `POST /api/v1/listings` with a valid body and `Origin: http://localhost:5173` → 201; `Access-Control-Allow-Origin` is the origin; `Access-Control-Expose-Headers` contains `Location`; the `Location` header is set; the listing is in the database.
+- No token, `GET /api/v1/members/me/favorites` with the origin → 401 ProblemDetails `Auth.Unauthorized` and `Access-Control-Allow-Origin` is the origin (the browser can only read an error when the CORS header is there).
+- A seeded draft of `SellerId`, client with `ThrowingUnitOfWork` (see "Feature: Error handling (Anca)"), the seller publishes it with the origin → 500 ProblemDetails `Server.Error` and `Access-Control-Allow-Origin` is still the origin; the listing is still `Draft`.
+- The same request without an `Origin` header (`GET /api/v1/listings`) → 200 and no `Access-Control-Allow-Origin` header (clients that are not browsers see no change).
+- Another origin through configuration, two tests (one HTTP call each), both with `Factory.WithWebHostBuilder(b => b.UseSetting("Cors:AllowedOrigins:0", "https://campusmarket.example"))` from a private helper, disposed with `await using`: a preflight from `https://campusmarket.example` gets `Access-Control-Allow-Origin: https://campusmarket.example`; a preflight from `http://localhost:5173` gets no `Access-Control-Allow-Origin` (index 0 was replaced). This is how the deployed frontend's address is set (`Cors__AllowedOrigins__0`). Both check that no member was saved.
+
+Rules for this feature:
+- Build the preflight with `new HttpRequestMessage(HttpMethod.Options, url)` and add the headers with `request.Headers.Add(...)`; read the CORS headers from `response.Headers` with `TryGetValues`, never from `response.Content.Headers`.
+- Never change `appsettings.json`, `CampusMarketApiFactory` or `IntegrationTestBase`.
+- This section goes with changes made by hand before the run (`CampusMarketSetup.cs`, `Program.cs`, `appsettings.json`, the new `frontend/` folder, `README.md`, `.dockerignore`, `.github/workflows/build.yml`), so the section 10 check on `git status` also lists them.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Register rate limiting (Carina)
+
+Production code: `CampusMarketSetup.AddCampusMarket` adds the rate limiter policy "register": a fixed window of 1 minute per IP (`context.Connection.RemoteIpAddress`, or "unknown"), with the limit from `RateLimiting:RegisterPermitLimit` (default 5). `RegisterEndpoint` uses `.RequireRateLimiting("register")`. A rejected request gets 429 (status only, from `options.RejectionStatusCode`). `CampusMarketApiFactory` sets the limit to 1000 so the other tests are not blocked; do not change the factory or `IntegrationTestBase`.
+
+File: `Auth/RegisterRateLimitTests.cs` (new), class `RegisterRateLimitTests : IntegrationTestBase`.
+
+Test host: start a second copy of the API with the real limit, `Factory.WithWebHostBuilder(b => b.UseSetting("RateLimiting:RegisterPermitLimit", "5"))`, the same way the Admin seed tests do; use only the client from its `CreateClient()` and dispose the copy with `await using`. In the test server every request falls in the same partition, so all of them count against one limit.
+
+Request body: `{ name, email, password, confirmPassword }`, with a valid name, a different email for each request and a password of at least 8 characters.
+
+Tests to add (status, body, then the database):
+- 5 registrations with different emails → all 201; a 6th, valid, with a new email → 429; the database has exactly 5 members and none with the 6th email.
+- 5 registrations whose passwords do not match → 400 each (they also count toward the limit); a 6th, valid → 429; the database has no members.
+- with the normal factory (limit 1000), 6 registrations with different emails → all 201; the database has 6 members.
+
+Rules for this feature:
+- Check the members with `QueryDbAsync` on `db.Set<Member>()`.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Change password (Carina)
+
+Endpoint: `POST /api/v1/auth/change-password` with `{ "currentPassword", "newPassword", "confirmNewPassword" }`, needs a token ("me" is the member in the token).
+
+| Success | Failures |
+|---|---|
+| 204, empty body | 400 `Auth.InvalidCredentials` (wrong current password), 400 `Auth.WeakPassword`, 400 `Auth.PasswordsDoNotMatch`, 404 `Member.NotFound`, 401 (no token) |
+
+The 401 is a ProblemDetails answer: check it as "Feature: Error handling (Anca)" says. The 400 and 404 come from the handler and keep `{ code, message, type }`: read them into `Error` and check `Code` and `Type`.
+
+File: `Auth/ChangePasswordTests.cs` (new), class `ChangePasswordTests : IntegrationTestBase`.
+
+Arrange: seed the member with a real hash, as `LoginTests` does (`new AspNetPasswordHasher().Hash("secret12")`), and log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database):
+- valid request → 204, empty body; in the database `AspNetPasswordHasher.Verify` accepts the new password and rejects the old one.
+- after a successful change (Arrange), `POST /api/v1/auth/login` with the new password → 200 with a token; in another test, with the old password → 401.
+- wrong current password → 400 `Auth.InvalidCredentials`; the stored hash is unchanged (the old password still verifies).
+- new password of 7 characters → 400 `Auth.WeakPassword`; confirmation different → 400 `Auth.PasswordsDoNotMatch`; the hash is unchanged in both.
+- a token of a member that is not in the database → 404 `Member.NotFound`.
+- no token → 401; the member is unchanged.
+
+Rules for this feature:
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Live and ready health checks (Diana)
+
+Production code: `Infrastructure/ML/MlModelsHealthCheck.cs`; `/health/live` (no checks) and `/health/ready` (database + ML models) in `Program.cs`.
+
+File: `Infrastructure/HealthTests.cs` (new or add to it).
+
+Tests to add:
+- `/health/live` → 200, body "Healthy".
+- `/health/ready` → 200, body "Healthy" (the models are copied to the test output).
+- `/health` → 200 (unchanged).
+- If MlModelsHealthCheck has lines the HTTP tests cannot reach (the Unhealthy branch), add a test that calls CheckHealthAsync with a ModelsPath folder that does not exist → Unhealthy, message lists the missing files.
+
+## Feature: Correlation id (Diana)
+
+Production code: `Infrastructure/Logging/CorrelationIdMiddleware.cs`, registered first in `Program.cs`.
+
+File: `Infrastructure/CorrelationIdTests.cs` (new), class `CorrelationIdTests : IntegrationTestBase`.
+
+Tests to add:
+- `GET /api/v1/listings` without the header → the response has `X-Correlation-Id`, not empty, and it is a valid Guid.
+- the same request with `X-Correlation-Id: test-123` → the response header is exactly `test-123`.
+- an error response (`GET /api/v1/listings/{random guid}` → 404) also has the header.
+
+## Feature: Listings cache (Diana)
+
+Production code: `GetListingsEndpoint` caches for 30 s with tag "listings"; `ListingsCache.ClearAsync` is called after every successful change of a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide).
+
+Important: the ASP.NET Core output cache does not store responses to requests that have an `Authorization` header. Every search in these tests is sent **without a token**; only the change (create, publish, update, reserve) is sent with a token.
+
+File: `Listings/ListingsCacheTests.cs` (replace its tests).
+
+Setup: every test starts with an empty cache: at the start, get `IOutputCacheStore` from `Factory.Services` and call `EvictByTagAsync(ListingsCache.Tag, ...)`, so the tests do not affect each other.
+
+Tests to add:
+- the cache is used: search without a token → change a published listing directly in the database (through the DbContext, no endpoint, for example its title) → the same search without a token still returns the old title.
+- search without a token → create a listing with a token → the same search without a token (the draft is not there, and this fills the cache) → publish with a token → the same search without a token → the new listing is there.
+- search without a token → update a listing's title with a token → the same search without a token → the new title is there.
+- search without a token → reserve the listing with a token → the same search without a token → it is gone (no longer Active).
+
+## Feature: Validation thresholds (Anca)
+
+Production code (read it before generating): the two decision thresholds of the ML models are settings, chosen on the validation data when the models are trained (`ml/models/*.json`, `"settings"`), not constants.
+- `Ml:Category:MinConfidence` (`CategorySuggestionOptions` in `Common/Categories/`, 0.6 in `appsettings.json`): `SuggestCategoryHandler` returns `category` null below it. `SuggestCategoryHandler.MinConfidence` does not exist any more.
+- `Ml:Spam:Threshold` (`SpamDetectionOptions` in `Common/Moderation/`, 0.4 in `appsettings.json`): `SpamDetector` reports spam when the model's probability reaches it, so `PublishListing` adds the automatic report from that value.
+- Both are validated at startup (`ValidateOnStart` in `Infrastructure/ML/MlServiceCollectionExtensions.cs`): a value outside 0–1 stops the API with an `OptionsValidationException` whose message names the setting.
+
+Changes to the existing tests (keep every test and its name):
+- `Listings/SuggestCategoryTests.cs`: the two tests that compare the confidence with `SuggestCategoryHandler.MinConfidence` compare it with the configured value instead: `Factory.Services.GetRequiredService<IOptions<CategorySuggestionOptions>>().Value.MinConfidence`.
+
+File: `Infrastructure/MlThresholdsTests.cs` (new), class `MlThresholdsTests : IntegrationTestBase` (fixed `SellerId`). A different setting goes through `Factory.WithWebHostBuilder(b => b.UseSetting(...))`, disposed with `await using`, like the Admin seed tests.
+
+Tests to add:
+- The normal test host reads `appsettings.json`: `IOptions<CategorySuggestionOptions>` has `MinConfidence` 0.6 and `IOptions<SpamDetectionOptions>` has `Threshold` 0.4 (resolve them from `Factory.Services`; no HTTP call in this one, the Act is resolving the options). The database is empty.
+- `Ml:Category:MinConfidence` = `0.99`, logged in as `SellerId`, `POST /api/v1/listings/category-suggestion` with title `"Notite Analiza matematica, an I"` → 200, `category` null, `confidence` below 0.99 and at least 0.6 (the same text gives `Notes` with the normal setting). No listing saved.
+- `Ml:Spam:Threshold` = `0`, a seeded draft of `SellerId` with the normal text of `SpamOnPublishTests` (`"Manual Algebra liniara, editia 2"`, `"Putin folosit, fara sublinieri."`, `Textbook`, price 40), the seller publishes it → 204, the listing is `Active` and one automatic report exists for it (`ReporterId` null): with threshold 0 every listing counts as spam.
+- `Ml:Category:MinConfidence` = `1.5` → creating the client throws `OptionsValidationException` whose message contains `Ml:Category:MinConfidence`.
+- `Ml:Spam:Threshold` = `-0.1` → creating the client throws `OptionsValidationException` whose message contains `Ml:Spam:Threshold`.
+
+Rules for this feature:
+- Never assert an exact confidence or probability from the real models, only ranges.
+- For the two startup failures there is no HTTP call: the Act is `CreateClient()`; check that the database has no listing.
+- In a copy made with `WithWebHostBuilder`, `AuthenticateAs` does not apply: set `Authorization: Bearer` with `TestTokens.Create(SellerId)` on the copy's client, as `ErrorHandlingTests` and `CorsTests` do.
+- This section goes with changes made by hand before the run (`src/`, `ml/`, the unit tests generated by the unit-testing skill and the hand-written ML tests), so the section 10 check on `git status` also lists them.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.

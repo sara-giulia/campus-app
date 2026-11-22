@@ -97,4 +97,15 @@ public sealed class Member
 
         return this;
     }
+
+    // Replaces the password hash; the handler checks the current password and the rules first.
+    public Result<Member> ChangePassword(string newPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(newPasswordHash))
+            return Result<Member>.Failure(
+                Error.Validation("Member.PasswordRequired", "A password is required."));
+
+        PasswordHash = newPasswordHash;
+        return this;
+    }
 }
