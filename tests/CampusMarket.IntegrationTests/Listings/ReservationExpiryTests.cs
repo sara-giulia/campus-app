@@ -6,6 +6,7 @@ using CampusMarket.Api.Features.Members.GetMyReservations;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampusMarket.IntegrationTests.Listings;
@@ -27,19 +28,29 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         Guid reservationId, ReservationStatus expected, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;
-        ReservationStatus current = default;
         while (DateTime.UtcNow < deadline)
         {
-            current = await QueryDbAsync(db => db.Set<Reservation>().AsNoTracking()
-                .Where(r => r.Id == reservationId)
-                .Select(r => r.Status)
-                .SingleAsync());
-            if (current == expected)
-                return current;
+            try
+            {
+                if (await ReadReservationStatusAsync(reservationId) == expected)
+                    return expected;
+            }
+            catch (Exception ex) when (ex is SqliteException or InvalidOperationException)
+            {
+                // The read collided with the job's write on the shared connection: not yet.
+            }
             await Task.Delay(100);
         }
-        return current;
+
+        // After the timeout: one more read without catching, so an error that never goes away fails with its own message.
+        return await ReadReservationStatusAsync(reservationId);
     }
+
+    private Task<ReservationStatus> ReadReservationStatusAsync(Guid reservationId) =>
+        QueryDbAsync(db => db.Set<Reservation>().AsNoTracking()
+            .Where(r => r.Id == reservationId)
+            .Select(r => r.Status)
+            .SingleAsync());
 
     [Fact]
     public async Task Given_JobOnWithExpiredAndValidReservations_When_JobRuns_Then_ExpiresOnlyTheExpiredOne()

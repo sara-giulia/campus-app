@@ -1525,6 +1525,27 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill 2d54c3f; generated code 31f3668
 
+### Run 39, skill v38 (Reservation expiry: retry a polling read that collides with the job)
+
+- **Why a new version:** after Run 37 the same test still failed once in CI (PR #106), this time inside `WaitForReservationStatusAsync`: while the job was running, one of the polling reads threw (stack: `QueryDbAsync` → `DbContext.Set` → service resolution). Run 37 stopped the job before the Act and the assertions, but the polling reads have to run while the job is on, on the same in-memory SQLite connection.
+
+#### Change to SKILL.md (v37 → v38) and why
+
+| # | v37 (before) | v38 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the polling reads failing. | New rule in "Feature: Reservation expiry (Sara)": a polling read that throws a `SqliteException` or an `InvalidOperationException` (which covers `ObjectDisposedException`) counts as "not yet"; wait 100 ms and read again until the timeout; after the timeout, one more read without catching, so an error that never goes away still fails the test with its own message. Catch only those two types. | The read and the job's write can meet on the shared connection; retrying is what the polling is for. |
+| 2 | (after the first try) "a read that throws". | The two exception types, written as `catch (Exception ex) when (...)`. | The first run caught every exception; Sonar flags a general catch (S2221). |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). The section "Feature: Reservation expiry (Sara)" has a new last rule about the polling reads. WaitForReservationStatusAsync breaks it: in CI a polling read threw while the job was running. Apply the rule to that helper; change only what it requires. Build, run the ReservationExpiryTests 30 times in a row, the whole solution once and the SARIF check.` Then, after the rule was narrowed: `Re-read the rule and catch only SqliteException or InvalidOperationException; run the filter 15 times, the whole solution and the SARIF check again.` (new session)
+- **Skill version:** v38, commit ba5a270 (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** only the helper changed: the query moved to a private `ReadReservationStatusAsync`, the loop catches the two exception types and retries every 100 ms, and after the 5 s timeout one last read runs without a catch; the tests, the assertions and the timeouts are unchanged. `ReservationExpiryTests` passed 30 runs with the first version and 15 runs with the narrowed catch; full run 10 architecture, 484 unit, 41 ML, 275 integration; SARIF log empty.
+- **Problems seen:**
+    1. The CI failure could not be reproduced on this machine (every local run passed before and after), so the fix follows the stack trace and the rule, not a local repro.
+    2. The last read after the timeout still runs while the job is on, so in the rare case where no read succeeds in 5 seconds it can fail with the collision instead of the "within 5 seconds" message; that only happens when the job is already too slow.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill ba5a270; generated code 9aef200
+
+
 
 ## code-review
 
