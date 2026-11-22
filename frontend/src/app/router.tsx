@@ -1,4 +1,6 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
+import { authRoutes } from '../features/auth/routes'
+import { profileRoutes } from '../features/profile/routes'
 import { Layout } from './Layout'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -11,6 +13,8 @@ import { NotFoundPage } from './pages/NotFoundPage'
 //   ]
 // Then add it to featureRoutes below: one import and one line, nothing else changes.
 const featureRoutes: RouteObject[] = [
+  ...authRoutes,
+  ...profileRoutes,
 ]
 
 export const router = createBrowserRouter([
