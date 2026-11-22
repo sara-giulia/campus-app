@@ -771,3 +771,36 @@ Tests to add:
 Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the `Message.TooLong` message from `Message.MaxTextLength`.
 - Never use real time: `Now` is fixed.
+
+## Feature: Listing photos (Anca)
+
+Production code (read it before generating):
+- `Domain/Photos/PhotoFormat.cs`: `PhotoFormat.Detect(bytes)` → `PhotoFormat.Jpeg` (starts with `FF D8 FF`), `PhotoFormat.Png` (`89 50 4E 47 0D 0A 1A 0A`), `PhotoFormat.WebP` (`"RIFF"`, any 4 bytes, `"WEBP"`, so at least 12 bytes), otherwise `null`. Each format has `Extension` (`.jpg`, `.png`, `.webp`) and `ContentType` (`image/jpeg`, `image/png`, `image/webp`).
+- `Domain/Photos/Photo.cs`: `Photo.Create(uploaderId, listing, existingCount, content, createdAt)` checks, in this order: the uploader is not the seller → `Photo.NotSeller` (`ErrorType.Forbidden`); `existingCount` ≥ `Photo.MaxPerListing` (5) → `Photo.LimitReached`; empty content → `Photo.Empty`; more than `Photo.MaxSizeBytes` (2 MB = 2 097 152 bytes) → `Photo.TooLarge`; unknown format → `Photo.InvalidFormat`. Otherwise a photo with a new `Id`, `listing.Id`, `FileName` = `<Id><extension>`, the format's `ContentType`, `SizeBytes` = content length and `createdAt`. Any listing status is accepted.
+- `Common/Storage/IPhotoStorage.cs`: `SaveAsync(listingId, fileName, content)`, `OpenRead(listingId, fileName)` (null when missing), `Delete(listingId, fileName)`, `DeleteListing(listingId)`.
+- `Features/Photos/UploadPhoto/`: `UploadPhotoCommand(UploaderId, ListingId, Content)`. 404 `Listing.NotFound`, then the errors of `Photo.Create` (with the listing's current photo count), then the file is saved, the photo added and one `CommitAsync`. Returns `PhotoResponse(Id, ListingId, Url = "/api/v1/photos/<Id>", ContentType, SizeBytes, CreatedAt)`.
+- `Features/Photos/GetListingPhotos/`: 404 `Listing.NotFound`; the listing's photos ordered by `CreatedAt`, then `Id`; `Count`.
+- `Features/Photos/GetPhotoFile/`: 404 `Photo.NotFound` when the photo is unknown **or** its file is missing in the storage; otherwise `PhotoFile(Content, ContentType)`.
+- `Features/Photos/DeletePhoto/`: `DeletePhotoCommand(RequesterId, ListingId, PhotoId)`. 404 `Listing.NotFound`; not the seller → Forbidden `Photo.NotSeller`; unknown photo or a photo of another listing → 404 `Photo.NotFound`; then the photo is removed, one `CommitAsync`, then the file is deleted. Returns the photo id.
+- `Features/Listings/DeleteListing/DeleteListingHandler.cs`: has a new third constructor parameter `IPhotoStorage`; after a successful delete (after `CommitAsync`) it calls `DeleteListing(listing.Id)`; on a failure it does not.
+
+New fakes:
+- `Fakes/FakePhotoRepository.cs`: a `List<Photo>` exposed as `Items`; `AddAsync` stores; the reads look in `Items` (`GetByListingAsync` returns a snapshot with `ToList()`); `Delete` removes.
+- `Fakes/FakePhotoStorage.cs`: a dictionary `(listingId, fileName) → bytes` exposed as `Files`; `SaveAsync` stores, `OpenRead` returns a `MemoryStream` of the bytes or null, `Delete` removes the entry, `DeleteListing` removes every entry of the listing and records the id in `DeletedListings`.
+
+Files: `Domain/Photos/PhotoFormatTests.cs`, `Domain/Photos/PhotoTests.cs`, `Features/Photos/UploadPhoto/UploadPhotoHandlerTests.cs`, `Features/Photos/GetListingPhotos/GetListingPhotosHandlerTests.cs`, `Features/Photos/GetPhotoFile/GetPhotoFileHandlerTests.cs`, `Features/Photos/DeletePhoto/DeletePhotoHandlerTests.cs` (all new); `Features/Listings/DeleteListing/DeleteListingHandlerTests.cs` (change, see below).
+
+Arrange: fixed, named ids `SellerId`, `OtherMemberId`; a listing is `Listing.Create(SellerId, ...).Value`. Test images are byte arrays built from the signatures above followed by zeros (for example `[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, …]`); write them as `static readonly` fields. `Now` is fixed and reaches the handlers through `FixedTimeProvider`.
+
+Tests to add:
+- `PhotoFormat.Detect`: a JPEG, a PNG and a WebP start → the right format with its extension and content type; a GIF (`"GIF89a"`), random bytes, an empty array, only `"RIFF"` (4 bytes), `"RIFF"` + 4 bytes + `"WAVE"` → null; the first 2 bytes of a JPEG only → null.
+- `Photo.Create`: the seller with a PNG and 0 photos → success with every field (`FileName` = `<Id>.png`, `image/png`, the length, `Now`); a JPEG → `.jpg`, a WebP → `.webp`; another member → Forbidden `Photo.NotSeller`; `existingCount` 4 → success, 5 → `Photo.LimitReached`; empty → `Photo.Empty`; exactly `MaxSizeBytes` bytes (PNG start) → success; one byte more → `Photo.TooLarge`; a GIF → `Photo.InvalidFormat`. Order: another member with 5 photos → `Photo.NotSeller`; the seller with 5 photos and empty content → `Photo.LimitReached`; empty content can never be checked for its format → `Photo.Empty`. Two calls give two different `Id`s.
+- `UploadPhotoHandler`: success → the response (`Url` = `/api/v1/photos/<Id>`), one photo in the fake repository, the bytes in `FakePhotoStorage.Files` under `(listing.Id, FileName)`, `SaveCount` 1; the listing already has 5 photos in the fake → `Photo.LimitReached`; unknown listing → `Listing.NotFound`; another member → Forbidden `Photo.NotSeller`; a GIF → `Photo.InvalidFormat`. In every failure `SaveCount` 0, nothing in the repository and nothing in the storage.
+- `GetListingPhotosHandler`: three photos with different `CreatedAt` (seed them in the wrong order) → in `CreatedAt` order with every field; the same `CreatedAt` → by `Id`; photos of another listing are not returned; a listing with no photo → empty list, `Count` 0; unknown listing → `Listing.NotFound`. The fakes are unchanged.
+- `GetPhotoFileHandler`: a photo whose file is in the storage → the bytes (read the stream) and the content type; a photo whose file is not in the storage → `Photo.NotFound`; unknown id → `Photo.NotFound`.
+- `DeletePhotoHandler`: the seller → success with the photo id, the photo removed from the repository and its file from the storage, `SaveCount` 1, the other photos and files untouched; another member → Forbidden `Photo.NotSeller`; unknown listing → `Listing.NotFound`; unknown photo → `Photo.NotFound`; a photo of another listing of the same seller → `Photo.NotFound`. In every failure `SaveCount` 0 and nothing removed.
+- `DeleteListingHandlerTests` (change, keep every test and name): build the handler with a `FakePhotoStorage` as the third argument in every test; in the success test also check that `DeletedListings` contains the listing id; in every failure test check that `DeletedListings` is empty.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the messages from `Photo.MaxPerListing` and `Photo.MaxSizeBytes` the same way the domain does.
+- Never use real time: `Now` is fixed.

@@ -1097,3 +1097,35 @@ Rules for this feature:
 - Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - Real time is used for the messages sent through HTTP: assert that `sentAt` is close to now (`BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))`), never an exact value.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Listing photos (Anca)
+
+Endpoints:
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/photos`, `multipart/form-data` with the image in the `file` field | the seller (any listing status) | 201, body `{ id, listingId, url, contentType, sizeBytes, createdAt }` (`url` = `/api/v1/photos/{id}`), `Location` ends with `/api/v1/photos/{id}`; the file is saved on disk | 404 `Listing.NotFound`; 403 `Photo.NotSeller` (body is our `Error`); 400 `Photo.LimitReached` (already 5), `Photo.Empty` (no `file` field or an empty file), `Photo.TooLarge` (over 2 MB = 2 097 152 bytes), `Photo.InvalidFormat` (not JPEG/PNG/WebP by its first bytes, whatever the name and type sent); 401 |
+| `GET /api/v1/listings/{listingId}/photos` | everyone | 200 `{ items: [...same fields...], count }` in the order they were added | 404 `Listing.NotFound` |
+| `GET /api/v1/photos/{id}` | everyone | 200 with the image bytes, `Content-Type` of the photo, `Cache-Control: public, max-age=86400` | 404 `Photo.NotFound` (unknown, or the file is missing on disk) |
+| `DELETE /api/v1/listings/{listingId}/photos/{photoId}` | the seller | 204; the row and the file are gone | 404 `Listing.NotFound`, `Photo.NotFound` (also a photo of another listing); 403 `Photo.NotSeller`; 401 |
+
+Also: `DELETE /api/v1/listings/{id}` now removes the listing's photo folder from disk (the rows go by cascade).
+
+Read `Features/Photos/`, `Domain/Photos/`, `Common/Storage/`, `Infrastructure/Storage/LocalPhotoStorage.cs` and `Infrastructure/Persistence/Configurations/PhotoConfiguration.cs` before generating. Files are stored as `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>`.
+
+Change to the test infrastructure (keep everything else): `Infrastructure/CampusMarketApiFactory.cs` sets `Storage:PhotosPath` to a new folder under `Path.GetTempPath()` (a new `Guid` in the name, one per factory), exposes it as a public `PhotosPath` property and deletes the folder (if it exists) in `Dispose`. No test may write photos into the source tree.
+
+Files: `Photos/UploadPhotoTests.cs`, `Photos/GetListingPhotosTests.cs`, `Photos/GetPhotoFileTests.cs`, `Photos/DeletePhotoTests.cs`, same base class and login helper as the other classes. Read the bodies into `PhotoResponse` and `GetListingPhotosResponse` from `Features/Photos/`. Upload with `MultipartFormDataContent` and a `ByteArrayContent` named `file` (with a file name). Test images are byte arrays that start with the signatures (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WebP `"RIFF"` + 4 bytes + `"WEBP"`) followed by zeros, as `static readonly` fields.
+
+Arrange: seed the seller (and another member when needed) and a listing of the seller. Existing photos: upload them through the endpoint as the seller (so the file is on disk), except for the "already 5" case, where 5 `Photo.Create(...)` rows may be seeded directly (no files needed).
+
+Tests to add (status, body, then the database through `db.Set<Photo>()` and the disk under `Factory.PhotosPath`):
+- `UploadPhotoTests`: the seller uploads a PNG → 201 with `contentType` `image/png`, the size, `url` and `Location`; one row (this listing, `FileName` = `<id>.png`) and the file on disk with the same bytes; a JPEG and a WebP → 201 with their types; a draft listing → 201; a GIF sent as `image/png` with name `a.png` → 400 `Photo.InvalidFormat`; a file of 2 097 153 bytes (PNG start) → 400 `Photo.TooLarge`; exactly 2 097 152 bytes → 201; no `file` field (another field name) → 400 `Photo.Empty`; 5 photos already → 400 `Photo.LimitReached`; another member → 403 `Photo.NotSeller`; unknown listing → 404 `Listing.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`; a JSON body instead of a form → 415. No row and no file in any failure.
+- `GetListingPhotosTests`: no token, three uploaded photos → 200, `count` 3, in upload order, every field; a listing with no photo → empty `items`; photos of another listing are not returned; unknown listing → 404. The database is unchanged.
+- `GetPhotoFileTests`: no token, an uploaded PNG → 200, the same bytes, `Content-Type` `image/png`, the `Cache-Control` header; unknown id → 404 `Photo.NotFound`; the row exists but the file was deleted from disk by the test → 404 `Photo.NotFound`.
+- `DeletePhotoTests`: the seller deletes one of two photos → 204, the row and the file are gone, the other photo stays (row and file), then `GET /api/v1/photos/{id}` → 404; another member → 403 `Photo.NotSeller`; a photo of another listing (same seller) → 404 `Photo.NotFound`; unknown photo → 404; unknown listing → 404 `Listing.NotFound`; no token → 401. Nothing removed in any failure.
+- Cascade, in `DeletePhotoTests`: the seller deletes the listing (`DELETE /api/v1/listings/{id}`) → 204, its photo rows are gone and its folder under `Factory.PhotosPath` no longer exists; deleting a listing that never had a photo → 204 (no folder, no error).
+
+Rules for this feature:
+- Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
