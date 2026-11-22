@@ -845,6 +845,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 7cb4df8; generated code cfb9e5a
 
+### Run 30, skill v32 (Feature: Conversations)
+
+- **Why a new version:** new domain `Conversations` (conversation and messages) and four new handlers (start a conversation, send a message, read a conversation, my conversations) with no unit test.
+
+#### Change to SKILL.md (v31 → v32) and why
+
+| # | v31 (before) | v32 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about conversations. | New section *"Feature: Conversations (Anca)"*: the rules of `Conversation.Start` and `Send` in their order, the four handlers, a new `FakeConversationRepository` and the tests for each (who can write and read, the message numbers, the trimmed text, the 1000-character limit, the message added to an existing conversation, the order of my conversations). | The participant check and the message rules live in the domain and the handlers; they are tested without a database. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Conversations (Anca)": the new fake and the new test files, only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v32, commit 64131b7 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `Fakes/FakeConversationRepository.cs`, `Domain/Conversations/ConversationTests.cs` and one test file per handler: 50 new tests, 541 unit tests pass. `Conversation.cs` and the four handlers at 100% lines and branches; SARIF log empty.
+- **Problems seen:** the private constructor of `Message` (used only by EF Core when it reads a message) cannot be reached from a unit test; the integration tests cover it. `ConfirmSaleHandler` lines 72–75 (#96) still not covered, as in Run 28.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 64131b7; generated code b9400fc
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1579,6 +1596,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the first Arrange gave no descriptions (fixed, row 2); "a math textbook first" for the draft accepts either published textbook.
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill 7cb4df8; generated code cfb9e5a
+
+### Run 41, skill v40 (Feature: Conversations)
+
+- **Why a new version:** four new endpoints (`POST /listings/{id}/conversations`, `POST /conversations/{id}/messages`, `GET /conversations/{id}`, `GET /members/me/conversations`) and two new tables (`Conversations`, `Messages`, migration `AddConversations`).
+
+#### Change to SKILL.md (v39 → v40) and why
+
+| # | v39 (before) | v40 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about conversations. | New section *"Feature: Conversations (Anca)"*: the endpoint table with every status, how to seed members, listings and conversations, and the tests per endpoint: a second message goes to the same conversation, a sold listing keeps an existing conversation, only the two members can read or write (403 for another member and for an Admin), my conversations as buyer and as seller, and the cascade when the listing is deleted. | Only real HTTP calls on the real database show the 403s, the `Location` header, the unique index and the cascade. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Conversations (Anca)": the four new files under Conversations/ with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v40, commit 64131b7 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `Conversations/StartConversationTests.cs` (13), `SendMessageTests.cs` (7), `GetConversationTests.cs` (5), `GetMyConversationsTests.cs` (4). Integration tests 309/309 three times; full run 10 architecture, 541 unit, 69 ML, 309 integration; SARIF log empty.
+- **Problems seen:** none; the API matched the section. The table names a hidden listing for `Conversation.ListingNotAvailable` but the test list does not (the unit tests cover it).
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 64131b7; generated code b9400fc
 
 
 
@@ -2502,3 +2536,22 @@ The deployed frontend (`https://campus-app-pucf.onrender.com`) could not read an
 - **Checks:** against the deployed API, a request with the Render origin got no CORS header. Locally with the new config: preflight and GET from the Render origin and from `localhost:5173` get `Access-Control-Allow-Origin`, another origin does not; 275 integration tests pass.
 - **Result:** `appsettings.json` (the origin), README (the two places that list the allowed origins).
 - **Commits:** code add985e
+
+## conversations
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Mesaje între cumpărător și vânzător": a conversation about a listing, visible only to the two of them (another member → 403); send a message, read the messages, see my conversations. Written by Ancuța Ilenei with Claude Code; the tests were generated with the unit-testing (Run 30) and integration-testing (Run 41) skills. The chat page in the frontend comes in a separate PR.
+
+### Run 1
+
+- **Prompt:** `Next task from the plan: messages between buyer and seller. Conversation on a listing, visible only to the two (another member → 403). Send a message, see the messages, see my conversations. Domain/Conversations/, Features/Conversations/ (new).`
+- **Decisions:**
+    - Domain: `Conversation` (listing, seller, buyer, `CreatedAt`, `LastMessageAt`) owns its `Message`s, like `Listing` owns its reservations. The seller is taken from the listing, so a conversation has exactly two participants. `Start` refuses the seller's own listing and a listing that cannot be bought (only `Active` or `Reserved`); `Send` refuses anyone who is not one of the two (`ErrorType.Forbidden` → 403, an Admin too: the plan says only the two), an empty text and a text over 1000 characters (after trim).
+    - Each message has a `Number` (1, 2, 3…): the order stays the same when two messages have the same time, and the tests never depend on the clock.
+    - One conversation per buyer and listing (unique index). `POST /listings/{id}/conversations` adds the message to the existing conversation instead of answering 409, so the "write to the seller" button on the listing page works the same the first and the second time; the answer is always 201 with the message and `Location` to the conversation. An existing conversation keeps working after the listing is reserved or sold (to arrange the hand-over).
+    - `GET /members/me/conversations` lists the conversations as buyer and as seller, with the other member's name and the last message, the latest first; no paging (a student has few conversations).
+    - Cascade delete from the listing and from the two members, like reviews; no foreign key on the message sender (always one of the two).
+    - Migration `AddConversations` (two new tables only). #108 and #111 have migrations too: the PR merged last regenerates its migration.
+    - Postman: a `Conversations` folder (13 requests) that creates and publishes its own listing, so it does not depend on the state left by the other folders.
+- **Checks:** build 0 warnings; 10 architecture, 541 unit, 69 ML and 309 integration tests pass; the new code covered in the merged coverage (an unused `DbSet<Message>` was removed after the coverage run; `has-pending-model-changes` confirms the migration still matches); SARIF of the API: only CA1861 in the migrations, as in the older ones (Sonar leaves the migrations out); newman against a fresh database: 162 requests, 318 assertions, 0 failed; the whole flow tried by hand on a running API first.
+- **Result:** new `Domain/Conversations/` (`Conversation.cs`, `Message.cs`, `IConversationRepository.cs`), `Features/Conversations/` (four slices, `MessageResponse`, `SendMessageRequest`, `ConversationsEndpoints.cs`), `Infrastructure/Persistence/EfConversationRepository.cs`, `ConversationConfiguration.cs`, `MessageConfiguration.cs`, migration `AddConversations`; `CampusMarketDbContext.cs`, `CampusMarketSetup.cs` (repository and endpoints); README (use cases, endpoint table, a section); Postman.
+- **Commits:** code 0993bf8; skill sections 64131b7; tests generated in b9400fc (see Run 30 of unit-testing and Run 41 of integration-testing)
