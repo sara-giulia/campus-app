@@ -1,5 +1,6 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import { authRoutes } from '../features/auth/routes'
+import { listingsRoutes } from '../features/listings/routes'
 import { profileRoutes } from '../features/profile/routes'
 import { Layout } from './Layout'
 import { HomePage } from './pages/HomePage'
@@ -15,6 +16,7 @@ import { NotFoundPage } from './pages/NotFoundPage'
 const featureRoutes: RouteObject[] = [
   ...authRoutes,
   ...profileRoutes,
+  ...listingsRoutes,
 ]
 
 export const router = createBrowserRouter([
