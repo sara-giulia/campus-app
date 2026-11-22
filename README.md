@@ -874,29 +874,33 @@ Last run (seed `2026`):
 
 | Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
 |---|---|---|---|---|---|
-| Price (non-spam) | R² | **0.451** | 0.274 | **0.511** | 0.011 |
-| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **112.10** | 192.05 |
-| Price (non-spam) | MAPE | **75.3%** | 176.5% | **55.1%** | 132.1% |
-| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.735** | 0.196 |
-| Category (non-spam) | Macro accuracy | **0.857** | 0.200 | **0.737** | 0.200 |
-| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.934 |
-| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.929 |
+| Price (non-spam) | R² | **0.451** | 0.274 | **0.239** | 0.232 |
+| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **174.27** | 200.77 |
+| Price (non-spam) | MAPE | **75.3%** | 176.5% | **79.3%** | 132.7% |
+| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.618** | 0.196 |
+| Category (non-spam) | Macro accuracy | **0.856** | 0.200 | **0.616** | 0.200 |
+| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.910 |
+| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.765 |
 | Spam (all) | Recall | 1.000 | 1.000 | 0.500 | 0.650 |
-| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.765 |
+| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.703 |
 
-The price and category models still beat their baselines on external
-data, and by a larger R² margin than on the test part — the external
-prices are more concentrated around the catalog averages, so the baseline
-collapses while the model generalizes. Spam is the honest miss: the test
-part is saturated because synthetic spam signals the generator plants
-(links, phone numbers, `!!!`, 1-leu prices) are the same the rule
-baseline catches, so both reach 1.000. The external set has ten subtle
-spam rows with normal titles, normal prices and no scam keywords
-(`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet festival
-Untold"`), which neither the model nor the rule catch — recall drops to
-0.500 for the model and 0.650 for the rule. That gap is a dataset-v2
-limit and a task for the next iteration of the spam generator, not a
-regression in the committed model.
+The category model still beats its baseline on external by a wide margin
+(0.618 vs 0.196 micro), and the price model keeps the lower MAE
+(174.27 lei vs 200.77 lei) and MAPE (79.3% vs 132.7%). On R² the two are
+close (0.239 vs 0.232): the rewritten external rows carry a long
+Electronics tail — HDD extern 20TB, Macbook Air M1, Samsung Galaxy Tab
+S9 FE+ — where the model systematically under-shoots the most expensive
+items, while the Category × Condition mean recovers variance from
+out-of-catalog mixes it had not seen on the test part. Spam is the
+honest miss: the test part is saturated because synthetic spam signals
+the generator plants (links, phone numbers, `!!!`, 1-leu prices) are the
+same the rule baseline catches, so both reach 1.000. The external set
+has ten subtle spam rows with normal titles, normal prices and no scam
+keywords (`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet
+festival Untold"`), which neither the model nor the rule catch — recall
+drops to 0.500 for the model and 0.650 for the rule. That gap is a
+dataset-v2 limit and a task for the next iteration of the spam
+generator, not a regression in the committed model.
 
 ### Dataset v2
 
