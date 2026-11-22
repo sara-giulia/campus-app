@@ -69,12 +69,6 @@ public sealed partial class ConfirmSaleHandler(
             soldPrice: listing.Price.Amount,
             soldAt: now);
 
-        if (record.IsFailure)
-        {
-            LogSaleRecordInvalid(logger, listing.Id, record.Error.Code, record.Error.Message);
-            return;
-        }
-
         saleRecords.Add(record.Value);
     }
 
@@ -83,7 +77,4 @@ public sealed partial class ConfirmSaleHandler(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Price suggester returned no usable suggestion (<= 0) for listing {ListingId}; no SaleRecord saved.")]
     private static partial void LogSuggesterReturnedNothing(ILogger logger, Guid listingId);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "SaleRecord.Create failed for listing {ListingId}: {Code} {Message}")]
-    private static partial void LogSaleRecordInvalid(ILogger logger, Guid listingId, string code, string message);
 }
