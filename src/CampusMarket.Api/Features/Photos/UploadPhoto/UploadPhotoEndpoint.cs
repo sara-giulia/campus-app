@@ -53,7 +53,7 @@ public static class UploadPhotoEndpoint
         int read;
         while (buffer.Length < maxBytes
                && (read = await input.ReadAsync(chunk.AsMemory(0, (int)Math.Min(chunk.Length, maxBytes - buffer.Length)), ct)) > 0)
-            buffer.Write(chunk, 0, read);
+            await buffer.WriteAsync(chunk.AsMemory(0, read), ct);
 
         return buffer.ToArray();
     }
