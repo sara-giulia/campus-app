@@ -24,6 +24,8 @@ npm run dev
 
 It opens on `http://localhost:5173`. The API allows only the origins in `Cors:AllowedOrigins` (`appsettings.json`: `http://localhost:5173` and the deployed frontend, `https://campus-app-pucf.onrender.com`); for another address set `Cors__AllowedOrigins__2` in the API's environment. To use another API address in the frontend, copy `frontend/.env.example` to `frontend/.env.local` and change `VITE_API_URL`. How the frontend is organised (where to add a page, the API client, login): [frontend/README.md](frontend/README.md).
 
+Admin page `/admin/categories` (menu **Categorii**, Admins only): change the display name, the description and the active flag of the 5 base categories. A deactivated category is not offered for new listings.
+
 ### With Docker
 
 1. `docker compose up --build` from the repository root. The API listens on `http://localhost:5080` (port 8080 inside the container).
@@ -275,6 +277,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
+| Category | `GetCategories` | `GET /api/v1/categories` | everyone | 200 `{ items: [{ key, displayName, description, isActive }], count }` (all 5 base categories, active or not) |
+| Category | `UpdateCategory` | `PUT /api/v1/categories/{category}` (`{ displayName, description, isActive }`) | Admins only | 204, 400 `Category.IsActiveRequired` / `Category.DisplayNameEmpty` / `Category.DisplayNameTooLong` / `Category.DescriptionTooLong`, 401, 403, 404 `Category.NotFound`, 409 `Category.LastActive` |
 | Notification | `GetMyNotifications` | `GET /api/v1/members/me/notifications?unreadOnly=&page=&pageSize=` | anyone logged in; only their own notifications | 200 `{ items, count, totalCount, unreadCount, page, pageSize }`, 400, 401 |
 | Notification | `MarkNotificationRead` | `POST /api/v1/members/me/notifications/{id}/read` | anyone logged in; only their own notifications | 204, 401, 404 `Notification.NotFound` |
 | Notification | `MarkAllNotificationsRead` | `POST /api/v1/members/me/notifications/read-all` | anyone logged in; only their own notifications | 204, 401 |
@@ -424,6 +428,13 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Review.CommentTooLong` | 400 | the comment is longer than 500 characters |
 | `Review.AlreadyExists` | 409 | the sale has already been reviewed |
 | `Reviews.InvalidPage`, `Reviews.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/members/{id}/reviews` |
+| `Category.NotFound` | 404 | `PUT /api/v1/categories/{category}` with a key that is not one of the 5 base categories |
+| `Category.IsActiveRequired` | 400 | the body of `PUT /api/v1/categories/{category}` has no `isActive` |
+| `Category.DisplayNameEmpty` | 400 | the display name of a category is missing, empty or only spaces |
+| `Category.DisplayNameTooLong` | 400 | the display name of a category is longer than 100 characters |
+| `Category.DescriptionTooLong` | 400 | the description of a category is longer than 500 characters |
+| `Category.LastActive` | 409 | an Admin deactivates the last active category (at least one must stay active) |
+| `Listing.CategoryInactive` | 400 | you create a listing in a deactivated category, move a listing into one, or publish a draft that is in one |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
