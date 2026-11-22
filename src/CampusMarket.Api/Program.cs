@@ -36,12 +36,25 @@ app.EnsureCampusMarketDatabase();
 app.UseCors(CampusMarketSetup.FrontendCorsPolicy);
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+// Static files for the React SPA (wwwroot/, populated by the Dockerfile's
+// frontend-build stage). Before auth, so assets are served without a token.
+// When wwwroot is missing (tests, dotnet run without a frontend build) the
+// middleware silently serves nothing, so the API endpoints keep working.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseOutputCache();
 
 app.MapCampusMarket();
+
+// SPA deep links (/profile, /reset-password?token=..., /listings/:id) must
+// return index.html on a hard refresh, so the client-side router can take
+// over. Fallback runs only when no API/static route matches, so it never
+// shadows /api/v1/... or /health. If wwwroot/index.html is absent (tests,
+// local dotnet run without a frontend build), the fallback returns 404.
+app.MapFallbackToFile("index.html");
 
 // API documentation, only in Development: the JSON at /openapi/v1.json, the web page at /scalar.
 if (app.Environment.IsDevelopment())

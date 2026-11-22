@@ -1,3 +1,13 @@
+# Build the React frontend in its own stage. The dist/ output is copied into
+# the API's wwwroot below, so the API serves the SPA from the same origin and
+# the browser calls /api/v1/... on that same host (no CORS, no absolute URL).
+FROM node:20-alpine AS frontend-build
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
@@ -15,6 +25,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .
+# Static SPA files served by UseStaticFiles; deep links fall back to index.html
+COPY --from=frontend-build /frontend/dist ./wwwroot
 # The SQLite file lives in a folder the non-root user can write to
 RUN mkdir /app/data && chown $APP_UID /app/data
 ENV ConnectionStrings__CampusMarket="Data Source=/app/data/campusmarket.db"

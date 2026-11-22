@@ -13,4 +13,5 @@ postman
 .github
 .claude
 *.log
-frontend
+frontend/node_modules
+frontend/dist
