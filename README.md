@@ -762,6 +762,41 @@ SonarCloud measures more than this report: the whole API, merged from all the te
 
 ---
 
+## Observability
+
+The API ships with two in-memory, thread-safe aggregators that answer "is the API healthy and how fast is it?" without any external dependency. Both are also published on a named `Meter` (`CampusMarket`, `System.Diagnostics.Metrics`) so a later OpenTelemetry exporter can read the same counters without touching the call sites (`Infrastructure/Observability/CampusMarketMeters.cs`).
+
+**What is measured:**
+
+- **HTTP requests**, per **route template** (`GET /api/v1/listings/{id}` is one bucket, not one per id) and status code: the number of requests, the number of errors (status `>= 500`), and the response time (**average** and **p95**, since start). `/health`, `/health/live`, `/health/ready` and `/api/v1/admin/metrics` itself are excluded on purpose — they are polled constantly and would drown out the real traffic. Recorded by `MetricsMiddleware`, which times every request and reads the final status after `UseExceptionHandler`, so a thrown exception is still counted as a 500.
+- **ML predictions**, per model (`price`, `category`, `spam`): the number of predictions and the average duration. One line in each ML service (`PriceSuggester`, `CategorySuggester`, `SpamDetector`) wraps the `pool.Predict(...)` call in `MetricsRegistry.MeasurePrediction(...)`.
+
+**Endpoint:** `GET /api/v1/admin/metrics` (Admin policy, 401 without a token, 403 with a non-admin one). Returns a point-in-time snapshot of the two aggregators as JSON:
+
+```json
+{
+  "endpoints": [
+    {
+      "route": "GET /api/v1/listings",
+      "requests": 42,
+      "errors": 0,
+      "averageMs": 7.84,
+      "p95Ms": 18.12,
+      "statusCodes": { "200": 42 }
+    }
+  ],
+  "mlPredictions": [
+    { "model": "price",    "count": 5, "averageMs": 11.3 },
+    { "model": "category", "count": 5, "averageMs":  9.2 },
+    { "model": "spam",     "count": 5, "averageMs":  6.7 }
+  ]
+}
+```
+
+A Postman request `Metrics (Admin, 200)` under the **Admin** folder calls it with the `adminToken` variable.
+
+---
+
 ## Machine learning
 
 The AI module (price, category and spam) is trained offline and served by the API.
