@@ -80,13 +80,6 @@ public sealed class Member
         return member;
     }
 
-    // Replaces the stored password hash. The handler validates the plain
-    // password first (length, confirmation), so the domain only takes the hash.
-    public void ChangePassword(string newPasswordHash)
-    {
-        PasswordHash = newPasswordHash;
-    }
-
     public Result<Member> Update(string name, string email)
     {
         var nameResult = ValidateName(name);

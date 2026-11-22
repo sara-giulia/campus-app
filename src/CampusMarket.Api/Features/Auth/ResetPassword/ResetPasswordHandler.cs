@@ -44,7 +44,10 @@ public sealed class ResetPasswordHandler(
         if (member is null)
             return Result<Guid>.Failure(PasswordResetToken.Invalid);
 
-        member.ChangePassword(passwordHasher.Hash(command.NewPassword));
+        var changeResult = member.ChangePassword(passwordHasher.Hash(command.NewPassword));
+        if (changeResult.IsFailure)
+            return Result<Guid>.Failure(changeResult.Error);
+
         token.MarkUsed(now);
 
         foreach (var active in await refreshTokens.GetActiveByMemberAsync(member.Id, now, ct))

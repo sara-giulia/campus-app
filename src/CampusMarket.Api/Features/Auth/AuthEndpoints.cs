@@ -3,8 +3,7 @@ using CampusMarket.Api.Features.Auth.Login;
 using CampusMarket.Api.Features.Auth.Refresh;
 using CampusMarket.Api.Features.Auth.Logout;
 using CampusMarket.Api.Features.Auth.ChangePassword;
-using CampusMarket.Api.Features.Auth.Refresh;
-using CampusMarket.Api.Features.Auth.Register;
+using CampusMarket.Api.Features.Auth.ForgotPassword;
 using CampusMarket.Api.Features.Auth.ResetPassword;
 
 namespace CampusMarket.Api.Features.Auth;
