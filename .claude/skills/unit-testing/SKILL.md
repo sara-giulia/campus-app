@@ -61,6 +61,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 9. Every test has at least one assertion.
 10. ResultTests must also check both throwing branches: reading `Value` on a failed result throws `InvalidOperationException`, and reading `Error` on a successful result throws `InvalidOperationException`. Use `Action act = () => _ = result.Value;` and `act.Should().Throw<InvalidOperationException>()`. Otherwise those branches stay uncovered.
 11. Every run starts in a new Claude Code session, so that the current version of this file is read and not an older context.
+12. Never pass a constant array literal as an argument (CA1861): put it in a `private static readonly` field.
 
 - If unit tests already exist, keep them and only add the tests that are missing for the current code. Then generate the coverage report again.
 
@@ -68,8 +69,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
 - Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"`
 - Target: 100% line and branch coverage for every file in the report (all of `Domain/` and every handler).
-- Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`.
-- After generating, check that Git sees the report: `git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing.
+- The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either.
 - When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
 - Everything that is not in the report is outside the target. This is the single list of exclusions (the README copies it word for word):
   - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
@@ -741,6 +741,50 @@ Rules for this feature:
 - Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
 - Build hidden, reserved and sold listings through the domain methods (`Publish`, `Reserve`, `ConfirmSale`, `Hide`), like the other handler tests.
 
+## Feature: Password reset (Sara)
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/PasswordResetToken.cs`: the factory returns the token and the plain value once; only the SHA-256 hash is stored; the token is valid 30 minutes; `MarkUsed` makes it single use; an expired or already used token is rejected by `IsValid(now)`.
+- `Features/Auth/ForgotPassword/ForgotPasswordHandler.cs`: unknown email → success (the same response as a known email), no email is sent, no token saved; known email → one token saved and one email sent whose body contains the plain token; if the handler invalidates old tokens, it does so before saving the new one.
+- `Features/Auth/ResetPassword/ResetPasswordHandler.cs`: a valid token and a matching strong password → the member's hash is the fake hash of the new password, the token is used, `SaveCount` 1; an unknown, expired or already used token → `Validation` `Auth.InvalidResetToken`; a weak password → `Validation` (`Auth.WeakPassword`).
+- `Infrastructure/Mailing/LoggingEmailSender.cs` and `Infrastructure/Mailing/SmtpEmailSender.cs`: only what can be tested without a real SMTP server (the logger message for `LoggingEmailSender`; for `SmtpEmailSender` only what reads from `IOptions<EmailOptions>` and the environment variables, never an actual `SendAsync` to a server).
+
+Fakes: `FakePasswordResetTokenRepository` (new, same hand-written style, `Items` by `Id`, `AddAsync`, `GetByHashAsync`, `Update`, `GetActiveByMemberAsync` if the handler uses it; `UpdateCount`), `FakeEmailSender` (new: implements `IEmailSender` and records every sent email in a public `List<(string To, string Subject, string Body)> Sent`), the existing `FakeMemberRepository`, `FakeRefreshTokenRepository`, `FakePasswordHasher`, `FakeUnitOfWork`; fixed `Now` through `FixedTimeProvider`.
+
+Files:
+- `Domain/Members/PasswordResetTokenTests.cs` (new).
+- `Features/Auth/ForgotPassword/ForgotPasswordHandlerTests.cs` (new).
+- `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs` (new).
+- `Infrastructure/Mailing/LoggingEmailSenderTests.cs` (new).
+- `Infrastructure/Mailing/SmtpEmailSenderTests.cs` (new).
+
+Tests to add:
+- `PasswordResetToken`:
+  - the stored hash is not the plain token and equals SHA-256 of it (hex, upper case).
+  - `IsValid(now)` is true one second before 30 minutes, false exactly at 30 minutes, false after 30 minutes.
+  - `MarkUsed(now)` sets `UsedAt`; a used token is rejected by `IsValid`; calling `MarkUsed` twice keeps the first time.
+  - an expired token is rejected even when it has not been used; a used token is rejected even when it has not expired.
+- `ForgotPasswordHandler`:
+  - unknown email → the response is the same shape as for a known email; no email captured (`FakeEmailSender.Sent` is empty); no token saved; `SaveCount` 0.
+  - known email → one token saved for this member, one email to that address whose body contains the plain token; `SaveCount` 1.
+  - if the handler invalidates old tokens: an existing active token of the same member is marked used before the new one is saved; a token of another member is not touched. If the handler does not do this, omit these two tests.
+- `ResetPasswordHandler`:
+  - valid token and matching strong password → success; the member's `PasswordHash` is `FakePasswordHasher.Hash(new)`; the token is marked used; `UpdateCount` 1; `SaveCount` 1.
+  - unknown token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - expired token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - already used token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - weak password (shorter than `RegisterHandler.MinPasswordLength`, `[Theory]` with `""` and a 7-character value) → `Validation` with the exact code and message, nothing changed, `SaveCount` 0; a confirmation different from the new password → `Validation` `Auth.PasswordsDoNotMatch`, nothing changed, `SaveCount` 0.
+- `LoggingEmailSender`: `SendAsync` writes one log entry at `Information` level whose message contains the `To` and the `Subject`, and never the `Body` (assert through a captured `ILogger<LoggingEmailSender>` or an `ITestOutputHelper`-style logger). No other side effect; `Task` completed.
+- `SmtpEmailSender`: only what can be tested without a real server: `IOptions<EmailOptions>` with `Host` null → a `SendAsync` call throws (the constructor or the call rejects a missing host, depending on the production code — assert what the code actually does); when `Email__Username` is set, the credentials are read from the environment variables (through a small seam if `SmtpEmailSender` exposes one; otherwise this test is not written). Never open an SMTP connection and never write the port or the TLS flag to disk.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code). Build the length and lifetime constants from the production code (`PasswordResetToken.Lifetime`, `RegisterHandler.MinPasswordLength`), not hard-coded values.
+- Never use real time: `Now` is a fixed `DateTimeOffset`, given to `FixedTimeProvider`. The 30-minute boundary is `Now.Add(PasswordResetToken.Lifetime)` and `Now.Add(PasswordResetToken.Lifetime).AddSeconds(-1)`.
+- Never send a real email and never open an SMTP connection: the handler tests use `FakeEmailSender` and the `SmtpEmailSender` tests stop at what the class does without a server.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+
 ## Feature: Conversations (Anca)
 
 Production code (read it before generating):
@@ -804,3 +848,4 @@ Tests to add:
 Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the messages from `Photo.MaxPerListing` and `Photo.MaxSizeBytes` the same way the domain does.
 - Never use real time: `Now` is fixed.
+

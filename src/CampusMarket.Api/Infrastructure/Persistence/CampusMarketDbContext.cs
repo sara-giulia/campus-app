@@ -23,6 +23,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<SaleRecord> SaleRecords => Set<SaleRecord>();
     public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Photo> Photos => Set<Photo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

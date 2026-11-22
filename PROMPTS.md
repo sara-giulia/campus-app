@@ -751,6 +751,19 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v25 is the final version.
 - **Commits:** skill f4cb94c; generated code 155cf71
 
+### Skill update v25 → v26 (coverage-report is local only)
+
+- **Numbering:** numbered after #73, #77 and #79, which make unit-testing v23, v24 and v25, so those three PRs keep their numbers.
+
+| What | Before (v25) | After (v26) |
+|---|---|---|
+| Coverage report in Git (section "Coverage") | *"Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`."* | *"The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either."* |
+| Check after generating | *"`git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing."* | removed |
+
+- **Why:** the generated HTML report changed in almost every PR (new timestamps on every class page), so PRs carried dozens of files that nobody reviews, and they conflicted at every merge. `coverage-report/` is now in `.gitignore` and removed from the repository in the same PR (`git rm -r --cached`). The old rule asked to commit the report, so it contradicted `.gitignore`, and the next run would have tried to commit it again.
+- **Who:** Carina Coman, at Sara Matasel's request (edit only, no generation)
+- **Commit:** `9b8d5be` (the `.gitignore` change and the removal of the folder are in the commit "chore: stop tracking coverage-report" of the same PR)
+
 ### Run 25, skill v27 (Feature: Minimum category confidence)
 
 - **Why a new version:** `SuggestCategoryHandler` has a new rule: below `MinConfidence` (0.7) the response has `Category` null and keeps the confidence. `SuggestCategoryResponse.Category` is now nullable. The new branch had no tests, and one existing test used a confidence of 0.5 and expected a category.
@@ -2610,3 +2623,13 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Poze la listări": upload only
 - **Checks:** build 0 warnings; 10 architecture, 581 unit, 69 ML and 338 integration tests pass; the new code covered in the merged coverage; SARIF of the API clean outside the migrations; newman against a fresh database: 173 requests, 338 assertions, 0 failed; the whole flow tried by hand on a running API (three formats, a GIF renamed `.png`, 2 MB + 1, the sixth photo, another member, delete, the folder gone with the listing, a JSON body → 415).
 - **Result:** new `Domain/Photos/` (`Photo.cs`, `PhotoFormat.cs`, `IPhotoRepository.cs`), `Common/Storage/` (`IPhotoStorage.cs`, `PhotoStorageOptions.cs`), `Infrastructure/Storage/LocalPhotoStorage.cs`, `Infrastructure/Persistence/EfPhotoRepository.cs`, `PhotoConfiguration.cs`, migration `AddPhotos`, `Features/Photos/` (four slices, `PhotoResponse`, `PhotosEndpoints.cs`); `DeleteListingHandler.cs`, `CampusMarketDbContext.cs`, `CampusMarketSetup.cs`, `Dockerfile`, `.gitignore`; README (use cases, endpoint table, a section, the Render note); Postman.
 - **Commits:** code f4520ff; skill sections 59b3660; tests generated in 237ab25 (see Run 31 of unit-testing and Run 42 of integration-testing)
+
+### Run 2 (merge with main after #108, #117, #119, #80)
+
+- **Prompt:** `#120 has conflicts after Sara's PRs went in; check everything that changed and make it all work.`
+- **Decisions:**
+    - Conflicts kept both sides (registrations, `DbSet`s, `.gitignore`, skills, Postman). The `AddPhotos` migration was regenerated on top of `AddPasswordResetTokens` from #108 (same content: one `Photos` table); `has-pending-model-changes` is clean.
+    - Compared with the main before these merges (`4568297`), some content was lost in earlier conflict resolutions and is put back unchanged: the "Feature: Similar listings (Anca)" sections of both test skills; unit-testing Runs 21–23 in this file (before "Skill update v25 → v26"); 11 Postman requests (filter by condition, public profile, my profile, health live/ready) with their folders; the `sellerId` line of "Create listing - valid" and the `sellerId`, `convListingId`, `conversationId` collection variables. Every Postman request of main is unchanged.
+- **Checks:** build 0 warnings; 10 architecture, 605 unit, 69 ML and 346 integration tests pass; newman against a fresh database: 175 requests, 342 assertions, 0 failed.
+- **Commits:** the merge commit of this run
+

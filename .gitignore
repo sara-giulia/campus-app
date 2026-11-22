@@ -436,5 +436,7 @@ FodyWeavers.xsd
 
 StrykerOutput/
 
+coverage-report/
+
 # Photo files uploaded while running the API locally (Storage:PhotosPath)
 src/CampusMarket.Api/photos/

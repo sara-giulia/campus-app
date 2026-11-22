@@ -231,6 +231,7 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 - Never commit or push; report the results.
 - Never edit `postman/`, `.github/`, or anything in `tests/CampusMarket.UnitTests`.
 - Never declare a private helper with an interface return type when it always returns one concrete type (for example `IReadOnlyList<T>` for a method that returns `.ToList()`): return the concrete type (`List<T>`). SonarCloud reports it as CA1859. After generating, build with `-p:ErrorLog=<file>.sarif%2Cversion=2.1` and check that the new test files have no CA or IDE diagnostic.
+- Never pass a constant array literal as an argument (CA1861): put it in a `private static readonly` field.
 
 ## 8. Old API tests
 
@@ -1069,6 +1070,35 @@ Rules for this feature:
 - Never assert an exact similarity from the real model; only the order of the clear cases above and the 0–1 range.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Password reset (Sara)
+
+Endpoints:
+- `POST /api/v1/auth/forgot-password` `{ email }` → 202 with the same body for a known email and for an unknown email (so the API never leaks whether the email exists).
+- `POST /api/v1/auth/reset-password` `{ token, newPassword, confirmNewPassword }` → 204 on success, or 400 ProblemDetails with `Auth.InvalidResetToken` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`.
+
+File: `Auth/PasswordResetTests.cs` (new), class `PasswordResetTests : IntegrationTestBase` (fixed `SellerId`, a seeded member with a known password).
+
+Test host: replace `IEmailSender` with a capturing fake (a `TestEmailSender` in the test project that records every email in a thread-safe list) through `ConfigureTestServices` in a host started with `Factory.WithWebHostBuilder(...)`, disposed with `await using`. The handler builds the reset link with the plain token as `?token=...`; read it from the captured email's body with a private static helper (store the terminators in a `private static readonly char[]` field — CA1861). For the expiry test, the same `WithWebHostBuilder` host also replaces `TimeProvider` with a fake that returns a fixed `Now`. The `forgot-password` endpoint shares the "login" rate limit (if configured): keep each test to a few calls, and when the test needs to call it more often, the host is a fresh copy.
+
+Tests to add:
+- `POST /auth/forgot-password` always 202:
+  - registered email → 202 with the standard body, one email captured for that address.
+  - unknown email → 202 with exactly the same body, no email captured, no token in the database.
+- Full flow: a registered member sends `forgot-password`, the test reads the plain token from the captured email's link, then `POST /auth/reset-password` with that token and a strong new password → 204; `POST /auth/login` with the new password → 200 and returns an access token; `POST /auth/login` with the old password → 401 `Auth.InvalidCredentials`. One extra email is captured for "password changed" and its body does not contain the new password. The token row in the database has `UsedAt` set.
+- Reused token: the same token used a second time → 400 ProblemDetails with `Auth.InvalidResetToken`; the member's password is not changed again and no new email is captured.
+- Expired token: through a fake `TimeProvider` set to `Now + PasswordResetToken.Lifetime` (30 minutes), reset with the token → 400 ProblemDetails with `Auth.InvalidResetToken`; the member's password is unchanged and no email is captured.
+- Random token (never issued) → 400 ProblemDetails with `Auth.InvalidResetToken`.
+- Weak password (`""` and a 7-character value, `[Theory]`) → 400 ProblemDetails with `Auth.WeakPassword`; a confirmation different from the new password → 400 ProblemDetails with `Auth.PasswordsDoNotMatch`.
+- Rate limiting (only if `forgot-password` has a configured limit): call the endpoint until the limit is reached; the next call returns 429. Check it on a fresh `WithWebHostBuilder` host so the other tests are not touched; skip this test if no limit is configured.
+
+Rules for this feature:
+- Never send a real email: the capturing `IEmailSender` is registered in every test host; never open an SMTP connection.
+- Never use real time for the 30-minute boundary: the expired-token test uses the fake `TimeProvider` through `ConfigureTestServices`. For `sentAt`/`createdAt` that come from HTTP, assert that they are close to now (`BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))`), never an exact value.
+- Never put a constant array literal in an argument (CA1861): the token-extraction helper reads terminators from a `private static readonly char[]` field.
+- 400 bodies are ProblemDetails, as in "Feature: Error handling (Anca)": assert on the response body's `Extensions`/`Detail` for `Code`, or on the response status plus the `Code` that the handler puts in ProblemDetails.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+
 ## Feature: Conversations (Anca)
 
 Endpoints (all need a token; the member is the user in the token):
@@ -1129,3 +1159,4 @@ Tests to add (status, body, then the database through `db.Set<Photo>()` and the 
 Rules for this feature:
 - Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
