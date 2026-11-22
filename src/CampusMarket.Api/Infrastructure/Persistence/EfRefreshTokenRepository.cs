@@ -12,9 +12,14 @@ public sealed class EfRefreshTokenRepository(CampusMarketDbContext db) : IRefres
 
     public void Update(RefreshToken refreshToken) => db.RefreshTokens.Update(refreshToken);
 
+    // SQLite can't translate DateTimeOffset comparisons, so pull the member's
+    // tokens (MemberId is indexed) and filter with the domain's IsActive.
     public async Task<List<RefreshToken>> GetActiveByMemberAsync(
-        Guid memberId, DateTimeOffset now, CancellationToken ct = default) =>
-        await db.RefreshTokens
-            .Where(t => t.MemberId == memberId && t.RevokedAt == null && t.ExpiresAt > now)
+        Guid memberId, DateTimeOffset now, CancellationToken ct = default)
+    {
+        var all = await db.RefreshTokens
+            .Where(t => t.MemberId == memberId)
             .ToListAsync(ct);
+        return all.Where(t => t.IsActive(now)).ToList();
+    }
 }
