@@ -18,8 +18,12 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
 
     public CampusMarketApiFactory() => _connection.Open();
 
+    // Uploaded photos go to a temp folder of this factory, never into the source tree.
+    public string PhotosPath { get; } = Path.Combine(Path.GetTempPath(), $"campusmarket-photos-{Guid.NewGuid()}");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("Storage:PhotosPath", PhotosPath);
         builder.UseSetting("Seed:AdminEmail", "");
         builder.UseSetting("Jwt:Key", TestTokens.Key);
         // The reservation expiry background service must not run during tests.
@@ -39,7 +43,12 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
 
-        if (disposing)
-            _connection.Dispose();
+        if (!disposing)
+            return;
+
+        _connection.Dispose();
+
+        if (Directory.Exists(PhotosPath))
+            Directory.Delete(PhotosPath, recursive: true);
     }
 }

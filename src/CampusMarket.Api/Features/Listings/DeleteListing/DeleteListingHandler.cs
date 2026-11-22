@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Storage;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 
@@ -6,7 +7,8 @@ namespace CampusMarket.Api.Features.Listings.DeleteListing;
 
 public sealed class DeleteListingHandler(
     IListingRepository repository,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IPhotoStorage photoStorage)
     : ICommandHandler<DeleteListingCommand, Guid>
 {
     public async Task<Result<Guid>> HandleAsync(
@@ -24,6 +26,9 @@ public sealed class DeleteListingHandler(
 
         repository.Delete(listing);
         await unitOfWork.CommitAsync(ct);
+
+        // The photo rows went with the listing (cascade); their files are removed here.
+        photoStorage.DeleteListing(listing.Id);
 
         return listing.Id;
     }

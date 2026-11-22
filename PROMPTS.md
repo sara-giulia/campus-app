@@ -696,6 +696,61 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
+### Run 21, skill v23 (Feature: Condition filter)
+
+- **Why a new version:** task 1 (issue #72). `GET /api/v1/listings` got an optional `condition` filter (`New`, `Good`, `Worn`); the new branch in `GetListingsHandler` had no tests.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the condition filter. | New section *"Feature: Condition filter (Carina)"*: the file and three tests (condition alone, condition with category, no condition). | Covers the new filter and proves that the default behaviour did not change. |
+| 2 | — | *"`Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument"*. | Existing tests build the query by position; if the parameter were in the middle, a literal `0` meant for `Page` would silently become `Condition.New`. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Condition filter (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v23, commit 1be82be; section written and run by Carina Coman
+- **Result:** 3 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs` (`Given_ListingsWithDifferentConditions_When_FilteringByCondition_Then_ReturnsOnlyThatCondition`, a test for `Category` and `Condition` together, `Given_NoConditionFilter_When_Handling_Then_ReturnsEveryActiveListing`); the 37 existing tests in the file are unchanged. Each test seeds its own `FakeListingRepository`, sets `Condition` with a named argument and checks that the repository still has its 3 items. 435/435 unit tests pass; coverage stays **100%**: 1026/1026 lines and 358/358 branches (`Domain/` 11 classes, handlers 30). The report in `coverage-report/` was generated again. Nothing changed in `src/`.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 1be82be; generated code ab95b6d
+
+### Run 22, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). New slices `GetMyProfile` (`GET /api/v1/members/me`) and `UpdateMyProfile` (`PUT /api/v1/members/me`, only the name changes) without tests.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile of the logged-in member. | New section *"Feature: My profile (Carina)"*: what each handler does, how to build the members (`Member.Register` with `FakePasswordHasher`, Student or Admin), and 6 tests. | Without it Claude would have to guess the order of the checks and what the response contains. |
+| 2 | — | *"`member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same"* + a test that checks the email after the update. | Proves that the profile update can never change the email. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v24, commit f197c2c (numbered after the condition filter PR, #72, which makes v23); section written and run by Carina Coman
+- **Result:** 6 new tests in two new files: `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs` (a Student with its id, name, lower-case email, role and `CreatedAt`, the repository unchanged; an Admin → role `"Admin"`; unknown id → `Member.NotFound`) and `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs` (a valid name with spaces → trimmed, email unchanged, `UpdateCount` 1, `SaveCount` 1; a 1-character name → `Member.InvalidName`, name unchanged, `UpdateCount` 0, `SaveCount` 0; unknown id → `Member.NotFound`, `SaveCount` 0). Every error checks type, code and the exact message. No existing test, fake or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1045/1045 lines and 362/362 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill f197c2c; generated code b9461db
+
+### Run 23, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). New query slice `GetPublicProfile` (`GET /api/v1/members/{id}/profile`): name, member since, average rating, review count and Active listings, without email or role. The handler had no tests.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: what the handler returns, how to build Draft, Active and Sold listings and a review (`Publish`, `Reserve`, `ConfirmSale`, `Review.Create`), and 6 tests. | Building a review needs a sold listing with a completed reservation; without the steps Claude would have to guess them. |
+| 2 | — | *"reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals)"*. | Proves the rounding, not only an average that is already exact. |
+| 3 | — | *"If `FakeReviewRepository` already exists in `Fakes/`, use it as it is"*. | So the run does not write a second fake for the same interface. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests (and the fake, if it is missing) from the "Feature: Public profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v25, commit f4cb94c (numbered after the condition filter and my profile PRs, #72 and #76, which make v23 and v24); section written and run by Carina Coman
+- **Result:** one new file, `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`, with the 6 tests of the section: 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with title and price (also the member's id, name and `MemberSince`); another seller's Active listing is not included; no reviews → `AverageRating` null, `ReviewCount` 0; ratings 5 and 4 → 4.5 and 2; ratings 5, 4 and 4 → 4.33; unknown id → `Member.NotFound`. The existing `FakeReviewRepository` was used, so no fake changed. No existing test or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1044/1044 lines, 362/362 branches, 167/167 methods. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill f4cb94c; generated code 155cf71
+
 ### Skill update v25 → v26 (coverage-report is local only)
 
 - **Numbering:** numbered after #73, #77 and #79, which make unit-testing v23, v24 and v25, so those three PRs keep their numbers.
@@ -819,6 +874,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** the private constructor of `Message` (used only by EF Core when it reads a message) cannot be reached from a unit test; the integration tests cover it. `ConfirmSaleHandler` lines 72–75 (#96) still not covered, as in Run 28.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 64131b7; generated code b9400fc
+
+### Run 31, skill v33 (Feature: Listing photos)
+
+- **Why a new version:** new domain `Photos` (`Photo`, `PhotoFormat`), four new handlers (upload, list, get the file, delete) and `DeleteListingHandler` now takes an `IPhotoStorage`, so its tests no longer compiled.
+
+#### Change to SKILL.md (v32 → v33) and why
+
+| # | v32 (before) | v33 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about photos. | New section *"Feature: Listing photos (Anca)"*: the format detection by the first bytes, the rules of `Photo.Create` in their order (seller, 5 photos, empty, 2 MB, format), the four handlers, two new fakes (`FakePhotoRepository`, `FakePhotoStorage`) and the change to `DeleteListingHandlerTests` (the storage as third argument, the folder removed only after a successful delete). | The limits and the format check are the core of the task and are tested without a disk. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Listing photos (Anca)": the new fakes, the new test files and the change to DeleteListingHandlerTests, only what it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v33, commit 59b3660 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** two new fakes, `PhotoFormatTests` (9), `PhotoTests` (13) and one file per handler (18); the five `DeleteListingHandlerTests` kept, now also checking the photo folder. 581 unit tests pass; `Photo`, `PhotoFormat`, the four handlers and `DeleteListingHandler` at 100% lines and branches; SARIF log empty.
+- **Problems seen:** the run rewrote `DeleteListingHandlerTests.cs` with CRLF line endings; put back to LF by hand (no content change). One "order" case of the section was the same as the empty-content case, so it is one test.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 59b3660; generated code 237ab25
 
 ## integration-testing
 
@@ -1571,6 +1643,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none; the API matched the section. The table names a hidden listing for `Conversation.ListingNotAvailable` but the test list does not (the unit tests cover it).
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 64131b7; generated code b9400fc
+
+### Run 42, skill v41 (Feature: Listing photos)
+
+- **Why a new version:** four new endpoints (upload with `multipart/form-data`, list, the image, delete), files written on disk and the photo folder removed when a listing is deleted.
+
+#### Change to SKILL.md (v40 → v41) and why
+
+| # | v40 (before) | v41 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about photos. | New section *"Feature: Listing photos (Anca)"*: the endpoint table, a temporary photos folder per test factory (`Factory.PhotosPath`, deleted on dispose, never the source tree), how to upload with `MultipartFormDataContent`, and the tests: the three formats, a renamed GIF, exactly 2 MB and one byte more, no file, the sixth photo, 403/404/401/415, the image bytes and headers, a row whose file is missing, deleting one photo, and the folder removed with the listing. | Only real HTTP calls show the form binding, the 415, the `Location` and the files on disk. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Listing photos (Anca)": the change to CampusMarketApiFactory and the four new files under Photos/ with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10, the SARIF check, and check that no photos folder was created in the repository. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v41, commit 59b3660 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `CampusMarketApiFactory` with its own temporary `PhotosPath`; `Photos/UploadPhotoTests.cs` (13 cases), `GetListingPhotosTests.cs` (4), `GetPhotoFileTests.cs` (3), `DeletePhotoTests.cs` (9). Integration tests 338/338 three times; full run 10 architecture, 581 unit, 69 ML, 338 integration; SARIF log empty; no photos folder in the repository or left in the temp folder.
+- **Problems seen:** the 415 answer has `code` `Server.Error`, because the status-code mapping has no case for 415 (the same for every endpoint, not only photos); the test checks the status and the ProblemDetails shape, not the code. "Delete, then GET → 404" became its own test (one HTTP call per Act).
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 59b3660; generated code 237ab25
 
 
 
@@ -2513,3 +2602,34 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Mesaje între cumpărător și
 - **Checks:** build 0 warnings; 10 architecture, 541 unit, 69 ML and 309 integration tests pass; the new code covered in the merged coverage (an unused `DbSet<Message>` was removed after the coverage run; `has-pending-model-changes` confirms the migration still matches); SARIF of the API: only CA1861 in the migrations, as in the older ones (Sonar leaves the migrations out); newman against a fresh database: 162 requests, 318 assertions, 0 failed; the whole flow tried by hand on a running API first.
 - **Result:** new `Domain/Conversations/` (`Conversation.cs`, `Message.cs`, `IConversationRepository.cs`), `Features/Conversations/` (four slices, `MessageResponse`, `SendMessageRequest`, `ConversationsEndpoints.cs`), `Infrastructure/Persistence/EfConversationRepository.cs`, `ConversationConfiguration.cs`, `MessageConfiguration.cs`, migration `AddConversations`; `CampusMarketDbContext.cs`, `CampusMarketSetup.cs` (repository and endpoints); README (use cases, endpoint table, a section); Postman.
 - **Commits:** code 0993bf8; skill sections 64131b7; tests generated in b9400fc (see Run 30 of unit-testing and Run 41 of integration-testing)
+
+## listing-photos
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Poze la listări": upload only jpg, png or webp, at most 2 MB, at most 5 per listing, only the seller; the files on disk (the Docker volume), only the name in the database. Written by Ancuța Ilenei with Claude Code; the tests were generated with the unit-testing (Run 31) and integration-testing (Run 42) skills. The photos on the listing page come with the frontend pages.
+
+### Run 1
+
+- **Prompt:** `Next task: photos on listings. Upload only jpg, png or webp, max 2 MB, max 5 per listing; only the seller. Files on disk (Docker volume), only the name in the database. Domain/Photos/, Features/Photos/, Common/Storage/IPhotoStorage.cs, Infrastructure/Storage/ (new).`
+- **Decisions:**
+    - The format is read from the first bytes of the file (`PhotoFormat.Detect`: JPEG `FF D8 FF`, PNG signature, WebP `RIFF…WEBP`), never from the file name or the content type the browser sends, which anyone can change. The stored name is `<photoId>.<ext>`, made by the domain, so a user-given name never reaches the disk.
+    - The endpoint reads at most 2 MB + 1 byte of the upload: one byte more is enough to answer `Photo.TooLarge`, and a big file is never held in memory.
+    - `Photo.Create` checks in this order: the seller (403), the 5-photo limit, empty, size, format. Any listing status (the seller can prepare a draft with photos).
+    - Storage: `IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`, one folder per listing (`<PhotosPath>/<listingId>/`), so deleting a listing removes all its files at once (`DeleteListingHandler` calls `DeleteListing` after the commit; the rows go by cascade). `Storage:PhotosPath` = `photos` locally (git-ignored), `/app/data/photos` in the Dockerfile, inside the volume of the database.
+    - Order of the writes: upload saves the file, then the row; delete removes the row, then the file. If the second step fails, an unused file is left, never a row without its file. `GET /photos/{id}` also answers 404 when the row exists but the file is missing.
+    - `GET /api/v1/photos/{id}` is public (an `<img src>` sends no token) with `Cache-Control: public, max-age=86400` (a photo never changes). `DELETE …/photos/{photoId}` was added so the seller can replace a photo once the 5 are used.
+    - The upload endpoint has `DisableAntiforgery()`: the token is in the `Authorization` header, no cookies.
+    - Migration `AddPhotos` (one new table).
+    - Postman: a `Photos` folder (11 requests) with a real 1×1 PNG in `postman/files/listing-photo.png` (path relative to the repository root, where newman is run).
+- **Checks:** build 0 warnings; 10 architecture, 581 unit, 69 ML and 338 integration tests pass; the new code covered in the merged coverage; SARIF of the API clean outside the migrations; newman against a fresh database: 173 requests, 338 assertions, 0 failed; the whole flow tried by hand on a running API (three formats, a GIF renamed `.png`, 2 MB + 1, the sixth photo, another member, delete, the folder gone with the listing, a JSON body → 415).
+- **Result:** new `Domain/Photos/` (`Photo.cs`, `PhotoFormat.cs`, `IPhotoRepository.cs`), `Common/Storage/` (`IPhotoStorage.cs`, `PhotoStorageOptions.cs`), `Infrastructure/Storage/LocalPhotoStorage.cs`, `Infrastructure/Persistence/EfPhotoRepository.cs`, `PhotoConfiguration.cs`, migration `AddPhotos`, `Features/Photos/` (four slices, `PhotoResponse`, `PhotosEndpoints.cs`); `DeleteListingHandler.cs`, `CampusMarketDbContext.cs`, `CampusMarketSetup.cs`, `Dockerfile`, `.gitignore`; README (use cases, endpoint table, a section, the Render note); Postman.
+- **Commits:** code f4520ff; skill sections 59b3660; tests generated in 237ab25 (see Run 31 of unit-testing and Run 42 of integration-testing)
+
+### Run 2 (merge with main after #108, #117, #119, #80)
+
+- **Prompt:** `#120 has conflicts after Sara's PRs went in; check everything that changed and make it all work.`
+- **Decisions:**
+    - Conflicts kept both sides (registrations, `DbSet`s, `.gitignore`, skills, Postman). The `AddPhotos` migration was regenerated on top of `AddPasswordResetTokens` from #108 (same content: one `Photos` table); `has-pending-model-changes` is clean.
+    - Compared with the main before these merges (`4568297`), some content was lost in earlier conflict resolutions and is put back unchanged: the "Feature: Similar listings (Anca)" sections of both test skills; unit-testing Runs 21–23 in this file (before "Skill update v25 → v26"); 11 Postman requests (filter by condition, public profile, my profile, health live/ready) with their folders; the `sellerId` line of "Create listing - valid" and the `sellerId`, `convListingId`, `conversationId` collection variables. Every Postman request of main is unchanged.
+- **Checks:** build 0 warnings; 10 architecture, 605 unit, 69 ML and 346 integration tests pass; newman against a fresh database: 175 requests, 342 assertions, 0 failed.
+- **Commits:** the merge commit of this run
+
