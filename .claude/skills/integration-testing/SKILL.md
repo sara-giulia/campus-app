@@ -1167,3 +1167,16 @@ File: `Listings/GetListingsTests.cs` (add to it).
 Tests to add:
 - `?sort=price_asc` → 200, prices in ascending order.
 - `?sort=abc` → 400 `Listings.InvalidSort`.
+
+## Feature: Notifications (Sara)
+Endpoints (token needed): `GET /api/v1/members/me/notifications?unreadOnly=&page=&pageSize=`, `POST /api/v1/members/me/notifications/{id}/read` (204, 404 if not mine or unknown), `POST /api/v1/members/me/notifications/read-all` (204).
+File: `Notifications/NotificationsTests.cs` (new).
+Tests to add:
+- seller and buyer seeded, published listing; the buyer reserves → the seller's GET has 1 unread ReservationCreated notification for that listing; the buyer's GET is empty.
+- the seller confirms the sale → the buyer has 1 ListingSold notification.
+- mark one as read → 204, `unreadCount` 0, `readAt` set in the database; marking someone else's → 404.
+- read-all → 204, all mine read.
+- no token → 401 on the three endpoints.
+- the list order: seed two notifications of the seller with `Notification.Create(seller.Id, NotificationType.ReservationCreated, "...", listing.Id, createdAt)` at two fixed times (the older one first in the seed) → `GET` returns the newer first, `count` 2, `totalCount` 2, `unreadCount` 2, every field of both items; after marking the newer one as read, `?unreadOnly=true` → only the older one, `totalCount` 1, `unreadCount` 1.
+- paging: `?page=0` → 400 `Notifications.InvalidPage`; `?pageSize=101` → 400 `Notifications.InvalidPageSize` (body is our `Error`); the database is unchanged.
+  Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.

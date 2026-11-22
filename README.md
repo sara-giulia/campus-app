@@ -275,6 +275,9 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
+| Notification | `GetMyNotifications` | `GET /api/v1/members/me/notifications?unreadOnly=&page=&pageSize=` | anyone logged in; only their own notifications | 200 `{ items, count, totalCount, unreadCount, page, pageSize }`, 400, 401 |
+| Notification | `MarkNotificationRead` | `POST /api/v1/members/me/notifications/{id}/read` | anyone logged in; only their own notifications | 204, 401, 404 `Notification.NotFound` |
+| Notification | `MarkAllNotificationsRead` | `POST /api/v1/members/me/notifications/read-all` | anyone logged in; only their own notifications | 204, 401 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
@@ -564,6 +567,11 @@ The seller adds up to 5 photos to a listing (any status), each a JPEG, PNG or We
 - `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
 
 The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, inside the same volume as the database, so the photos survive a restart. The database (`Photos` table, migration `AddPhotos`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
+
+### Notifications
+
+Members are told when something relevant happens to a listing of theirs. Three kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you") and `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired"). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `AddNotifications`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
+
 
 ## 4. Domain model
 

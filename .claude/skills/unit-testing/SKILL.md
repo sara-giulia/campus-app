@@ -860,3 +860,16 @@ Tests to add:
 - `newest` and no sort → newest `CreatedAt` first (same as before).
 - two listings with the same price → ordered by `Id` ascending.
 - `Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message.
+
+## Feature: Notifications (Sara)
+Production code (read it before generating): `Domain/Notifications/Notification.cs` (Create returns Result, MarkAsRead idempotent), the notification lines added in `ReserveListingHandler`, `ConfirmSaleHandler`, `ExpireReservationsHandler`, and the handlers in `Features/Notifications/` (GetMyNotifications, MarkNotificationRead, MarkAllNotificationsRead).
+Existing tests no longer compile (new constructor parameter): in `ReserveListingHandlerTests`, `ConfirmSaleHandlerTests` and `ExpireReservationsHandlerTests` pass a new `FakeNotificationRepository` (add it in `Fakes/`, same hand-written style: `Items`, `Add`, the query methods) wherever the handler is built; change nothing else in those tests.
+Tests to add:
+- `Notification.Create`: valid → all fields; invalid input → the exact error. `MarkAsRead` sets `ReadAt`; a second call keeps the first value.
+- Reserve success → one notification for the seller, type ReservationCreated; reserve failure → none.
+- Confirm sale success → one notification for the buyer, type ListingSold; failure → none.
+- Expire → one notification per expired reservation, for its buyer; nothing to expire → none.
+- GetMyNotifications: only mine, newest first, `unreadOnly` filter, `unreadCount`, paging.
+- MarkNotificationRead: mine → read, `SaveCount` 1; unknown or someone else's → NotFound, `SaveCount` 0.
+- MarkAllNotificationsRead: all my unread become read, others' unchanged.
+  Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100%.

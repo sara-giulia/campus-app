@@ -33,6 +33,8 @@ using CampusMarket.Api.Features.Reviews;
 using CampusMarket.Api.Features.Admin;
 using CampusMarket.Api.Common.Email;
 using CampusMarket.Api.Infrastructure.Mailing;
+using CampusMarket.Api.Domain.Notifications;
+using CampusMarket.Api.Features.Notifications;
 
 namespace CampusMarket.Api;
 
@@ -65,6 +67,7 @@ public static class CampusMarketSetup
         services.AddScoped<IPhotoRepository, EfPhotoRepository>();
         services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
         services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
+        services.AddScoped<INotificationRepository, EfNotificationRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -340,6 +343,7 @@ public static class CampusMarketSetup
         api.MapAdminEndpoints();
         api.MapConversationsEndpoints();
         api.MapPhotosEndpoints();
+        api.MapNotificationsEndpoints();
 
         return app;
     }

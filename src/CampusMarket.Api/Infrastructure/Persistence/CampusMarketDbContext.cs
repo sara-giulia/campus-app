@@ -3,6 +3,7 @@ using CampusMarket.Api.Domain.Favorites;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Domain.Photos;
+using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Domain.Reviews;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Photo> Photos => Set<Photo>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
