@@ -1,0 +1,82 @@
+/* Register page: form on the left, picture panel on the right (mirrors the login layout). */
+
+.register {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: stretch;
+  min-height: 520px;
+}
+
+.register__form-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.register__title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.register__subtitle {
+  margin: 8px 0 32px;
+  color: var(--muted);
+}
+
+.register__form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.register__success-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.register__picture {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(160deg, var(--tile-green), var(--accent-soft) 55%, var(--tile-lilac));
+  display: flex;
+  align-items: flex-end;
+  padding: 32px;
+  overflow: hidden;
+}
+
+.register__quote {
+  max-width: 30ch;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.register__quote small {
+  display: block;
+  margin-top: 6px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .register {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .register__picture {
+    display: none;
+  }
+}
