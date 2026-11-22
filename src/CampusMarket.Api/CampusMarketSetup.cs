@@ -159,9 +159,10 @@ public static class CampusMarketSetup
         return services;
     }
 
-    // Fails fast in Production when the JWT signing key is missing or too
-    // short. Dev and Test keep their own keys (appsettings.Development.json /
-    // the integration-test factory), so this check is production-only.
+    // Fails fast in Production when the JWT signing key is missing or too short,
+    // or when the SMTP sender is used without TLS. Dev and Test keep their own
+    // keys (appsettings.Development.json / the integration-test factory) and
+    // talk to Mailpit without TLS, so these checks are production-only.
     public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
     {
         if (!app.Environment.IsProduction())
@@ -174,6 +175,19 @@ public static class CampusMarketSetup
                 $"Jwt:Key is missing or shorter than {MinJwtKeyLength} characters. " +
                 "Set the Jwt__Key environment variable to a random value of at least " +
                 $"{MinJwtKeyLength} characters before starting the API in Production.");
+        }
+
+        var emailHost = app.Configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (!string.IsNullOrWhiteSpace(emailHost))
+        {
+            var useSsl = app.Configuration.GetValue($"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)}", true);
+            if (!useSsl)
+            {
+                throw new InvalidOperationException(
+                    $"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)} must be true in Production when an SMTP host is configured. " +
+                    $"Set the {EmailOptions.SectionName}__{nameof(EmailOptions.UseSsl)} environment variable to true (STARTTLS on port 587) " +
+                    "before starting the API in Production.");
+            }
         }
 
         return app;
