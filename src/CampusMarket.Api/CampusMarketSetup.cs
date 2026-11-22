@@ -259,19 +259,25 @@ public static class CampusMarketSetup
 
     private const int MinDemoPasswordLength = 8;
 
-    // Idempotent demo seed: only runs when Seed:DemoData is "true" AND the
-    // database is empty (no members, no listings). Safe to leave wired across
-    // restarts — a redeploy on Render loses the SQLite file, so the first
-    // start after a redeploy seeds again, every later start is a no-op.
-    // Off by default; tests leave Seed:DemoData unset.
+    // Idempotent demo seed: only runs when Seed:DemoData is "true" AND no demo
+    // listings have been seeded yet. The member table may already hold rows (an
+    // Admin created by SeedAdmin, or a real sign-up) — the demo listings still
+    // seed next to them. Safe to leave wired across restarts: a redeploy on
+    // Render loses the SQLite file, so the first start after a redeploy seeds
+    // again, every later start is a no-op. Off by default; tests leave
+    // Seed:DemoData unset.
     private static void SeedDemoDataIfRequested(IServiceProvider services, CampusMarketDbContext db, IConfiguration config)
     {
         if (!config.GetValue("Seed:DemoData", false))
             return;
 
-        if (db.Members.Any() || db.Listings.Any())
+        // Only the listing table drives idempotency: a stray member (Admin or
+        // a real sign-up) must NOT block the demo catalog, which is the Render
+        // regression this skip condition used to cause.
+        if (db.Listings.Any())
             return;
 
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("CampusMarket.DemoSeed");
         var clock = services.GetRequiredService<TimeProvider>();
         var now = clock.GetUtcNow();
 
@@ -279,23 +285,31 @@ public static class CampusMarketSetup
         // a fresh Render instance has something to browse; the listings then
         // all belong to one orphan seller id, which is fine because nobody can
         // log in as that account.
-        var sellerIds = TrySeedDemoMembers(services, db, config, now);
+        var sellerIds = TrySeedDemoMembers(logger, services, db, config, now);
+        var seededMemberCount = sellerIds.Count;
         if (sellerIds.Count == 0)
             sellerIds.Add(Guid.NewGuid());
 
-        foreach (var listing in DemoListings.BuildListings(sellerIds, now))
+        var listings = DemoListings.BuildListings(sellerIds, now);
+        foreach (var listing in listings)
             db.Listings.Add(listing);
 
         db.SaveChanges();
+
+        logger.LogInformation(
+            "Demo seed: {MemberCount} members, {ListingCount} listings",
+            seededMemberCount, listings.Count);
     }
 
-    // Returns the ids of the demo members when Seed:DemoPassword is at least
-    // MinDemoPasswordLength characters; an empty list (with a warning in the
-    // log) when the env var is missing or too short. Demo members are ALWAYS
-    // created with the Student role — never Admin.
-    private static List<Guid> TrySeedDemoMembers(IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
+    // Returns the ids of the demo members that were added for seeding when
+    // Seed:DemoPassword is at least MinDemoPasswordLength characters; an empty
+    // list (with a warning in the log) when the env var is missing or too
+    // short. Demo members whose email already exists in the database are
+    // skipped, so the seed stays idempotent when other startup code (SeedAdmin)
+    // reserves an overlapping email. Demo members are ALWAYS created with the
+    // Student role — never Admin.
+    private static List<Guid> TrySeedDemoMembers(ILogger logger, IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
     {
-        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("CampusMarket.DemoSeed");
         var password = config["Seed:DemoPassword"];
 
         if (string.IsNullOrEmpty(password) || password.Length < MinDemoPasswordLength)
@@ -310,9 +324,18 @@ public static class CampusMarketSetup
         var hasher = services.GetRequiredService<IPasswordHasher>();
         var members = DemoListings.BuildMembers(hasher, password, now);
 
+        // Pre-load existing emails so a pre-seeded Admin (or any other row)
+        // with a colliding address does not fail the SaveChanges on the
+        // unique email index.
+        var existingEmails = new HashSet<string>(
+            db.Members.AsEnumerable().Select(m => m.Email.Value),
+            StringComparer.Ordinal);
+
         var ids = new List<Guid>(members.Count);
         foreach (var member in members)
         {
+            if (!existingEmails.Add(member.Email.Value))
+                continue;
             db.Members.Add(member);
             ids.Add(member.Id);
         }
