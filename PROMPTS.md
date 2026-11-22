@@ -809,6 +809,25 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the second run; v29 is the final version.
 - **Commits:** skill e1cb9f3, 9df3a7c; generated code a19f159
 
+### Run 28, skill v30 (Feature: Validation thresholds)
+
+- **Why a new version:** the minimum confidence of the category suggestion is no longer the constant `SuggestCategoryHandler.MinConfidence` (0.7) but the setting `Ml:Category:MinConfidence` (0.6, chosen on validation data), read through `IOptions<CategorySuggestionOptions>`. The handler tests no longer compiled.
+
+#### Change to SKILL.md (v29 → v30) and why
+
+| # | v29 (before) | v30 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the setting. | New section *"Feature: Validation thresholds (Anca)"*: build the handler with `Options.Create(new CategorySuggestionOptions { MinConfidence = 0.7 })` through one helper so the existing 0.7 tests keep their meaning; new tests for 0.6 (inclusive), 0.59 and a 0.95 setting with confidence 0.9. | Proves the handler uses the configured value and keeps the existing limit tests valid. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the changes for the section "Feature: Validation thresholds (Anca)": update SuggestCategoryHandlerTests as the section says and add only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v30, commit 2d54c3f (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `SuggestCategoryHandlerTests.cs` only: a helper `CreateHandler(suggester, minConfidence = 0.7)` used by the 13 existing tests (names and assertions unchanged) and 3 new tests (0.6 setting with confidence 0.6 → category, 0.59 → null with the confidence kept, 0.95 setting with 0.9 → null), each checking one call with the trimmed title. 484 unit tests pass; `SuggestCategoryHandler` 8/8 lines and 4/4 branches; SARIF log empty.
+- **Problems seen:**
+    1. The section asked for "one private helper" but the new tests need other limits; the helper got a `minConfidence` parameter with default 0.7.
+    2. Not from this section: `ConfirmSaleHandler` (price feedback loop, #96) lines 72–75, the `SaleRecord.Create` failure branch, are not covered by any unit test; with the current fakes it looks unreachable. Left for the owner of that feature.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 2d54c3f; generated code 31f3668
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1470,6 +1489,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the first build failed on missing `using` lines in the test file (`DependencyInjection`, `Persistence`); fixed in the test.
 - **Change to SKILL.md:** none after the run; v35 is the final version.
 - **Commits:** skill a93eb36; generated code 8631881
+
+### Run 38, skill v37 (Feature: Validation thresholds)
+
+- **Why a new version:** the two decision thresholds of the ML models became settings chosen on validation data (`Ml:Category:MinConfidence` 0.6, `Ml:Spam:Threshold` 0.4), validated at startup. The category tests compared with the removed constant `SuggestCategoryHandler.MinConfidence`, and nothing tested that the settings are read and checked. (Numbered after Run 37, the reservation expiry fix in its own PR.)
+
+#### Change to SKILL.md (v36 → v37) and why
+
+| # | v36 (before) | v37 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the settings. | New section *"Feature: Validation thresholds (Anca)"*: the two `SuggestCategoryTests` compare with the configured value from `IOptions<CategorySuggestionOptions>`; new `Infrastructure/MlThresholdsTests.cs`: the defaults from `appsettings.json`, a 0.99 minimum confidence hides a confident suggestion, a 0 spam threshold reports a normal listing, and an out-of-range value of either setting stops the API. | Only a real host shows that the configuration reaches the handler and the spam detector, and that a wrong value is refused at startup. |
+| 2 | (after the run) nothing said how to log in on a copy of the API, nor that `git status` lists the hand-made changes. | Two rules: `Authorization: Bearer` with `TestTokens.Create` on the copy's client; the hand-made changes are listed by `git status`. | The run found both gaps. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the changes for the section "Feature: Validation thresholds (Anca)": update the two tests in Listings/SuggestCategoryTests.cs and add Infrastructure/MlThresholdsTests.cs with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v37, commit 2d54c3f (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `SuggestCategoryTests.cs` (a `MinConfidence` property read from the options, used by the two tests) and new `MlThresholdsTests.cs` with 5 tests: defaults 0.6 / 0.4, `MinConfidence` 0.99 → `category` null for the Notes title, spam threshold 0 → a normal listing gets an automatic report, 1.5 and -0.1 → `OptionsValidationException` naming the setting. Integration tests 275/275 three times; full run 10 architecture, 484 unit, 41 ML, 275 integration; SARIF log empty.
+- **Problems seen:** `AuthenticateAs` only logs in the base client, so the copies use the `Bearer` header (rule added); the 0.6 floor in the 0.99 test is written as a number, the defaults test checks that it is the configured value.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill 2d54c3f; generated code 31f3668
 
 ## code-review
 
@@ -2308,3 +2345,21 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Cadrul de evaluare pentru clas
 - **Result:** `ClassificationReportTests.cs` only; the 30 ML tests pass.
 - **Commits:** test and this entry in the same commit (the one that changes `ClassificationReportTests.cs`)
 
+## validation-thresholds
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Praguri alese pe validare": the category minimum confidence and the spam threshold chosen on the validation data and used by the API as settings, not numbers written in the code. Written by Ancuța Ilenei with Claude Code; the API tests were generated with the unit-testing (Run 28) and integration-testing (Run 38) skills, the ML tests written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task from the plan: thresholds chosen on validation. Category minimum confidence: below the threshold, category null. Spam threshold: a balance between spam let through and good listings blocked. The thresholds as settings, not numbers in the code (CategoryTrainer, SpamTrainer, SuggestCategoryHandler, SpamDetector).`
+- **Decisions:**
+    - `Evaluation/ThresholdSelection.cs` works on the prediction rows of `ClassificationReport` (the task builds on PR #103). Category: candidates 0.30–0.95 in steps of 0.05, the smallest threshold whose shown suggestions are right at least 90% of the time (smallest = most suggestions shown); none → the highest. Spam: candidates 0.05–0.95, the best F1; ties → the middle one, away from both edges. Only the validation part is used; test is measured once at the chosen value.
+    - Result: **category 0.60** (0.55 gives 89.2%, 0.60 gives 90.3% with 85.1% coverage; the old 0.7 hid 8 more points of suggestions for about 2 points of accuracy), **spam 0.40** (F1 1.000 from 0.15 to 0.65 on validation; the middle of that range). On test: 85.6% of listings get a category suggestion, right 91.1% of the time; spam precision, recall and F1 1.000 at 0.40.
+    - The trainers print the validation table, the test result and the line to copy into `appsettings.json`, and save the value under a new `"settings"` object of the model's `.json` (`ModelMetadata` writes it only when a model has settings, so the price file is unchanged); `accuracyAtMinConfidence`, `coverageAtMinConfidence` and `f1AtThreshold` were added to `testMetrics`.
+    - The validation scoring runs on its own `MLContext`: on the shared one, the extra components drew from its random generator and the category and spam models trained differently (log loss 0.471 instead of 0.473). With the separate context every metric is identical to main, so the committed `.zip` files were kept and only the new keys were added to the two `.json` files (the CSV hash differs on Windows because of CRLF).
+    - API: `CategorySuggestionOptions` (`Common/Categories/`, `Ml:Category:MinConfidence`) and `SpamDetectionOptions` (`Common/Moderation/`, `Ml:Spam:Threshold`), values in `appsettings.json`, both validated at startup (0–1, `ValidateOnStart`). `SuggestCategoryHandler` reads the first through `IOptions` (Features may not depend on Infrastructure, so the options live in `Common/`); `SpamDetector` decides spam as `Probability >= Threshold` instead of the model's built-in 0.5. The constant `SuggestCategoryHandler.MinConfidence` was removed.
+    - A hand-written ML test reads `appsettings.json` and the two model `.json` files and fails when the configured thresholds are not the ones chosen at training, so a retrain cannot silently leave old settings.
+    - Coverage: the two range checks share `IsProbability`, so the "too high" test of one setting and the "negative" test of the other cover both sides; `?? new MlOptions()` became `GetValue` with the default, because with an `Ml` section in `appsettings.json` its right side could never run.
+- **Checks:** "Banana" gets 0.41 from the real model, still below 0.60. Build 0 warnings; 10 architecture, 484 unit, 41 ML and 275 integration tests pass; SARIF logs of the API, the two ML projects and the unit and integration test projects empty; every new or changed line of the API covered in the merged coverage. The whole Postman collection with newman against a fresh database: 147 requests, 289 assertions, 0 failed.
+- **Result:** new `ml/.../Evaluation/ThresholdSelection.cs`; `CategoryTrainer.cs`, `SpamTrainer.cs`, `IModelTrainer.cs` (`Settings`), `ModelMetadata.cs` (`settings` object), `Program.cs`; `ml/models/category-classification.json` and `spam-detection.json`; new `Common/Categories/CategorySuggestionOptions.cs` and `Common/Moderation/SpamDetectionOptions.cs`; `SuggestCategoryHandler.cs`, `SuggestCategoryResponse.cs` (comment), `SpamDetector.cs`, `MlServiceCollectionExtensions.cs`, `appsettings.json`; new `tests/CampusMarket.ML.Tests/ThresholdSelectionTests.cs` (11 tests); README (endpoint table, moderation, section "Decision thresholds (chosen on validation)").
+- **Commits:** code ad48202; skill sections 2d54c3f; tests generated in 31f3668 (see Run 28 of unit-testing and Run 38 of integration-testing)
