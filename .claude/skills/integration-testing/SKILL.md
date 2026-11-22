@@ -1068,3 +1068,32 @@ Change to an existing test (keep it and its name): `Infrastructure/HealthTests.c
 Rules for this feature:
 - Never assert an exact similarity from the real model; only the order of the clear cases above and the 0–1 range.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Conversations (Anca)
+
+Endpoints (all need a token; the member is the user in the token):
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/conversations`, body `{ text }` | a member who is not the seller | 201, body `{ conversationId, id, number, senderId, text, sentAt }`, `Location` ends with `/api/v1/conversations/{conversationId}`. The first message starts the conversation; if this member already has one about the listing, the message is added to it (same `conversationId`, next `number`) | 404 `Listing.NotFound`; 404 `Member.NotFound`; 400 `Conversation.OwnListing` (the seller), `Conversation.ListingNotAvailable` (draft, sold or hidden listing, only for a new conversation), `Message.Empty`, `Message.TooLong` (over 1000 characters after trim); 401 |
+| `POST /api/v1/conversations/{id}/messages`, body `{ text }` | the buyer or the seller of the conversation | 201, same body and `Location` | 404 `Conversation.NotFound`; 403 `Conversation.NotParticipant` (anyone else, an Admin too; body is our `Error`); 400 `Message.Empty`, `Message.TooLong`; 401 |
+| `GET /api/v1/conversations/{id}` | the buyer or the seller | 200 `{ id, listingId, listingTitle, sellerId, sellerName, buyerId, buyerName, createdAt, messages: [{ id, number, senderId, text, sentAt }] }`, messages in `number` order | 404 `Conversation.NotFound`; 403 `Conversation.NotParticipant`; 401 |
+| `GET /api/v1/members/me/conversations` | any member | 200 `{ items: [{ id, listingId, listingTitle, otherMemberId, otherMemberName, lastMessage, lastMessageSenderId, lastMessageAt, messageCount }], count }`, as buyer and as seller, the latest message first | 401 |
+
+Read `Features/Conversations/`, `Domain/Conversations/` and `Infrastructure/Persistence/Configurations/ConversationConfiguration.cs` / `MessageConfiguration.cs` before generating. The `Conversations` table has foreign keys to `Listings` and to `Members` twice (seller and buyer), all with cascade delete, and a unique index on `(ListingId, BuyerId)`; `Messages` belong to their conversation (cascade). So the seller **and** the buyer must be seeded as members.
+
+Files: `Conversations/StartConversationTests.cs`, `Conversations/SendMessageTests.cs`, `Conversations/GetConversationTests.cs`, `Conversations/GetMyConversationsTests.cs`, same base class and login helper as the other classes. Read the bodies into `MessageResponse`, `GetConversationResponse` and `GetMyConversationsResponse` from `Features/Conversations/`.
+
+Arrange: seed the seller, the buyer and (when needed) another member with `Member.Create(...).Value`; a published listing is `Listing.Create(seller.Id, ...).Value` then `Publish()` (sold: `Reserve` then `ConfirmSale`). An existing conversation is `Conversation.Start(buyer.Id, listing, "text", CreatedAt).Value`, more messages with `conversation.Send(memberId, "text", CreatedAt.AddMinutes(n))`, seeded together with the members and the listing in one `SeedAsync`. Log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database through `db.Set<Conversation>()` / `db.Set<Message>()`):
+- `StartConversationTests`: the buyer on a published listing with `"  Mai e disponibil?  "` → 201 with number 1, the buyer as sender, the trimmed text and `Location`; one conversation (this listing, seller and buyer) and one message saved; the same buyer again → 201 with the same `conversationId` and number 2, still one conversation and two messages; a reserved listing → 201; the seller → 400 `Conversation.OwnListing`; a draft → 400 `Conversation.ListingNotAvailable`; a sold listing with no conversation → 400 `Conversation.ListingNotAvailable`; a sold listing where the buyer already has a conversation (seed it before the sale) → 201, number 2; empty text → 400 `Message.Empty`; 1001 characters → 400 `Message.TooLong`; unknown listing → 404 `Listing.NotFound`; logged in as a member that is not in the database → 404 `Member.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`. Nothing saved in any failure.
+- `SendMessageTests`: the seller answers → 201, number 2, sender the seller, `Location`; the message is saved and the conversation's `LastMessageAt` is the time of the answer; the buyer answers again → number 3; another member → 403 `Conversation.NotParticipant` with `Type` `Forbidden`; an Admin (`AuthenticateAs(AdminId, "Admin")`, as in the moderation tests) → 403; empty → 400 `Message.Empty`; unknown conversation → 404 `Conversation.NotFound`; no token → 401. No message saved in any failure.
+- `GetConversationTests`: as the buyer and as the seller → 200 with every field (names and listing title), three messages in number order; another member → 403 `Conversation.NotParticipant`; unknown → 404 `Conversation.NotFound`; no token → 401. The database is unchanged after every call.
+- `GetMyConversationsTests`: the seller with two conversations (two buyers) → 200, `count` 2, the latest message first, `otherMemberId`/`otherMemberName` = the buyer, `lastMessage`, `lastMessageSenderId` and `messageCount` checked; the buyer → one item with the seller as the other member; another member → empty `items`, `count` 0; no token → 401. The database is unchanged after every call.
+- Cascade, in `StartConversationTests`: the seller deletes the listing (`DELETE /api/v1/listings/{id}` logged in as the seller) → 204, and its conversation and messages are gone from the database.
+
+Rules for this feature:
+- Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- Real time is used for the messages sent through HTTP: assert that `sentAt` is close to now (`BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))`), never an exact value.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
