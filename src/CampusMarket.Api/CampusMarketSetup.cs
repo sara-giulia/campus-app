@@ -8,6 +8,7 @@ using CampusMarket.Api.Features.Members;
 using CampusMarket.Api.Infrastructure.Background;
 using CampusMarket.Api.Infrastructure.ML;
 using CampusMarket.Api.Infrastructure.Persistence;
+using CampusMarket.Api.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using CampusMarket.Api.Infrastructure.Auth;
 using CampusMarket.Api.Features.Auth;
@@ -279,24 +280,23 @@ public static class CampusMarketSetup
 
         // Seed the demo listings even when the password env var is unusable, so
         // a fresh Render instance has something to browse; the listings then
-        // belong to an orphan seller id, which is fine because nobody can log
-        // in as that account.
-        var sellerId = TrySeedDemoMember(services, db, config, now) ?? Guid.NewGuid();
+        // all belong to one orphan seller id, which is fine because nobody can
+        // log in as that account.
+        var sellerIds = TrySeedDemoMembers(services, db, config, now);
+        if (sellerIds.Count == 0)
+            sellerIds.Add(Guid.NewGuid());
 
-        foreach (var draft in BuildDemoListings(sellerId, now))
-        {
-            draft.Publish();
-            db.Listings.Add(draft);
-        }
+        foreach (var listing in DemoListings.BuildListings(sellerIds, now))
+            db.Listings.Add(listing);
 
         db.SaveChanges();
     }
 
-    // Returns the demo member's id when Seed:DemoPassword is at least
-    // MinDemoPasswordLength characters; null (with a warning in the log)
-    // when the env var is missing or too short. The demo member is ALWAYS
+    // Returns the ids of the demo members when Seed:DemoPassword is at least
+    // MinDemoPasswordLength characters; an empty list (with a warning in the
+    // log) when the env var is missing or too short. Demo members are ALWAYS
     // created with the Student role — never Admin.
-    private static Guid? TrySeedDemoMember(IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
+    private static List<Guid> TrySeedDemoMembers(IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
     {
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("CampusMarket.DemoSeed");
         var password = config["Seed:DemoPassword"];
@@ -304,44 +304,31 @@ public static class CampusMarketSetup
         if (string.IsNullOrEmpty(password) || password.Length < MinDemoPasswordLength)
         {
             logger.LogWarning(
-                "{Variable} is missing or shorter than {MinLength} characters; seeding the demo listings without a demo member. " +
-                "Set the Seed__DemoPassword environment variable to a value of at least that length to enable sign-in as the demo student.",
+                "{Variable} is missing or shorter than {MinLength} characters; seeding the demo listings without any demo members. " +
+                "Set the Seed__DemoPassword environment variable to a value of at least that length to enable sign-in as a demo student.",
                 "Seed:DemoPassword", MinDemoPasswordLength);
-            return null;
+            return [];
         }
 
         var hasher = services.GetRequiredService<IPasswordHasher>();
-        var member = Member.Register(
-            "Demo Student",
-            "demo@campusmarket.ro",
-            hasher.Hash(password),
-            now,
-            MemberRole.Student);
-        if (member.IsFailure)
-            return null;
+        var members = DemoListings.BuildMembers(hasher, password, now);
 
-        db.Members.Add(member.Value);
-        return member.Value.Id;
-    }
-
-    private static List<Listing> BuildDemoListings(Guid sellerId, DateTimeOffset now)
-    {
-        var drafts = new List<Listing>();
-        TryAdd(drafts, Listing.Create(sellerId, "Manual Analiza Matematica anul I", Category.Textbook, Condition.Good, 40m, now, "Stare buna, notite in creion pe ultimele pagini."));
-        TryAdd(drafts, Listing.Create(sellerId, "Casti wireless aproape noi", Category.Electronics, Condition.Good, 180m, now, "Autonomie buna, cutia originala."));
-        TryAdd(drafts, Listing.Create(sellerId, "Notite curs structuri de date", Category.Notes, Condition.New, 20m, now, "Scrise de mana, sem 2, anul I."));
-        return drafts;
-    }
-
-    private static void TryAdd(List<Listing> drafts, Result<Listing> result)
-    {
-        if (result.IsSuccess)
-            drafts.Add(result.Value);
+        var ids = new List<Guid>(members.Count);
+        foreach (var member in members)
+        {
+            db.Members.Add(member);
+            ids.Add(member.Id);
+        }
+        return ids;
     }
 
     public static IEndpointRouteBuilder MapCampusMarket(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/", () => "CampusMarket API is running");
+        // GET / is NOT mapped here on purpose: UseDefaultFiles + UseStaticFiles
+        // serve wwwroot/index.html for the root in Production (the React SPA on
+        // Render). An endpoint on "/" would win over the static files middleware.
+        // When wwwroot is missing (tests, dotnet run without a frontend build)
+        // the SPA fallback in Program.cs returns 404 for "/", which is fine.
 
         // All endpoints live under /api/v1; each group is created in its own *Endpoints class
         var api = app.MapGroup("/api/v1");

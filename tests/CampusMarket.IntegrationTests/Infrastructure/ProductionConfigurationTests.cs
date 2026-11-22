@@ -5,6 +5,7 @@ using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Features.Listings.GetListings;
 using CampusMarket.Api.Infrastructure.Mailing;
+using CampusMarket.Api.Infrastructure.Persistence.Seed;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
@@ -19,7 +20,7 @@ namespace CampusMarket.IntegrationTests.Infrastructure;
 // Covers CampusMarketSetup.ValidateCampusMarketProductionConfiguration (in Production,
 // Jwt:Key must be at least 32 characters, and when an SMTP host is configured Email:UseSsl
 // must be true) and SeedDemoDataIfRequested (when Seed:DemoData is true and the database
-// is empty, seeds 3 published listings; a Student demo member is added only when
+// is empty, seeds the DemoListings catalog; demo Student members are added only when
 // Seed:DemoPassword has at least 8 characters). Each test starts its own copy of the API
 // on the same in-memory database with WithWebHostBuilder, the same way SeedAdminTests do.
 public sealed class ProductionConfigurationTests : IntegrationTestBase
@@ -160,7 +161,7 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Given_DemoDataWithValidPassword_When_StartingTheApp_Then_Seeds3ListingsAnd1StudentMember()
+    public async Task Given_DemoDataWithValidPassword_When_StartingTheApp_Then_SeedsDemoCatalogAndStudentMembers()
     {
         // Arrange
         await using var seeded = Factory.WithWebHostBuilder(builder =>
@@ -171,20 +172,59 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
         var client = seeded.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/v1/listings");
+        var response = await client.GetAsync("/api/v1/listings?pageSize=100");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
-        body!.TotalCount.Should().Be(3);
+        body!.TotalCount.Should().Be(DemoListings.ActiveListingCount);
+
+        var listingCount = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        listingCount.Should().Be(DemoListings.ListingCount);
 
         var members = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().ToListAsync());
-        members.Should().HaveCount(1);
-        members[0].Role.Should().Be(MemberRole.Student);
+        members.Should().HaveCount(DemoListings.MemberCount);
+        members.Should().OnlyContain(m => m.Role == MemberRole.Student);
     }
 
     [Fact]
-    public async Task Given_DemoDataWithoutPassword_When_StartingTheApp_Then_Seeds3ListingsAnd0Members()
+    public async Task Given_DemoDataWithValidPassword_When_RequestingSecondPage_Then_PagesThroughSeededListings()
+    {
+        // Arrange
+        await using var seeded = Factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("Seed:DemoData", "true");
+            builder.UseSetting("Seed:DemoPassword", DemoPassword);
+        });
+        var client = seeded.CreateClient();
+
+        // Act
+        var firstPage = await client.GetAsync("/api/v1/listings?page=1&pageSize=20");
+        var secondPage = await client.GetAsync("/api/v1/listings?page=2&pageSize=20");
+
+        // Assert
+        firstPage.StatusCode.Should().Be(HttpStatusCode.OK);
+        secondPage.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var first = await firstPage.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+        var second = await secondPage.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+
+        first!.Page.Should().Be(1);
+        first.PageSize.Should().Be(20);
+        first.Count.Should().Be(20);
+        first.TotalCount.Should().Be(DemoListings.ActiveListingCount);
+
+        second!.Page.Should().Be(2);
+        second.PageSize.Should().Be(20);
+        second.Count.Should().Be(20);
+        second.TotalCount.Should().Be(DemoListings.ActiveListingCount);
+
+        // The two pages return different listings.
+        first.Items.Select(i => i.Id).Should().NotIntersectWith(second.Items.Select(i => i.Id));
+    }
+
+    [Fact]
+    public async Task Given_DemoDataWithoutPassword_When_StartingTheApp_Then_SeedsDemoCatalogAnd0Members()
     {
         // Arrange
         await using var seeded = Factory.WithWebHostBuilder(builder =>
@@ -192,12 +232,14 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
         var client = seeded.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/v1/listings");
+        var response = await client.GetAsync("/api/v1/listings?pageSize=100");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
-        body!.TotalCount.Should().Be(3);
+        // No demo members means a single orphan seller id, so Reserve (buyer != seller)
+        // can never happen and every seeded listing stays Active.
+        body!.TotalCount.Should().Be(DemoListings.ListingCount);
 
         var memberCount = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         memberCount.Should().Be(0);
@@ -220,6 +262,9 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
 
         var memberCount = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         memberCount.Should().Be(0);
+
+        var listingCount = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        listingCount.Should().Be(0);
     }
 
     [Fact]
@@ -273,7 +318,7 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Given_DemoDataAndHasherReturnsEmptyHash_When_StartingTheApp_Then_Seeds3ListingsAnd0Members()
+    public async Task Given_DemoDataAndHasherReturnsEmptyHash_When_StartingTheApp_Then_SeedsDemoCatalogAnd0Members()
     {
         // Arrange
         await using var seeded = Factory.WithWebHostBuilder(builder =>
@@ -289,17 +334,19 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
         var client = seeded.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/api/v1/listings");
+        var response = await client.GetAsync("/api/v1/listings?pageSize=100");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
-        body!.TotalCount.Should().Be(3);
+        // Empty hash fails Member.Register (PasswordRequired), so no demo members are
+        // created, the fallback uses a single orphan seller id and every listing is Active.
+        body!.TotalCount.Should().Be(DemoListings.ListingCount);
 
         var memberCount = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         memberCount.Should().Be(0);
         var listings = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().ToListAsync());
-        listings.Should().HaveCount(3);
+        listings.Should().HaveCount(DemoListings.ListingCount);
         listings.Select(l => l.SellerId).Distinct().Should().ContainSingle()
             .Which.Should().NotBe(Guid.Empty);
     }
