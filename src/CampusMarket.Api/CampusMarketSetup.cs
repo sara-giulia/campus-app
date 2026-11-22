@@ -298,7 +298,7 @@ public static class CampusMarketSetup
         
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Demo seed: {MemberCount} members, {ListingCount} listings", seededMemberCount, listings.Coun);
+            logger.LogInformation("Demo seed: {MemberCount} members, {ListingCount} listings", seededMemberCount, listings.Count);
         }
     }
 
