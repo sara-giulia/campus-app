@@ -4,6 +4,7 @@ import { favoritesRoutes } from '../features/favorites/routes'
 import { listingsRoutes } from '../features/listings/routes'
 import { messagesRoutes } from '../features/messages/routes'
 import { moderationRoutes } from '../features/moderation/routes'
+import { notificationsRoutes } from '../features/notifications/routes'
 import { profileRoutes } from '../features/profile/routes'
 import { reviewsRoutes } from '../features/reviews/routes'
 import { Layout } from './Layout'
@@ -25,6 +26,7 @@ const featureRoutes: RouteObject[] = [
   ...favoritesRoutes,
   ...reviewsRoutes,
   ...moderationRoutes,
+  ...notificationsRoutes,
 ]
 
 export const router = createBrowserRouter([
