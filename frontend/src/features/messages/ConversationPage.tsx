@@ -27,7 +27,8 @@ export function ConversationPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    const fetchConversation = () =>
+    // Returns nothing: errors are handled inside, so the interval and the first call can just fire it.
+    const fetchConversation = () => {
       api
         .get<ConversationDetail>(`/conversations/${id}`, { signal: controller.signal })
         .then((result) => {
@@ -37,6 +38,7 @@ export function ConversationPage() {
         .catch((err: unknown) => {
           if (!isAbort(err)) setLoadError(errorMessage(err))
         })
+    }
     fetchConversation()
     const timer = window.setInterval(fetchConversation, REFRESH_MS)
     return () => {
