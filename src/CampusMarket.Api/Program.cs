@@ -36,12 +36,30 @@ app.EnsureCampusMarketDatabase();
 app.UseCors(CampusMarketSetup.FrontendCorsPolicy);
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+// Static files for the React SPA (wwwroot/, populated by the Dockerfile's
+// frontend-build stage). Before auth, so assets are served without a token.
+// When wwwroot is missing (tests, dotnet run without a frontend build) the
+// middleware silently serves nothing, so the API endpoints keep working.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseOutputCache();
 
 app.MapCampusMarket();
+
+// SPA deep links (/profile, /reset-password?token=..., /listings/:id) must
+// return index.html on a hard refresh, so the client-side router can take
+// over. The regex excludes the API, health, OpenAPI and Scalar prefixes so
+// unknown /api/v1/... routes still fall through to a 404 ProblemDetails
+// with the original path, and method/content-type mismatches on real
+// endpoints keep producing 405/415 instead of being swallowed by a fallback
+// endpoint that accepts any method. If wwwroot/index.html is absent
+// (tests, dotnet run without a frontend build), the fallback returns 404.
+const string spaFallbackPattern =
+    "/{*path:nonfile:regex(^(?!api(/|$))(?!health(/|$))(?!openapi(/|$))(?!scalar(/|$)).*$)}";
+app.MapFallbackToFile(spaFallbackPattern, "index.html");
 
 // API documentation, only in Development: the JSON at /openapi/v1.json, the web page at /scalar.
 if (app.Environment.IsDevelopment())
