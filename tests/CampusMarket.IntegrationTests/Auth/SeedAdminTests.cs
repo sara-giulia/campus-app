@@ -104,11 +104,11 @@ public sealed class SeedAdminTests : IntegrationTestBase
         var client = seeded.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/");
+        var response = await client.GetAsync("/health");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadAsStringAsync()).Should().Be("CampusMarket API is running");
+        (await response.Content.ReadAsStringAsync()).Should().Be("Healthy");
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(0);
@@ -122,11 +122,11 @@ public sealed class SeedAdminTests : IntegrationTestBase
         var client = seeded.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/");
+        var response = await client.GetAsync("/health");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadAsStringAsync()).Should().Be("CampusMarket API is running");
+        (await response.Content.ReadAsStringAsync()).Should().Be("Healthy");
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(0);
@@ -145,11 +145,11 @@ public sealed class SeedAdminTests : IntegrationTestBase
         var client = seeded.CreateClient();
 
         // Act
-        var response = await client.GetAsync("/");
+        var response = await client.GetAsync("/health");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadAsStringAsync()).Should().Be("CampusMarket API is running");
+        (await response.Content.ReadAsStringAsync()).Should().Be("Healthy");
 
         var count = await QueryDbAsync(db => db.Set<Member>().CountAsync());
         count.Should().Be(0);
