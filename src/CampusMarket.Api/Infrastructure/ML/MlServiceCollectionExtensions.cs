@@ -1,6 +1,7 @@
 using CampusMarket.Api.Common.Categories;
 using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Common.Pricing;
+using CampusMarket.Api.Common.Similarity;
 using Microsoft.Extensions.ML;
 
 namespace CampusMarket.Api.Infrastructure.ML;
@@ -53,6 +54,14 @@ public static class MlServiceCollectionExtensions
                 watchForChanges: true);
 
         services.AddSingleton<ISpamDetector, SpamDetector>();
+
+        services.AddPredictionEnginePool<SimilarInput, SimilarVector>()
+            .FromFile(
+                modelName: SimilarListingsFinder.ModelName,
+                filePath: Path.Combine(modelsPath, "similar-listings.zip"),
+                watchForChanges: true);
+
+        services.AddSingleton<ISimilarListingsFinder, SimilarListingsFinder>();
 
         return services;
     }

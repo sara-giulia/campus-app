@@ -18,7 +18,9 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
+using CampusMarket.Api.Features.Conversations;
 using CampusMarket.Api.Features.Favorites;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Moderation;
@@ -328,6 +330,7 @@ public static class CampusMarketSetup
         api.MapModerationEndpoints();
         api.MapReviewsEndpoints();
         api.MapAdminEndpoints();
+        api.MapConversationsEndpoints();
 
         return app;
     }

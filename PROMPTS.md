@@ -828,6 +828,40 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 2d54c3f; generated code 31f3668
 
+### Run 29, skill v31 (Feature: Similar listings)
+
+- **Why a new version:** new query `GetSimilarListings` (`GET /api/v1/listings/{id}/similar`) with its handler; the handler logic (which listings are candidates, the order, the five, the rounding) had no unit test.
+
+#### Change to SKILL.md (v30 → v31) and why
+
+| # | v30 (before) | v31 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about similar listings. | New section *"Feature: Similar listings (Anca)"*: the handler rules, a new `FakeSimilarListingsFinder` (similarity per candidate title, records the calls) and 7 tests: unknown id, the target as the only Active listing, only Active candidates and never the target, the five highest, ties by `CreatedAt` then `Id`, the rounding and the item fields. | The ranking and the filtering are the handler's own logic, testable without the model. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Similar listings (Anca)": the new fake and the new test file, only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v31, commit 7cb4df8 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `Fakes/FakeSimilarListingsFinder.cs` and `Features/Listings/GetSimilarListings/GetSimilarListingsHandlerTests.cs` with the 7 tests; every test also checks that the repository is unchanged. 491 unit tests pass; `GetSimilarListingsHandler` 29/29 lines and 6/6 branches; SARIF log empty.
+- **Problems seen:** not from this section: `ConfirmSaleHandler` lines 72–75 (#96) are still not covered, as noted in Run 28.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 7cb4df8; generated code cfb9e5a
+
+### Run 30, skill v32 (Feature: Conversations)
+
+- **Why a new version:** new domain `Conversations` (conversation and messages) and four new handlers (start a conversation, send a message, read a conversation, my conversations) with no unit test.
+
+#### Change to SKILL.md (v31 → v32) and why
+
+| # | v31 (before) | v32 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about conversations. | New section *"Feature: Conversations (Anca)"*: the rules of `Conversation.Start` and `Send` in their order, the four handlers, a new `FakeConversationRepository` and the tests for each (who can write and read, the message numbers, the trimmed text, the 1000-character limit, the message added to an existing conversation, the order of my conversations). | The participant check and the message rules live in the domain and the handlers; they are tested without a database. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Conversations (Anca)": the new fake and the new test files, only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v32, commit 64131b7 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `Fakes/FakeConversationRepository.cs`, `Domain/Conversations/ConversationTests.cs` and one test file per handler: 50 new tests, 541 unit tests pass. `Conversation.cs` and the four handlers at 100% lines and branches; SARIF log empty.
+- **Problems seen:** the private constructor of `Message` (used only by EF Core when it reads a message) cannot be reached from a unit test; the integration tests cover it. `ConfirmSaleHandler` lines 72–75 (#96) still not covered, as in Run 28.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 64131b7; generated code b9400fc
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1544,6 +1578,41 @@ saved.Should().BeEquivalentTo(listing);
     2. The last read after the timeout still runs while the job is on, so in the rare case where no read succeeds in 5 seconds it can fail with the collision instead of the "within 5 seconds" message; that only happens when the job is already too slow.
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill ba5a270; generated code 9aef200
+
+### Run 40, skill v39 (Feature: Similar listings)
+
+- **Why a new version:** new public endpoint `GET /api/v1/listings/{id}/similar` that runs the real similar-listings model, and a fourth model file that the ready check now requires.
+
+#### Change to SKILL.md (v38 → v39) and why
+
+| # | v38 (before) | v39 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about similar listings. | New section *"Feature: Similar listings (Anca)"*: the endpoint with the real model, the seeded listings (two math textbooks, two laptops, notes, a bicycle, a draft textbook) and 5 tests: a textbook gets the other textbook first, a laptop the other laptop, a draft target gets a textbook, only the target published gives no items, unknown id → 404; plus `similar-listings.zip` in the "models folder does not exist" health test. | Only the real model over HTTP shows that the ranking makes sense and that the model file is loaded. |
+| 2 | (after the first run) titles only. | Every listing gets a condition, a price and a description, the bicycle none. | The first run seeded no description at all, so the finder's branch for a listing with a description was never run. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Similar listings (Anca)": the new file Listings/GetSimilarListingsTests.cs with only the tests it lists and the change to Infrastructure/HealthTests.cs. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` Then, after row 2: `Re-read the Arrange and apply it to the seeding helper; change nothing else.` (new session)
+- **Skill version:** v39, commit 7cb4df8 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `GetSimilarListingsTests.cs` with the 5 tests (every call without a token, every test checks the database) and one more assertion in `HealthTests.cs`. The real model ranks every case as expected, with and without descriptions. Integration tests 280/280 three times; full run 10 architecture, 491 unit, 61 ML, 280 integration; SARIF log empty.
+- **Problems seen:** the first Arrange gave no descriptions (fixed, row 2); "a math textbook first" for the draft accepts either published textbook.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill 7cb4df8; generated code cfb9e5a
+
+### Run 41, skill v40 (Feature: Conversations)
+
+- **Why a new version:** four new endpoints (`POST /listings/{id}/conversations`, `POST /conversations/{id}/messages`, `GET /conversations/{id}`, `GET /members/me/conversations`) and two new tables (`Conversations`, `Messages`, migration `AddConversations`).
+
+#### Change to SKILL.md (v39 → v40) and why
+
+| # | v39 (before) | v40 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about conversations. | New section *"Feature: Conversations (Anca)"*: the endpoint table with every status, how to seed members, listings and conversations, and the tests per endpoint: a second message goes to the same conversation, a sold listing keeps an existing conversation, only the two members can read or write (403 for another member and for an Admin), my conversations as buyer and as seller, and the cascade when the listing is deleted. | Only real HTTP calls on the real database show the 403s, the `Location` header, the unique index and the cascade. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Conversations (Anca)": the four new files under Conversations/ with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v40, commit 64131b7 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `Conversations/StartConversationTests.cs` (13), `SendMessageTests.cs` (7), `GetConversationTests.cs` (5), `GetMyConversationsTests.cs` (4). Integration tests 309/309 three times; full run 10 architecture, 541 unit, 69 ML, 309 integration; SARIF log empty.
+- **Problems seen:** none; the API matched the section. The table names a hidden listing for `Conversation.ListingNotAvailable` but the test list does not (the unit tests cover it).
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 64131b7; generated code b9400fc
 
 
 
@@ -2421,3 +2490,68 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Explicabilitate": the words th
 - **Result:** new `ml/.../Evaluation/FeatureWeights.cs`; `CategoryTrainer.cs` and `SpamTrainer.cs` (print the tables); new `tests/CampusMarket.ML.Tests/FeatureWeightsTests.cs` with 10 tests (reading a word, a pair, a letter group and the price feature; the highest and the lowest words; the count; equal weights; the length check; the Markdown tables; the committed category model has 10 positive words in decreasing order for each of the five categories, with "notite" for Notes and "manual" for Textbook; the committed spam model has 10 positive and 10 negative words, with "telegram" and "link" towards spam); README section "Explainability (which words matter)".
 - **Commits:** code and tests 031b583
 
+## model-cards
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Analiza erorilor + model cards": 10–20 wrong examples explained and one page per model (what it does, data, metrics, limits, when not to use it), in `docs/ml/category.md` and `docs/ml/spam.md`. Written by Ancuța Ilenei with Claude Code; the ML tests are written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task from week 2: error analysis + model cards. 10–20 wrong examples, explained. One page per model: what it does, data, metrics, limits, when it must not be used (docs/ml/category.md, docs/ml/spam.md).`
+- **Decisions:**
+    - The examples come from code, not from a one-off copy: `Evaluation/ErrorAnalysis.cs` lists the category mistakes with the highest confidence (the ones the API really shows) and, for spam at the chosen threshold, the normal listings flagged and the spam let through. The training program prints them for the test part and the external set after every retrain.
+    - Every explanation in the cards was checked on the data before writing it: the deliberate ~3% wrong labels of dataset v2 (`ml/data/README.md`) and how often the same title has each label (the Arduino kit is `LabEquipment` 11 times out of 12), the vocabulary of real notes ("grile", "materie", "sinteze" occur 0 times in `listings.csv`), "laptop" in 27 `Other` accessory titles, the dash artefact from the explainability task, and the `FeaturizeText` defaults (diacritics removed, punctuation kept glued to the word). Two first explanations were wrong and were corrected: "Lenovo is unknown" (it occurs 28 times, all `Electronics`) and "punctuation is dropped".
+    - Category: 8 of the 13 most confident test mistakes are deliberate wrong labels (the model is right), 3 sit between Textbook and Notes, 2 are real mistakes (LEDs, nitrile gloves). On the external set the gaps are the exam-preparation vocabulary of real notes and the dash artefact. At 0.60 the external set gets a suggestion for 64.7% of the listings, right 80.3% of the time (test: 85.6% and 91.1%).
+    - Spam: no mistake on the test part (saturated). External at 0.40: TP 10, FP 1, TN 101, FN 10 (precision 0.909, recall 0.500, PR-AUC 0.852); the flagged listing is a pair of hiking boots whose description contains "pe", the strongest spam word; the ten missed are scams that work through the payment (advance transfer, PayPal Friends & Family, crypto) and never ask to move the talk to another app. At 0.50 the boots would not be flagged; the card says the threshold should be chosen again on data that is not saturated.
+    - The card numbers come from the committed models (the ones the API serves). A spam model retrained on this machine has the same test metrics but gives the boots 0.45 instead of 0.42; a stale CRLF `listings.csv` in the working copy (checked out before `.gitattributes`) was suspected and fixed, but the difference stayed, so the card says the last digits can move after a retrain. The committed models and metadata are unchanged.
+- **Checks:** build 0 warnings; 10 architecture, 484 unit, 59 ML and 275 integration tests pass; the SARIF logs of the two ML projects have no finding; a full training run prints the same category lists as the cards and the same spam rows.
+- **Result:** new `docs/ml/category.md` and `docs/ml/spam.md`; new `ml/.../Evaluation/ErrorAnalysis.cs`; `Program.cs` (error analysis after the external evaluation, with the thresholds chosen at training); new `tests/CampusMarket.ML.Tests/ErrorAnalysisTests.cs` with 8 tests (only wrong predictions, most confident first; ties and count; flagged and missed spam split at the threshold, inclusive; a higher threshold; the Markdown tables and the empty case; pipes and long descriptions; ten wrong category predictions on the committed model; no spam mistake on the test part at 0.40); README links to both cards.
+- **Commits:** code, tests and docs 2696ed0
+
+## similar-listings
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Model nou: listări similare": `GET /api/v1/listings/{id}/similar` with 5 similar Active listings, evaluated by how many of the first 5 are of the same category, with the same structure as the other models (trainer, interface, implementation, endpoint, tests, `docs/ml/similar.md`). Written by Ancuța Ilenei with Claude Code; the API tests were generated with the unit-testing (Run 29) and integration-testing (Run 40) skills, the ML tests written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task: new model, similar listings. GET /api/v1/listings/{id}/similar: 5 similar active listings. Evaluation: how many of the first 5 are of the same category. Same structure: trainer, interface, implementation, endpoint, tests (SimilarTrainer.cs, ISimilarListingsFinder.cs, Features/Listings/GetSimilarListings/, docs/ml/similar.md).`
+- **Decisions:**
+    - The model is a text-to-vector pipeline learnt on the train part: `FeaturizeText` on the title (and the description), concatenated, `NormalizeLpNorm` to unit length, so the dot product is the cosine similarity. There is no label: similarity is judged by the category of the closest listings. Non-spam rows only.
+    - Evaluation (`Evaluation/SimilarityEvaluation.cs`): precision@5 over sparse vectors (only the non-zero entries are compared). Listings with the same `TemplateId` are left out of each other's candidates: they are variations of the same item and would make the score trivial. The reference is the expected precision of 5 listings picked at random among the same candidates.
+    - Two variants chosen on validation: title only 0.597, title + description 0.672 (kept). Test: 0.668 against 0.202 for a random pick. The trainer runs after the other three, so it changes nothing in their training (their metrics are identical to main after the run; their committed files were kept), and writes the new `similar-listings.zip` and `.json`.
+    - API: `ISimilarListingsFinder` in `Common/Similarity/` returns one similarity per candidate; `SimilarListingsFinder` (Infrastructure/ML) gets the vectors from a `PredictionEnginePool<SimilarInput, SimilarVector>` and returns their dot product clamped to 0–1. The handler loads the target (any status, like `GET /listings/{id}`; unknown → 404 `Listing.NotFound`), takes every other Active listing, and keeps the five highest; ties by `CreatedAt` (newest first) then `Id`, the similarity rounded to two decimals. The ranking stays in the handler so it is unit tested without the model.
+    - The fourth model file is checked by the ready health check (`MlModelsHealthCheck`) and by the Docker build, like the other three; the csproj already copies every `ml/models/*.zip`.
+    - Postman: a `GetSimilarListings` folder (the published listing → at most 5, not itself, similarity 0–1 in decreasing order; a random id → 404), inserted as text so the rest of the collection keeps its formatting.
+- **Checks:** build 0 warnings; 10 architecture, 491 unit, 61 ML and 280 integration tests pass; the new code of the API covered in the merged coverage (the files still uncovered are from #95, #96 and the profile PR); SARIF logs of the API and the two ML projects empty; newman against a fresh database: 149 requests, 293 assertions, 0 failed.
+- **Result:** new `ml/.../SimilarTrainer.cs`, `ml/.../Evaluation/SimilarityEvaluation.cs`, `ml/models/similar-listings.zip` and `.json`; `Program.cs` (one line in the trainer list); new `Common/Similarity/ISimilarListingsFinder.cs`, `Infrastructure/ML/SimilarInput.cs`, `SimilarVector.cs`, `SimilarListingsFinder.cs`, `Features/Listings/GetSimilarListings/` (request, query, response, handler, endpoint); `ListingsEndpoints.cs`, `MlServiceCollectionExtensions.cs`, `MlModelsHealthCheck.cs`, `Dockerfile`; new `tests/CampusMarket.ML.Tests/SimilarListingsTests.cs` (10 tests: sparse vectors, dot and cosine, an empty vector, precision@k and the random pick on a worked example, items without candidates, the quality bar of the committed model, three hand-written pairs); new `docs/ml/similar.md`; README (endpoint, model section, Docker and ready check); Postman.
+- **Commits:** code 17bdcfc; skill sections 7cb4df8; tests generated in cfb9e5a (see Run 29 of unit-testing and Run 40 of integration-testing)
+
+## cors-render
+
+The deployed frontend (`https://campus-app-pucf.onrender.com`) could not read any answer of the deployed API (`https://campus-app-latest.onrender.com`): the API sent no `Access-Control-Allow-Origin` for that origin. Written by Ancuța Ilenei with Claude Code.
+
+### Run 1
+
+- **Prompt:** `Sara asked: add the frontend URL https://campus-app-pucf.onrender.com to the CORS origins, check AllowAnyHeader/AllowAnyMethod (and AllowCredentials if cookies are used) and that UseCors runs before UseAuthorization and the endpoints.`
+- **Decisions:** the policy already allowed any header and method, ran first in the pipeline and needed no credentials (the token goes in the `Authorization` header), so only the origin was missing. It is added to `Cors:AllowedOrigins` in `appsettings.json`, so it is deployed with the image and needs no setting in Render; `localhost:5173` stays for development. No new test: `CorsTests` already checks that the configured origins are allowed and the others are not.
+- **Checks:** against the deployed API, a request with the Render origin got no CORS header. Locally with the new config: preflight and GET from the Render origin and from `localhost:5173` get `Access-Control-Allow-Origin`, another origin does not; 275 integration tests pass.
+- **Result:** `appsettings.json` (the origin), README (the two places that list the allowed origins).
+- **Commits:** code add985e
+
+## conversations
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Mesaje între cumpărător și vânzător": a conversation about a listing, visible only to the two of them (another member → 403); send a message, read the messages, see my conversations. Written by Ancuța Ilenei with Claude Code; the tests were generated with the unit-testing (Run 30) and integration-testing (Run 41) skills. The chat page in the frontend comes in a separate PR.
+
+### Run 1
+
+- **Prompt:** `Next task from the plan: messages between buyer and seller. Conversation on a listing, visible only to the two (another member → 403). Send a message, see the messages, see my conversations. Domain/Conversations/, Features/Conversations/ (new).`
+- **Decisions:**
+    - Domain: `Conversation` (listing, seller, buyer, `CreatedAt`, `LastMessageAt`) owns its `Message`s, like `Listing` owns its reservations. The seller is taken from the listing, so a conversation has exactly two participants. `Start` refuses the seller's own listing and a listing that cannot be bought (only `Active` or `Reserved`); `Send` refuses anyone who is not one of the two (`ErrorType.Forbidden` → 403, an Admin too: the plan says only the two), an empty text and a text over 1000 characters (after trim).
+    - Each message has a `Number` (1, 2, 3…): the order stays the same when two messages have the same time, and the tests never depend on the clock.
+    - One conversation per buyer and listing (unique index). `POST /listings/{id}/conversations` adds the message to the existing conversation instead of answering 409, so the "write to the seller" button on the listing page works the same the first and the second time; the answer is always 201 with the message and `Location` to the conversation. An existing conversation keeps working after the listing is reserved or sold (to arrange the hand-over).
+    - `GET /members/me/conversations` lists the conversations as buyer and as seller, with the other member's name and the last message, the latest first; no paging (a student has few conversations).
+    - Cascade delete from the listing and from the two members, like reviews; no foreign key on the message sender (always one of the two).
+    - Migration `AddConversations` (two new tables only). #108 and #111 have migrations too: the PR merged last regenerates its migration.
+    - Postman: a `Conversations` folder (13 requests) that creates and publishes its own listing, so it does not depend on the state left by the other folders.
+- **Checks:** build 0 warnings; 10 architecture, 541 unit, 69 ML and 309 integration tests pass; the new code covered in the merged coverage (an unused `DbSet<Message>` was removed after the coverage run; `has-pending-model-changes` confirms the migration still matches); SARIF of the API: only CA1861 in the migrations, as in the older ones (Sonar leaves the migrations out); newman against a fresh database: 162 requests, 318 assertions, 0 failed; the whole flow tried by hand on a running API first.
+- **Result:** new `Domain/Conversations/` (`Conversation.cs`, `Message.cs`, `IConversationRepository.cs`), `Features/Conversations/` (four slices, `MessageResponse`, `SendMessageRequest`, `ConversationsEndpoints.cs`), `Infrastructure/Persistence/EfConversationRepository.cs`, `ConversationConfiguration.cs`, `MessageConfiguration.cs`, migration `AddConversations`; `CampusMarketDbContext.cs`, `CampusMarketSetup.cs` (repository and endpoints); README (use cases, endpoint table, a section); Postman.
+- **Commits:** code 0993bf8; skill sections 64131b7; tests generated in b9400fc (see Run 30 of unit-testing and Run 41 of integration-testing)

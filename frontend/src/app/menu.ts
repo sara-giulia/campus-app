@@ -11,4 +11,7 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
   { to: '/', label: 'Acasă', show: 'always' },
+  { to: '/register', label: 'Cont nou', show: 'guest' },
+  { to: '/profile', label: 'Profilul meu', show: 'user' },
+  { to: '/logout', label: 'Ieșire', show: 'user' },
 ]

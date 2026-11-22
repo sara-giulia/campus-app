@@ -1,3 +1,4 @@
+using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
