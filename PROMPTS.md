@@ -696,60 +696,18 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
-### Run 21, skill v23 (Feature: Condition filter)
+### Skill update v25 → v26 (coverage-report is local only)
 
-- **Why a new version:** task 1 (issue #72). `GET /api/v1/listings` got an optional `condition` filter (`New`, `Good`, `Worn`); the new branch in `GetListingsHandler` had no tests.
+- **Numbering:** numbered after #73, #77 and #79, which make unit-testing v23, v24 and v25, so those three PRs keep their numbers.
 
-#### Change to SKILL.md (v22 → v23) and why
+| What | Before (v25) | After (v26) |
+|---|---|---|
+| Coverage report in Git (section "Coverage") | *"Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`."* | *"The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either."* |
+| Check after generating | *"`git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing."* | removed |
 
-| # | v22 (before) | v23 (after) | Why |
-|---|---|---|---|
-| 1 | Nothing about the condition filter. | New section *"Feature: Condition filter (Carina)"*: the file and three tests (condition alone, condition with category, no condition). | Covers the new filter and proves that the default behaviour did not change. |
-| 2 | — | *"`Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument"*. | Existing tests build the query by position; if the parameter were in the middle, a literal `0` meant for `Page` would silently become `Condition.New`. |
-
-- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Condition filter (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
-- **Skill version:** v23, commit 1be82be; section written and run by Carina Coman
-- **Result:** 3 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs` (`Given_ListingsWithDifferentConditions_When_FilteringByCondition_Then_ReturnsOnlyThatCondition`, a test for `Category` and `Condition` together, `Given_NoConditionFilter_When_Handling_Then_ReturnsEveryActiveListing`); the 37 existing tests in the file are unchanged. Each test seeds its own `FakeListingRepository`, sets `Condition` with a named argument and checks that the repository still has its 3 items. 435/435 unit tests pass; coverage stays **100%**: 1026/1026 lines and 358/358 branches (`Domain/` 11 classes, handlers 30). The report in `coverage-report/` was generated again. Nothing changed in `src/`.
-- **Problems seen:** none.
-- **Change to SKILL.md:** none after the run; v23 is the final version.
-- **Commits:** skill 1be82be; generated code ab95b6d
-
-### Run 22, skill v24 (Feature: My profile)
-
-- **Why a new version:** task 10 (issue #76). New slices `GetMyProfile` (`GET /api/v1/members/me`) and `UpdateMyProfile` (`PUT /api/v1/members/me`, only the name changes) without tests.
-
-#### Change to SKILL.md (v23 → v24) and why
-
-| # | v23 (before) | v24 (after) | Why |
-|---|---|---|---|
-| 1 | Nothing about the profile of the logged-in member. | New section *"Feature: My profile (Carina)"*: what each handler does, how to build the members (`Member.Register` with `FakePasswordHasher`, Student or Admin), and 6 tests. | Without it Claude would have to guess the order of the checks and what the response contains. |
-| 2 | — | *"`member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same"* + a test that checks the email after the update. | Proves that the profile update can never change the email. |
-
-- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
-- **Skill version:** v24, commit f197c2c (numbered after the condition filter PR, #72, which makes v23); section written and run by Carina Coman
-- **Result:** 6 new tests in two new files: `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs` (a Student with its id, name, lower-case email, role and `CreatedAt`, the repository unchanged; an Admin → role `"Admin"`; unknown id → `Member.NotFound`) and `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs` (a valid name with spaces → trimmed, email unchanged, `UpdateCount` 1, `SaveCount` 1; a 1-character name → `Member.InvalidName`, name unchanged, `UpdateCount` 0, `SaveCount` 0; unknown id → `Member.NotFound`, `SaveCount` 0). Every error checks type, code and the exact message. No existing test, fake or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1045/1045 lines and 362/362 branches. The report in `coverage-report/` was generated again.
-- **Problems seen:** none.
-- **Change to SKILL.md:** none after the run; v24 is the final version.
-- **Commits:** skill f197c2c; generated code b9461db
-
-### Run 23, skill v25 (Feature: Public profile)
-
-- **Why a new version:** task 12 (issue #78). New query slice `GetPublicProfile` (`GET /api/v1/members/{id}/profile`): name, member since, average rating, review count and Active listings, without email or role. The handler had no tests.
-
-#### Change to SKILL.md (v24 → v25) and why
-
-| # | v24 (before) | v25 (after) | Why |
-|---|---|---|---|
-| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: what the handler returns, how to build Draft, Active and Sold listings and a review (`Publish`, `Reserve`, `ConfirmSale`, `Review.Create`), and 6 tests. | Building a review needs a sold listing with a completed reservation; without the steps Claude would have to guess them. |
-| 2 | — | *"reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals)"*. | Proves the rounding, not only an average that is already exact. |
-| 3 | — | *"If `FakeReviewRepository` already exists in `Fakes/`, use it as it is"*. | So the run does not write a second fake for the same interface. |
-
-- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests (and the fake, if it is missing) from the "Feature: Public profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
-- **Skill version:** v25, commit f4cb94c (numbered after the condition filter and my profile PRs, #72 and #76, which make v23 and v24); section written and run by Carina Coman
-- **Result:** one new file, `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`, with the 6 tests of the section: 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with title and price (also the member's id, name and `MemberSince`); another seller's Active listing is not included; no reviews → `AverageRating` null, `ReviewCount` 0; ratings 5 and 4 → 4.5 and 2; ratings 5, 4 and 4 → 4.33; unknown id → `Member.NotFound`. The existing `FakeReviewRepository` was used, so no fake changed. No existing test or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1044/1044 lines, 362/362 branches, 167/167 methods. The report in `coverage-report/` was generated again.
-- **Problems seen:** none.
-- **Change to SKILL.md:** none after the run; v25 is the final version.
-- **Commits:** skill f4cb94c; generated code 155cf71
+- **Why:** the generated HTML report changed in almost every PR (new timestamps on every class page), so PRs carried dozens of files that nobody reviews, and they conflicted at every merge. `coverage-report/` is now in `.gitignore` and removed from the repository in the same PR (`git rm -r --cached`). The old rule asked to commit the report, so it contradicted `.gitignore`, and the next run would have tried to commit it again.
+- **Who:** Carina Coman, at Sara Matasel's request (edit only, no generation)
+- **Commit:** `9b8d5be` (the `.gitignore` change and the removal of the folder are in the commit "chore: stop tracking coverage-report" of the same PR)
 
 ### Run 25, skill v27 (Feature: Minimum category confidence)
 
