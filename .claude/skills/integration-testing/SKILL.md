@@ -1064,3 +1064,43 @@ Rules for this feature:
 - 400 bodies are ProblemDetails, as in "Feature: Error handling (Anca)": assert on the response body's `Extensions`/`Detail` for `Code`, or on the response status plus the `Code` that the handler puts in ProblemDetails.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+
+## Feature: Full coverage (Carina)
+
+Issue #121: SonarCloud must show 100% line and branch coverage and every mutant killed. After every test project runs, these cases are still not covered (the coverage analysis of #121). Add the tests below and nothing else; keep every existing test. Read each production file named here before generating.
+
+Production code:
+- `Features/Admin/PriceAccuracy/PriceAccuracyEndpoint.cs`: `GET /api/v1/admin/ml/price-accuracy`, `RequireAuthorization("Admin")`, returns 200 with the handler's `PriceAccuracyResponse` (`count`, `mae`, `mape`, `perCategory`, `lastRecords`). It reads the records through `Infrastructure/Persistence/EfSaleRecordRepository.GetAllAsync`. `SaleRecords` has no foreign key to `Listings`, so a record can be seeded alone.
+- `Features/Members/UpdateMyProfile/UpdateMyProfileEndpoint.cs`: a `NotFound` error from the handler → 404 with `Error`; any other error → 400.
+- `CampusMarketSetup.cs`:
+    - the `register` rate limit policy is partitioned by `context.Connection.RemoteIpAddress?.ToString() ?? "unknown"`; the existing `RegisterRateLimitTests` only use the `"unknown"` partition.
+    - `ValidateCampusMarketProductionConfiguration`: in Production, `string.IsNullOrWhiteSpace(Jwt:Key)` or a key shorter than 32 characters → `InvalidOperationException`. The existing tests cover only the short key.
+    - `SeedDemoDataIfRequested`: returns without seeding when the database already has a member or a listing.
+    - `TrySeedDemoMember`: with a `Seed:DemoPassword` of at least 8 characters it calls `Member.Register("Demo Student", ..., hasher.Hash(password), ...)`; when that fails (an empty hash → `Member.PasswordRequired`) it returns `null`, so no member is saved and the 3 demo listings are still seeded, owned by a new random seller id.
+- `Infrastructure/Mailing/SmtpEmailSender.cs`: builds a `MailMessage` and an `SmtpClient(Host, Port)` with `EnableSsl = UseSsl`; when the environment variable `Email__Username` is set it sets `NetworkCredential(Email__Username, Email__Password)`; then `SendMailAsync`.
+
+Files and tests to add (status, body, then the database, as section 4 says):
+- `Admin/PriceAccuracyTests.cs` (new), class `PriceAccuracyTests : IntegrationTestBase`, fixed `AdminId`, `OtherStudentId`, `CreatedAt`:
+    - as Admin (`AuthenticateAs(AdminId, "Admin")`), two `SaleRecord`s seeded with `SeedAsync` (`SaleRecord.Create(listingId, category, condition, suggested, sold, soldAt).Value`; suggested 100 / sold 80 in `Textbook` and suggested 50 / sold 50 in `Electronics`, with different fixed `soldAt`) → 200, read into `PriceAccuracyResponse`: `count` 2, `mae` 10, `mape` 12.5, one `perCategory` row per category, `lastRecords` newest first with every field of the seeded records; the database still has exactly the 2 records.
+    - as a student → 403 ProblemDetails `Auth.Forbidden`; no token → 401 ProblemDetails `Auth.Unauthorized` (as in "Feature: Error handling (Anca)"); the seeded record is unchanged in both.
+- `Members/MyProfileTests.cs` (add one test): `PUT /api/v1/members/me` with a valid name, logged in as `UnknownMemberId` (never seeded) → 404 `Member.NotFound`, type `NotFound`; a seeded member is unchanged and there is still exactly one member.
+- `Auth/RegisterRateLimitTests.cs` (add two tests): a copy of the API with `RateLimiting:RegisterPermitLimit` 5 **and** `TestRemoteIpStartupFilter` (register it with `ConfigureTestServices(s => s.AddSingleton<IStartupFilter, TestRemoteIpStartupFilter>())`, as `LoginTests` does); five valid registrations with `X-Test-Remote-Ip: 10.0.0.1`, then the Act: one valid registration with `X-Test-Remote-Ip: 10.0.0.2` → 201 (another IP has its own limit), 6 members; and a second test where the sixth registration comes from `10.0.0.1` → 429, 5 members and none with the sixth email. Set the header on each `HttpRequestMessage`, not on the client.
+- `Infrastructure/ProductionConfigurationTests.cs` (add three tests):
+    - Production with `Jwt:Key` = `"   "` (only spaces) → `CreateClient()` throws `InvalidOperationException` whose message mentions `Jwt__Key`; the database has no listing and no member.
+    - `Seed:DemoData` true and a valid `Seed:DemoPassword`, with one member already seeded with `SeedAsync` → `GET /api/v1/listings` → 200, `totalCount` 0; the database still has exactly that one member and no listing.
+    - `Seed:DemoData` true, a valid `Seed:DemoPassword` and `IPasswordHasher` replaced by the existing `Infrastructure/EmptyHashPasswordHasher` (singleton, as in `SeedAdminTests`) → `GET /api/v1/listings` → 200, `totalCount` 3; the database has 0 members and 3 listings, and their `SellerId` is the same for all three and is not the id of any member.
+- `Infrastructure/SmtpEmailSenderTests.cs` (new), class `SmtpEmailSenderTests` (not an `IntegrationTestBase`: there is no API and no database here), with a new fake `Infrastructure/FakeSmtpServer.cs`:
+    - `FakeSmtpServer`: a `TcpListener` on `IPAddress.Loopback` and port 0 (a free port chosen by the OS, read back from `LocalEndpoint`), `IAsyncDisposable`. It accepts one connection and answers the basic SMTP commands in plain text: `220` greeting; `EHLO`/`HELO` → `250` with `AUTH LOGIN` advertised; `AUTH LOGIN` (with or without the initial username) → `334` prompts, then `235`; `MAIL FROM`, `RCPT TO` → `250`; `DATA` → `354`, read until the line `.`, then `250`; `QUIT` → `221` and close. It records the decoded username and password (null when no `AUTH` came), the `MAIL FROM` and `RCPT TO` lines and the message data, and completes a `Task` when the dialog ends. One-line comment on top, like the other fakes.
+    - a send without `Email__Username` → `SendAsync` completes; the server got the message with the `From`, the `To`, the subject and the body, and no `AUTH` (username null).
+    - a send with `Email__Username` and `Email__Password` set → `SendAsync` completes; the server got the same message and the decoded username and password equal the two variables.
+    - Options: `Options.Create(new EmailOptions { Host = "127.0.0.1", Port = server.Port, From = "noreply@campusmarket.local", UseSsl = false })`. `UseSsl` false is only for this local fake (there is no TLS on it); never use it for anything else.
+    - These tests change process environment variables, so they must never run in parallel with another test: put the class in `[Collection(SmtpEnvironmentCollection.Name)]` and define `SmtpEnvironmentCollection` with `[CollectionDefinition(Name, DisableParallelization = true)]` in the same file. The constructor saves the current values of `Email__Username` and `Email__Password` and clears them; `Dispose` restores the saved values, so every test starts without the variables and nothing leaks.
+    - Every wait on the server has a timeout (`WaitAsync(TimeSpan.FromSeconds(5))`), so a broken dialog fails the test instead of hanging it.
+
+Rules for this feature:
+- This section is the only exception to two general rules: `FakeSmtpServer` listens on a local port (section 7 forbids a real server for the API, which is still never started on a port), and `SmtpEmailSenderTests` opens an SMTP connection, but only to `FakeSmtpServer` on `127.0.0.1` ("Feature: Password reset (Sara)" still forbids any other SMTP connection). Never connect to a real SMTP server.
+- Never change `CampusMarketApiFactory` or `IntegrationTestBase`; every special setup goes through `Factory.WithWebHostBuilder(...)`, disposed with `await using`.
+- Never hard-code a real JWT key or a real password; use generated test strings, as `ProductionConfigurationTests` does.
+- Then run all the tests with coverage as the CI does (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`): `PriceAccuracyEndpoint.cs`, `EfSaleRecordRepository.cs`, `UpdateMyProfileEndpoint.cs`, `CampusMarketSetup.cs`, `SmtpEmailSender.cs`, `ConfirmSaleHandler.cs` and `ResetPasswordHandler.cs` are at 100% for lines and branches. If a line or branch is still not covered, stop and report which one and why; never change `src/` and never write a test whose only purpose is to execute a line without checking its behaviour.
+- Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
