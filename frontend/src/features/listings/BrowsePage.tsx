@@ -5,7 +5,8 @@ import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Button, EmptyState, Loading, PageHeader, Pagination, TextField } from '../../app/ui'
 import { ListingGrid } from './ListingCard'
 import { SORT_LABELS, type SortOption } from './publicTypes'
-import { CATEGORIES, CATEGORY_LABELS, CONDITIONS, CONDITION_LABELS, type GetListingsResponse } from './types'
+import { useCategories } from './categories'
+import { CATEGORIES, CONDITIONS, CONDITION_LABELS, type GetListingsResponse } from './types'
 import './browse.css'
 
 const PAGE_SIZE = 12
@@ -15,6 +16,7 @@ const FILTER_KEYS = ['search', 'category', 'condition', 'minPrice', 'maxPrice', 
 // Search and filters live in the address (?search=…&category=…&page=2), so a search can be
 // shared, the back button works and a refresh keeps it. GET /api/v1/listings returns only Active listings.
 export function BrowsePage() {
+  const { labelOf } = useCategories()
   const [params, setParams] = useSearchParams()
   const page = Math.max(1, Number(params.get('page')) || 1)
 
@@ -78,7 +80,7 @@ export function BrowsePage() {
           <option value="">Toate</option>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
+              {labelOf(c)}
             </option>
           ))}
         </SelectField>

@@ -88,6 +88,8 @@ export interface CreateListingResponse {
   description: string | null
 }
 
+// Only the fallback for the category names: the real ones come from GET /api/v1/categories
+// (an Admin can change them), through useCategories() in ./categories.ts.
 export const CATEGORY_LABELS: Record<Category, string> = {
   Textbook: 'Manuale',
   Notes: 'Notițe',

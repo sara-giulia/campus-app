@@ -1221,3 +1221,34 @@ Tests to add:
 - the list order: seed two notifications of the seller with `Notification.Create(seller.Id, NotificationType.ReservationCreated, "...", listing.Id, createdAt)` at two fixed times (the older one first in the seed) → `GET` returns the newer first, `count` 2, `totalCount` 2, `unreadCount` 2, every field of both items; after marking the newer one as read, `?unreadOnly=true` → only the older one, `totalCount` 1, `unreadCount` 1.
 - paging: `?page=0` → 400 `Notifications.InvalidPage`; `?pageSize=101` → 400 `Notifications.InvalidPageSize` (body is our `Error`); the database is unchanged.
   Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Admin categories (Carina)
+
+Production code (written by hand, read it before generating): `Domain/Categories/` (`ListingCategory`, `ICategoryRepository`), `Features/Categories/` (`GetCategories`, `UpdateCategory`), `Infrastructure/Persistence/EfCategoryRepository.cs`, `Infrastructure/Persistence/Configurations/ListingCategoryConfiguration.cs`, and the category check in `CreateListingHandler`, `UpdateListingHandler` and `PublishListingHandler`.
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `GET /api/v1/categories` | everyone (no token) | 200 `{ items: [{ key, displayName, description, isActive }], count }`, in enum order (Textbook, Notes, Electronics, LabEquipment, Other), active and inactive ones | none |
+| `PUT /api/v1/categories/{category}`, body `{ displayName, description?, isActive }` | Admins only (`RequireAuthorization("Admin")`) | 204, empty body; name and description saved trimmed, a blank description saved as `null` | 401 ProblemDetails `Auth.Unauthorized`; 403 ProblemDetails `Auth.Forbidden` (a member); 404 `Category.NotFound` (the key is matched by name, case-insensitive); 400 `Category.IsActiveRequired` (`isActive` missing), `Category.DisplayNameEmpty`, `Category.DisplayNameTooLong` (over `ListingCategory.MaxDisplayNameLength` = 100), `Category.DescriptionTooLong` (over `ListingCategory.MaxDescriptionLength` = 500); 409 `Category.LastActive` (deactivating the last active category) |
+
+Listings: `POST /api/v1/listings` in an inactive category → 400 `Listing.CategoryInactive`; `PUT /api/v1/listings/{id}` that **moves** a listing into an inactive category → 400 `Listing.CategoryInactive`, while editing a listing that is already in an inactive category without changing the category succeeds (204); `POST /api/v1/listings/{id}/publish` of a draft whose category is inactive → 400 `Listing.CategoryInactive`.
+
+Facts:
+- The 5 categories are **seeded by the migration** `AddCategories` (`HasData` in `ListingCategoryConfiguration`): `Textbook` "Manuale", `Notes` "Notițe", `Electronics` "Electronice", `LabEquipment` "Echipament de laborator", `Other` "Altele", all active, description `null`. Every test database already has them; never seed or delete category rows.
+- Read the bodies into `GetCategoriesResponse` / `GetCategoriesItem` and send `UpdateCategoryRequest` (its fields are nullable, so `isActive` can be left out).
+
+Files: `Categories/GetCategoriesTests.cs`, `Categories/UpdateCategoryTests.cs`, `Listings/InactiveCategoryTests.cs` (new).
+
+Arrange: to deactivate a category, a private helper in the test class opens a scope, loads all the categories from `CampusMarketDbContext` (tracked), calls the domain `Update(displayName, description, isActive: false, all)` on the ones to deactivate and `SaveChangesAsync`. Never deactivate through the endpoint in an Arrange.
+
+Tests to add (status, body, then the database through `db.Set<ListingCategory>()` / `db.Set<Listing>()`):
+- `GetCategoriesTests`: no token → 200, `count` 5, the 5 seeded categories in order with key, display name, description and `isActive`, all active; the database still has exactly the 5 seeded ones.
+- `UpdateCategoryTests`: Admin → 204, empty body, then `GET /api/v1/categories` (in the Assert) shows the new trimmed display name, description and `isActive`; the database has the new values and the other 4 unchanged. No token → 401; a member → 403; unknown key (`Books`) → 404 `Category.NotFound`; missing `isActive` → 400 `Category.IsActiveRequired`; display name `""`, `"   "`, `null` → 400 `Category.DisplayNameEmpty`; 101 characters → 400 `Category.DisplayNameTooLong`; description of 501 characters → 400 `Category.DescriptionTooLong`; the 4 others deactivated in the Arrange, deactivating the last one → 409 `Category.LastActive` (type `Conflict`) and it stays active. Every failure: the 5 categories are unchanged.
+- `InactiveCategoryTests`: create in an inactive category → 400 `Listing.CategoryInactive`, no listing; move a listing into an inactive category → 400, listing unchanged; edit a listing already in an inactive category without changing the category → 204, new values, `Version` 2; publish a draft whose category became inactive → 400, still `Draft` with `Version` 1, no report.
+
+Rules for this feature:
+- A test that deactivates a category must not affect other tests: it deactivates only in its own database (every test has a fresh factory and in-memory database, section 3), never through a shared or static state, and never with a `WithWebHostBuilder` copy kept between tests.
+- The existing publish, create and edit integration tests (`PublishListingTests`, `CreateListingTests`, `UpdateListingTests`) stay unchanged: they run with all 5 categories active, as the migration seeds them. The new cases go in `Listings/InactiveCategoryTests.cs`.
+- Read 400/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 and 403 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- Then run all the tests with coverage as the CI does: `Domain/Categories/`, `Features/Categories/`, `EfCategoryRepository.cs`, `ListingCategoryConfiguration.cs`, the three listing handlers, `CampusMarketSetup.cs` and `CampusMarketDbContext.cs` are at 100% for lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.

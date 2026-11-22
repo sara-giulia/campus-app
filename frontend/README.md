@@ -81,6 +81,7 @@ await api.post('/listings/' + id + '/reservations')
 | `/messages`, `/messages/:id` | my conversations and one conversation (refreshed every 5 seconds) | logged in |
 | `/my/favorites` | the listings I saved | logged in |
 | `/admin/moderation` | reported listings, hide one | Admin |
+| `/admin/categories` | the 5 base categories: change the display name, the description and the active flag | Admin |
 | `/listings/new`, `/my/listings`, `/my/listings/:id/edit`, `/my/reservations`, `/profile`, `/register`, `/forgot-password`, `/reset-password` | publish and edit, my listings, my reservations, my profile, account pages (Sara) | see the routes |
 
 ## Login state

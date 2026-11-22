@@ -32,6 +32,7 @@ const MESSAGES: Record<string, string> = {
   'Listings.InvalidPriceRange': 'Prețul minim nu poate fi mai mare decât cel maxim.',
   'Listings.InvalidSort': 'Ordinea aleasă nu e validă.',
   'Member.NotFound': 'Membrul nu există.',
+  'Listing.CategoryInactive': 'Categoria anunțului nu mai este activă.',
 }
 
 export function errorMessage(error: unknown): string {

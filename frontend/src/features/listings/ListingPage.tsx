@@ -19,7 +19,8 @@ import {
   type ReserveListingResponse,
   type SimilarListingItem,
 } from './publicTypes'
-import { CATEGORY_LABELS, CONDITION_LABELS, LISTING_STATUS_LABELS, type ListingDetail } from './types'
+import { useCategories } from './categories'
+import { CONDITION_LABELS, LISTING_STATUS_LABELS, type ListingDetail } from './types'
 import './browse.css'
 
 interface MessageSent {
@@ -34,6 +35,7 @@ export function ListingPage() {
 }
 
 function ListingView({ id }: { id: string }) {
+  const { labelOf } = useCategories()
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -170,7 +172,7 @@ function ListingView({ id }: { id: string }) {
       <div className="listing-page__top">
         <div className="gallery">
           <div className={`gallery__main lcard__image--${listing.category.toLowerCase()}`}>
-            {photo ? <img src={photoSrc(photo.url)} alt={listing.title} /> : <span>{CATEGORY_LABELS[listing.category]}</span>}
+            {photo ? <img src={photoSrc(photo.url)} alt={listing.title} /> : <span>{labelOf(listing.category)}</span>}
           </div>
           {photos.length > 1 && (
             <div className="gallery__thumbs">
@@ -185,7 +187,7 @@ function ListingView({ id }: { id: string }) {
 
         <div className="listing-page__info">
           <div className="listing-page__badges">
-            <Badge tone="accent">{CATEGORY_LABELS[listing.category]}</Badge>
+            <Badge tone="accent">{labelOf(listing.category)}</Badge>
             <Badge>{CONDITION_LABELS[listing.condition]}</Badge>
             {listing.status !== 'Active' && <Badge tone="warning">{LISTING_STATUS_LABELS[listing.status]}</Badge>}
           </div>

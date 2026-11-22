@@ -17,6 +17,61 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.15");
 
+            modelBuilder.Entity("CampusMarket.Api.Domain.Categories.ListingCategory", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("Categories", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Key = "Textbook",
+                            DisplayName = "Manuale",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            Key = "Notes",
+                            DisplayName = "Notițe",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            Key = "Electronics",
+                            DisplayName = "Electronice",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            Key = "LabEquipment",
+                            DisplayName = "Echipament de laborator",
+                            IsActive = true
+                        },
+                        new
+                        {
+                            Key = "Other",
+                            DisplayName = "Altele",
+                            IsActive = true
+                        });
+                });
+
             modelBuilder.Entity("CampusMarket.Api.Domain.Conversations.Conversation", b =>
                 {
                     b.Property<Guid>("Id")
