@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../../api/client'
 import { formatPrice, photoSrc, type GetListingPhotosResponse } from './publicTypes'
-import { CATEGORY_LABELS, CONDITION_LABELS, type Category, type Condition } from './types'
+import { useCategories } from './categories'
+import { CONDITION_LABELS, type Category, type Condition } from './types'
 
 interface CardListing {
   id: string
@@ -14,6 +15,7 @@ interface CardListing {
 
 // A listing in a grid: the first photo (or a coloured tile with the category), title, price.
 export function ListingCard({ listing }: { listing: CardListing }) {
+  const { labelOf } = useCategories()
   const [cover, setCover] = useState<string | null>(null)
 
   useEffect(() => {
@@ -28,13 +30,13 @@ export function ListingCard({ listing }: { listing: CardListing }) {
   return (
     <Link to={`/listings/${listing.id}`} className="lcard">
       <div className={`lcard__image lcard__image--${listing.category.toLowerCase()}`}>
-        {cover ? <img src={photoSrc(cover)} alt="" loading="lazy" /> : <span>{CATEGORY_LABELS[listing.category]}</span>}
+        {cover ? <img src={photoSrc(cover)} alt="" loading="lazy" /> : <span>{labelOf(listing.category)}</span>}
       </div>
       <div className="lcard__body">
         <h3 className="lcard__title">{listing.title}</h3>
         <p className="lcard__price">{formatPrice(listing.price)}</p>
         <p className="lcard__meta">
-          {CATEGORY_LABELS[listing.category]} · {CONDITION_LABELS[listing.condition]}
+          {labelOf(listing.category)} · {CONDITION_LABELS[listing.condition]}
         </p>
       </div>
     </Link>

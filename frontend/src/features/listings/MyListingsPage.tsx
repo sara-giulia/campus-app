@@ -4,8 +4,8 @@ import { ApiError } from '../../api/errors'
 import { useAuth } from '../../app/auth/AuthContext'
 import { Alert, Badge, Button, ButtonLink, EmptyState, Loading, PageHeader, Pagination } from '../../app/ui'
 import { placeListingError } from './errors'
+import { useCategories } from './categories'
 import {
-  CATEGORY_LABELS,
   CONDITION_LABELS,
   LISTING_STATUS_LABELS,
   type GetListingsResponse,
@@ -39,6 +39,7 @@ function statusTone(status: ListingStatus): 'neutral' | 'success' | 'warning' | 
 }
 
 export function MyListingsPage() {
+  const { labelOf } = useCategories()
   const { user } = useAuth()
   const [items, setItems] = useState<ListingSummary[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -142,7 +143,7 @@ export function MyListingsPage() {
                 <h2 className="listing-row__title">{listing.title}</h2>
                 <div className="listing-row__meta">
                   <Badge tone={statusTone(listing.status)}>{LISTING_STATUS_LABELS[listing.status]}</Badge>
-                  <span>{CATEGORY_LABELS[listing.category]}</span>
+                  <span>{labelOf(listing.category)}</span>
                   <span>·</span>
                   <span>{CONDITION_LABELS[listing.condition]}</span>
                   <span>·</span>

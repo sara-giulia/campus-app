@@ -25,9 +25,11 @@ export function CreateListingPage() {
         // the error and keep the user on the form so they can retry or go to
         // "my listings" by other means.
         if (publishError instanceof ApiError) {
+          // A field error (e.g. Listing.CategoryInactive, the category was deactivated meanwhile) is shown here too.
+          const placed = placeListingError(publishError)
           return {
             ok: false,
-            formError: `Anunțul a fost creat, dar publicarea a eșuat: ${placeListingError(publishError).form ?? publishError.message}`,
+            formError: `Anunțul a fost creat, dar publicarea a eșuat: ${placed.form ?? placed.fields.category ?? publishError.message}`,
           }
         }
         return { ok: false, formError: 'Anunțul a fost creat, dar publicarea a eșuat.' }

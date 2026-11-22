@@ -28,6 +28,8 @@ export function placeListingError(error: ApiError): PlacedError {
       return { fields: { description: 'Descrierea poate avea maxim 1000 de caractere.' }, form: null }
     case 'Listing.CategoryInvalid':
       return { fields: { category: 'Alege o categorie validă.' }, form: null }
+    case 'Listing.CategoryInactive':
+      return { fields: { category: 'Categoria aleasă nu mai este activă. Alege altă categorie.' }, form: null }
     case 'Listing.ConditionInvalid':
       return { fields: { condition: 'Alege o stare validă.' }, form: null }
     case 'Money.Negative':

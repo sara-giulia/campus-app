@@ -1,3 +1,4 @@
+using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
 using CampusMarket.Api.Domain.Listings;
@@ -27,6 +28,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Photo> Photos => Set<Photo>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ListingCategory> Categories => Set<ListingCategory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

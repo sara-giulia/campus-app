@@ -2,10 +2,9 @@ import { useId, useState, type ChangeEvent, type FormEvent, type ReactNode } fro
 import { ApiError } from '../../api/errors'
 import { api } from '../../api/client'
 import { Alert, Button, ButtonLink, TextField } from '../../app/ui'
+import { useCategories } from './categories'
 import { placeListingError, type FieldErrors } from './errors'
 import {
-  CATEGORIES,
-  CATEGORY_LABELS,
   CONDITIONS,
   CONDITION_LABELS,
   type Category,
@@ -61,7 +60,8 @@ export function ListingForm({
 }: ListingFormProps): ReactNode {
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [description, setDescription] = useState(initialValues?.description ?? '')
-  const [category, setCategory] = useState<Category>(initialValues?.category ?? 'Textbook')
+  // null until the user picks one: then the first category that can be chosen is used (see selectedCategory).
+  const [category, setCategory] = useState<Category | null>(initialValues?.category ?? null)
   const [condition, setCondition] = useState<Condition>(initialValues?.condition ?? 'Good')
   const [price, setPrice] = useState(initialValues?.price ?? '')
 
@@ -77,6 +77,18 @@ export function ListingForm({
   const [suggestingCategory, setSuggestingCategory] = useState(false)
   const [categorySuggestionError, setCategorySuggestionError] = useState<string | null>(null)
 
+  // Only the active categories can be chosen. When editing a listing that is already in a deactivated
+  // category, that one category stays in the list as the current value, so the form still works;
+  // other listings cannot be moved into it, because it is not offered to them.
+  const { categories, labelOf } = useCategories()
+  const currentCategory = initialValues?.category
+  const categoryOptions = categories.filter((c) => c.isActive || c.key === currentCategory)
+  const selectedCategory: Category =
+    category !== null && categoryOptions.some((c) => c.key === category)
+      ? category
+      : (categoryOptions[0]?.key ?? currentCategory ?? 'Other')
+  const canUseCategory = (key: Category) => categoryOptions.some((c) => c.key === key)
+
   const descriptionId = useId()
   const categoryId = useId()
   const conditionId = useId()
@@ -87,7 +99,7 @@ export function ListingForm({
     try {
       const data = await api.post<SuggestPriceResponse>('/listings/price-suggestion', {
         title: title.trim(),
-        category,
+        category: selectedCategory,
         condition,
         description: description.trim() === '' ? null : description.trim(),
       })
@@ -138,7 +150,7 @@ export function ListingForm({
     const result = await onSubmit({
       title: title.trim(),
       description: description.trim() === '' ? null : description.trim(),
-      category,
+      category: selectedCategory,
       condition,
       price: priceValue,
     })
@@ -188,13 +200,13 @@ export function ListingForm({
           <select
             id={categoryId}
             className="listings-form__select"
-            value={category}
+            value={selectedCategory}
             onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value as Category)}
             aria-invalid={fieldErrors.category ? true : undefined}
           >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABELS[c]}
+            {categoryOptions.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.isActive ? c.displayName : `${c.displayName} (inactivă)`}
               </option>
             ))}
           </select>
@@ -276,12 +288,12 @@ export function ListingForm({
             <span>
               {suggestedCategory
                 ? suggestedCategory.category
-                  ? `${CATEGORY_LABELS[suggestedCategory.category]} (încredere ${(suggestedCategory.confidence * 100).toFixed(0)}%)`
+                  ? `${labelOf(suggestedCategory.category)}${canUseCategory(suggestedCategory.category) ? '' : ' (inactivă)'} (încredere ${(suggestedCategory.confidence * 100).toFixed(0)}%)`
                   : `Nicio categorie sigură (încredere ${(suggestedCategory.confidence * 100).toFixed(0)}%)`
                 : categorySuggestionError ?? 'Nicio sugestie încă.'}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
-              {suggestedCategory?.category && (
+              {suggestedCategory?.category && canUseCategory(suggestedCategory.category) && (
                 <Button
                   type="button"
                   variant="secondary"
@@ -290,7 +302,7 @@ export function ListingForm({
                     if (suggestedCategory.category) setCategory(suggestedCategory.category)
                   }}
                 >
-                  Folosește „{CATEGORY_LABELS[suggestedCategory.category]}"
+                  Folosește „{labelOf(suggestedCategory.category)}"
                 </Button>
               )}
               <Button

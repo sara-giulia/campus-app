@@ -20,4 +20,5 @@ export const menuItems: MenuItem[] = [
   { to: '/messages', label: 'Mesaje', show: 'user' },
   { to: '/my/favorites', label: 'Favorite', show: 'user' },
   { to: '/admin/moderation', label: 'Moderare', show: 'Admin' },
+  { to: '/admin/categories', label: 'Categorii', show: 'Admin' },
 ]

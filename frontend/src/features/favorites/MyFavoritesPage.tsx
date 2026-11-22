@@ -4,7 +4,8 @@ import { api } from '../../api/client'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Badge, Button, ButtonLink, EmptyState, Loading, PageHeader, Pagination } from '../../app/ui'
 import { formatPrice, type GetMyFavoritesResponse } from '../listings/publicTypes'
-import { CATEGORY_LABELS, CONDITION_LABELS, LISTING_STATUS_LABELS } from '../listings/types'
+import { useCategories } from '../listings/categories'
+import { CONDITION_LABELS, LISTING_STATUS_LABELS } from '../listings/types'
 import '../listings/listings.css'
 
 const PAGE_SIZE = 10
@@ -12,6 +13,7 @@ const PAGE_SIZE = 10
 // The listings I saved, the last saved first. A listing that was reserved or sold since stays here
 // with its status, so the member sees what happened to it.
 export function MyFavoritesPage() {
+  const { labelOf } = useCategories()
   const [page, setPage] = useState(1)
   const [data, setData] = useState<GetMyFavoritesResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +72,7 @@ export function MyFavoritesPage() {
                   </h2>
                   <div className="listing-row__meta">
                     {f.status !== 'Active' && <Badge tone="warning">{LISTING_STATUS_LABELS[f.status]}</Badge>}
-                    <span>{CATEGORY_LABELS[f.category]}</span>
+                    <span>{labelOf(f.category)}</span>
                     <span>·</span>
                     <span>{CONDITION_LABELS[f.condition]}</span>
                     <span>·</span>

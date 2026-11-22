@@ -1,0 +1,46 @@
+.admin-categories {
+  max-width: 900px;
+}
+
+.admin-categories__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-categories__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.admin-categories__key {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.admin-categories__textarea {
+  min-height: 80px;
+}
+
+.admin-categories__active {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.admin-categories__active input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.admin-categories__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}

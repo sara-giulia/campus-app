@@ -6,6 +6,7 @@ import { messagesRoutes } from '../features/messages/routes'
 import { moderationRoutes } from '../features/moderation/routes'
 import { profileRoutes } from '../features/profile/routes'
 import { reviewsRoutes } from '../features/reviews/routes'
+import { adminCategoriesRoutes } from '../features/admin-categories/routes'
 import { Layout } from './Layout'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -25,6 +26,7 @@ const featureRoutes: RouteObject[] = [
   ...favoritesRoutes,
   ...reviewsRoutes,
   ...moderationRoutes,
+  ...adminCategoriesRoutes,
 ]
 
 export const router = createBrowserRouter([
