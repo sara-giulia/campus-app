@@ -72,6 +72,8 @@ await api.post('/listings/' + id + '/reservations')
 
 ## Pages
 
+The top bar has Acasă, Anunțuri, Publică anunț, Mesaje and Notificări; the personal pages and the Admin pages (`place: 'account'` in `src/app/menu.ts`) are in the menu that opens from the avatar, and everything is in the phone menu below 900px.
+
 | Address | Page | Who |
 |---|---|---|
 | `/` | landing + the newest listings | everyone |

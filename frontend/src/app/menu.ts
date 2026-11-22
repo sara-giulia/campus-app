@@ -7,19 +7,21 @@ export interface MenuItem {
   to: string
   label: string
   show: 'always' | 'guest' | 'user' | Role
+  // 'account': in the menu that opens from the avatar (and in the phone menu), not in the top bar.
+  place?: 'account'
 }
 
 export const menuItems: MenuItem[] = [
   { to: '/', label: 'Acasă', show: 'always' },
   { to: '/listings', label: 'Anunțuri', show: 'always' },
   { to: '/register', label: 'Cont nou', show: 'guest' },
-  { to: '/profile', label: 'Profilul meu', show: 'user' },
+  { to: '/profile', label: 'Profilul meu', show: 'user', place: 'account' },
   { to: '/listings/new', label: 'Publică anunț', show: 'user' },
-  { to: '/my/listings', label: 'Anunțurile mele', show: 'user' },
-  { to: '/my/reservations', label: 'Rezervările mele', show: 'user' },
+  { to: '/my/listings', label: 'Anunțurile mele', show: 'user', place: 'account' },
+  { to: '/my/reservations', label: 'Rezervările mele', show: 'user', place: 'account' },
   { to: '/messages', label: 'Mesaje', show: 'user' },
-  { to: '/my/favorites', label: 'Favorite', show: 'user' },
+  { to: '/my/favorites', label: 'Favorite', show: 'user', place: 'account' },
   { to: '/notifications', label: 'Notificări', show: 'user' },
-  { to: '/admin/moderation', label: 'Moderare', show: 'Admin' },
-  { to: '/admin/categories', label: 'Categorii', show: 'Admin' },
+  { to: '/admin/moderation', label: 'Moderare', show: 'Admin', place: 'account' },
+  { to: '/admin/categories', label: 'Categorii', show: 'Admin', place: 'account' },
 ]

@@ -20,7 +20,7 @@ export function AdminCategoriesPage() {
       <PageHeader
         eyebrow="Administrare"
         title="Categorii"
-        lead="Schimbă numele afișat și descrierea. O categorie inactivă nu mai primește anunțuri noi; anunțurile care sunt deja în ea rămân."
+        lead="Numele de aici apar peste tot în aplicație: în căutare, pe carduri și în formularul de publicare. Dezactivează o categorie când nu mai vrei anunțuri noi în ea (cele existente rămân). Cele 5 categorii sunt fixe, pentru că modelele ML le folosesc la sugestii."
       />
       {error !== null && <Alert tone="error">{errorMessage(error)}</Alert>}
       {!loaded && error === null && <Loading text="Se încarcă categoriile…" />}

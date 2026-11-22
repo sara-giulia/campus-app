@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import type { CurrentUser } from '../api/jwt'
 import { useNotifications } from '../features/notifications/NotificationsContext'
@@ -44,6 +44,19 @@ function LayoutShell() {
   // The phone menu stays open only on the page where it was opened, so it closes on navigation.
   const [menuOpenOn, setMenuOpenOn] = useState<string | null>(null)
   const menuOpen = menuOpenOn === location.pathname
+  // The account menu (from the avatar) works the same way, and also closes on a click outside it.
+  const [accountOpenOn, setAccountOpenOn] = useState<string | null>(null)
+  const accountOpen = accountOpenOn === location.pathname
+  const accountRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!accountOpen) return
+    function close(event: MouseEvent) {
+      if (!accountRef.current?.contains(event.target as Node)) setAccountOpenOn(null)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [accountOpen])
 
   async function handleLogout() {
     await logout()
@@ -51,6 +64,17 @@ function LayoutShell() {
   }
 
   const links = menuItems.filter((item) => visible(item, user))
+  const topLinks = links.filter((item) => item.place !== 'account')
+  const accountLinks = links.filter((item) => item.place === 'account')
+
+  const badge = (item: MenuItem) =>
+    item.to === '/notifications' &&
+    unreadCount !== null &&
+    unreadCount > 0 && (
+      <span className="nav__badge" aria-label={`${unreadCount} notificări necitite`}>
+        {unreadCount > 99 ? '99+' : unreadCount}
+      </span>
+    )
 
   return (
     <div className="shell">
@@ -61,14 +85,16 @@ function LayoutShell() {
           </NavLink>
 
           <nav className={menuOpen ? 'nav nav--open' : 'nav'} aria-label="Meniu principal">
-            {links.map((item) => (
+            {topLinks.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.to === '/'} className="nav__link">
                 {item.label}
-                {item.to === '/notifications' && unreadCount !== null && unreadCount > 0 && (
-                  <span className="nav__badge" aria-label={`${unreadCount} notificări necitite`}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
+                {badge(item)}
+              </NavLink>
+            ))}
+            {/* On the phone the account links are part of this menu too. */}
+            {accountLinks.map((item) => (
+              <NavLink key={item.to} to={item.to} className="nav__link nav__link--account">
+                {item.label}
               </NavLink>
             ))}
           </nav>
@@ -76,13 +102,30 @@ function LayoutShell() {
           <div className="topbar__actions">
             <ThemeToggle />
             {user ? (
-              <div className="account">
-                <span className="account__avatar" title={user.email} aria-label={user.email}>
+              <div className="account" ref={accountRef}>
+                <button
+                  type="button"
+                  className="account__avatar"
+                  title={user.email}
+                  aria-label={`Contul meu (${user.email})`}
+                  aria-expanded={accountOpen}
+                  onClick={() => setAccountOpenOn(accountOpen ? null : location.pathname)}
+                >
                   {initials(user.email)}
-                </span>
-                <button type="button" className="icon-button" onClick={handleLogout} aria-label="Ieșire din cont" title="Ieșire din cont">
-                  <LogoutIcon />
                 </button>
+                {accountOpen && (
+                  <div className="account__menu" role="menu">
+                    <p className="account__email">{user.email}</p>
+                    {accountLinks.map((item) => (
+                      <NavLink key={item.to} to={item.to} className="account__link" role="menuitem">
+                        {item.label}
+                      </NavLink>
+                    ))}
+                    <button type="button" className="account__link account__logout" role="menuitem" onClick={handleLogout}>
+                      <LogoutIcon size={16} /> Ieșire
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               location.pathname !== '/login' && (

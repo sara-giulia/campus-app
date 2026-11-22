@@ -6,6 +6,7 @@ import { Alert, Badge, Button, EmptyState, Loading, PageHeader, Pagination } fro
 import { useNotifications } from './NotificationsContext'
 import { formatAbsoluteDateTime, formatRelativeTime } from './relativeTime'
 import type { GetMyNotificationsResponse, NotificationItem } from './types'
+import { messageText } from './messageText'
 import './notifications.css'
 
 const PAGE_SIZE = 10
@@ -103,7 +104,7 @@ export function NotificationsPage() {
                       {formatRelativeTime(n.createdAt)}
                     </time>
                   </div>
-                  <p className="notif-item__message">{n.message}</p>
+                  <p className="notif-item__message">{messageText(n)}</p>
                   {n.listingId && (
                     <p className="notif-item__link">
                       <Link to={`/listings/${n.listingId}`}>Vezi anunțul</Link>

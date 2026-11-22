@@ -47,10 +47,24 @@
 
 /* ---- cards ---- */
 
+/* Four per row on a wide screen, so a page of 12 (and the 8 on the home page) fills whole rows;
+   three, then two on narrower screens (12 still fills whole rows). */
 .lgrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
+}
+
+@media (max-width: 1100px) {
+  .lgrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .lgrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .lcard {
@@ -407,7 +421,6 @@
 
 @media (max-width: 520px) {
   .lgrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 

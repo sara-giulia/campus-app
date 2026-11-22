@@ -1192,6 +1192,8 @@ Model card (what it does, how it is evaluated, metrics, limits): [docs/ml/simila
 
 Model card (what it does, data, metrics, error analysis, limits): [docs/ml/spam.md](docs/ml/spam.md).
 
+- In the API, `SpamDetector` also applies a few clear rules (`Infrastructure/ML/SpamRules.cs`): a link, a Romanian phone number, an `@handle`, asking to talk on WhatsApp / Telegram, money bait (`bani usor`, `castiga`, `profit garantat`) or pay-in-advance phrases, or `!!!` make a listing spam even when the model misses it (the model was trained on generated data and misses short real-world spam). The text is compared without diacritics; email addresses are ignored. Such a listing is reported with probability 0.9 and shows in the Admin's reported listings, like the ones the model catches.
+
 - Trainer: `SpamTrainer` in `ml/CampusMarket.ML.Training`, binary classification
   with SDCA logistic regression on all rows. Features: `Title` and `Description`
   through `FeaturizeText`, and `Price` split into bins (spam often has absurd prices,

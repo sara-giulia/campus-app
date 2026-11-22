@@ -110,6 +110,10 @@ what the model learned. They are **scams that work through the payment** (advanc
 transfer, PayPal Friends & Family, crypto), and the generator never produced that
 kind of text.
 
+## Rules on top of the model (in the API)
+
+The model is trained on generated listings and misses short, real-world spam ("Spam, click aici www…", "telegram @…", "plata in avans"). `SpamDetector` therefore also flags a listing when a clear rule matches (`Infrastructure/ML/SpamRules.cs`): a link, a Romanian phone number, an `@handle`, WhatsApp / Telegram / "scrie-mi pe", money bait or pay-in-advance phrases, or `!!!`; diacritics are removed and email addresses ignored before comparing. A listing caught only by a rule is reported with probability 0.9. The metrics above are the model's alone; the rules are checked by the integration tests in `Moderation/SpamRulesTests.cs`.
+
 ## Limits — when not to trust the probability
 
 - It catches loud, contact-seeking spam. Payment fraud with a normal-looking
