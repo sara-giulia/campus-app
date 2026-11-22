@@ -2490,3 +2490,15 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Model nou: listări similare":
 - **Checks:** build 0 warnings; 10 architecture, 491 unit, 61 ML and 280 integration tests pass; the new code of the API covered in the merged coverage (the files still uncovered are from #95, #96 and the profile PR); SARIF logs of the API and the two ML projects empty; newman against a fresh database: 149 requests, 293 assertions, 0 failed.
 - **Result:** new `ml/.../SimilarTrainer.cs`, `ml/.../Evaluation/SimilarityEvaluation.cs`, `ml/models/similar-listings.zip` and `.json`; `Program.cs` (one line in the trainer list); new `Common/Similarity/ISimilarListingsFinder.cs`, `Infrastructure/ML/SimilarInput.cs`, `SimilarVector.cs`, `SimilarListingsFinder.cs`, `Features/Listings/GetSimilarListings/` (request, query, response, handler, endpoint); `ListingsEndpoints.cs`, `MlServiceCollectionExtensions.cs`, `MlModelsHealthCheck.cs`, `Dockerfile`; new `tests/CampusMarket.ML.Tests/SimilarListingsTests.cs` (10 tests: sparse vectors, dot and cosine, an empty vector, precision@k and the random pick on a worked example, items without candidates, the quality bar of the committed model, three hand-written pairs); new `docs/ml/similar.md`; README (endpoint, model section, Docker and ready check); Postman.
 - **Commits:** code 17bdcfc; skill sections 7cb4df8; tests generated in cfb9e5a (see Run 29 of unit-testing and Run 40 of integration-testing)
+
+## cors-render
+
+The deployed frontend (`https://campus-app-pucf.onrender.com`) could not read any answer of the deployed API (`https://campus-app-latest.onrender.com`): the API sent no `Access-Control-Allow-Origin` for that origin. Written by Ancuța Ilenei with Claude Code.
+
+### Run 1
+
+- **Prompt:** `Sara asked: add the frontend URL https://campus-app-pucf.onrender.com to the CORS origins, check AllowAnyHeader/AllowAnyMethod (and AllowCredentials if cookies are used) and that UseCors runs before UseAuthorization and the endpoints.`
+- **Decisions:** the policy already allowed any header and method, ran first in the pipeline and needed no credentials (the token goes in the `Authorization` header), so only the origin was missing. It is added to `Cors:AllowedOrigins` in `appsettings.json`, so it is deployed with the image and needs no setting in Render; `localhost:5173` stays for development. No new test: `CorsTests` already checks that the configured origins are allowed and the others are not.
+- **Checks:** against the deployed API, a request with the Render origin got no CORS header. Locally with the new config: preflight and GET from the Render origin and from `localhost:5173` get `Access-Control-Allow-Origin`, another origin does not; 275 integration tests pass.
+- **Result:** `appsettings.json` (the origin), README (the two places that list the allowed origins).
+- **Commits:** code add985e
