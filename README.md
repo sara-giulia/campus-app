@@ -292,10 +292,11 @@ GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except 
 | `minPrice` | lowest price, inclusive | no limit |
 | `maxPrice` | highest price, inclusive | no limit |
 | `search` | text in the title, upper and lower case ignored | no search |
+| `sort` | `newest`, `price_asc` or `price_desc` | `newest` |
 | `page` | page number, from 1 | `1` |
 | `pageSize` | listings per page, from 1 to 100 | `20` |
 
-Listings come newest first (`createdAt` descending, then `id`), so the same query always returns the same pages.
+Listings come newest first by default (`createdAt` descending, then `id`); with `sort=price_asc` or `sort=price_desc` they are ordered by price, then `id`. The same query always returns the same pages.
 
 Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search=oop&page=1&pageSize=20`
 
@@ -336,6 +337,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
+| 400 `Listings.InvalidSort` | `sort` is not `newest`, `price_asc` or `price_desc` |
 | 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
 Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
@@ -400,6 +402,7 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
 | `Money.TooHigh` | 400 | the price is above 100000 lei |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
+| `Listings.InvalidSort` | 400 | sort is not newest, price_asc or price_desc |
 | `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
 | `Favorite.ListingNotAvailable` | 400 | the listing is still a draft, or it was hidden by an Admin |
 | `Favorite.AlreadyExists` | 409 | the listing is already in your favorites |

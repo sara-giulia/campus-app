@@ -322,4 +322,53 @@ public sealed class GetListingsTests : IntegrationTestBase
         await SeedAsync(oopTextbook, oopProblemSet, calculator);
         return (oopTextbook, oopProblemSet, calculator);
     }
+
+    [Fact]
+    public async Task Given_ListingsWithDifferentPrices_When_SortingByPriceAscending_Then_Returns200InAscendingOrder()
+    {
+        // Arrange
+        var expensive = Listing.Create(SellerId, "Expensive book", Category.Textbook, Condition.Good, 90m, CreatedAt).Value;
+        var cheap = Listing.Create(SellerId, "Cheap book", Category.Textbook, Condition.Good, 10m, CreatedAt.AddHours(1)).Value;
+        var medium = Listing.Create(SellerId, "Medium book", Category.Textbook, Condition.Good, 40m, CreatedAt.AddHours(2)).Value;
+        expensive.Publish();
+        cheap.Publish();
+        medium.Publish();
+        await SeedAsync(expensive, cheap, medium);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/listings?sort=price_asc");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+        body!.Items.Select(i => i.Price).Should().Equal(10m, 40m, 90m);
+        body.TotalCount.Should().Be(3);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_UnknownSort_When_GettingListings_Then_Returns400InvalidSort()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish();
+        await SeedAsync(listing);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/listings?sort=abc");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listings.InvalidSort");
+        error.Type.Should().Be(ErrorType.Validation);
+        error.Message.Should().Be("Sort must be newest, price_asc or price_desc.");
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(1);
+    }
 }

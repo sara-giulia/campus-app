@@ -849,3 +849,14 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the messages from `Photo.MaxPerListing` and `Photo.MaxSizeBytes` the same way the domain does.
 - Never use real time: `Now` is fixed.
 
+## Feature: Sorting (Diana)
+
+Production code: `GetListingsHandler`, `GetListingsQuery.Sort` (null, "newest", "price_asc", "price_desc").
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it).
+
+Tests to add:
+- three Active listings priced 30, 10, 20 → `price_asc` gives 10, 20, 30; `price_desc` gives 30, 20, 10.
+- `newest` and no sort → newest `CreatedAt` first (same as before).
+- two listings with the same price → ordered by `Id` ascending.
+- `Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message.

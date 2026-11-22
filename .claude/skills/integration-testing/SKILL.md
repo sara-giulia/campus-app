@@ -1160,3 +1160,10 @@ Rules for this feature:
 - Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Sorting (Diana)
+
+File: `Listings/GetListingsTests.cs` (add to it).
+
+Tests to add:
+- `?sort=price_asc` → 200, prices in ascending order.
+- `?sort=abc` → 400 `Listings.InvalidSort`.
