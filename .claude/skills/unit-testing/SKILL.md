@@ -319,7 +319,7 @@ Stryker replaces error messages with `""`. Today the tests check only `Error.Cod
 - New test: the same buyer reserves two different active listings at the same fixed time (same `CreatedAt`). The items come back ordered by `ReservationId` ascending (`BeInAscendingOrder(i => i.ReservationId)`).
 
 ### 6. Equivalent mutants: no test
-`Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them. The later equivalent mutants (`Message.cs` `Text = string.Empty`, `Review.cs` `First` vs `FirstOrDefault`) and the rule for marking them are in *"Feature: Full coverage (Carina)"*.
+`Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them. The later equivalent mutants (`Message.cs` `Text = string.Empty`, `Review.cs` `First` vs `FirstOrDefault`, `Photo.cs` `FileName` and `ContentType` defaults) and the rule for marking them are in *"Feature: Full coverage (Carina)"*.
 
 Rules for this feature:
 - Keep every existing test and its name. In existing tests, only add the assertions described in points 1 and 2; everything else is a new test.
@@ -875,9 +875,11 @@ Rules for these mutants (they apply to every future test too):
 - **Equivalent mutants.** Only when no test can kill a mutant (the changed value is never observable), mark it in `src/` with a comment on the line above: `// Stryker disable once <Mutator> : <reason>`, like `Listing.cs` and `Member.cs`. This comment is the only change allowed in `src/`. The new equivalent mutants:
   - `Domain/Conversations/Message.cs`, `Text = string.Empty` (String): the `internal` constructor always sets `Text`, and the private constructor is only used by EF Core, which overwrites it.
   - `Domain/Reviews/Review.cs`, `listing.Reservations.First(...)` (Linq, `First` vs `FirstOrDefault`): a `Sold` listing always has exactly one `Completed` reservation (`Listing.ConfirmSale`), so the predicate always matches.
+  - `Domain/Photos/Photo.cs`, `FileName = string.Empty` and `ContentType = string.Empty` (String, 2 mutants, found after the merge with main, #120): `Photo.Create` always sets both (`FileName` = `<Id><extension>`, `ContentType` = the format's type), and the private constructor is only used by EF Core, which overwrites them. One comment above each property.
 - **Boundaries of `< limit` checks.** For every `x < limit` (or `x > limit`) check, add a test with exactly the limit that succeeds; a value inside the limits that is far from it does not kill `<` → `<=`:
   - `ResetPasswordHandler`: a new password of exactly `RegisterHandler.MinPasswordLength` (8) characters → success.
   - `GetReportedListingsHandler` and `GetMemberReviewsHandler`: `PageSize` exactly 1 → success, `PageSize` 1 in the response.
+  - `PhotoFormat.Detect` (`content.Length >= 12` for WebP): a WebP of exactly 12 bytes (`"RIFF"`, 4 size bytes, `"WEBP"`, nothing after) → `PhotoFormat.WebP`. The other WebP test images are longer, so they do not kill `>=` → `>`. Test name: `Given_WebPOfExactly12Bytes_When_Detecting_Then_ReturnsWebP` in `Domain/Photos/PhotoFormatTests.cs`.
 - **Ordering with ties.** For every `OrderBy`/`ThenBy`, at least one test checks the exact order, and the tie-breaker (`ThenBy`) is tested with two items that have the same first key:
   - `PriceAccuracyHandler`: `PerCategory` comes back in `Category` order (records in `Electronics` and `Textbook` → `Textbook`, `Electronics`); two records with the same `SoldAt` → `LastRecords` ordered by the record `Id` descending.
   - `GetPublicProfileHandler`: two Active listings of the member with the same `CreatedAt` → ordered by `Id` ascending (`BeInAscendingOrder(i => i.Id)`).
