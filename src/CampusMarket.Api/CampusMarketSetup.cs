@@ -27,6 +27,8 @@ using CampusMarket.Api.Features.Moderation;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews;
 using CampusMarket.Api.Features.Admin;
+using CampusMarket.Api.Common.Email;
+using CampusMarket.Api.Infrastructure.Mailing;
 
 namespace CampusMarket.Api;
 
@@ -55,6 +57,7 @@ public static class CampusMarketSetup
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
         services.AddScoped<IConversationRepository, EfConversationRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, EfPasswordResetTokenRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -125,6 +128,18 @@ public static class CampusMarketSetup
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+        // Email: SMTP when Email:Host is set (e.g. Mailpit on docker compose),
+        // otherwise a logger-only sender so the API runs without SMTP in dev
+        // and in tests. Username and password are read from env vars by the
+        // SMTP sender itself; they must never be in appsettings.*.json.
+        services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.SectionName);
+        services.AddOptions<FrontendOptions>().BindConfiguration(FrontendOptions.SectionName);
+        var emailHost = configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (string.IsNullOrWhiteSpace(emailHost))
+            services.AddSingleton<IEmailSender, LoggingEmailSender>();
+        else
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+
         // GET /health: the API is up and can reach the database.
         services.AddHealthChecks()
             .AddDbContextCheck<CampusMarketDbContext>(tags: ["ready"])
@@ -147,9 +162,10 @@ public static class CampusMarketSetup
         return services;
     }
 
-    // Fails fast in Production when the JWT signing key is missing or too
-    // short. Dev and Test keep their own keys (appsettings.Development.json /
-    // the integration-test factory), so this check is production-only.
+    // Fails fast in Production when the JWT signing key is missing or too short,
+    // or when the SMTP sender is used without TLS. Dev and Test keep their own
+    // keys (appsettings.Development.json / the integration-test factory) and
+    // talk to Mailpit without TLS, so these checks are production-only.
     public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
     {
         if (!app.Environment.IsProduction())
@@ -162,6 +178,19 @@ public static class CampusMarketSetup
                 $"Jwt:Key is missing or shorter than {MinJwtKeyLength} characters. " +
                 "Set the Jwt__Key environment variable to a random value of at least " +
                 $"{MinJwtKeyLength} characters before starting the API in Production.");
+        }
+
+        var emailHost = app.Configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (!string.IsNullOrWhiteSpace(emailHost))
+        {
+            var useSsl = app.Configuration.GetValue($"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)}", true);
+            if (!useSsl)
+            {
+                throw new InvalidOperationException(
+                    $"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)} must be true in Production when an SMTP host is configured. " +
+                    $"Set the {EmailOptions.SectionName}__{nameof(EmailOptions.UseSsl)} environment variable to true (STARTTLS on port 587) " +
+                    "before starting the API in Production.");
+            }
         }
 
         return app;
