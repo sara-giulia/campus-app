@@ -289,7 +289,7 @@ Rules for this feature:
 
 ## Feature: Surviving mutants (Diana)
 
-Stryker.NET left mutants alive in `Domain/` and the handlers. The goal is a mutation score of 100%: add or extend unit tests so that each mutant below makes at least one test fail. Production code does not change.
+Stryker.NET left mutants alive in `Domain/` and the handlers. The goal is a mutation score of 100%: add or extend unit tests so that each mutant below makes at least one test fail. Production code does not change, except the `// Stryker disable once` comments for equivalent mutants (point 6 and *"Feature: Full coverage (Carina)"*).
 
 Read the production code of every file named below before writing a test, and use the exact texts and values from it.
 
@@ -318,12 +318,12 @@ Stryker replaces error messages with `""`. Today the tests check only `Error.Cod
 `GetMyReservationsHandler` orders by `CreatedAt` descending, then by `ReservationId` ascending.
 - New test: the same buyer reserves two different active listings at the same fixed time (same `CreatedAt`). The items come back ordered by `ReservationId` ascending (`BeInAscendingOrder(i => i.ReservationId)`).
 
-### 6. Equivalent mutants (2): no test
-`Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them.
+### 6. Equivalent mutants: no test
+`Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them. The later equivalent mutants (`Message.cs` `Text = string.Empty`, `Review.cs` `First` vs `FirstOrDefault`) and the rule for marking them are in *"Feature: Full coverage (Carina)"*.
 
 Rules for this feature:
 - Keep every existing test and its name. In existing tests, only add the assertions described in points 1 and 2; everything else is a new test.
-- Never change production code.
+- Never change production code, except a `// Stryker disable once <Mutator> : <reason>` comment on a mutant that no test can kill (see *"Feature: Full coverage (Carina)"*).
 - After the run, `dotnet test` passes and coverage of `Domain/` and the handlers stays 100%.
 
 
@@ -776,3 +776,29 @@ Rules for this feature:
 - Never use real time.
 - Then run the tests with coverage and generate the report as this skill says: `ResetPasswordHandler.cs` is at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+### Surviving mutants of issue #121 (Stryker run of 2026-11-22, 18 mutants)
+
+Stryker (`dotnet stryker` in `tests/CampusMarket.UnitTests`) left 18 mutants alive (score 97.83%). The goal is 100%. Read the production code of every file below before writing a test and use its exact texts and values.
+
+Rules for these mutants (they apply to every future test too):
+- **Equivalent mutants.** Only when no test can kill a mutant (the changed value is never observable), mark it in `src/` with a comment on the line above: `// Stryker disable once <Mutator> : <reason>`, like `Listing.cs` and `Member.cs`. This comment is the only change allowed in `src/`. The new equivalent mutants:
+  - `Domain/Conversations/Message.cs`, `Text = string.Empty` (String): the `internal` constructor always sets `Text`, and the private constructor is only used by EF Core, which overwrites it.
+  - `Domain/Reviews/Review.cs`, `listing.Reservations.First(...)` (Linq, `First` vs `FirstOrDefault`): a `Sold` listing always has exactly one `Completed` reservation (`Listing.ConfirmSale`), so the predicate always matches.
+- **Boundaries of `< limit` checks.** For every `x < limit` (or `x > limit`) check, add a test with exactly the limit that succeeds; a value inside the limits that is far from it does not kill `<` → `<=`:
+  - `ResetPasswordHandler`: a new password of exactly `RegisterHandler.MinPasswordLength` (8) characters → success.
+  - `GetReportedListingsHandler` and `GetMemberReviewsHandler`: `PageSize` exactly 1 → success, `PageSize` 1 in the response.
+- **Ordering with ties.** For every `OrderBy`/`ThenBy`, at least one test checks the exact order, and the tie-breaker (`ThenBy`) is tested with two items that have the same first key:
+  - `PriceAccuracyHandler`: `PerCategory` comes back in `Category` order (records in `Electronics` and `Textbook` → `Textbook`, `Electronics`); two records with the same `SoldAt` → `LastRecords` ordered by the record `Id` descending.
+  - `GetPublicProfileHandler`: two Active listings of the member with the same `CreatedAt` → ordered by `Id` ascending (`BeInAscendingOrder(i => i.Id)`).
+  - Build the expected order from the ids in the test (`OrderBy`/`OrderByDescending` on the arranged objects), never from the handler's output.
+- **`UpdateCount` on every updated fake.** A success test asserts `UpdateCount` on every fake repository the handler calls `Update` on (for example `ResetPasswordHandler`: `members.UpdateCount`, `tokens.UpdateCount`, `refreshTokens.UpdateCount` each 1). The fakes store the same instance, so a missing `Update` is only visible through the counter.
+- **Emails: the full exact `Body`.** When a handler sends an email, the success test asserts `Body` with `.Be(...)` on the whole expected text (built with `Environment.NewLine` and the test's values, the same way the handler does), not only `Contain`/`NotContain`. This applies to `ForgotPasswordHandler` (the link is built from the plain token taken from the email) and `ResetPasswordHandler`.
+- **Logs from `[LoggerMessage]`.** Add `Fakes/FakeLogger.cs`: `FakeLogger<T> : ILogger<T>`, hand-written, `IsEnabled` returns `true`, `BeginScope` returns `null`, `Log` stores the level and the message (`formatter(state, exception)`) in a public `List<(LogLevel Level, string Message)> Entries`. A handler that logs gets it instead of `NullLogger<T>.Instance` in the tests that check the log:
+  - `ConfirmSaleHandler`, suggester throws → exactly one entry, `Warning`, message `"Price suggester threw while recording a sale; no SaleRecord saved for this confirmation."`.
+  - `ConfirmSaleHandler`, suggester returns 0 → exactly one entry, `Warning`, message `$"Price suggester returned no usable suggestion (<= 0) for listing {listing.Id}; no SaleRecord saved."`.
+  - A successful sale with a positive suggestion logs nothing (`Entries` empty).
+
+Rules for these mutants:
+- Keep every existing test and its name. In existing tests only add assertions (`UpdateCount`, the full `Body`); everything else is a new test.
+- After the run, `dotnet test` passes, coverage of `Domain/` and the handlers stays 100%, and `dotnet stryker` in `tests/CampusMarket.UnitTests` reports 100%. If a mutant still survives, stop and report why; do not force it.
