@@ -295,10 +295,10 @@ public static class CampusMarketSetup
             db.Listings.Add(listing);
 
         db.SaveChanges();
-
+        
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Demo seed: {MemberCount} members, {ListingCount} listings", ...);
+            logger.LogInformation("Demo seed: {MemberCount} members, {ListingCount} listings", seededMemberCount, listings.Coun);
         }
     }
 
