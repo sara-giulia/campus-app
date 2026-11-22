@@ -138,17 +138,25 @@ public static class CampusMarketSetup
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-        // Email: SMTP when Email:Host is set (e.g. Mailpit on docker compose),
-        // otherwise a logger-only sender so the API runs without SMTP in dev
-        // and in tests. Username and password are read from env vars by the
-        // SMTP sender itself; they must never be in appsettings.*.json.
+        // Email sender: Brevo HTTP API when Email__ApiKey is set (used on Render free,
+        // where outbound SMTP ports are blocked); SMTP when Email:Host is set
+        // (e.g. Mailpit on docker compose); otherwise a logger-only sender so the API
+        // runs without SMTP in dev and in tests. The Brevo API key and the SMTP
+        // username/password are read from env vars by the senders themselves; they
+        // must never be in appsettings.*.json.
         services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.SectionName);
         services.AddOptions<FrontendOptions>().BindConfiguration(FrontendOptions.SectionName);
+        var brevoApiKey = Environment.GetEnvironmentVariable("Email__ApiKey");
         var emailHost = configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
-        if (string.IsNullOrWhiteSpace(emailHost))
-            services.AddSingleton<IEmailSender, LoggingEmailSender>();
-        else
+        if (!string.IsNullOrWhiteSpace(brevoApiKey))
+        {
+            services.AddHttpClient<IEmailSender, BrevoEmailSender>(client =>
+                client.BaseAddress = new Uri("https://api.brevo.com/"));
+        }
+        else if (!string.IsNullOrWhiteSpace(emailHost))
             services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        else
+            services.AddSingleton<IEmailSender, LoggingEmailSender>();
 
         // GET /health: the API is up and can reach the database.
         services.AddHealthChecks()
