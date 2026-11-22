@@ -296,9 +296,10 @@ public static class CampusMarketSetup
 
         db.SaveChanges();
 
-        logger.LogInformation(
-            "Demo seed: {MemberCount} members, {ListingCount} listings",
-            seededMemberCount, listings.Count);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Demo seed: {MemberCount} members, {ListingCount} listings", ...);
+        }
     }
 
     // Returns the ids of the demo members that were added for seeding when
