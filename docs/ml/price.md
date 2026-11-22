@@ -104,17 +104,20 @@ training part:
 
 | Metric | Test (winner) | Test (baseline) | External (winner) | External (baseline) |
 |--------|---------------|-----------------|-------------------|---------------------|
-| R²     | **0.451**     | 0.274           | **0.511**         | 0.011               |
-| MAE    | **268.53** lei | 345.44 lei     | **112.10** lei    | 192.05 lei          |
-| MAPE   | **75.3%**     | 176.5%          | **55.1%**         | 132.1%              |
+| R²     | **0.451**     | 0.274           | **0.239**         | 0.232               |
+| MAE    | **268.53** lei | 345.44 lei     | **174.27** lei    | 200.77 lei          |
+| MAPE   | **75.3%**     | 176.5%          | **79.3%**         | 132.7%              |
 
-The MAE and MAPE are lower on the external set than on the hold-out
-because the external rows are concentrated around the catalog averages,
-without the Electronics long tail that dominates the test MAE
-(see the per-category table above). The winner beats the baseline by a
-larger margin on R² too (0.50 vs 0.01): the baseline collapses on
-out-of-catalog Conditions and item mixes, while the model's text
-features still carry signal.
+The MAE is still lower on the external set than on the hold-out
+(174.27 lei vs 268.53 lei), but the MAPE climbs slightly (79.3% vs
+75.3%) and R² is close to the baseline on external (0.239 vs 0.232).
+The rewritten external rows carry a long Electronics tail — HDD extern
+20TB, Macbook Air M1, Samsung Galaxy Tab S9 FE+ — where the winner
+systematically under-shoots the most expensive items. The Category ×
+Condition baseline meanwhile recovers more variance from out-of-catalog
+mixes than it did on the hold-out, so the two end up close in R². On
+absolute error (MAE and MAPE) the winner still beats the baseline on
+every row of the table.
 
 ## 5-fold grouped cross-validation
 

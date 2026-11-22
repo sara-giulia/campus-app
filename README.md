@@ -22,7 +22,7 @@ npm install
 npm run dev
 ```
 
-It opens on `http://localhost:5173`. The API allows only the origins in `Cors:AllowedOrigins` (`appsettings.json`, `http://localhost:5173` by default); for another address set `Cors__AllowedOrigins__0` in the API's environment. To use another API address in the frontend, copy `frontend/.env.example` to `frontend/.env.local` and change `VITE_API_URL`. How the frontend is organised (where to add a page, the API client, login): [frontend/README.md](frontend/README.md).
+It opens on `http://localhost:5173`. The API allows only the origins in `Cors:AllowedOrigins` (`appsettings.json`: `http://localhost:5173` and the deployed frontend, `https://campus-app-pucf.onrender.com`); for another address set `Cors__AllowedOrigins__2` in the API's environment. To use another API address in the frontend, copy `frontend/.env.example` to `frontend/.env.local` and change `VITE_API_URL`. How the frontend is organised (where to add a page, the API client, login): [frontend/README.md](frontend/README.md).
 
 ### With Docker
 
@@ -33,7 +33,7 @@ It opens on `http://localhost:5173`. The API allows only the origins in `Cors:Al
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
 - The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container, on the named volume `campusmarket-data`, so the data is kept after `docker compose down`. `docker compose down -v` also removes the volume and starts from an empty database.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
-- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) was not copied to `ml-models/`.
+- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
 ### Deploy
@@ -219,6 +219,10 @@ flowchart LR
 | Hide a listing | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only; only `Active` or `Reserved` |
 | Review the seller | `AddReview` | `POST /api/v1/listings/{id}/reviews` | only the buyer; only after the sale is confirmed; rating 1 to 5; once per sale |
 | See a member's reviews | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews` | public; newest first, with the average rating |
+| Write to the seller | `StartConversation` | `POST /api/v1/listings/{id}/conversations` | not own listing; a new conversation only on an `Active` or `Reserved` listing; one conversation per buyer and listing |
+| Answer in a conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | only the buyer and the seller |
+| Read a conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | only the buyer and the seller |
+| See my conversations | `GetMyConversations` | `GET /api/v1/members/me/conversations` | as buyer and as seller; the latest message first |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -239,11 +243,16 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
 | Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below `Ml:Category:MinConfidence`, 0.6, chosen on validation data), 400, 401 |
+| Listing | `GetSimilarListings` | `GET /api/v1/listings/{id}/similar` | everyone | 200 `{ items: [{ id, title, category, condition, price, similarity }] }` (at most 5 Active listings, never the listing itself, most similar first, similarity 0–1), 404 `Listing.NotFound` |
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
 | Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
+| Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, 401, 404 |
+| Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `GetMyConversations` | `GET /api/v1/members/me/conversations` | anyone logged in; only their own conversations | 200, 401 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
@@ -261,7 +270,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
-| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 3 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) are present, 503 `Unhealthy` otherwise |
+| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
 
 GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
@@ -338,7 +347,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 - A wrong email and a wrong password get the same 401 `Auth.InvalidCredentials`, so nobody can find out which emails have an account.
 - Login allows 5 attempts per minute from the same IP, then 429.
 - Roles: `Student` and `Admin`. In the Development environment an Admin account is created at startup from `Seed:AdminEmail` / `Seed:AdminPassword` in `appsettings.Development.json`. The JWT key is also there, for development only.
-- CORS: browsers may call the API only from the origins in `Cors:AllowedOrigins` (the web frontend, `http://localhost:5173` in development). Any header and method is allowed, `Location` is readable by the frontend, and no cookies are used: the token always goes in the `Authorization` header. The CORS headers are also on error answers (401, 404, 500), so the frontend can read the error.
+- CORS: browsers may call the API only from the origins in `Cors:AllowedOrigins` (the web frontend: `http://localhost:5173` in development, `https://campus-app-pucf.onrender.com` deployed). Any header and method is allowed, `Location` is readable by the frontend, and no cookies are used: the token always goes in the `Authorization` header. The CORS headers are also on error answers (401, 404, 500), so the frontend can read the error.
 
 ### Email
 
@@ -523,6 +532,17 @@ After a sale is confirmed, the buyer rates the seller once.
 ```
 
 Reviews are stored in their own table (`Reviews`, migration `AddReviews`), with a unique index on the listing (one sale, one review) and foreign keys to `Listings` and to `Members` for the seller and the reviewer (cascade delete).
+
+### Messages between buyer and seller
+
+A buyer writes to the seller about a listing; only the two of them can read or write in that conversation (anyone else, an Admin too, gets 403 `Conversation.NotParticipant`).
+
+- `POST /api/v1/listings/{id}/conversations` with `{ "text": "Mai e disponibil?" }`: 201 with the message `{ conversationId, id, number, senderId, text, sentAt }` and `Location` to the conversation. The first message starts the conversation; if the buyer already has one about this listing, the message is added to it, so the "write to the seller" button always works the same way. A new conversation needs an `Active` or `Reserved` listing (400 `Conversation.ListingNotAvailable`); the seller cannot write about their own listing (400 `Conversation.OwnListing`). An existing conversation keeps working after the sale.
+- `POST /api/v1/conversations/{id}/messages` with `{ "text": "..." }`: the buyer or the seller answers, 201 with the same body.
+- `GET /api/v1/conversations/{id}`: the listing title, the two members' names and every message, in the order they were sent.
+- `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message and the number of messages.
+
+A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `AddConversations`.
 
 ## 4. Domain model
 
@@ -896,29 +916,33 @@ Last run (seed `2026`):
 
 | Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
 |---|---|---|---|---|---|
-| Price (non-spam) | R² | **0.451** | 0.274 | **0.511** | 0.011 |
-| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **112.10** | 192.05 |
-| Price (non-spam) | MAPE | **75.3%** | 176.5% | **55.1%** | 132.1% |
-| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.735** | 0.196 |
-| Category (non-spam) | Macro accuracy | **0.857** | 0.200 | **0.737** | 0.200 |
-| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.934 |
-| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.929 |
+| Price (non-spam) | R² | **0.451** | 0.274 | **0.239** | 0.232 |
+| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **174.27** | 200.77 |
+| Price (non-spam) | MAPE | **75.3%** | 176.5% | **79.3%** | 132.7% |
+| Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.618** | 0.196 |
+| Category (non-spam) | Macro accuracy | **0.856** | 0.200 | **0.616** | 0.200 |
+| Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.910 |
+| Spam (all) | Precision | **1.000** | 0.667 | 1.000 | 0.765 |
 | Spam (all) | Recall | 1.000 | 1.000 | 0.500 | 0.650 |
-| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.765 |
+| Spam (all) | F1 score | **1.000** | 0.800 | 0.667 | 0.703 |
 
-The price and category models still beat their baselines on external
-data, and by a larger R² margin than on the test part — the external
-prices are more concentrated around the catalog averages, so the baseline
-collapses while the model generalizes. Spam is the honest miss: the test
-part is saturated because synthetic spam signals the generator plants
-(links, phone numbers, `!!!`, 1-leu prices) are the same the rule
-baseline catches, so both reach 1.000. The external set has ten subtle
-spam rows with normal titles, normal prices and no scam keywords
-(`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet festival
-Untold"`), which neither the model nor the rule catch — recall drops to
-0.500 for the model and 0.650 for the rule. That gap is a dataset-v2
-limit and a task for the next iteration of the spam generator, not a
-regression in the committed model.
+The category model still beats its baseline on external by a wide margin
+(0.618 vs 0.196 micro), and the price model keeps the lower MAE
+(174.27 lei vs 200.77 lei) and MAPE (79.3% vs 132.7%). On R² the two are
+close (0.239 vs 0.232): the rewritten external rows carry a long
+Electronics tail — HDD extern 20TB, Macbook Air M1, Samsung Galaxy Tab
+S9 FE+ — where the model systematically under-shoots the most expensive
+items, while the Category × Condition mean recovers variance from
+out-of-catalog mixes it had not seen on the test part. Spam is the
+honest miss: the test part is saturated because synthetic spam signals
+the generator plants (links, phone numbers, `!!!`, 1-leu prices) are the
+same the rule baseline catches, so both reach 1.000. The external set
+has ten subtle spam rows with normal titles, normal prices and no scam
+keywords (`"Laptop gaming i7 ieftin"`, `"Notite drept civil"`, `"Bilet
+festival Untold"`), which neither the model nor the rule catch — recall
+drops to 0.500 for the model and 0.650 for the rule. That gap is a
+dataset-v2 limit and a task for the next iteration of the spam
+generator, not a regression in the committed model.
 
 ### Dataset v2
 
@@ -965,7 +989,7 @@ The first command rewrites `ml/data/listings.csv` (seed `2026`) and prints the
 row count, the number of item types per category, the rows per `Category` and
 `Condition`, the spam percentage, the min / avg / max price per `Category`,
 and 10 sample rows. Two runs produce identical bytes; compare the printed
-SHA256 hashes to check. The second command trains the three models with
+SHA256 hashes to check. The second command trains the four models with
 seed `2026` and writes them to `ml/models/`. The `PredictionEnginePool`
 registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
 
@@ -1074,6 +1098,8 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 
 ### Category suggestion model (B4)
 
+Model card (what it does, data, metrics, error analysis, limits): [docs/ml/category.md](docs/ml/category.md).
+
 - Trainer: `CategoryTrainer` in `ml/CampusMarket.ML.Training`, multiclass
   classification with SDCA maximum entropy on the non-spam rows only. Features:
   `Title` and `Description` through `FeaturizeText`, concatenated. Label: `Category`.
@@ -1101,7 +1127,30 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
   calibration error (ECE) goes above 0.1, or if three listings written by hand
   (not in the CSV) get the wrong category.
 
+### Similar listings model
+
+Model card (what it does, how it is evaluated, metrics, limits): [docs/ml/similar.md](docs/ml/similar.md).
+
+- Trainer: `SimilarTrainer` in `ml/CampusMarket.ML.Training`: every listing becomes a
+  text vector (`FeaturizeText` on the title and the description, concatenated, unit
+  length), and two listings are as similar as the cosine of their vectors. Non-spam
+  rows only.
+- Evaluation (`Evaluation/SimilarityEvaluation.cs`): precision@5, the share of the 5
+  closest listings that have the same category, leaving out the listings of the same
+  `TemplateId` (variations of the same item). Title only 0.597 and title + description
+  0.672 on validation; the second is kept. Test: **0.668**, against 0.202 for 5
+  listings picked at random.
+- The saved model (`ml/models/similar-listings.zip`) is loaded by the API through
+  `PredictionEnginePool<SimilarInput, SimilarVector>`; `GetSimilarListings` depends on
+  `ISimilarListingsFinder` (in `Common/Similarity/`), which returns the similarity of
+  every Active listing to the target; the handler keeps the five highest.
+- Quality gate: `CampusMarket.ML.Tests` fails if precision@5 drops below 0.6 or is less
+  than 0.3 above the random pick, or if three pairs written by hand are in the wrong
+  order.
+
 ### Spam detection model (B5)
+
+Model card (what it does, data, metrics, error analysis, limits): [docs/ml/spam.md](docs/ml/spam.md).
 
 - Trainer: `SpamTrainer` in `ml/CampusMarket.ML.Training`, binary classification
   with SDCA logistic regression on all rows. Features: `Title` and `Description`
