@@ -1,0 +1,19 @@
+{
+  "algorithm": "TitleAndDescription",
+  "dataset": {
+    "rowCountTest": 711,
+    "rowCountTrain": 3380,
+    "rowCountValidation": 909,
+    "sha256": "0b1ad7f4e36f5c01a9da90897252770d7c840e57bdd9275c678602940cd451ad"
+  },
+  "gitCommit": null,
+  "modelFileName": "similar-listings.zip",
+  "modelName": "Similar listings (text vectors, cosine similarity)",
+  "seed": 2026,
+  "split": "70/15/15 grouped by TemplateId",
+  "testMetrics": {
+    "precisionAt5": 0.667532,
+    "randomPrecisionAt5": 0.202356
+  },
+  "trainedAt": "2026-11-22T11:52:50Z"
+}

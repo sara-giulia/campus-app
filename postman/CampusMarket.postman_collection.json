@@ -1666,6 +1666,87 @@
           ]
         },
         {
+          "name": "GetSimilarListings",
+          "item": [
+            {
+              "name": "Similar listings - published listing (200)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/similar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "{{listingId}}",
+                    "similar"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"At most 5 Active listings, never the listing itself, most similar first\", () => {",
+                      "  const items = pm.response.json().items;",
+                      "  pm.expect(items.length).to.be.at.most(5);",
+                      "  pm.expect(items.map(i => i.id)).to.not.include(pm.collectionVariables.get(\"listingId\"));",
+                      "  items.forEach(i => pm.expect(i.similarity).to.be.within(0, 1));",
+                      "  for (let k = 1; k < items.length; k++) pm.expect(items[k - 1].similarity).to.be.at.least(items[k].similarity);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Similar listings - random id (404)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/00000000-0000-0000-0000-000000000001/similar",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "00000000-0000-0000-0000-000000000001",
+                    "similar"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                      "pm.test(\"Error code is Listing.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.NotFound\"));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
           "name": "Reservations",
           "item": [
             {

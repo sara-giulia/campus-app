@@ -828,6 +828,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 2d54c3f; generated code 31f3668
 
+### Run 29, skill v31 (Feature: Similar listings)
+
+- **Why a new version:** new query `GetSimilarListings` (`GET /api/v1/listings/{id}/similar`) with its handler; the handler logic (which listings are candidates, the order, the five, the rounding) had no unit test.
+
+#### Change to SKILL.md (v30 → v31) and why
+
+| # | v30 (before) | v31 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about similar listings. | New section *"Feature: Similar listings (Anca)"*: the handler rules, a new `FakeSimilarListingsFinder` (similarity per candidate title, records the calls) and 7 tests: unknown id, the target as the only Active listing, only Active candidates and never the target, the five highest, ties by `CreatedAt` then `Id`, the rounding and the item fields. | The ranking and the filtering are the handler's own logic, testable without the model. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Similar listings (Anca)": the new fake and the new test file, only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v31, commit 7cb4df8 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `Fakes/FakeSimilarListingsFinder.cs` and `Features/Listings/GetSimilarListings/GetSimilarListingsHandlerTests.cs` with the 7 tests; every test also checks that the repository is unchanged. 491 unit tests pass; `GetSimilarListingsHandler` 29/29 lines and 6/6 branches; SARIF log empty.
+- **Problems seen:** not from this section: `ConfirmSaleHandler` lines 72–75 (#96) are still not covered, as noted in Run 28.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 7cb4df8; generated code cfb9e5a
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1544,6 +1561,24 @@ saved.Should().BeEquivalentTo(listing);
     2. The last read after the timeout still runs while the job is on, so in the rare case where no read succeeds in 5 seconds it can fail with the collision instead of the "within 5 seconds" message; that only happens when the job is already too slow.
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill ba5a270; generated code 9aef200
+
+### Run 40, skill v39 (Feature: Similar listings)
+
+- **Why a new version:** new public endpoint `GET /api/v1/listings/{id}/similar` that runs the real similar-listings model, and a fourth model file that the ready check now requires.
+
+#### Change to SKILL.md (v38 → v39) and why
+
+| # | v38 (before) | v39 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about similar listings. | New section *"Feature: Similar listings (Anca)"*: the endpoint with the real model, the seeded listings (two math textbooks, two laptops, notes, a bicycle, a draft textbook) and 5 tests: a textbook gets the other textbook first, a laptop the other laptop, a draft target gets a textbook, only the target published gives no items, unknown id → 404; plus `similar-listings.zip` in the "models folder does not exist" health test. | Only the real model over HTTP shows that the ranking makes sense and that the model file is loaded. |
+| 2 | (after the first run) titles only. | Every listing gets a condition, a price and a description, the bicycle none. | The first run seeded no description at all, so the finder's branch for a listing with a description was never run. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Similar listings (Anca)": the new file Listings/GetSimilarListingsTests.cs with only the tests it lists and the change to Infrastructure/HealthTests.cs. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` Then, after row 2: `Re-read the Arrange and apply it to the seeding helper; change nothing else.` (new session)
+- **Skill version:** v39, commit 7cb4df8 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `GetSimilarListingsTests.cs` with the 5 tests (every call without a token, every test checks the database) and one more assertion in `HealthTests.cs`. The real model ranks every case as expected, with and without descriptions. Integration tests 280/280 three times; full run 10 architecture, 491 unit, 61 ML, 280 integration; SARIF log empty.
+- **Problems seen:** the first Arrange gave no descriptions (fixed, row 2); "a math textbook first" for the draft accepts either published textbook.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill 7cb4df8; generated code cfb9e5a
 
 
 
@@ -2438,3 +2473,20 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Analiza erorilor + model cards
 - **Result:** new `docs/ml/category.md` and `docs/ml/spam.md`; new `ml/.../Evaluation/ErrorAnalysis.cs`; `Program.cs` (error analysis after the external evaluation, with the thresholds chosen at training); new `tests/CampusMarket.ML.Tests/ErrorAnalysisTests.cs` with 8 tests (only wrong predictions, most confident first; ties and count; flagged and missed spam split at the threshold, inclusive; a higher threshold; the Markdown tables and the empty case; pipes and long descriptions; ten wrong category predictions on the committed model; no spam mistake on the test part at 0.40); README links to both cards.
 - **Commits:** code, tests and docs 2696ed0
 
+## similar-listings
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Model nou: listări similare": `GET /api/v1/listings/{id}/similar` with 5 similar Active listings, evaluated by how many of the first 5 are of the same category, with the same structure as the other models (trainer, interface, implementation, endpoint, tests, `docs/ml/similar.md`). Written by Ancuța Ilenei with Claude Code; the API tests were generated with the unit-testing (Run 29) and integration-testing (Run 40) skills, the ML tests written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task: new model, similar listings. GET /api/v1/listings/{id}/similar: 5 similar active listings. Evaluation: how many of the first 5 are of the same category. Same structure: trainer, interface, implementation, endpoint, tests (SimilarTrainer.cs, ISimilarListingsFinder.cs, Features/Listings/GetSimilarListings/, docs/ml/similar.md).`
+- **Decisions:**
+    - The model is a text-to-vector pipeline learnt on the train part: `FeaturizeText` on the title (and the description), concatenated, `NormalizeLpNorm` to unit length, so the dot product is the cosine similarity. There is no label: similarity is judged by the category of the closest listings. Non-spam rows only.
+    - Evaluation (`Evaluation/SimilarityEvaluation.cs`): precision@5 over sparse vectors (only the non-zero entries are compared). Listings with the same `TemplateId` are left out of each other's candidates: they are variations of the same item and would make the score trivial. The reference is the expected precision of 5 listings picked at random among the same candidates.
+    - Two variants chosen on validation: title only 0.597, title + description 0.672 (kept). Test: 0.668 against 0.202 for a random pick. The trainer runs after the other three, so it changes nothing in their training (their metrics are identical to main after the run; their committed files were kept), and writes the new `similar-listings.zip` and `.json`.
+    - API: `ISimilarListingsFinder` in `Common/Similarity/` returns one similarity per candidate; `SimilarListingsFinder` (Infrastructure/ML) gets the vectors from a `PredictionEnginePool<SimilarInput, SimilarVector>` and returns their dot product clamped to 0–1. The handler loads the target (any status, like `GET /listings/{id}`; unknown → 404 `Listing.NotFound`), takes every other Active listing, and keeps the five highest; ties by `CreatedAt` (newest first) then `Id`, the similarity rounded to two decimals. The ranking stays in the handler so it is unit tested without the model.
+    - The fourth model file is checked by the ready health check (`MlModelsHealthCheck`) and by the Docker build, like the other three; the csproj already copies every `ml/models/*.zip`.
+    - Postman: a `GetSimilarListings` folder (the published listing → at most 5, not itself, similarity 0–1 in decreasing order; a random id → 404), inserted as text so the rest of the collection keeps its formatting.
+- **Checks:** build 0 warnings; 10 architecture, 491 unit, 61 ML and 280 integration tests pass; the new code of the API covered in the merged coverage (the files still uncovered are from #95, #96 and the profile PR); SARIF logs of the API and the two ML projects empty; newman against a fresh database: 149 requests, 293 assertions, 0 failed.
+- **Result:** new `ml/.../SimilarTrainer.cs`, `ml/.../Evaluation/SimilarityEvaluation.cs`, `ml/models/similar-listings.zip` and `.json`; `Program.cs` (one line in the trainer list); new `Common/Similarity/ISimilarListingsFinder.cs`, `Infrastructure/ML/SimilarInput.cs`, `SimilarVector.cs`, `SimilarListingsFinder.cs`, `Features/Listings/GetSimilarListings/` (request, query, response, handler, endpoint); `ListingsEndpoints.cs`, `MlServiceCollectionExtensions.cs`, `MlModelsHealthCheck.cs`, `Dockerfile`; new `tests/CampusMarket.ML.Tests/SimilarListingsTests.cs` (10 tests: sparse vectors, dot and cosine, an empty vector, precision@k and the random pick on a worked example, items without candidates, the quality bar of the committed model, three hand-written pairs); new `docs/ml/similar.md`; README (endpoint, model section, Docker and ready check); Postman.
+- **Commits:** code 17bdcfc; skill sections 7cb4df8; tests generated in cfb9e5a (see Run 29 of unit-testing and Run 40 of integration-testing)
