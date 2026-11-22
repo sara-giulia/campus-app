@@ -11,8 +11,21 @@ public static class MlServiceCollectionExtensions
     {
         services.AddOptions<MlOptions>().Bind(configuration.GetSection(MlOptions.SectionName));
 
-        var options = configuration.GetSection(MlOptions.SectionName).Get<MlOptions>() ?? new MlOptions();
-        var modelsPath = Path.Combine(AppContext.BaseDirectory, options.ModelsPath);
+        // Decision thresholds chosen on validation data when the models are trained; the API refuses to
+        // start with a value outside 0–1.
+        services.AddOptions<CategorySuggestionOptions>()
+            .Bind(configuration.GetSection(CategorySuggestionOptions.SectionName))
+            .Validate(o => IsProbability(o.MinConfidence), "Ml:Category:MinConfidence must be between 0 and 1.")
+            .ValidateOnStart();
+        services.AddOptions<SpamDetectionOptions>()
+            .Bind(configuration.GetSection(SpamDetectionOptions.SectionName))
+            .Validate(o => IsProbability(o.Threshold), "Ml:Spam:Threshold must be between 0 and 1.")
+            .ValidateOnStart();
+
+        // GetValue with the default of MlOptions: no "?? new MlOptions()" side that runs only when the Ml section is missing.
+        var modelsFolder = configuration.GetValue(
+            $"{MlOptions.SectionName}:{nameof(MlOptions.ModelsPath)}", new MlOptions().ModelsPath)!;
+        var modelsPath = Path.Combine(AppContext.BaseDirectory, modelsFolder);
 
         // PredictionEnginePool is thread safe and comes from Microsoft.Extensions.ML.
         // The model file path is resolved against AppContext.BaseDirectory, so the API
@@ -43,4 +56,8 @@ public static class MlServiceCollectionExtensions
 
         return services;
     }
+
+    // One check for both thresholds, so the tests of the two settings (one too high, one negative)
+    // cover both sides of it.
+    private static bool IsProbability(double value) => value is >= 0 and <= 1;
 }

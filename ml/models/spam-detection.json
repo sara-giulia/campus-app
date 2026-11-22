@@ -10,12 +10,16 @@
   "modelFileName": "spam-detection.zip",
   "modelName": "Spam detection (SDCA logistic regression)",
   "seed": 2026,
+  "settings": {
+    "threshold": 0.400000
+  },
   "split": "70/15/15 grouped by TemplateId",
   "testMetrics": {
     "accuracy": 1.000000,
     "auc": 1.000000,
     "ece": 0.006692,
     "f1": 1.000000,
+    "f1AtThreshold": 1.000000,
     "prAuc": 1.000000,
     "precision": 1.000000,
     "recall": 1.000000

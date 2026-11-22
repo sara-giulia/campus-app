@@ -10,8 +10,13 @@
   "modelFileName": "category-classification.zip",
   "modelName": "Category classification (SDCA maximum entropy)",
   "seed": 2026,
+  "settings": {
+    "minConfidence": 0.600000
+  },
   "split": "70/15/15 grouped by TemplateId",
   "testMetrics": {
+    "accuracyAtMinConfidence": 0.910624,
+    "coverageAtMinConfidence": 0.855700,
     "ece": 0.035965,
     "logLoss": 0.473041,
     "macroAccuracy": 0.856257,
