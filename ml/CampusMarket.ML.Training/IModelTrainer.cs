@@ -14,9 +14,11 @@ public interface IModelTrainer
 
 // What the training program needs from a trainer: the fitted model, the human-
 // readable metrics table for the console, and the structured test metrics plus
-// the chosen algorithm/target that go into the model's .json sidecar.
+// the chosen algorithm/target that go into the model's .json sidecar. Settings are values chosen
+// during training that the API must use (for example a decision threshold), written next to them.
 public sealed record TrainingResult(
     ITransformer Model,
     string MetricsText,
     string Algorithm,
-    IReadOnlyDictionary<string, double> TestMetrics);
+    IReadOnlyDictionary<string, double> TestMetrics,
+    IReadOnlyDictionary<string, double>? Settings = null);

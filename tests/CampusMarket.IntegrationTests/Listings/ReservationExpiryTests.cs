@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
@@ -7,6 +6,7 @@ using CampusMarket.Api.Features.Members.GetMyReservations;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampusMarket.IntegrationTests.Listings;
@@ -28,19 +28,29 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         Guid reservationId, ReservationStatus expected, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;
-        ReservationStatus current = default;
         while (DateTime.UtcNow < deadline)
         {
-            current = await QueryDbAsync(db => db.Set<Reservation>().AsNoTracking()
-                .Where(r => r.Id == reservationId)
-                .Select(r => r.Status)
-                .SingleAsync());
-            if (current == expected)
-                return current;
+            try
+            {
+                if (await ReadReservationStatusAsync(reservationId) == expected)
+                    return expected;
+            }
+            catch (Exception ex) when (ex is SqliteException or InvalidOperationException)
+            {
+                // The read collided with the job's write on the shared connection: not yet.
+            }
             await Task.Delay(100);
         }
-        return current;
+
+        // After the timeout: one more read without catching, so an error that never goes away fails with its own message.
+        return await ReadReservationStatusAsync(reservationId);
     }
+
+    private Task<ReservationStatus> ReadReservationStatusAsync(Guid reservationId) =>
+        QueryDbAsync(db => db.Set<Reservation>().AsNoTracking()
+            .Where(r => r.Id == reservationId)
+            .Select(r => r.Status)
+            .SingleAsync());
 
     [Fact]
     public async Task Given_JobOnWithExpiredAndValidReservations_When_JobRuns_Then_ExpiresOnlyTheExpiredOne()
@@ -104,27 +114,25 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
 
         await SeedAsync(firstBuyer, secondBuyer, listing);
 
-        // Start the job, wait for the expiry, make the reservation POST through
-        // the same host, then stop it. Dispose before the final QueryDbAsync so
-        // the shared in-memory SQLite connection is no longer contended by
-        // further background ticks.
-        HttpResponseMessage response;
-        await using (var seeded = WithExpiryJob())
+        // Start the job and wait for the expiry. Leaving the block stops the job,
+        // so no background tick runs on the shared in-memory SQLite connection
+        // during the Act and the assertions ("database is locked").
+        ReservationStatus finalStatus;
+        await using (var withJob = WithExpiryJob())
         {
-            var client = seeded.CreateClient();
-
-            var finalStatus = await WaitForReservationStatusAsync(
+            withJob.CreateClient();
+            finalStatus = await WaitForReservationStatusAsync(
                 staleReservation.Id, ReservationStatus.Expired, TimeSpan.FromSeconds(5));
-            finalStatus.Should().Be(
-                ReservationStatus.Expired,
-                "the background job must expire the stale reservation within 5 seconds");
-
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", TestTokens.Create(secondBuyer.Id));
-
-            // Act
-            response = await client.PostAsync($"/api/v1/listings/{listing.Id}/reservations", content: null);
         }
+
+        finalStatus.Should().Be(
+            ReservationStatus.Expired,
+            "the background job must expire the stale reservation within 5 seconds");
+
+        AuthenticateAs(secondBuyer.Id);
+
+        // Act
+        var response = await Client.PostAsync($"/api/v1/listings/{listing.Id}/reservations", content: null);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);

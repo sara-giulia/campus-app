@@ -3,6 +3,7 @@ using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace CampusMarket.Api.Features.Listings.DeleteListing;
 
@@ -19,6 +20,7 @@ public static class DeleteListingEndpoint
         [AsParameters] DeleteListingRequest request,
         ClaimsPrincipal user,
         ICommandHandler<DeleteListingCommand, Guid> handler,
+        IOutputCacheStore cache,
         CancellationToken ct)
     {
         var result = await handler.HandleAsync(new DeleteListingCommand(request.Id, user.GetMemberId(), user.IsAdmin()), ct);
@@ -29,6 +31,8 @@ public static class DeleteListingEndpoint
                 ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.NotFound(result.Error)
             };
+
+        await ListingsCache.ClearAsync(cache, ct);
 
         return TypedResults.NoContent();
     }

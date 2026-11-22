@@ -34,6 +34,8 @@ namespace CampusMarket.Api;
 /// and the API tests use it to start the same API on a free port.
 public static class CampusMarketSetup
 {
+    public const string FrontendCorsPolicy = "Frontend";
+
     public static IServiceCollection AddCampusMarket(this IServiceCollection services, IConfiguration configuration)
     {
         // Application clock: tests can replace it with a fake clock
@@ -76,7 +78,7 @@ public static class CampusMarketSetup
         services.AddAuthorizationBuilder()
             .AddPolicy("Admin", policy => policy.RequireRole("Admin"));
         
-        // At most 5 login attempts per minute from the same IP address, then 429.
+        // At most 5 login attempts and 5 registrations per minute from the same IP address, then 429.
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -88,9 +90,24 @@ public static class CampusMarketSetup
                         PermitLimit = 5,
                         Window = TimeSpan.FromMinutes(1)
                     }));
+
+            // Same idea as login: a burst of sign-ups from one IP is blocked (429). The limit is
+            // configurable so the integration tests, which register many members, can raise it.
+            var registerLimit = configuration.GetValue("RateLimiting:RegisterPermitLimit", 5);
+            options.AddPolicy("register", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = registerLimit,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
         });
 
         services.AddHandlers(typeof(CampusMarketSetup).Assembly);
+        
+        // API description for the documentation page (served only in Development, see Program.cs).
+        services.AddOpenApi();
 
         // Background reservation expiry: registered only when enabled, so tests and
         // scenarios that need a quiet host can turn it off through configuration.
@@ -121,10 +138,48 @@ public static class CampusMarketSetup
             services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
         // GET /health: the API is up and can reach the database.
-        services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();
-        
+        services.AddHealthChecks()
+            .AddDbContextCheck<CampusMarketDbContext>(tags: ["ready"])
+            .AddCheck<MlModelsHealthCheck>("ml-models", tags: ["ready"]);
+        services.AddOutputCache();
+
+        // The web frontend runs on another origin (Vite on :5173 in development),
+        // so the browser needs CORS. Only the origins in Cors:AllowedOrigins are allowed;
+        // the token goes in the Authorization header, so no cookies (no AllowCredentials).
+        // GetChildren instead of Get<string[]>() ?? []: a missing section simply gives no origins.
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").GetChildren()
+            .Select(origin => origin.Value!)
+            .ToArray();
+        services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy => policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders("Location")));
+
         return services;
     }
+
+    // Fails fast in Production when the JWT signing key is missing or too
+    // short. Dev and Test keep their own keys (appsettings.Development.json /
+    // the integration-test factory), so this check is production-only.
+    public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
+    {
+        if (!app.Environment.IsProduction())
+            return app;
+
+        var key = app.Configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(key) || key.Length < MinJwtKeyLength)
+        {
+            throw new InvalidOperationException(
+                $"Jwt:Key is missing or shorter than {MinJwtKeyLength} characters. " +
+                "Set the Jwt__Key environment variable to a random value of at least " +
+                $"{MinJwtKeyLength} characters before starting the API in Production.");
+        }
+
+        return app;
+    }
+
+    private const int MinJwtKeyLength = 32;
 
     public static WebApplication EnsureCampusMarketDatabase(this WebApplication app)
     {
@@ -133,6 +188,7 @@ public static class CampusMarketSetup
         db.Database.Migrate();
 
         SeedAdmin(scope.ServiceProvider, db, app.Configuration);
+        SeedDemoDataIfRequested(scope.ServiceProvider, db, app.Configuration);
 
         return app;
     }
@@ -163,6 +219,86 @@ public static class CampusMarketSetup
 
         db.Members.Add(admin.Value);
         db.SaveChanges();
+    }
+
+    private const int MinDemoPasswordLength = 8;
+
+    // Idempotent demo seed: only runs when Seed:DemoData is "true" AND the
+    // database is empty (no members, no listings). Safe to leave wired across
+    // restarts — a redeploy on Render loses the SQLite file, so the first
+    // start after a redeploy seeds again, every later start is a no-op.
+    // Off by default; tests leave Seed:DemoData unset.
+    private static void SeedDemoDataIfRequested(IServiceProvider services, CampusMarketDbContext db, IConfiguration config)
+    {
+        if (!config.GetValue("Seed:DemoData", false))
+            return;
+
+        if (db.Members.Any() || db.Listings.Any())
+            return;
+
+        var clock = services.GetRequiredService<TimeProvider>();
+        var now = clock.GetUtcNow();
+
+        // Seed the demo listings even when the password env var is unusable, so
+        // a fresh Render instance has something to browse; the listings then
+        // belong to an orphan seller id, which is fine because nobody can log
+        // in as that account.
+        var sellerId = TrySeedDemoMember(services, db, config, now) ?? Guid.NewGuid();
+
+        foreach (var draft in BuildDemoListings(sellerId, now))
+        {
+            draft.Publish();
+            db.Listings.Add(draft);
+        }
+
+        db.SaveChanges();
+    }
+
+    // Returns the demo member's id when Seed:DemoPassword is at least
+    // MinDemoPasswordLength characters; null (with a warning in the log)
+    // when the env var is missing or too short. The demo member is ALWAYS
+    // created with the Student role — never Admin.
+    private static Guid? TrySeedDemoMember(IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
+    {
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("CampusMarket.DemoSeed");
+        var password = config["Seed:DemoPassword"];
+
+        if (string.IsNullOrEmpty(password) || password.Length < MinDemoPasswordLength)
+        {
+            logger.LogWarning(
+                "{Variable} is missing or shorter than {MinLength} characters; seeding the demo listings without a demo member. " +
+                "Set the Seed__DemoPassword environment variable to a value of at least that length to enable sign-in as the demo student.",
+                "Seed:DemoPassword", MinDemoPasswordLength);
+            return null;
+        }
+
+        var hasher = services.GetRequiredService<IPasswordHasher>();
+        var member = Member.Register(
+            "Demo Student",
+            "demo@campusmarket.ro",
+            hasher.Hash(password),
+            now,
+            MemberRole.Student);
+        if (member.IsFailure)
+            return null;
+
+        db.Members.Add(member.Value);
+        return member.Value.Id;
+    }
+
+    private static List<Listing> BuildDemoListings(Guid sellerId, DateTimeOffset now)
+    {
+        var drafts = new List<Listing>();
+        TryAdd(drafts, Listing.Create(sellerId, "Manual Analiza Matematica anul I", Category.Textbook, Condition.Good, 40m, now, "Stare buna, notite in creion pe ultimele pagini."));
+        TryAdd(drafts, Listing.Create(sellerId, "Casti wireless aproape noi", Category.Electronics, Condition.Good, 180m, now, "Autonomie buna, cutia originala."));
+        TryAdd(drafts, Listing.Create(sellerId, "Notite curs structuri de date", Category.Notes, Condition.New, 20m, now, "Scrise de mana, sem 2, anul I."));
+        return drafts;
+    }
+
+    private static void TryAdd(List<Listing> drafts, Result<Listing> result)
+    {
+        if (result.IsSuccess)
+            drafts.Add(result.Value);
     }
 
     public static IEndpointRouteBuilder MapCampusMarket(this IEndpointRouteBuilder app)

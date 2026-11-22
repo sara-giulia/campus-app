@@ -74,7 +74,8 @@ foreach (var trainer in trainers)
         csvPath: csvPath,
         trainRowCount: trainCount,
         validationRowCount: validationCount,
-        testRowCount: testCount);
+        testRowCount: testCount,
+        settings: result.Settings);
     Console.WriteLine($"Saved metadata to {Path.ChangeExtension(modelPath, ".json")}");
 
     trainedModels[trainer.ModelFileName] = result.Model;
