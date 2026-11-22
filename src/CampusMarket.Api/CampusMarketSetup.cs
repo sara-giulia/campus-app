@@ -25,6 +25,8 @@ using CampusMarket.Api.Features.Moderation;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews;
 using CampusMarket.Api.Features.Admin;
+using CampusMarket.Api.Common.Email;
+using CampusMarket.Api.Infrastructure.Mailing;
 
 namespace CampusMarket.Api;
 
@@ -50,6 +52,7 @@ public static class CampusMarketSetup
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, EfPasswordResetTokenRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -104,6 +107,18 @@ public static class CampusMarketSetup
         // Enums are sent as text in JSON ("Active"), not as numbers (1)
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+        // Email: SMTP when Email:Host is set (e.g. Mailpit on docker compose),
+        // otherwise a logger-only sender so the API runs without SMTP in dev
+        // and in tests. Username and password are read from env vars by the
+        // SMTP sender itself; they must never be in appsettings.*.json.
+        services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.SectionName);
+        services.AddOptions<FrontendOptions>().BindConfiguration(FrontendOptions.SectionName);
+        var emailHost = configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (string.IsNullOrWhiteSpace(emailHost))
+            services.AddSingleton<IEmailSender, LoggingEmailSender>();
+        else
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
         // GET /health: the API is up and can reach the database.
         services.AddHealthChecks().AddDbContextCheck<CampusMarketDbContext>();

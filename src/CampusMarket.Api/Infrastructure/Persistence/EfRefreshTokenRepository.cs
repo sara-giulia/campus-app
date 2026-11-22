@@ -11,4 +11,10 @@ public sealed class EfRefreshTokenRepository(CampusMarketDbContext db) : IRefres
         db.RefreshTokens.FirstOrDefaultAsync(t => t.TokenHash == tokenHash, ct);
 
     public void Update(RefreshToken refreshToken) => db.RefreshTokens.Update(refreshToken);
+
+    public async Task<List<RefreshToken>> GetActiveByMemberAsync(
+        Guid memberId, DateTimeOffset now, CancellationToken ct = default) =>
+        await db.RefreshTokens
+            .Where(t => t.MemberId == memberId && t.RevokedAt == null && t.ExpiresAt > now)
+            .ToListAsync(ct);
 }

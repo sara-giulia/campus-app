@@ -170,6 +170,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
 | Auth | `Refresh` | `POST /api/v1/auth/refresh` | anyone with a valid refresh token | 200, 401 `Auth.InvalidRefreshToken` |
 | Auth | `Logout` | `POST /api/v1/auth/logout` | anyone with a valid refresh token | 204, 401 `Auth.InvalidRefreshToken` |
+| Auth | `ForgotPassword` | `POST /api/v1/auth/forgot-password` | everyone, rate-limited like `Login` | 202 with the same body whether the email exists or not, 429 |
+| Auth | `ResetPassword` | `POST /api/v1/auth/reset-password` | anyone with a valid reset token | 204, 400 `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch` / `Auth.InvalidResetToken` |
 | Favorite | `AddFavorite` | `POST /api/v1/members/me/favorites/{listingId}` | anyone logged in; the member is the user in the token | 201 + `Location`, 400, 401, 404, 409 |
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
@@ -246,6 +248,25 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 - Login allows 5 attempts per minute from the same IP, then 429.
 - Roles: `Student` and `Admin`. In the Development environment an Admin account is created at startup from `Seed:AdminEmail` / `Seed:AdminPassword` in `appsettings.Development.json`. The JWT key is also there, for development only.
 
+### Email
+
+Transactional emails (password-reset link, "your password was changed" notice) go through `IEmailSender` (`Common/Email/`). Two implementations are registered: `SmtpEmailSender` (`Infrastructure/Mailing/`, `System.Net.Mail`) when `Email:Host` is set in configuration, and `LoggingEmailSender` otherwise — the fallback only writes `email to {to}: {subject}` to the log and drops the body, so no reset link ever appears in logs or tests.
+
+- **Local dev with Mailpit.** `docker-compose.yml` now ships a `mailpit` service (image `axllent/mailpit`). The web UI is at **`http://localhost:8025`** (every email the API sends appears there, no credentials). The API container points at it via `Email__Host=mailpit`, `Email__Port=1025`, `Email__UseSsl=false`.
+- **Environment variables (names only; values set in your own environment, never committed):**
+
+  | Name | Meaning |
+  |---|---|
+  | `Email__Host` | SMTP host. Leave unset to keep the logger-only fallback. |
+  | `Email__Port` | SMTP port (default 587). |
+  | `Email__From` | From address (default `noreply@campusmarket.local`). |
+  | `Email__UseSsl` | `true`/`false` (default `true`). |
+  | `Email__Username` | SMTP auth username. **Only** read from the environment, never from appsettings. |
+  | `Email__Password` | SMTP auth password. Same rule as `Email__Username`. |
+  | `Frontend__BaseUrl` | Base URL of the frontend, embedded in the reset link as `{BaseUrl}/reset-password?token=...` (default `http://localhost:5173`). |
+
+- **Password reset flow.** `POST /api/v1/auth/forgot-password { email }` always answers **202** with the same body whether the email exists or not (no user enumeration); rate-limited by the same `login` policy. If a member is found, a 32-byte URL-safe-Base64 token is saved as its SHA-256 hash in `PasswordResetTokens` (migration `AddPasswordResetTokens`), valid 30 minutes, and the reset link is emailed. `POST /api/v1/auth/reset-password { token, newPassword, confirmNewPassword }` → **204**; same password rules as `Register` (`Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`); unknown / expired / already-used token → **400** `Auth.InvalidResetToken`. On success the token is marked used, every active refresh token of the member is revoked, and a "your password was changed" email is sent (the password itself never appears in the body).
+
 ### Error codes
 
 | Code | HTTP | When |
@@ -254,6 +275,7 @@ Listings (with their reservations) and members are stored in SQLite through EF C
 | `Auth.InvalidCredentials` | 401 | wrong email or password (same answer for both) |
 | `Auth.PasswordsDoNotMatch` | 400 | `confirmPassword` is not the same as `password` |
 | `Auth.InvalidRefreshToken` | 401 | the refresh token is unknown, expired, already used by a refresh, or cancelled by logout |
+| `Auth.InvalidResetToken` | 400 | the password-reset token is unknown, expired or already used (same answer for all three, no enumeration) |
 | `Member.EmailTaken` | 409 | another member already uses the email |
 | `Member.NotFound` | 404 | no member with that id, also when the buyer of a reservation does not exist |
 | `Member.NotOwner` | 403 | you change or delete a profile that is not yours |
