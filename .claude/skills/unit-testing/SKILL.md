@@ -894,3 +894,28 @@ Rules for these mutants (they apply to every future test too):
 Rules for these mutants:
 - Keep every existing test and its name. In existing tests only add assertions (`UpdateCount`, the full `Body`); everything else is a new test.
 - After the run, `dotnet test` passes, coverage of `Domain/` and the handlers stays 100%, and `dotnet stryker` in `tests/CampusMarket.UnitTests` reports 100%. If a mutant still survives, stop and report why; do not force it.
+
+## Feature: Sorting (Diana)
+
+Production code: `GetListingsHandler`, `GetListingsQuery.Sort` (null, "newest", "price_asc", "price_desc").
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it).
+
+Tests to add:
+- three Active listings priced 30, 10, 20 → `price_asc` gives 10, 20, 30; `price_desc` gives 30, 20, 10.
+- `newest` and no sort → newest `CreatedAt` first (same as before).
+- two listings with the same price → ordered by `Id` ascending.
+- `Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message.
+
+## Feature: Notifications (Sara)
+Production code (read it before generating): `Domain/Notifications/Notification.cs` (Create returns Result, MarkAsRead idempotent), the notification lines added in `ReserveListingHandler`, `ConfirmSaleHandler`, `ExpireReservationsHandler`, and the handlers in `Features/Notifications/` (GetMyNotifications, MarkNotificationRead, MarkAllNotificationsRead).
+Existing tests no longer compile (new constructor parameter): in `ReserveListingHandlerTests`, `ConfirmSaleHandlerTests` and `ExpireReservationsHandlerTests` pass a new `FakeNotificationRepository` (add it in `Fakes/`, same hand-written style: `Items`, `Add`, the query methods) wherever the handler is built; change nothing else in those tests.
+Tests to add:
+- `Notification.Create`: valid → all fields; invalid input → the exact error. `MarkAsRead` sets `ReadAt`; a second call keeps the first value.
+- Reserve success → one notification for the seller, type ReservationCreated; reserve failure → none.
+- Confirm sale success → one notification for the buyer, type ListingSold; failure → none.
+- Expire → one notification per expired reservation, for its buyer; nothing to expire → none.
+- GetMyNotifications: only mine, newest first, `unreadOnly` filter, `unreadCount`, paging.
+- MarkNotificationRead: mine → read, `SaveCount` 1; unknown or someone else's → NotFound, `SaveCount` 0.
+- MarkAllNotificationsRead: all my unread become read, others' unchanged.
+  Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100%.

@@ -275,6 +275,9 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
+| Notification | `GetMyNotifications` | `GET /api/v1/members/me/notifications?unreadOnly=&page=&pageSize=` | anyone logged in; only their own notifications | 200 `{ items, count, totalCount, unreadCount, page, pageSize }`, 400, 401 |
+| Notification | `MarkNotificationRead` | `POST /api/v1/members/me/notifications/{id}/read` | anyone logged in; only their own notifications | 204, 401, 404 `Notification.NotFound` |
+| Notification | `MarkAllNotificationsRead` | `POST /api/v1/members/me/notifications/read-all` | anyone logged in; only their own notifications | 204, 401 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
@@ -292,10 +295,11 @@ GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except 
 | `minPrice` | lowest price, inclusive | no limit |
 | `maxPrice` | highest price, inclusive | no limit |
 | `search` | text in the title, upper and lower case ignored | no search |
+| `sort` | `newest`, `price_asc` or `price_desc` | `newest` |
 | `page` | page number, from 1 | `1` |
 | `pageSize` | listings per page, from 1 to 100 | `20` |
 
-Listings come newest first (`createdAt` descending, then `id`), so the same query always returns the same pages.
+Listings come newest first by default (`createdAt` descending, then `id`); with `sort=price_asc` or `sort=price_desc` they are ordered by price, then `id`. The same query always returns the same pages.
 
 Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search=oop&page=1&pageSize=20`
 
@@ -336,6 +340,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
+| 400 `Listings.InvalidSort` | `sort` is not `newest`, `price_asc` or `price_desc` |
 | 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
 Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
@@ -400,6 +405,7 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
 | `Money.TooHigh` | 400 | the price is above 100000 lei |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
+| `Listings.InvalidSort` | 400 | sort is not newest, price_asc or price_desc |
 | `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
 | `Favorite.ListingNotAvailable` | 400 | the listing is still a draft, or it was hidden by an Admin |
 | `Favorite.AlreadyExists` | 409 | the listing is already in your favorites |
@@ -561,6 +567,11 @@ The seller adds up to 5 photos to a listing (any status), each a JPEG, PNG or We
 - `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
 
 The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, inside the same volume as the database, so the photos survive a restart. The database (`Photos` table, migration `AddPhotos`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
+
+### Notifications
+
+Members are told when something relevant happens to a listing of theirs. Three kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you") and `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired"). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `AddNotifications`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
+
 
 ## 4. Domain model
 

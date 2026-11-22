@@ -594,4 +594,105 @@ public class GetListingsHandlerTests
         result.Value.TotalCount.Should().Be(3);
         repository.Items.Should().HaveCount(3);
     }
+
+    private static FakeListingRepository RepositoryWithActiveListings(params Listing[] listings)
+    {
+        var repository = new FakeListingRepository();
+        foreach (var listing in listings)
+        {
+            listing.Publish();
+            repository.Items[listing.Id] = listing;
+        }
+
+        return repository;
+    }
+
+    [Fact]
+    public async Task Given_ListingsPriced30_10_20_When_SortingByPriceAscending_Then_ReturnsCheapestFirst()
+    {
+        var repository = RepositoryWithActiveListings(
+            Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 30m, Now).Value,
+            Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 10m, Now.AddHours(1)).Value,
+            Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value);
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery(Sort: "price_asc");
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Price).Should().Equal(10m, 20m, 30m);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_ListingsPriced30_10_20_When_SortingByPriceDescending_Then_ReturnsMostExpensiveFirst()
+    {
+        var repository = RepositoryWithActiveListings(
+            Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 30m, Now).Value,
+            Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 10m, Now.AddHours(1)).Value,
+            Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value);
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery(Sort: "price_desc");
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Price).Should().Equal(30m, 20m, 10m);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Theory]
+    [InlineData("newest")]
+    [InlineData(null)]
+    public async Task Given_NewestOrNoSort_When_Handling_Then_ReturnsNewestCreatedAtFirst(string? sort)
+    {
+        var oldest = Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 10m, Now).Value;
+        var middle = Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 30m, Now.AddHours(1)).Value;
+        var newest = Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value;
+        var repository = RepositoryWithActiveListings(oldest, middle, newest);
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery(Sort: sort);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(newest.Id, middle.Id, oldest.Id);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Theory]
+    [InlineData("price_asc")]
+    [InlineData("price_desc")]
+    public async Task Given_TwoListingsWithSamePrice_When_SortingByPrice_Then_OrdersByIdAscending(string sort)
+    {
+        var repository = RepositoryWithActiveListings(
+            Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 20m, Now).Value,
+            Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value);
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery(Sort: sort);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(2);
+        result.Value.Items.Select(i => i.Id).Should().BeInAscendingOrder();
+        repository.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Given_UnknownSort_When_Handling_Then_ReturnsValidationErrorAndLeavesRepositoryUnchanged()
+    {
+        var listing = Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 20m, Now).Value;
+        var repository = RepositoryWithActiveListings(listing);
+        var handler = new GetListingsHandler(repository);
+        var query = new GetListingsQuery(Sort: "abc");
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listings.InvalidSort");
+        result.Error.Message.Should().Be("Sort must be newest, price_asc or price_desc.");
+        repository.Items.Should().HaveCount(1);
+    }
 }
