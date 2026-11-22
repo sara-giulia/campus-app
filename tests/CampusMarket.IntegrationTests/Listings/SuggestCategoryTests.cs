@@ -1,17 +1,24 @@
 using System.Net;
 using System.Net.Http.Json;
+using CampusMarket.Api.Common.Categories;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Features.Listings.SuggestCategory;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CampusMarket.IntegrationTests.Listings;
 
 public sealed class SuggestCategoryTests : IntegrationTestBase
 {
     private static readonly Guid SellerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    // The configured Ml:Category:MinConfidence (appsettings.json), not a constant.
+    private double MinConfidence =>
+        Factory.Services.GetRequiredService<IOptions<CategorySuggestionOptions>>().Value.MinConfidence;
 
     [Fact]
     public async Task Given_Laptop_When_SuggestingCategory_Then_Returns200Electronics()
@@ -52,6 +59,50 @@ public sealed class SuggestCategoryTests : IntegrationTestBase
         var body = await response.Content.ReadFromJsonAsync<SuggestCategoryResponse>(Json);
         body!.Category.Should().Be(Category.Notes);
         body.Confidence.Should().BeInRange(0, 1);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_UnrelatedTitle_When_SuggestingCategory_Then_Returns200WithNullCategory()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var request = new SuggestCategoryRequest(
+            Title: "Banana",
+            Description: "Am de vandut o banana buna");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings/category-suggestion", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<SuggestCategoryResponse>(Json);
+        body!.Category.Should().BeNull();
+        body.Confidence.Should().BeLessThan(MinConfidence);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ConfidentNotesTitle_When_SuggestingCategory_Then_Returns200Notes()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var request = new SuggestCategoryRequest(Title: "Notite Analiza matematica, an I");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings/category-suggestion", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<SuggestCategoryResponse>(Json);
+        body!.Category.Should().Be(Category.Notes);
+        body.Confidence.Should().BeGreaterThanOrEqualTo(MinConfidence);
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);

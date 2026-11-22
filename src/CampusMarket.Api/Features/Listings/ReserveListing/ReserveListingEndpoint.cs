@@ -3,6 +3,7 @@ using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace CampusMarket.Api.Features.Listings.ReserveListing;
 
@@ -19,6 +20,7 @@ public static class ReserveListingEndpoint
         Guid id,
         ClaimsPrincipal user,
         ICommandHandler<ReserveListingCommand, ReserveListingResponse> handler,
+        IOutputCacheStore cache,
         CancellationToken ct)
     {
         var result = await handler.HandleAsync(new ReserveListingCommand(id, user.GetMemberId()), ct);
@@ -29,6 +31,8 @@ public static class ReserveListingEndpoint
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
                 _ => TypedResults.BadRequest(result.Error)
             };
+
+        await ListingsCache.ClearAsync(cache, ct);
 
         // Location points to the buyer's reservations, where the new one is listed.
         return TypedResults.CreatedAtRoute(result.Value, "GetMyReservations");

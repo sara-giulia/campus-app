@@ -1,0 +1,67 @@
+/* Landing page from the sketches: big title on the left, a 2×2 collage on the right. */
+
+.home {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+  padding: 40px 0 24px;
+}
+
+.home__title {
+  font-size: clamp(2.4rem, 5vw, 3.75rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.home__lead {
+  margin: 20px 0 32px;
+  font-size: 1.15rem;
+  color: var(--muted);
+  max-width: 44ch;
+}
+
+.home__status {
+  display: inline-block;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+}
+
+.home__collage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.home__tile {
+  aspect-ratio: 1 / 1.05;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: flex-end;
+  padding: 16px;
+}
+
+.home__tile span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.85rem;
+  font-weight: 650;
+  box-shadow: var(--shadow-sm);
+}
+
+.home__tile--blue { background: var(--tile-blue); }
+.home__tile--yellow { background: var(--tile-yellow); }
+.home__tile--green { background: var(--tile-green); }
+.home__tile--peach { background: var(--tile-peach); }
+
+@media (max-width: 900px) {
+  .home {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding-top: 16px;
+  }
+}

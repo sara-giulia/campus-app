@@ -10,4 +10,8 @@ public interface IRefreshTokenRepository
 
     /// Saves the changes of a token loaded with GetByHashAsync (for example after Revoke)
     void Update(RefreshToken refreshToken);
+
+    /// Returns every active (not revoked, not expired) refresh token of the
+    /// member, so the caller can revoke them when the password changes.
+    Task<List<RefreshToken>> GetActiveByMemberAsync(Guid memberId, DateTimeOffset now, CancellationToken ct = default);
 }

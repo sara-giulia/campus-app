@@ -5,7 +5,8 @@ RUN dotnet publish src/CampusMarket.Api/CampusMarket.Api.csproj -c Release -o /a
 # Fail the build if one of the trained ML models was not copied
 RUN test -f /app/ml-models/price-regression.zip \
     && test -f /app/ml-models/category-classification.zip \
-    && test -f /app/ml-models/spam-detection.zip
+    && test -f /app/ml-models/spam-detection.zip \
+    && test -f /app/ml-models/similar-listings.zip
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 # curl is used only by the health check below
@@ -17,6 +18,8 @@ COPY --from=build /app .
 # The SQLite file lives in a folder the non-root user can write to
 RUN mkdir /app/data && chown $APP_UID /app/data
 ENV ConnectionStrings__CampusMarket="Data Source=/app/data/campusmarket.db"
+# The photo files next to the database, in the same volume
+ENV Storage__PhotosPath=/app/data/photos
 # Run as the non-root user that the .NET images provide
 USER $APP_UID
 EXPOSE 8080

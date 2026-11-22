@@ -714,20 +714,198 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run; v23 is the final version.
 - **Commits:** skill 1be82be; generated code ab95b6d
 
-### Run 26, skill v28 (Feature: Sorting)
+### Run 22, skill v24 (Feature: My profile)
 
-- **Why a new version:** `GetListingsQuery` has a new optional `Sort` (`newest`, `price_asc`, `price_desc`) and `GetListingsHandler` rejects any other value with `Listings.InvalidSort` and orders by price when asked. These branches had no tests.
+- **Why a new version:** task 10 (issue #76). New slices `GetMyProfile` (`GET /api/v1/members/me`) and `UpdateMyProfile` (`PUT /api/v1/members/me`, only the name changes) without tests.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile of the logged-in member. | New section *"Feature: My profile (Carina)"*: what each handler does, how to build the members (`Member.Register` with `FakePasswordHasher`, Student or Admin), and 6 tests. | Without it Claude would have to guess the order of the checks and what the response contains. |
+| 2 | — | *"`member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same"* + a test that checks the email after the update. | Proves that the profile update can never change the email. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v24, commit f197c2c (numbered after the condition filter PR, #72, which makes v23); section written and run by Carina Coman
+- **Result:** 6 new tests in two new files: `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs` (a Student with its id, name, lower-case email, role and `CreatedAt`, the repository unchanged; an Admin → role `"Admin"`; unknown id → `Member.NotFound`) and `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs` (a valid name with spaces → trimmed, email unchanged, `UpdateCount` 1, `SaveCount` 1; a 1-character name → `Member.InvalidName`, name unchanged, `UpdateCount` 0, `SaveCount` 0; unknown id → `Member.NotFound`, `SaveCount` 0). Every error checks type, code and the exact message. No existing test, fake or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1045/1045 lines and 362/362 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill f197c2c; generated code b9461db
+
+### Run 23, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). New query slice `GetPublicProfile` (`GET /api/v1/members/{id}/profile`): name, member since, average rating, review count and Active listings, without email or role. The handler had no tests.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: what the handler returns, how to build Draft, Active and Sold listings and a review (`Publish`, `Reserve`, `ConfirmSale`, `Review.Create`), and 6 tests. | Building a review needs a sold listing with a completed reservation; without the steps Claude would have to guess them. |
+| 2 | — | *"reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals)"*. | Proves the rounding, not only an average that is already exact. |
+| 3 | — | *"If `FakeReviewRepository` already exists in `Fakes/`, use it as it is"*. | So the run does not write a second fake for the same interface. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests (and the fake, if it is missing) from the "Feature: Public profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v25, commit f4cb94c (numbered after the condition filter and my profile PRs, #72 and #76, which make v23 and v24); section written and run by Carina Coman
+- **Result:** one new file, `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`, with the 6 tests of the section: 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with title and price (also the member's id, name and `MemberSince`); another seller's Active listing is not included; no reviews → `AverageRating` null, `ReviewCount` 0; ratings 5 and 4 → 4.5 and 2; ratings 5, 4 and 4 → 4.33; unknown id → `Member.NotFound`. The existing `FakeReviewRepository` was used, so no fake changed. No existing test or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1044/1044 lines, 362/362 branches, 167/167 methods. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill f4cb94c; generated code 155cf71
+
+### Skill update v25 → v26 (coverage-report is local only)
+
+- **Numbering:** numbered after #73, #77 and #79, which make unit-testing v23, v24 and v25, so those three PRs keep their numbers.
+
+| What | Before (v25) | After (v26) |
+|---|---|---|
+| Coverage report in Git (section "Coverage") | *"Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`."* | *"The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either."* |
+| Check after generating | *"`git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing."* | removed |
+
+- **Why:** the generated HTML report changed in almost every PR (new timestamps on every class page), so PRs carried dozens of files that nobody reviews, and they conflicted at every merge. `coverage-report/` is now in `.gitignore` and removed from the repository in the same PR (`git rm -r --cached`). The old rule asked to commit the report, so it contradicted `.gitignore`, and the next run would have tried to commit it again.
+- **Who:** Carina Coman, at Sara Matasel's request (edit only, no generation)
+- **Commit:** `9b8d5be` (the `.gitignore` change and the removal of the folder are in the commit "chore: stop tracking coverage-report" of the same PR)
+
+### Run 25, skill v27 (Feature: Minimum category confidence)
+
+- **Why a new version:** `SuggestCategoryHandler` has a new rule: below `MinConfidence` (0.7) the response has `Category` null and keeps the confidence. `SuggestCategoryResponse.Category` is now nullable. The new branch had no tests, and one existing test used a confidence of 0.5 and expected a category.
+
+#### Change to SKILL.md (v26 → v27) and why
+
+| # | v26 (before) | v27 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the minimum confidence. | New section *"Feature: Minimum category confidence (Diana)"*: the file (`SuggestCategoryHandlerTests`, add to it) and 3 tests: 0.9 and exactly 0.7 → the suggested category, 0.69 → `Category` null and `Confidence` still 0.69. | Proves both sides of the `>=` check, at the exact boundary. |
+| 2 | — | *"If existing tests use a confidence below 0.7 and expect a category, raise the fake's confidence in them to 0.9; change nothing else."* | The old test with 0.5 would fail for the right reason; the rule keeps its change to one value. |
+
+- **Prompt:** `Run the unit-testing skill for the section "Feature: Minimum category confidence (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v27, commit dc876be (section written and run by Diana Preutu with Claude Code)
+- **Result:** In `SuggestCategoryHandlerTests`: the existing Notes test raised from confidence 0.5 to 0.9 (nothing else changed in it), a `[Theory]` for 0.9 and 0.7 (2 cases) and one test for 0.69 → `Category` null, `Confidence` 0.69. `FakeCategorySuggester` was not changed (its `Suggestion` property already sets the confidence). Nothing in `src/` changed by the run. 435/435 unit tests pass. The coverage report was not generated again in this run (it is not part of the PR).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v27 is the final version.
+- **Commits:** skill dc876be; generated code 020f950
+
+### Run 26, skill v28 (Feature: Maximum price)
+
+- **Why a new version:** Week 6, task 2. `Money.Create` has a new branch: an amount above `Money.MaxAmount` (100000) returns `Money.TooHigh`. `Listing.Create` builds its price with `Money.Create`, so it gets the same rule. The new branch had no tests.
 
 #### Change to SKILL.md (v27 → v28) and why
 
 | # | v27 (before) | v28 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the maximum price. | New section *"Feature: Maximum price (Diana)"*: the file (`MoneyTests`, with one test added to `ListingTests`) and 3 tests. | Without it Claude would not know the limit, the error code or where the new tests go. |
+| 2 | — | *"exactly `Money.MaxAmount` → success"* and *"`Money.MaxAmount + 0.01m` → `Validation`, code `Money.TooHigh`, exact message from the code"*. | Proves both sides of the `>` check, not only a value far above the limit. |
+| 3 | — | *"`Listing.Create` with a price above the maximum → the same error"*. | Proves the rule reaches the listing, not only the value object. |
+
+- **Prompt:** `Run the unit-testing skill for the section "Feature: Maximum price (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v28, commit 0d26845 (section written and run by Diana Preutu with Claude Code)
+- **Result:** 3 new tests, nothing else changed in the tests and nothing in `src/` by the run: `MoneyTests` (exactly the maximum succeeds; maximum + 0.01 → `Money.TooHigh` with the exact message `Price must be at most 100000 lei.`) and `ListingTests` (`Listing.Create` above the maximum → the same error). 435/435 unit tests pass. The coverage report was not generated again in this run (it is not part of the PR).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v28 is the final version.
+- **Commits:** skill 0d26845; generated code c989e44
+
+### Run 27, skill v29 (Feature: Change password)
+
+- **Why a new version:** task 11 (issue #101). New `Member.ChangePassword` and the slice `Features/Auth/ChangePassword/` (`POST /api/v1/auth/change-password`); the new domain method and the handler had no tests.
+
+#### Change to SKILL.md (v28 → v29) and why
+
+| # | v28 (before) | v29 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about changing the password. | New section *"Feature: Change password (Carina)"*: the order of the checks in `ChangePasswordHandler` (404, `Auth.InvalidCredentials`, `Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`), `Member.ChangePassword`, and the test list, with the 7/8-character boundary. | Without it Claude would have to guess the order of the checks and the exact messages. |
+| 2 | — | *"the `changed.IsFailure` branch ... add one small private class in `ChangePasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` ... This extra hasher is allowed only for this test."* (added after the first run) | `FakePasswordHasher` never returns an empty hash, so the branch could not be reached and the handler was not at 100%. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Change password (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed. Do not commit.` (new session)
+- **Skill version:** v29, commits e1cb9f3 and 9df3a7c (the second adds the private hasher rule after the first run); numbered after #77 and #79 (v24, v25), the skill update v26 and the entries on main up to v28; section written and run by Carina Coman
+- **Result:** `Domain/Members/MemberTests.cs`: 2 tests added (a hash is stored and the same instance is returned; `""` and `"   "` as a `[Theory]` → `Member.PasswordRequired`, hash unchanged). New `Features/Auth/ChangePassword/ChangePasswordHandlerTests.cs`: success (new fake hash stored, the member's id returned, `UpdateCount` 1, `SaveCount` 1); wrong current password and a member without a password → `Auth.InvalidCredentials`; 7 characters and `""` (`[Theory]`) → `Auth.WeakPassword`; exactly 8 characters → success; confirmation different → `Auth.PasswordsDoNotMatch`; unknown member → `Member.NotFound`; the `changed.IsFailure` branch with a private `EmptyHashPasswordHasher` → `Member.PasswordRequired`. Every error checks type, code and the exact message, and every failure checks `SaveCount` 0. 469/469 unit tests pass; `Member` and `ChangePasswordHandler` at 100%; total for `Domain/` and the handlers 99.7% lines (1159/1162) and 99.7% branches (393/394).
+- **Problems seen:**
+  1. The first run (same prompt) stopped and reported that the `changed.IsFailure` branch cannot be reached with `FakePasswordHasher`. Its output was discarded, rule 2 was added to the section (commit 9df3a7c) and the run was repeated in a new session.
+  2. `ConfirmSaleHandler.cs`, lines 72-75 (the `record.IsFailure` branch, from the price feedback loop, not from this feature) cannot be reached either: a listing price is always above 0. This is the only gap; reported to Sara, nothing changed in `src/`.
+  3. The run regenerated `coverage-report/`; it was restored to the version on main and not committed, because generated files do not go into PRs (see the skill update v25 → v26).
+- **Change to SKILL.md:** none after the second run; v29 is the final version.
+- **Commits:** skill e1cb9f3, 9df3a7c; generated code a19f159
+
+### Run 28, skill v30 (Feature: Validation thresholds)
+
+- **Why a new version:** the minimum confidence of the category suggestion is no longer the constant `SuggestCategoryHandler.MinConfidence` (0.7) but the setting `Ml:Category:MinConfidence` (0.6, chosen on validation data), read through `IOptions<CategorySuggestionOptions>`. The handler tests no longer compiled.
+
+#### Change to SKILL.md (v29 → v30) and why
+
+| # | v29 (before) | v30 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the setting. | New section *"Feature: Validation thresholds (Anca)"*: build the handler with `Options.Create(new CategorySuggestionOptions { MinConfidence = 0.7 })` through one helper so the existing 0.7 tests keep their meaning; new tests for 0.6 (inclusive), 0.59 and a 0.95 setting with confidence 0.9. | Proves the handler uses the configured value and keeps the existing limit tests valid. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the changes for the section "Feature: Validation thresholds (Anca)": update SuggestCategoryHandlerTests as the section says and add only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v30, commit 2d54c3f (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `SuggestCategoryHandlerTests.cs` only: a helper `CreateHandler(suggester, minConfidence = 0.7)` used by the 13 existing tests (names and assertions unchanged) and 3 new tests (0.6 setting with confidence 0.6 → category, 0.59 → null with the confidence kept, 0.95 setting with 0.9 → null), each checking one call with the trimmed title. 484 unit tests pass; `SuggestCategoryHandler` 8/8 lines and 4/4 branches; SARIF log empty.
+- **Problems seen:**
+    1. The section asked for "one private helper" but the new tests need other limits; the helper got a `minConfidence` parameter with default 0.7.
+    2. Not from this section: `ConfirmSaleHandler` (price feedback loop, #96) lines 72–75, the `SaleRecord.Create` failure branch, are not covered by any unit test; with the current fakes it looks unreachable. Left for the owner of that feature.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 2d54c3f; generated code 31f3668
+
+### Run 29, skill v31 (Feature: Similar listings)
+
+- **Why a new version:** new query `GetSimilarListings` (`GET /api/v1/listings/{id}/similar`) with its handler; the handler logic (which listings are candidates, the order, the five, the rounding) had no unit test.
+
+#### Change to SKILL.md (v30 → v31) and why
+
+| # | v30 (before) | v31 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about similar listings. | New section *"Feature: Similar listings (Anca)"*: the handler rules, a new `FakeSimilarListingsFinder` (similarity per candidate title, records the calls) and 7 tests: unknown id, the target as the only Active listing, only Active candidates and never the target, the five highest, ties by `CreatedAt` then `Id`, the rounding and the item fields. | The ranking and the filtering are the handler's own logic, testable without the model. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Similar listings (Anca)": the new fake and the new test file, only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v31, commit 7cb4df8 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `Fakes/FakeSimilarListingsFinder.cs` and `Features/Listings/GetSimilarListings/GetSimilarListingsHandlerTests.cs` with the 7 tests; every test also checks that the repository is unchanged. 491 unit tests pass; `GetSimilarListingsHandler` 29/29 lines and 6/6 branches; SARIF log empty.
+- **Problems seen:** not from this section: `ConfirmSaleHandler` lines 72–75 (#96) are still not covered, as noted in Run 28.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 7cb4df8; generated code cfb9e5a
+
+### Run 30, skill v32 (Feature: Conversations)
+
+- **Why a new version:** new domain `Conversations` (conversation and messages) and four new handlers (start a conversation, send a message, read a conversation, my conversations) with no unit test.
+
+#### Change to SKILL.md (v31 → v32) and why
+
+| # | v31 (before) | v32 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about conversations. | New section *"Feature: Conversations (Anca)"*: the rules of `Conversation.Start` and `Send` in their order, the four handlers, a new `FakeConversationRepository` and the tests for each (who can write and read, the message numbers, the trimmed text, the 1000-character limit, the message added to an existing conversation, the order of my conversations). | The participant check and the message rules live in the domain and the handlers; they are tested without a database. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Conversations (Anca)": the new fake and the new test files, only the tests it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v32, commit 64131b7 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `Fakes/FakeConversationRepository.cs`, `Domain/Conversations/ConversationTests.cs` and one test file per handler: 50 new tests, 541 unit tests pass. `Conversation.cs` and the four handlers at 100% lines and branches; SARIF log empty.
+- **Problems seen:** the private constructor of `Message` (used only by EF Core when it reads a message) cannot be reached from a unit test; the integration tests cover it. `ConfirmSaleHandler` lines 72–75 (#96) still not covered, as in Run 28.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 64131b7; generated code b9400fc
+
+### Run 31, skill v33 (Feature: Listing photos)
+
+- **Why a new version:** new domain `Photos` (`Photo`, `PhotoFormat`), four new handlers (upload, list, get the file, delete) and `DeleteListingHandler` now takes an `IPhotoStorage`, so its tests no longer compiled.
+
+#### Change to SKILL.md (v32 → v33) and why
+
+| # | v32 (before) | v33 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about photos. | New section *"Feature: Listing photos (Anca)"*: the format detection by the first bytes, the rules of `Photo.Create` in their order (seller, 5 photos, empty, 2 MB, format), the four handlers, two new fakes (`FakePhotoRepository`, `FakePhotoStorage`) and the change to `DeleteListingHandlerTests` (the storage as third argument, the folder removed only after a successful delete). | The limits and the format check are the core of the task and are tested without a disk. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Listing photos (Anca)": the new fakes, the new test files and the change to DeleteListingHandlerTests, only what it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v33, commit 59b3660 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** two new fakes, `PhotoFormatTests` (9), `PhotoTests` (13) and one file per handler (18); the five `DeleteListingHandlerTests` kept, now also checking the photo folder. 581 unit tests pass; `Photo`, `PhotoFormat`, the four handlers and `DeleteListingHandler` at 100% lines and branches; SARIF log empty.
+- **Problems seen:** the run rewrote `DeleteListingHandlerTests.cs` with CRLF line endings; put back to LF by hand (no content change). One "order" case of the section was the same as the empty-content case, so it is one test.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 59b3660; generated code 237ab25
+
+### Run 32, skill v34 (Feature: Sorting)
+
+- **Why a new version:** `GetListingsQuery` has a new optional `Sort` (`newest`, `price_asc`, `price_desc`) and `GetListingsHandler` rejects any other value with `Listings.InvalidSort` and orders by price when asked. These branches had no tests.
+
+#### Change to SKILL.md (v33 → v34) and why
+
+| # | v33 (before) | v34 (after) | Why |
 |---|---|---|---|
 | 1 | Nothing about sorting. | New section *"Feature: Sorting (Diana)"*: the file (`GetListingsHandlerTests`, add to it) and the list of tests: three Active listings priced 30, 10, 20 → `price_asc` gives 10, 20, 30 and `price_desc` gives 30, 20, 10. | Prices out of order in the arrange prove that the handler sorts, not that the data was already sorted. |
 | 2 | — | *"`newest` and no sort → newest `CreatedAt` first (same as before)"*; *"two listings with the same price → ordered by `Id` ascending"*. | Proves that the default did not change and that equal prices still give a stable order, so the pages do not shift. |
 | 3 | — | *"`Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message"*. | The error code and the message are part of the contract of the endpoint. |
 
 - **Prompt:** `Run the unit-testing skill for the section "Feature: Sorting (Diana)". Add only those tests. Run dotnet test.`
-- **Skill version:** v28, commit b5da1ba (section written and run by Diana Preutu with Claude Code)
+- **Skill version:** v34, commit b5da1ba (section written and run by Diana Preutu with Claude Code)
 - **Result:** 5 new test methods (7 cases) in `GetListingsHandlerTests`: price ascending and descending, `[Theory]` `newest` and `null` → newest first, `[Theory]` `price_asc` and `price_desc` with equal prices → `Id` ascending, and `Sort = "abc"` → `Validation`, `Listings.InvalidSort`, the exact message `Sort must be newest, price_asc or price_desc.`, repository unchanged. Every test checks the repository. A small private helper (`RepositoryWithActiveListings`) publishes and seeds the listings. No existing test and nothing in `src/` changed by the run. 442/442 unit tests pass. The coverage report was not generated again in this run (it is not part of the PR).
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v28 is the final version.
@@ -1154,11 +1332,11 @@ saved.Should().BeEquivalentTo(listing);
 | 1 | Nothing about analyzer warnings. | Section 7: a private helper returns its concrete type (`List<T>`, not `IReadOnlyList<T>`); after generating, build with a SARIF log and check that the test files have no CA or IDE diagnostic. | Sonar imports these Roslyn suggestions as issues, but `dotnet build` does not show them, so the run could not see them. |
 
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them all. SonarCloud reports CA1859 on ReservationExpiryServiceTests.cs line 47. Apply the new rule in section 7 to the existing integration tests: fix that helper and any other helper that breaks the same rule. Do not change test names, assertions or behaviour.` (new session)
-- **Skill version:** v21, commit TODO (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Skill version:** v21, commit 99f5fa3 (rule written by Ancuța Ilenei with Claude Code; run in a new session)
 - **Result:** one line changed: `ServiceErrors` returns `List<CapturingLoggerProvider.Entry>`. No other helper broke the rule (the other interface return types are public members of interfaces). The SARIF log of the test project has no diagnostics. 674 tests pass, the integration tests three times in a row.
 - **Problems seen:** the rule says "the new test files"; when it is applied to existing tests it should mean the whole test project, which is what the run checked.
 - **Change to SKILL.md after the run:** none.
-- **Commits:** skill TODO; generated code TODO
+- **Commits:** skill 99f5fa3; generated code 80b724d
 
 ### Run 23, skill v22 (Feature: Condition filter)
 
@@ -1178,23 +1356,346 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md:** none after the run; v22 is the final version.
 - **Commits:** skill c3861b4; generated code 8c18e23
 
-### Run 30, skill v29 (Feature: Sorting)
+### Run 24, skill v23 (Feature: API documentation)
 
-- **Why a new version:** `GET /api/v1/listings?sort=...` is a new query parameter: `price_asc` orders by price over HTTP, an unknown value answers 400 `Listings.InvalidSort`.
+- **Why a new version:** task 8 (issue #74). The API got an OpenAPI document (`/openapi/v1.json`) and a documentation page (`/scalar`), both only in Development. The new endpoint had no test.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the API documentation. | New section *"Feature: API documentation (Carina)"*: the production code (`AddOpenApi`, and `MapOpenApi` and `MapScalarApiReference` only in Development; the test host runs in Development), the new file and one test. | The document is a new endpoint, and Claude needs to know that it exists only in Development. |
+| 2 | Every test checks the database (section 4). | *"The database has nothing to do with this endpoint: at the end, check that it is still empty (0 listings), as the 404 and 405 tests of 'Feature: Error handling (Anca)' do."* | Keeps the status, body and database checks without inventing data. |
+| 3 | — | *"Read the body with `ReadAsStringAsync`; do not deserialize the OpenAPI document."* | The test only has to prove that the paths are listed; a typed OpenAPI model would need a new package. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the test from the "Feature: API documentation (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v23, commit 0e90f1e (numbered after the condition filter PR, #72, which makes v22); section written and run by Carina Coman
+- **Result:** new file `Infrastructure/OpenApiTests.cs`, class `OpenApiTests : IntegrationTestBase`, with one test, `Given_DevelopmentEnvironment_When_GettingOpenApiDocument_Then_Returns200WithApiPaths`: `GET /openapi/v1.json` → 200, content type `application/json`, the body (read as text) contains `/api/v1/listings` and `/api/v1/auth/login`, and the database still has 0 listings. No existing test changed, nothing changed in `src/`. `dotnet build` 0 warnings, 0 errors (built with the SARIF error log, no CA or IDE diagnostics); integration tests 220/220 three runs in a row; full run: 10 architecture, 432 unit, 13 ML, 220 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 0e90f1e; generated code 5cd4f6c
+
+### Run 25, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). `GET /api/v1/members/me` and `PUT /api/v1/members/me` are new endpoints that need a token.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile endpoints. | New section *"Feature: My profile (Carina)"*: a table with the success and failures of both endpoints, which errors are ProblemDetails (401) and which keep `{ code, message, type }` (400, 404), and 6 tests. | The endpoints are new, so Claude needs the contract to test them. |
+| 2 | — | *"the raw body ... does not contain `password`"* and *"in the database the member has the new name and the old email"*. | Proves that the response never shows the password hash and that the update cannot change the email. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v24, commit e28342c (numbered after the condition filter and API documentation PRs, #72 and #74, which make v22 and v23); section written and run by Carina Coman
+- **Result:** new file `Members/MyProfileTests.cs` with 6 tests: logged in → GET 200 with id, name, lower-case email, role `Student` and `createdAt`, no `password` in the raw body; a token of a member that is not in the database → 404 `Member.NotFound`; no token → GET 401 and PUT 401 (ProblemDetails `Auth.Unauthorized`), member unchanged; a valid name → 204, new name and old email in the database; a 1-character name → 400 `Member.InvalidName`, member unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no CA or IDE diagnostics; 10 architecture, 438 unit and 13 ML tests pass; the 6 new tests pass in every run.
+- **Problems seen:** the existing `ReservationExpiryTests` (job on) failed in 2 of 4 integration runs with `SqliteException: SQLite Error 5: 'database is locked'`, so the "three runs in a row" check did not pass. The test was not touched by this run: the expiry job and the test use the same in-memory SQLite connection at the same time. Reported to the team, not fixed here.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill e28342c; generated code 35d92a4
+
+### Run 26, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). `GET /api/v1/members/{id}/profile` is a new public endpoint; it must never show the email, and it shows only Active listings and the review summary.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: the response, the 404 from the handler and from the route, how to seed a sold listing with a review, and 4 tests. | The endpoint is new, so Claude needs the contract to test it. |
+| 2 | — | *"the raw body (`ReadAsStringAsync`) does not contain the seller's email"*. | Proves over HTTP that the email, which is personal data, never leaves the API here. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Public profile (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v25, commit 4394edd (numbered after the condition filter, API documentation and my profile PRs, #72, #74 and #76, which make v22, v23 and v24); section written and run by Carina Coman
+- **Result:** new file `Members/PublicProfileTests.cs` with 4 tests, none of them logged in: an Active and a Draft listing → 200 with only the Active one (id, title, price), the right name, 0 reviews, no average, and the raw body does not contain the email; a sold listing reviewed with 4 → `averageRating` 4, `reviewCount` 1, no active listings; unknown id → 404 `Member.NotFound`, type `NotFound`; `/members/abc/profile` → 404 (status only). Every test checks that the seeded data is unchanged. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no diagnostics in the SARIF log; integration tests 223/223 three runs in a row; full run: 10 architecture, 438 unit, 13 ML, 223 integration.
+- **Problems seen:** the first version of the first test ordered the listings by date inside the database query, which SQLite cannot do with `DateTimeOffset`, so it failed. The run fixed its own test in the same session (no sort in the query, the two listings compared without order); the API was not involved.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill 4394edd; generated code 9febc5f
+
+### Run 28, skill v27 (Feature: Minimum category confidence)
+
+- **Why a new version:** `POST /api/v1/listings/category-suggestion` can now answer `"category": null`, with a confidence below 0.7, when the model is not sure.
+
+#### Change to SKILL.md (v26 → v27) and why
+
+| # | v26 (before) | v27 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the minimum confidence. | New section *"Feature: Minimum category confidence (Diana)"*: the file (`Listings/SuggestCategoryTests.cs`, add to it) and 2 tests: title "Banana" with description "Am de vandut o banana buna" → 200, `category` null, `confidence` below 0.7; title "Notite Analiza matematica, an I" → 200, `Notes`. | Runs the real model through the real endpoint, so the 0.7 limit is proven on both sides with real inputs; a unit test with a fake cannot show that. |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Minimum category confidence (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v27, commit dc876be (section written and run by Diana Preutu with Claude Code)
+- **Result:** 2 new tests in `Listings/SuggestCategoryTests.cs`: "Banana" → 200, `category` null, confidence below `SuggestCategoryHandler.MinConfidence`; "Notite Analiza matematica, an I" → 200, `Notes`, confidence at or above the limit. Both check that no listing was saved. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 435 unit, 13 ML, 221 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v27 is the final version.
+- **Commits:** skill dc876be; generated code 020f950
+
+### Run 29, skill v28 (Feature: Maximum price)
+
+- **Why a new version:** Week 6, task 2. `POST /api/v1/listings` with a price above 100000 now answers 400 `Money.TooHigh`; no integration test covered it.
+
+#### Change to SKILL.md (v27 → v28) and why
+
+| # | v27 (before) | v28 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the maximum price. | New section *"Feature: Maximum price (Diana)"*: the file (`Listings/CreateListingTests.cs`, add to it) and one test: POST with price 200000 → 400 `Money.TooHigh`, nothing saved. | The error reaches the client as 400 with the `Error` body only if the endpoint maps it; a unit test cannot see that. |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Maximum price (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v28, commit 0d26845 (section written and run by Diana Preutu with Claude Code)
+- **Result:** One new test in `Listings/CreateListingTests.cs`: price 200000 → 400, `Money.TooHigh`, type `Validation`, the exact message, and the database still has no listing. No existing test or file in `src/` changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 435 unit, 13 ML, 220 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v28 is the final version.
+- **Commits:** skill 0d26845; generated code c989e44
+
+
+### Run 30, skill v29 (Feature: CORS for the frontend)
+
+- **Why a new version:** Weeks 6–7, the frontend skeleton. The web frontend (`frontend/`, Vite on `http://localhost:5173`) calls the API from another origin, so the API now answers CORS for the origins in `Cors:AllowedOrigins`. No integration test covered it. (Sara's sections "Production configuration and demo data" and "Price feedback loop" were added to the skill before this run without a PROMPTS entry; v29 counts after them.)
 
 #### Change to SKILL.md (v28 → v29) and why
 
 | # | v28 (before) | v29 (after) | Why |
 |---|---|---|---|
+| 1 | Nothing about CORS. | New section *"Feature: CORS for the frontend (Anca)"*: the production code to read, the file (`Cors/CorsTests.cs`, new) and the tests: allowed preflight (204, origin, methods, headers, no credentials), preflight from another origin (no `Access-Control-Allow-Origin`), 201 with `Location` exposed, 401 and 500 ProblemDetails that still carry the CORS header, a request without `Origin` (no CORS headers), an origin set through `Cors:AllowedOrigins:0`. | CORS is middleware: only a real HTTP request through the whole pipeline shows the headers, and only an error answer shows that `UseCors` runs before the exception handler. |
+| 2 | (after the run) the configured origin was one bullet with two preflights; the not-allowed preflight had no status; nothing said that `git status` lists the hand-made changes. | Two tests with one HTTP call each, from a private helper; the not-allowed preflight is still 204; a rule lists the files changed by hand before the run. | The run found these three gaps (section 6 allows one HTTP call per test). |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: CORS for the frontend (Anca)". Add only those tests. Then run dotnet build and dotnet test tests/CampusMarket.IntegrationTests three times in a row, and the whole solution once. Follow section 10, including the SARIF check from section 7. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v29, commit a6a5c1c (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** 8 tests in `Cors/CorsTests.cs`: preflight from the frontend (204, exact `Access-Control-Allow-Origin`, `POST` and `authorization` allowed, no `Access-Control-Allow-Credentials`), preflight from `http://evil.example` (204, no `Access-Control-Allow-Origin`), `POST /listings` with the origin (201, origin, `Location` exposed and set, listing saved), no token (401 `Auth.Unauthorized` with the origin), `ThrowingUnitOfWork` (500 `Server.Error` with the origin, listing still `Draft`), no `Origin` header (200, no CORS header), and two tests with `Cors:AllowedOrigins:0` = `https://campusmarket.example` (that origin allowed, `localhost:5173` no longer). Every test checks the database. No existing test changed. Build 0 warnings, 0 errors; the SARIF log of the test project is empty; full run: 10 architecture, 454 unit, 13 ML, 235 integration; the integration tests passed three times in a row.
+- **Problems seen:**
+    1. The section asked for two preflights in one test; split into two tests (fixed in the section after the run).
+    2. One integration test failed once in the first full run with coverage and was not seen again in 8 more runs (5 integration, 3 full); its name was not printed. Most likely the old timing issue of the reservation expiry tests, not CORS.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill a6a5c1c; generated code 820290e
+
+### Run 31, skill v30 (Feature: Register rate limiting)
+
+- **Why a new version:** task 5 (issue #98). `POST /api/v1/auth/register` got the rate limiter policy "register": at most 5 registrations per minute from the same IP, then 429, with the limit read from `RateLimiting:RegisterPermitLimit`. The integration test factory raises it to 1000 so the other tests are not blocked, so the real limit needed its own tests.
+
+#### Change to SKILL.md (v29 → v30) and why
+
+| # | v29 (before) | v30 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the register rate limit. | New section *"Feature: Register rate limiting (Carina)"*: the policy, the factory setting (1000), a second copy of the API with `UseSetting("RateLimiting:RegisterPermitLimit", "5")`, and 3 tests. | Without the second copy the tests would run with the raised limit and never see a 429. |
+| 2 | — | *"5 registrations whose passwords do not match → 400 each (they also count toward the limit); a 6th, valid → 429"*. | Proves that the limiter counts every request, not only the successful ones. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Register rate limiting (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results.` (new session)
+- **Skill version:** v30, commit 3d0ee62 (numbered after #73, #75, #77 and #79, which make v22 to v25, and after the entries on main up to v29, the CORS run of #99); section written and run by Carina Coman
+- **Result:** new file `Auth/RegisterRateLimitTests.cs` with 3 tests: six valid registrations with the limit at 5 → the first five 201, the sixth 429, exactly 5 members and none with the sixth email; five registrations whose passwords do not match → 400 each, then a sixth valid one → 429, no members; the normal factory (limit 1000) → six registrations 201, 6 members. The first two use a second copy of the API (`WithWebHostBuilder`, disposed with `await using`); the five earlier calls are in a private helper `RegisterFiveAsync`, written as five explicit calls like `ExhaustLoginRateLimitAsync`, so no test has a loop. Nothing changed in `src/`, the factory, `IntegrationTestBase` or the skill. Integration tests 230/230 three runs in a row.
+- **Problems seen:** none. Notes from the run: the 429 is checked only by status code, as the section says (the error handling section may turn it into ProblemDetails, but its body is not checked); the status codes of the five earlier calls are collected in the Arrange and checked at the start of the Assert, so the Act stays the single sixth call.
+- **Change to SKILL.md:** none after the run; v30 is the final version.
+- **Commits:** skill 3d0ee62; generated code 9e9c0fb
+
+### Run 32, skill v31 (Feature: Change password)
+
+- **Why a new version:** task 11 (issue #101). `POST /api/v1/auth/change-password` is a new endpoint that needs a token; the change must be saved and must change how login behaves.
+
+#### Change to SKILL.md (v30 → v31) and why
+
+| # | v30 (before) | v31 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about changing the password. | New section *"Feature: Change password (Carina)"*: a table with the success and the failures, which errors are ProblemDetails (401) and which keep `{ code, message, type }` (400, 404), the arrange with a real hash and `AuthenticateAs`, and the test list. | The endpoint is new, so Claude needs the contract to test it. |
+| 2 | — | *"in the database `AspNetPasswordHasher.Verify` accepts the new password and rejects the old one"* and the login tests after a change (new password → 200, old → 401). | Proves that the new hash is really stored and used by login. |
+
+- **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them and only add the tests from the "Feature: Change password (Carina)" section. Follow the skill exactly. When you finish, run dotnet build and dotnet test and tell me the results. Do not commit.` (new session)
+- **Skill version:** v31, commit 0c22b8e (numbered after the CORS run of #99, v29, and the register rate limiting PR, issue #98, v30); section written and run by Carina Coman
+- **Result:** new file `Auth/ChangePasswordTests.cs` with 8 tests: valid request → 204 and the stored hash verifies the new password, not the old one; after a change, login with the new password → 200 and with the old one → 401; wrong current password → 400 `Auth.InvalidCredentials`, hash unchanged; 7 characters → 400 `Auth.WeakPassword`; confirmation different → 400 `Auth.PasswordsDoNotMatch`; a token of a member that is not in the database → 404 `Member.NotFound`; no token → 401. No existing test or file in `src/` changed. `dotnet build` 0 warnings, no CA or IDE diagnostics in the SARIF log; 469 unit, 10 architecture, 13 ML and 237 integration tests pass.
+- **Problems seen:** in the repeated integration runs one run had 1 failure out of 237. Run again by hand: the failing test is the existing `ReservationExpiryTests.Given_JobOnWithExpiredAndValidReservations_When_JobRuns_Then_ExpiresOnlyTheExpiredOne`, 1 failure in 4 runs, still flaky after #97. The 8 new tests passed in every run. Reported to Sara, not fixed here.
+- **Change to SKILL.md:** none after the run; v31 is the final version.
+- **Commits:** skill 0c22b8e; generated code 5498907
+
+### Run 33, skill v32 (Feature: Live and ready health checks)
+
+- **Why a new version:** `GET /health/live` (no checks) and `GET /health/ready` (database + the 3 ML models) were added next to `/health`; none had an integration test, and the Unhealthy branch of `MlModelsHealthCheck` cannot be reached over HTTP.
+
+#### Change to SKILL.md (v31 → v32) and why
+
+| # | v31 (before) | v32 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about `/health/live` and `/health/ready`. | New section *"Feature: Live and ready health checks (Diana)"*: the file (`Infrastructure/HealthTests.cs`) and 4 tests: `/health/live` → 200 `Healthy`; `/health/ready` → 200 `Healthy`; `/health` → 200; `CheckHealthAsync` with a `ModelsPath` that does not exist → Unhealthy, the message lists the 3 missing files. | The ready check depends on the models copied to the test output, which only a real request through the host proves; the Unhealthy branch is reached by calling the check directly. |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Live and ready health checks (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v32, commit e90123a (section written and run by Diana Preutu with Claude Code)
+- **Result:** 4 new tests in the new file `Infrastructure/HealthTests.cs`; the three HTTP tests check the status, the plain text body `Healthy` and that the database is still empty. The Unhealthy test calls `MlModelsHealthCheck.CheckHealthAsync` directly (no HTTP call, the only way to reach that branch) and checks the status and that the message names `price-regression.zip`, `category-classification.zip` and `spam-detection.zip`. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 226 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v32 is the final version.
+- **Commits:** skill e90123a; generated code 341a311
+
+### Run 34, skill v33 (Feature: Correlation id)
+
+- **Why a new version:** every response now has an `X-Correlation-Id` header, set by a new middleware that runs before every other one. It is a behaviour of the whole pipeline (also on 404 and error answers), so only a real request can show it.
+
+#### Change to SKILL.md (v32 → v33) and why
+
+| # | v32 (before) | v33 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the correlation id. | New section *"Feature: Correlation id (Diana)"*: the file (`Infrastructure/CorrelationIdTests.cs`, new) and 3 tests: no header → a header that is a valid Guid; `X-Correlation-Id: test-123` → the same value; a 404 answer also has the header. | The three cases are the three paths of the middleware (new id, id from the client, id on an error answer). |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Correlation id (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v33, commit 1de3dc2 (section written and run by Diana Preutu with Claude Code)
+- **Result:** new file `Infrastructure/CorrelationIdTests.cs` with 3 tests: `GET /api/v1/listings` without the header → 200 and one `X-Correlation-Id` value that is not empty and is a Guid; the same request with `test-123` → the header is exactly `test-123`; `GET /api/v1/listings/{random Guid}` → 404 with the header. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 225 integration. With coverage like the CI, every line and branch of `CorrelationIdMiddleware` is covered by the integration tests (the unit test report has no hit, as expected).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v33 is the final version.
+- **Commits:** skill 1de3dc2; generated code 873dccb
+
+### Run 35, skill v34 (Feature: Listings cache)
+
+- **Why a new version:** `GET /api/v1/listings` is now cached for 30 seconds (output cache, tag `listings`) and every endpoint that changes a listing clears the tag. A wrong or missing clear shows old data, which only a request after a cached request can show; no unit test can.
+
+#### Change to SKILL.md (v33 → v34) and why
+
+| # | v33 (before) | v34 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the cache. | New section *"Feature: Listings cache (Diana)"*: the file (`Listings/ListingsCacheTests.cs`, new) and 3 tests: search, then create and publish, then the same search; search, then update the title, then the same search; search, then reserve, then the same search. | Each test makes the first search fill the cache, so the second search only shows the change if the tag was cleared. |
+| 2 | — | Which endpoints clear the cache: create, update, delete, publish, reserve, cancel reservation, confirm sale, hide. | Tells Claude the contract; the section tests three of them, one for each kind of change (new, changed, no longer `Active`). |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Listings cache (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v34, commit 030e958 (section written and run by Diana Preutu with Claude Code)
+- **Result:** New file `Listings/ListingsCacheTests.cs` with 3 tests, each doing a search before the change and the same search after it: the new listing is in the second result; the new title is in the second result; the reserved listing is gone from the second result. No existing test changed. There is no unit-testing run for this feature: the endpoints have no unit tests. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 432 unit, 13 ML, 222 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v34 is the final version.
+- **Commits:** skill 030e958; generated code 9f480ad
+
+### Run 36, skill v35 (Feature: Listings cache, review fix)
+
+- **Why a new version:** Sara's review on PR #84 found that the Run 35 tests did not test the cache. The ASP.NET Core output cache does not store a response to a request with an `Authorization` header, and those tests searched after `AuthenticateAs`, so every search went to the database and the tests would pass without `ListingsCache.ClearAsync`.
+
+#### Change to SKILL.md (v34 → v35) and why
+
+| # | v34 (before) | v35 (after) | Why |
+|---|---|---|---|
+| 1 | Section *"Feature: Listings cache (Diana)"*: file `Listings/ListingsCacheTests.cs` (new); 3 tests: *"search, then create and publish a listing, then search again with the same query"*, *"search, then update a listing's title, then search again"*, *"search, then reserve the listing, then search again"*. Nothing about tokens. | Same section with the note *"the ASP.NET Core output cache does not store responses to requests that have an `Authorization` header. Every search in these tests is sent **without a token**; only the change (create, publish, update, reserve) is sent with a token."*, and the file is *"(replace its tests)"*. | The old tests logged in before the first search, so the cache was never filled. |
+| 2 | No setup. | New *Setup*: every test starts by evicting the tag `ListingsCache.Tag` from `IOutputCacheStore` taken from `Factory.Services`. | The tests do not affect each other. |
+| 3 | 3 tests. | 4 tests: the 3 above, each with searches without a token (the create/publish one is *"search without a token → create a listing with a token → the same search without a token (the draft is not there, and this fills the cache) → publish with a token → the same search without a token → the new listing is there"*), and a new first one: search without a token → change a published listing in the database through the DbContext (no endpoint) → the same search still returns the old title. | A test that proves the cache is used; without it, the other three could pass with no cache at all. |
+
+- **Prompt:** `Run the integration-testing skill for "Feature: Listings cache (Diana)". Replace the old tests in Listings/ListingsCacheTests.cs with the ones the section describes. Run dotnet test. Then remove the ListingsCache.ClearAsync line from one endpoint (for example UpdateListingEndpoint), run only ListingsCacheTests and confirm the update test fails, then put the line back and confirm all pass again.`
+- **Skill version:** v35, commit a93eb36 (section written by Diana Preutu with Claude Code)
+- **Result:** `Listings/ListingsCacheTests.cs` now has 4 tests. Searches use an anonymous client (`Factory.CreateClient()`), changes use the logged-in `Client`; the title change in the first test is a SQL `UPDATE` through the DbContext. The create/publish test has a search between create and publish, because create already clears the cache and a single search before it could not show a missing clear in publish. Check: `ListingsCache.ClearAsync` was removed from `UpdateListingEndpoint`, `PublishListingEndpoint` and `ReserveListingEndpoint`, one at a time; each time exactly the matching test failed (update, publish, reserve) and the other 3 passed; with the lines back all 4 pass. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 438 unit, 13 ML, 226 integration.
+- **Problems seen:** the first build failed on missing `using` lines in the test file (`DependencyInjection`, `Persistence`); fixed in the test.
+- **Change to SKILL.md:** none after the run; v35 is the final version.
+- **Commits:** skill a93eb36; generated code 8631881
+
+### Run 37, skill v36 (Reservation expiry: stop the job before the Act)
+
+- **Why a new version:** `ReservationExpiryTests.Given_JobExpiredTheReservation_When_AnotherMemberReserves_Then_Returns201` still failed in CI now and then (500 instead of 201, last time on PR #103). After #97 the copy of the API with the expiry job was stopped before the final database reads, but the reservation POST was still sent through that copy while the job ticked every 200 ms on the shared in-memory SQLite connection; a tick at the same moment gives "database is locked" and the API answers 500.
+
+#### Change to SKILL.md (v35 → v36) and why
+
+| # | v35 (before) | v36 (after) | Why |
+|---|---|---|---|
+| 1 | "Feature: Reservation expiry (Sara)" only said to poll with a timeout and to check the database at the end. | New rule: the copy with the job on must not run while the test sends its Act request or reads the database for its assertions; poll inside `await using (var withJob = WithExpiryJob())`, leave the block (the job stops), then send the Act with the normal `Client` after `AuthenticateAs(...)`. | The POST does not need the job; running it next to the job is the only way the two can meet on the same connection. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). The section "Feature: Reservation expiry (Sara)" has a new last rule. The test Given_JobExpiredTheReservation_When_AnotherMemberReserves_Then_Returns201 breaks it: apply the rule to the tests of that section in ReservationExpiryTests.cs, change only what the rule requires, keep names, arrange and assertions. Build, run the ReservationExpiryTests 20 times in a row, the whole solution once, and the SARIF check.` (new session)
+- **Skill version:** v36, commit 988ce9c (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** only that test changed: it waits for `Expired` inside the block with the job, checks the status after the block, then logs in the second buyer on the normal `Client` and sends the POST with the job stopped. The unused `using System.Net.Http.Headers;` was removed. The other two tests already followed the rule. `ReservationExpiryTests` passed 20 runs out of 20; full run: 10 architecture, 481 unit, 13 ML, 270 integration; build 0 warnings; the SARIF log of the test project is empty.
+- **Problems seen:** the rule says to leave the block before "the Act and the assertions"; the check that the job expired the reservation reads only a local variable, so it stays right after the block, before the Act, to fail early with a clear message.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 988ce9c; generated code d431dc4
+
+### Run 38, skill v37 (Feature: Validation thresholds)
+
+- **Why a new version:** the two decision thresholds of the ML models became settings chosen on validation data (`Ml:Category:MinConfidence` 0.6, `Ml:Spam:Threshold` 0.4), validated at startup. The category tests compared with the removed constant `SuggestCategoryHandler.MinConfidence`, and nothing tested that the settings are read and checked. (Numbered after Run 37, the reservation expiry fix in its own PR.)
+
+#### Change to SKILL.md (v36 → v37) and why
+
+| # | v36 (before) | v37 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the settings. | New section *"Feature: Validation thresholds (Anca)"*: the two `SuggestCategoryTests` compare with the configured value from `IOptions<CategorySuggestionOptions>`; new `Infrastructure/MlThresholdsTests.cs`: the defaults from `appsettings.json`, a 0.99 minimum confidence hides a confident suggestion, a 0 spam threshold reports a normal listing, and an out-of-range value of either setting stops the API. | Only a real host shows that the configuration reaches the handler and the spam detector, and that a wrong value is refused at startup. |
+| 2 | (after the run) nothing said how to log in on a copy of the API, nor that `git status` lists the hand-made changes. | Two rules: `Authorization: Bearer` with `TestTokens.Create` on the copy's client; the hand-made changes are listed by `git status`. | The run found both gaps. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the changes for the section "Feature: Validation thresholds (Anca)": update the two tests in Listings/SuggestCategoryTests.cs and add Infrastructure/MlThresholdsTests.cs with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v37, commit 2d54c3f (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `SuggestCategoryTests.cs` (a `MinConfidence` property read from the options, used by the two tests) and new `MlThresholdsTests.cs` with 5 tests: defaults 0.6 / 0.4, `MinConfidence` 0.99 → `category` null for the Notes title, spam threshold 0 → a normal listing gets an automatic report, 1.5 and -0.1 → `OptionsValidationException` naming the setting. Integration tests 275/275 three times; full run 10 architecture, 484 unit, 41 ML, 275 integration; SARIF log empty.
+- **Problems seen:** `AuthenticateAs` only logs in the base client, so the copies use the `Bearer` header (rule added); the 0.6 floor in the 0.99 test is written as a number, the defaults test checks that it is the configured value.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill 2d54c3f; generated code 31f3668
+
+### Run 39, skill v38 (Reservation expiry: retry a polling read that collides with the job)
+
+- **Why a new version:** after Run 37 the same test still failed once in CI (PR #106), this time inside `WaitForReservationStatusAsync`: while the job was running, one of the polling reads threw (stack: `QueryDbAsync` → `DbContext.Set` → service resolution). Run 37 stopped the job before the Act and the assertions, but the polling reads have to run while the job is on, on the same in-memory SQLite connection.
+
+#### Change to SKILL.md (v37 → v38) and why
+
+| # | v37 (before) | v38 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the polling reads failing. | New rule in "Feature: Reservation expiry (Sara)": a polling read that throws a `SqliteException` or an `InvalidOperationException` (which covers `ObjectDisposedException`) counts as "not yet"; wait 100 ms and read again until the timeout; after the timeout, one more read without catching, so an error that never goes away still fails the test with its own message. Catch only those two types. | The read and the job's write can meet on the shared connection; retrying is what the polling is for. |
+| 2 | (after the first try) "a read that throws". | The two exception types, written as `catch (Exception ex) when (...)`. | The first run caught every exception; Sonar flags a general catch (S2221). |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). The section "Feature: Reservation expiry (Sara)" has a new last rule about the polling reads. WaitForReservationStatusAsync breaks it: in CI a polling read threw while the job was running. Apply the rule to that helper; change only what it requires. Build, run the ReservationExpiryTests 30 times in a row, the whole solution once and the SARIF check.` Then, after the rule was narrowed: `Re-read the rule and catch only SqliteException or InvalidOperationException; run the filter 15 times, the whole solution and the SARIF check again.` (new session)
+- **Skill version:** v38, commit ba5a270 (rule written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** only the helper changed: the query moved to a private `ReadReservationStatusAsync`, the loop catches the two exception types and retries every 100 ms, and after the 5 s timeout one last read runs without a catch; the tests, the assertions and the timeouts are unchanged. `ReservationExpiryTests` passed 30 runs with the first version and 15 runs with the narrowed catch; full run 10 architecture, 484 unit, 41 ML, 275 integration; SARIF log empty.
+- **Problems seen:**
+    1. The CI failure could not be reproduced on this machine (every local run passed before and after), so the fix follows the stack trace and the rule, not a local repro.
+    2. The last read after the timeout still runs while the job is on, so in the rare case where no read succeeds in 5 seconds it can fail with the collision instead of the "within 5 seconds" message; that only happens when the job is already too slow.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill ba5a270; generated code 9aef200
+
+### Run 40, skill v39 (Feature: Similar listings)
+
+- **Why a new version:** new public endpoint `GET /api/v1/listings/{id}/similar` that runs the real similar-listings model, and a fourth model file that the ready check now requires.
+
+#### Change to SKILL.md (v38 → v39) and why
+
+| # | v38 (before) | v39 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about similar listings. | New section *"Feature: Similar listings (Anca)"*: the endpoint with the real model, the seeded listings (two math textbooks, two laptops, notes, a bicycle, a draft textbook) and 5 tests: a textbook gets the other textbook first, a laptop the other laptop, a draft target gets a textbook, only the target published gives no items, unknown id → 404; plus `similar-listings.zip` in the "models folder does not exist" health test. | Only the real model over HTTP shows that the ranking makes sense and that the model file is loaded. |
+| 2 | (after the first run) titles only. | Every listing gets a condition, a price and a description, the bicycle none. | The first run seeded no description at all, so the finder's branch for a listing with a description was never run. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Similar listings (Anca)": the new file Listings/GetSimilarListingsTests.cs with only the tests it lists and the change to Infrastructure/HealthTests.cs. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` Then, after row 2: `Re-read the Arrange and apply it to the seeding helper; change nothing else.` (new session)
+- **Skill version:** v39, commit 7cb4df8 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** new `GetSimilarListingsTests.cs` with the 5 tests (every call without a token, every test checks the database) and one more assertion in `HealthTests.cs`. The real model ranks every case as expected, with and without descriptions. Integration tests 280/280 three times; full run 10 architecture, 491 unit, 61 ML, 280 integration; SARIF log empty.
+- **Problems seen:** the first Arrange gave no descriptions (fixed, row 2); "a math textbook first" for the draft accepts either published textbook.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** skill 7cb4df8; generated code cfb9e5a
+
+### Run 41, skill v40 (Feature: Conversations)
+
+- **Why a new version:** four new endpoints (`POST /listings/{id}/conversations`, `POST /conversations/{id}/messages`, `GET /conversations/{id}`, `GET /members/me/conversations`) and two new tables (`Conversations`, `Messages`, migration `AddConversations`).
+
+#### Change to SKILL.md (v39 → v40) and why
+
+| # | v39 (before) | v40 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about conversations. | New section *"Feature: Conversations (Anca)"*: the endpoint table with every status, how to seed members, listings and conversations, and the tests per endpoint: a second message goes to the same conversation, a sold listing keeps an existing conversation, only the two members can read or write (403 for another member and for an Admin), my conversations as buyer and as seller, and the cascade when the listing is deleted. | Only real HTTP calls on the real database show the 403s, the `Location` header, the unique index and the cascade. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Conversations (Anca)": the four new files under Conversations/ with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10 and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v40, commit 64131b7 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `Conversations/StartConversationTests.cs` (13), `SendMessageTests.cs` (7), `GetConversationTests.cs` (5), `GetMyConversationsTests.cs` (4). Integration tests 309/309 three times; full run 10 architecture, 541 unit, 69 ML, 309 integration; SARIF log empty.
+- **Problems seen:** none; the API matched the section. The table names a hidden listing for `Conversation.ListingNotAvailable` but the test list does not (the unit tests cover it).
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 64131b7; generated code b9400fc
+
+### Run 42, skill v41 (Feature: Listing photos)
+
+- **Why a new version:** four new endpoints (upload with `multipart/form-data`, list, the image, delete), files written on disk and the photo folder removed when a listing is deleted.
+
+#### Change to SKILL.md (v40 → v41) and why
+
+| # | v40 (before) | v41 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about photos. | New section *"Feature: Listing photos (Anca)"*: the endpoint table, a temporary photos folder per test factory (`Factory.PhotosPath`, deleted on dispose, never the source tree), how to upload with `MultipartFormDataContent`, and the tests: the three formats, a renamed GIF, exactly 2 MB and one byte more, no file, the sixth photo, 403/404/401/415, the image bytes and headers, a row whose file is missing, deleting one photo, and the folder removed with the listing. | Only real HTTP calls show the form binding, the 415, the `Location` and the files on disk. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Listing photos (Anca)": the change to CampusMarketApiFactory and the four new files under Photos/ with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10, the SARIF check, and check that no photos folder was created in the repository. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v41, commit 59b3660 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `CampusMarketApiFactory` with its own temporary `PhotosPath`; `Photos/UploadPhotoTests.cs` (13 cases), `GetListingPhotosTests.cs` (4), `GetPhotoFileTests.cs` (3), `DeletePhotoTests.cs` (9). Integration tests 338/338 three times; full run 10 architecture, 581 unit, 69 ML, 338 integration; SARIF log empty; no photos folder in the repository or left in the temp folder.
+- **Problems seen:** the 415 answer has `code` `Server.Error`, because the status-code mapping has no case for 415 (the same for every endpoint, not only photos); the test checks the status and the ProblemDetails shape, not the code. "Delete, then GET → 404" became its own test (one HTTP call per Act).
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 59b3660; generated code 237ab25
+
+### Run 43, skill v42 (Feature: Sorting)
+
+- **Why a new version:** `GET /api/v1/listings?sort=...` is a new query parameter: `price_asc` orders by price over HTTP, an unknown value answers 400 `Listings.InvalidSort`.
+
+#### Change to SKILL.md (v41 → v42) and why
+
+| # | v41 (before) | v42 (after) | Why |
+|---|---|---|---|
 | 1 | Nothing about sorting. | New section *"Feature: Sorting (Diana)"*: the file (`Listings/GetListingsTests.cs`, add to it) and 2 tests: `?sort=price_asc` → 200 with the prices in ascending order; `?sort=abc` → 400 `Listings.InvalidSort`. | The parameter has to be bound from the query string and the error mapped to 400 with the `Error` body; only a real request shows that. |
 
 - **Prompt:** `Run the integration-testing skill for the section "Feature: Sorting (Diana)". Add only those tests. Run dotnet test.`
-- **Skill version:** v29, commit b5da1ba (section written and run by Diana Preutu with Claude Code)
+- **Skill version:** v42, commit b5da1ba (section written and run by Diana Preutu with Claude Code)
 - **Result:** 2 new tests in `Listings/GetListingsTests.cs`: three published listings priced 90, 10 and 40 (created in another order) → `?sort=price_asc` gives 10, 40, 90; `?sort=abc` → 400, `Listings.InvalidSort`, type `Validation`, the exact message. Both check the database count. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 442 unit, 13 ML, 223 integration.
 - **Problems seen:** none.
 - **Change to SKILL.md:** none after the run; v29 is the final version.
 - **Commits:** skill b5da1ba; generated code 2d27370
-
 
 ## code-review
 
@@ -1820,7 +2321,351 @@ Team final step: 100% coverage of the whole project in SonarCloud, not only of `
     - `ReservationExpiryServiceTests.cs`, CA1859: fixed by the skill (Run 22 of integration-testing).
     - Coverage: with the coverage of all test projects merged, the only lines left were the `Down()` methods of the EF Core migrations, which never run (the app only applies migrations). `**/Migrations/**` was added to `sonar.coverage.exclusions` in the CI, next to `Program.cs` and `ml/**`, and written in the README under "Coverage exclusions".
     - The SARIF logs still show CA1861 in two migrations; those files are generated by EF Core and Sonar does not report them.
-- **Commits:** code TODO; tests generated in TODO (see Run 22 of integration-testing)
+- **Commits:** code 977eaaf; tests generated in 80b724d (see Run 22 of integration-testing)
+
+## category-min-confidence
+
+Follow-up of the category suggestion (Run 18 of unit-testing and Run 17 of integration-testing). Small change written by Diana with Claude Code; the tests were generated with the unit-testing (Run 25) and integration-testing (Run 28) skills.
+
+### Run 1
+
+- **Prompt:** `Make SuggestCategoryResponse.Category nullable, add SuggestCategoryHandler.MinConfidence = 0.7 and return a null category when the confidence is below it; add the sections "Feature: Minimum category confidence (Diana)" to the two skills, a sentence in the README, then run the skills for that section and dotnet test.`
+- **Decisions:**
+    - The threshold lives in the handler (`MinConfidence`, public const), not in the model or the endpoint: the model keeps returning its best guess and the rule "is it sure enough" stays in one place that the tests can read.
+    - The confidence is always returned, also when the category is `null`, so a client can still see how unsure the model was. Exactly 0.7 counts as sure enough (`>=`).
+    - The endpoint and the route do not change; only the JSON field `category` can now be `null`.
+- **Result:** `SuggestCategoryResponse.Category` is `Category?`; the handler returns `null` below 0.7. Unit tests: one existing test raised from confidence 0.5 to 0.9 (nothing else changed in it), plus a `[Theory]` for 0.9 and exactly 0.7 and a test for 0.69 (`Category` null, `Confidence` 0.69). Integration tests: "Banana" gives 200 with `category` null and a confidence below 0.7; "Notite Analiza matematica, an I" gives 200 with `Notes`. README: the `SuggestCategory` row says `category` is null below 0.7. Build 0 errors, 0 warnings; all tests pass.
+- **Commits:** code 36cefd6; skill sections dc876be; tests generated in 020f950 (see Run 25 of unit-testing and Run 28 of integration-testing)
+
+## max-price
+
+Week 6, task 2 (maximum price). The production code is the one from the task list, applied by Diana Preutu with Claude Code; the tests were generated afterwards with the unit-testing (Run 26) and integration-testing (Run 29) skills.
+
+### Run 1
+
+- **Prompt:** `Do the whole task, exactly as written, then run the skills: replace Money.cs with the given code (MaxAmount = 100000, Money.TooHigh), add the Money.TooHigh row to the README error table, append the section "Feature: Maximum price (Diana)" to the unit-testing and integration-testing SKILL.md, then run both skills for that section, add only those tests and run dotnet test.`
+- **Decisions:**
+  - The limit is a constant on the value object, `Money.MaxAmount` = 100000, so `Listing.Create` and every other place that builds a price get the rule without any extra check.
+  - Exactly 100000 is allowed; above it the error is `Money.TooHigh` (Validation, 400), checked after `Money.Invalid`.
+- **Result:** `Domain/Listings/Money.cs`, README error table, the two skill sections. Tests generated: `MoneyTests` (exactly the maximum, maximum + 0.01), `ListingTests` (`Listing.Create` above the maximum), integration `CreateListingTests` (price 200000 → 400 `Money.TooHigh`, nothing saved). Build 0 errors; 435 unit, 220 integration, 10 architecture and 13 ML tests pass.
+- **Commits:** code eb8885b; skill sections 0d26845; tests generated in c989e44 (see Run 26 of unit-testing and Run 29 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `SonarCloud reports 80% coverage on new code for PR #82. Find out which new line or condition is not covered. Do NOT change any file, do NOT commit.` Then: `Do not add that test. Instead, in src/CampusMarket.Api/Domain/Listings/Money.cs change public const decimal MaxAmount = 100_000m; to public static readonly decimal MaxAmount = 100_000m; and add a short comment above it: a const decimal gets a static constructor that never runs, so the line stays uncovered. Run dotnet build and dotnet test, then run the tests with coverage like the CI and confirm every new line of Money.cs is covered.`
+- **Decisions:**
+  - The coverage reports of the CI command (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`) showed one uncovered new line: `public const decimal MaxAmount = 100_000m;`. The compiler gives a `const decimal` a static constructor, and every use of the constant is replaced by its value at compile time, so that constructor never runs, not even in the tests that use `Money.MaxAmount`.
+  - `static readonly` instead of `const`: the field is now read at run time by `Money.Create`, so the static constructor runs and the line is covered, without a test written only for coverage and without excluding the line in Sonar. The value, the name and every use stay the same (no test or other code needed a compile-time constant), and a comment above the field says why it is not `const`.
+- **Result:** `Money.MaxAmount` is `public static readonly decimal`. Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 222 integration tests pass. In both coverage reports of `CampusMarket.Api`, every sequence point and branch of `Money` is covered, including the static constructor (line 8, 1 visit) and both sides of `amount > MaxAmount`.
+- **Commits:** code 7e6a4c6
+
+## frontend-skeleton
+
+Weeks 6–7 (plan of Sara and Anca), Anca's first task: the skeleton of the web frontend, so Sara can start her pages. Written by Ancuța Ilenei with Claude Code; the CORS tests were generated with the integration-testing skill (Run 30).
+
+### Run 1
+
+- **Prompt:** `Do the frontend skeleton from the plan, completely and correctly: the frontend/ project (React + Vite + TypeScript), routing, the menu, the API client with the token and automatic refresh, the login page, CORS in the API.`
+- **Decisions:**
+    - React + Vite + TypeScript (chosen with Sara), React Router; no UI library and no state library, only what the skeleton needs.
+    - CORS policy `Frontend` with the origins from `Cors:AllowedOrigins` (`http://localhost:5173` in `appsettings.json`; the deployed address goes in `Cors__AllowedOrigins__0`). Any header and method, `Location` exposed, no credentials, because the token goes in the `Authorization` header and never in a cookie. `UseCors` is the first middleware, so 401/404/500 answers also carry the CORS header and the frontend can read the error.
+    - The origins are read with `GetChildren()` instead of `Get<string[]>() ?? []`, so there is no branch that the tests can never reach (Sonar coverage).
+    - API client (`frontend/src/api/client.ts`): adds the token, refreshes it 30 s before it expires and once more after a 401, then repeats the request. Requests that get a 401 together share one refresh, because the API rotates the refresh token and a second refresh with the old one would log the user out. A failed refresh clears the tokens; a network error does not.
+    - Both error shapes of the API (`{ code, message, type }` and ProblemDetails) become one `ApiError { status, code, message }`, so pages check only `code`.
+    - The tokens are kept in `localStorage`, so a page refresh keeps the user logged in, and other tabs follow a login or logout. The user (`id`, `email`, `role`) is read from the access token claims, only for the UI.
+    - So two people do not edit the same lines: `src/api/` and `src/app/` are Anca's; every feature has its folder `src/features/<feature>/` and a `routes.tsx`; `router.tsx` and `menu.ts` only get added lines. The login page lives in `src/app/pages/` (part of the skeleton), so `features/auth/` stays free for Sara (register, forgot password).
+    - `frontend/**` added to `sonar.coverage.exclusions` (TypeScript, outside the .NET coverage) and to `.dockerignore` (the API image does not need it).
+- **Checks:** `npm run build` (type check + build) and `npm run lint` with no errors. With the API running: CORS checked with curl (allowed preflight, other origin, 200, 401, 404, 201 with `Location`). The API client checked with a scratch script against the running API, 12 cases, all passed: wrong password → `Auth.InvalidCredentials`, login, the role read from the token, a broken token → one refresh and the request repeated, three parallel 401s → one refresh, a token about to expire → refresh before the request, an invalid refresh token → logged out, logout → the old refresh token is refused, a 404 → the code from the body.
+- **Result:** new `frontend/` (the skeleton, `README.md`, `.env.example`); `CampusMarketSetup.cs` (CORS policy), `Program.cs` (`UseCors`), `appsettings.json` (`Cors:AllowedOrigins`); README (how to run the frontend, CORS, tech stack, coverage exclusions); CI and `.dockerignore`. Build 0 warnings; 10 architecture, 454 unit, 13 ML and 235 integration tests pass. In the merged coverage every new line of `CampusMarketSetup.cs` is covered; the lines still uncovered are from the deploy and price feedback PRs (#95, #96).
+- **Commits:** code 5b3d6a9; tests generated in 820290e (see Run 30 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `Rearrange it so it looks much nicer: an interesting, well-made look that fits the idea of the app, something "wow".`
+- **Decisions:**
+    - One idea for the whole look: the campus notice board. Light theme = squared notebook paper, notes pinned with pushpins, yellow highlighter, ballpoint-blue accent; dark theme = a chalkboard with yellow chalk. The choice is saved in `localStorage` (system setting by default) and applied in `index.html` before the page paints, so it does not flash.
+    - Fonts from npm (`@fontsource`), not from a CDN: Bricolage Grotesque for titles, Inter for text, Caveat for the handwritten notes, all with the Romanian letters.
+    - A shared UI kit in `frontend/src/app/ui/` (Button, TextField, Card, PageHeader, Alert, Badge, EmptyState, Loading, Note, Pagination, icons, theme toggle, logo), so Sara's pages and Anca's pages look the same. Colours only through CSS variables in `index.css`.
+    - Top bar with logo, menu (active page underlined with the highlighter), theme button, account chip (initials, email, Admin badge, logout); on phones the menu folds into a burger. The phone menu closes on navigation by remembering the page where it was opened (no `setState` in an effect).
+    - Home page: hero, a cork board with four example notes (labelled "exemple", not real listings), the five categories as sticky notes, the three steps (publish, reserve, confirm the sale) and the three ML helpers (price, category, spam). The texts only describe what the API already does.
+    - Login: chalkboard on the left, form on the right, password show/hide. 404: a sticky note "pagina asta s-a vândut deja…".
+    - `prefers-reduced-motion` turns the animations off; visible focus ring; labels and `aria` on the icon buttons.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings. Screenshots with headless Chrome of the home page (light, dark, 500 px wide), the login page and the 404 page; two problems seen and fixed (one note covered the AI price of the next one; the ML section was too narrow in three columns).
+- **Result:** new `frontend/src/app/ui/` (components + `ui.css`), `layout.css`, `pages/home.css`, `login.css`, `not-found.css`, new favicon; `index.css`, `Layout.tsx`, `menu.ts` (the login button is now on the right, not in the menu), the three pages, `index.html`, `main.tsx` (fonts) and `frontend/README.md` (look and UI kit) changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 3
+
+- **Prompt:** `Make it look more professional, less like AI and simpler: well organised and structured, but simpler and clean.`
+- **Decisions:**
+    - The notice board look of Run 2 was dropped before any commit: no notebook grid, cork board, tilted notes, handwritten font or chalkboard. A neutral look instead: light grey background, white panels with a thin border, one blue accent, Inter only (the two decorative fonts were uninstalled). The dark theme is a plain dark grey.
+    - The UI kit keeps the same components and props, only their style is simpler; `Note` became `Chip` (categories and filters), the badge tone `marker` became `warning`.
+    - Home page: a short intro with the login button and the five categories, then "Cum funcționează" (three steps) and "Funcționalități" (price, category, anti-spam), as plain cards. Login: one centred card. 404: a short message and a link back.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots with headless Chrome of the home page (light, dark, 500 px wide) and the login page.
+- **Result:** `index.css`, `ui.css`, `layout.css`, the page styles and pages, `Logo.tsx`, `favicon.svg`, `Layout.tsx` (footer), `ui/Layout.tsx` (`Chip`), `main.tsx` (only Inter) and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 4
+
+- **Prompt:** `A bit nicer and better ordered, the text more centred, simple; colours white, cream, beige; for now not too many things, only what the task asked, and working as the task says.`
+- **Decisions:**
+    - Warm palette in the tokens of `index.css`: cream background, warm white panels, beige borders, caramel-brown accent; the dark theme uses the same warm tones. Logo and favicon follow the accent.
+    - The home page keeps only what the skeleton needs: a centred welcome, the login button, and after login who is logged in. The "how it works" and "features" sections were removed; the listings search replaces this page later.
+    - Footer is one centred line.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots (home light and dark, login, 500 px wide). The whole login flow driven in a headless Chrome through the DevTools protocol against the running API, 9 checks, all passed: wrong password → "Email sau parolă greșită.", login → home with the email and the Admin badge in the menu, tokens stored, still logged in after a page refresh, `/login` while logged in goes home, logout clears the user and the tokens, an unknown address shows the 404 page.
+- **Result:** `index.css`, `HomePage.tsx`, `home.css`, `layout.css`, `Layout.tsx` (footer), `Logo.tsx`, `favicon.svg`, `index.html` and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 5
+
+- **Prompt:** `The colours and the top bar are fine, but add something here so the home page looks a bit more professional.`
+- **Decisions:** the home page keeps the centred welcome and adds, in the same colours: a small label above the title, "CampusMarket" in the accent colour, a soft warm glow behind the title, the five categories as chips under the button, and one panel with three highlights (suggested price, automatic category, spam sent to moderation) that describe what the API already does.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings; screenshots of the home page (light, dark, 500 px wide).
+- **Follow-up:** `Remove the text under the title; the three highlights should not describe how the app works inside, only what the user gets.` The sentence under the title was removed and the highlights became user-facing: *Preț corect* (a price suggestion), *Rezervare simplă* (a colleague reserves, you confirm), *Doar între studenți* (buy and sell on campus); `HandshakeIcon` added to `Icons.tsx`.
+- **Follow-up 2:** `Remove the email and the Admin badge from the top bar.` The top bar keeps only the initials (the email shows on hover) and the logout button.
+- **Result:** `HomePage.tsx`, `home.css`, `Icons.tsx`, `Layout.tsx` and `layout.css` changed. No change in the API.
+- **Commits:** code 5b3d6a9
+
+### Run 6
+
+- **Prompt:** `Change it to the style Sara asked for in her conversations and that you see in the HTML (her page sketches), for my part of the task, and it must work correctly.`
+- **Decisions:**
+    - Sara's sketches (a Claude canvas exported to HTML) were rendered with headless Chrome and read page by page. Her final direction: white background, coral-red accent, Figtree, rounded corners, a coral wordmark, a top bar with the links on the right, a landing page with a big title on the left and a 2×2 photo collage on the right, a login page with the form on the left and a big picture on the right. The export shows only four pages correctly (home, explore, listing, publish); register, login and profile repeat the listing page.
+    - Only the parts of the sketches that belong to the skeleton and work today: the colours, the font, the top bar, the footer, the landing hero and the login layout. Left out until their pages exist: the search bar, "Vinde ceva", "Creează cont", "Ai uitat parola?", the listings grid, campus/faculty fields (not in the API).
+    - The collage tiles show four of the API categories, because listings have no photos yet; the login picture is a soft coral panel for the same reason.
+    - Tokens in `index.css` (light and dark), Figtree instead of Inter, buttons and inputs a bit taller and bolder as in the sketches, the secondary button outlined in dark.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings. Against the running API, in a headless Chrome driven through the DevTools protocol: wrong password → "Email sau parolă greșită.", login → home with the avatar, still logged in after reload, `/login` while logged in goes home, logout clears the tokens, unknown address → 404; all passed (one run hit the login rate limit of 5 per minute and was repeated a minute later). Screenshots of home (light, dark, logged in, 500 px) and login.
+- **Result:** `index.css`, `ui.css`, `layout.css`, `Logo.tsx`, `Layout.tsx` (footer), `HomePage.tsx`, `home.css`, `LoginPage.tsx`, `login.css`, `main.tsx`, `index.html`, `favicon.svg`, `package.json` (Figtree instead of Inter) and `frontend/README.md` changed. No change in the API.
+- **Commits:** code 5b4d094
+
+### Run 7
+
+- **Prompt:** `SonarCloud shows 1 new issue on PR #99: frontend/src/api/config.ts line 3, "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking."`
+- **Decision:** the regex `/\/+$/` (remove the slashes at the end of `VITE_API_URL`) was replaced by a small loop, `withoutTrailingSlashes`, that walks back from the end; same result, no regex, so nothing can backtrack.
+- **Checks:** `npm run build` and `npm run lint` with no errors or warnings.
+- **Commits:** code and this entry in the same commit (the one that changes `frontend/src/api/config.ts`)
+
+## health-checks
+
+Liveness and readiness endpoints for the container. The production code is the one from the task, applied by Diana Preutu with Claude Code; the tests were generated afterwards with the integration-testing skill (Run 31).
+
+### Run 1
+
+- **Prompt:** `Do the whole task, exactly as written: add MlModelsHealthCheck, tag the database and ML checks "ready", map /health/live (no checks) and /health/ready, add both to the README endpoints table and to the Postman Health folder, append the section "Feature: Live and ready health checks (Diana)" to the integration-testing SKILL.md, then run the skill for that section, add only those tests and run dotnet test. Do not commit, push or run coverage.`
+- **Decisions:**
+  - `/health/live` runs no checks (`Predicate = _ => false`), so it answers 200 as long as the process runs; `/health/ready` runs only the checks tagged `ready` (database and `ml-models`). `/health` is unchanged and still runs every check.
+  - `MlModelsHealthCheck` reads `MlOptions.ModelsPath` and checks that the three model files exist, the same names `AddCampusMarketMl` loads. The names and the options matched the code, so nothing was renamed.
+- **Result:** `Infrastructure/ML/MlModelsHealthCheck.cs` (new), `CampusMarketSetup.cs`, `Program.cs`, README endpoints table, two Postman requests ("Health live (200)", "Health ready (200)"), the skill section, and 4 integration tests (see Run 33 of integration-testing). Build 0 warnings, 0 errors; 10 architecture, 438 unit, 13 ML and 226 integration tests pass.
+- **Commits:** code ab246dd; skill section e90123a; tests generated in 341a311 (see Run 33 of integration-testing)
+
+## correlation-id
+
+Week 6, observability (correlation id). Small middleware written by Diana Preutu with Claude Code from the task list; the tests were generated afterwards with the integration-testing skill (Run 34). There are no unit tests: the class is only a middleware, covered by the integration tests.
+
+### Run 1
+
+- **Prompt:** `New task on branch feature/correlation-id. Do it exactly as written: add Infrastructure/Logging/CorrelationIdMiddleware.cs, register it first in Program.cs, turn on IncludeScopes for the console logs in appsettings.json, add a note to the README, append the section "Feature: Correlation id (Diana)" to the integration-testing SKILL.md, run the skill, run the tests with coverage and log the run in PROMPTS.md. Do NOT commit, do NOT push.`
+- **Decisions:**
+  - The id is taken from `X-Correlation-Id` when the client sends one (so a client or a gateway can follow a request through the logs), otherwise it is a new Guid. It is put in the response header and in a logging scope (`CorrelationId`), so every log line of the request has it.
+  - The middleware is the first one in `Program.cs`, before the exception handler and `UseStatusCodePages`, so 401, 403, 404 and 500 answers also have the header.
+  - `Logging:Console:IncludeScopes` is `true` in `appsettings.json`: without it the console provider does not print scopes and the id would be in no log line.
+  - The value from the client is used as it is (no length or format check), as the task asked.
+- **Result:** `Infrastructure/Logging/CorrelationIdMiddleware.cs`, two lines in `Program.cs`, `Logging:Console:IncludeScopes` in `appsettings.json`, a "Correlation id" note in the README, the skill section and 3 integration tests. Build 0 errors, 0 warnings; 438 unit and 225 integration tests pass. Coverage like the CI: every new line and branch in `src/` is covered (`Program.cs` is excluded from the Sonar coverage in the CI).
+- **Commits:** code 46c62dd; skill section 1de3dc2; tests generated in 873dccb (see Run 34 of integration-testing)
+
+## listings-cache
+
+Performance change on `GET /api/v1/listings`, written by Diana with Claude Code; the tests were generated afterwards with the integration-testing skill (Run 35). There are no unit tests: the endpoints are covered by the integration tests only.
+
+### Run 1
+
+- **Prompt:** `Cache GET /api/v1/listings for 30 seconds per query string with output caching, tagged "listings"; every endpoint that successfully changes a listing (create, update, delete, publish, reserve, cancel reservation, confirm sale, hide) clears the tag. Add a "Listings cache" note to the README and the section "Feature: Listings cache (Diana)" to the integration-testing skill, then run the skill and dotnet test.`
+- **Decisions:**
+    - Output caching (`AddOutputCache`, `UseOutputCache` after the rate limiter) with the tag `ListingsCache.Tag`, varied by every query parameter, so each search and page has its own entry. The endpoint is public, so no per-user variation is needed.
+    - The cache is cleared in the endpoints, after a successful command and before the success response, not in the handlers: handlers stay free of HTTP concerns and their unit tests do not change. Failure paths do not clear it, because nothing changed.
+    - `ReservationExpiryService` changes listings without an endpoint, so its changes can show up to 30 seconds late. Accepted and written in the README.
+    - `HideListingEndpoint` needed a `using CampusMarket.Api.Features.Listings` because it is in another namespace.
+- **Result:** `ListingsCache.cs` (new), `AddOutputCache` and `UseOutputCache`, `.CacheOutput(...)` on `GetListingsEndpoint`, `IOutputCacheStore` and `ListingsCache.ClearAsync` in eight endpoints. New `Listings/ListingsCacheTests.cs` (3): create and publish, update the title, and reserve, each after a cached search with the same query. Build 0 errors, 0 warnings. 222 integration tests pass; in the first full run `ReservationExpiryTests` failed once with `SQLite Error 5: database is locked`, and the integration tests then passed three times in a row.
+- **Problems seen:**
+    1. The first build failed: `HideListingEndpoint` could not see `ListingsCache` (missing `using`).
+    2. `ReservationExpiryTests.Given_JobOnWithExpiredAndValidReservations_...` failed once with a locked SQLite database; it passed in the three following runs and was not changed.
+- **Commits:** code f332e9d; skill section 030e958; tests generated in 9f480ad (see Run 35 of integration-testing)
+
+### Run 2
+
+- **Prompt:** `Sara's review on PR #84: the listings cache tests do not test the cache. ASP.NET Core output cache does not store responses to requests with an Authorization header, and the tests search after AuthenticateAs, so they would pass without ClearAsync.` Then: replace the section "Feature: Listings cache (Diana)" in the skill, run the skill, and check that removing a `ClearAsync` line makes a test fail.
+- **Decisions:**
+    - No change to production code. The cache works; the tests were wrong. The output cache skips requests with an `Authorization` header, so the searches now use a client without a token and only the changes are sent with one.
+    - A new test changes a listing directly in the database and checks that the same search still returns the old title: this proves the cache is used, which the other three tests can only show together with the clearing.
+    - Each test first evicts the tag from `IOutputCacheStore`, as the review asked, so the tests never depend on each other.
+    - The check was done with `UpdateListingEndpoint`: one endpoint is enough to show that the test fails when the clearing is missing.
+- **Result:** `ListingsCacheTests.cs` has 4 tests. Without `ListingsCache.ClearAsync` in `UpdateListingEndpoint`, the update test fails (3 pass); with the line back, all 4 pass. Full run: 10 architecture, 438 unit, 13 ML, 226 integration, 0 warnings. `src/` unchanged (the line was put back).
+- **Commits:** skill section a93eb36; tests regenerated in 8631881 (see Run 36 of integration-testing)
+
+## classification-report
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Cadrul de evaluare pentru clasificare": confusion matrix and macro-F1 for the category, precision / recall / F1 / PR-AUC for spam, and calibration for both, on the current data. Written by Ancuța Ilenei with Claude Code. The ML tests are written by hand, like the other tests in `CampusMarket.ML.Tests` (the test skills cover the API, not the training project).
+
+### Run 1
+
+- **Prompt:** `Do my next task from the plan: the evaluation framework for classification (Training/Evaluation/ClassificationReport.cs): confusion matrix and macro-F1 for the category, precision, recall, F1 and PR-AUC for spam, calibration (if the model says 90%, is it spam in ~90% of the cases?); it must work on the current data.`
+- **Decisions:**
+    - `ClassificationReport` works only on rows of (true label, predicted label, probability), with no ML.NET type, so it can be tested on small hand-made examples and reused on any data (the external set, the thresholds task, the model cards).
+    - Macro-F1 is the plain mean of the per-class F1, so a small class counts as much as a big one; a class that is neither in the data nor predicted is left out. Precision or recall with an empty denominator is 0.
+    - PR-AUC is computed as average precision: rows sorted by probability, precision added each time recall grows; rows with the same probability are taken together so their order does not change the result. Chosen over ROC-AUC for spam because spam is only 18 of the 711 test rows.
+    - Calibration: 10 equal bins over [0, 1], mean predicted probability against how often it was true, and ECE (weighted mean gap). For the category the probability is the one of the chosen class and "true" means the prediction was right; for spam it is P(spam) and "true" means the row is spam. Empty bins are kept in the data and skipped in the table.
+    - `CategoryTrainer.Report` and `SpamTrainer.Report` turn the scored test rows into a report; the trainers print it after the existing metrics and add `macroF1` and `ece` (category) and `prAuc` and `ece` (spam) to the `testMetrics` of the `.json` files. `check_metrics.py` only checks its known keys, so the new ones are informational.
+    - The models were retrained to get the numbers; every existing metric came out identical. The committed `.zip` files and the other metadata were kept and only the four new metrics were added to the two `.json` files: on Windows `listings.csv` is checked out with CRLF, so its SHA-256 differs from the one CI computes on Linux.
+- **Result:** new `Evaluation/ClassificationReport.cs`; `CategoryTrainer.cs` and `SpamTrainer.cs` (report, new metrics); `ml/models/category-classification.json` and `spam-detection.json` (four metrics); new `tests/CampusMarket.ML.Tests/ClassificationReportTests.cs` with 17 tests: the confusion matrix, per-class metrics, macro-F1, an unused label, an unknown label, multiclass calibration, binary counts, a higher threshold, average precision (worked example, perfect ranking, no positives, ties), calibration (worked example with ECE 0.2, no rows, zero bins), the Markdown tables, and two bars on the committed models: category macro-F1 at least 0.8 and ECE at most 0.1, spam PR-AUC at least 0.95. README: section "Classification report (category and spam)" with the last confusion matrix, per-class table and calibration, and the category and spam sections brought up to date (the old numbers and "seed 42, 20%" were from before dataset v2). Last run: category macro-F1 0.864, ECE 0.036; spam PR-AUC 1.000, ECE 0.007. Build 0 warnings; 10 architecture, 481 unit, 30 ML and 270 integration tests pass; the SARIF logs of the two ML projects have no finding in the new code.
+- **Problems seen:** none.
+- **Commits:** code and tests e33d9a9
+
+### Run 2
+
+- **Prompt:** `SonarCloud shows 1 new issue on PR #103: ClassificationReport.cs line 23, "Make this constructor private or simplify its parameters to not use multidimensional/jagged arrays."`
+- **Decision:** the public record `MulticlassReport` took the confusion matrix as `int[,]`. It is now `IReadOnlyList<IReadOnlyList<int>>` (one read-only list per true class); the 2D array stays only as a local variable while counting. Same values, same Markdown table.
+- **Result:** `ClassificationReport.cs` and the confusion matrix test (compares the rows in order). Build 0 warnings; the 30 ML tests pass.
+- **Commits:** code and this entry in the same commit (the one that changes `ClassificationReport.cs`)
+
+### Run 3
+
+- **Prompt:** `SonarCloud now shows 3 issues on PR #103, all on ClassificationReportTests.cs line 30: "Prefer 'static readonly' fields over constant array arguments if the called method is called repeatedly and is not mutating the passed array" (CA1861).`
+- **Decision:** the expected rows of the confusion matrix test moved to a `static readonly int[][] ExpectedConfusion` field. Run 2 was not checked with the SARIF build after the change; this time both ML projects were built with `-p:ErrorLog=...` and have no finding outside generated code.
+- **Result:** `ClassificationReportTests.cs` only; the 30 ML tests pass.
+- **Commits:** test and this entry in the same commit (the one that changes `ClassificationReportTests.cs`)
+
+## validation-thresholds
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Praguri alese pe validare": the category minimum confidence and the spam threshold chosen on the validation data and used by the API as settings, not numbers written in the code. Written by Ancuța Ilenei with Claude Code; the API tests were generated with the unit-testing (Run 28) and integration-testing (Run 38) skills, the ML tests written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task from the plan: thresholds chosen on validation. Category minimum confidence: below the threshold, category null. Spam threshold: a balance between spam let through and good listings blocked. The thresholds as settings, not numbers in the code (CategoryTrainer, SpamTrainer, SuggestCategoryHandler, SpamDetector).`
+- **Decisions:**
+    - `Evaluation/ThresholdSelection.cs` works on the prediction rows of `ClassificationReport` (the task builds on PR #103). Category: candidates 0.30–0.95 in steps of 0.05, the smallest threshold whose shown suggestions are right at least 90% of the time (smallest = most suggestions shown); none → the highest. Spam: candidates 0.05–0.95, the best F1; ties → the middle one, away from both edges. Only the validation part is used; test is measured once at the chosen value.
+    - Result: **category 0.60** (0.55 gives 89.2%, 0.60 gives 90.3% with 85.1% coverage; the old 0.7 hid 8 more points of suggestions for about 2 points of accuracy), **spam 0.40** (F1 1.000 from 0.15 to 0.65 on validation; the middle of that range). On test: 85.6% of listings get a category suggestion, right 91.1% of the time; spam precision, recall and F1 1.000 at 0.40.
+    - The trainers print the validation table, the test result and the line to copy into `appsettings.json`, and save the value under a new `"settings"` object of the model's `.json` (`ModelMetadata` writes it only when a model has settings, so the price file is unchanged); `accuracyAtMinConfidence`, `coverageAtMinConfidence` and `f1AtThreshold` were added to `testMetrics`.
+    - The validation scoring runs on its own `MLContext`: on the shared one, the extra components drew from its random generator and the category and spam models trained differently (log loss 0.471 instead of 0.473). With the separate context every metric is identical to main, so the committed `.zip` files were kept and only the new keys were added to the two `.json` files (the CSV hash differs on Windows because of CRLF).
+    - API: `CategorySuggestionOptions` (`Common/Categories/`, `Ml:Category:MinConfidence`) and `SpamDetectionOptions` (`Common/Moderation/`, `Ml:Spam:Threshold`), values in `appsettings.json`, both validated at startup (0–1, `ValidateOnStart`). `SuggestCategoryHandler` reads the first through `IOptions` (Features may not depend on Infrastructure, so the options live in `Common/`); `SpamDetector` decides spam as `Probability >= Threshold` instead of the model's built-in 0.5. The constant `SuggestCategoryHandler.MinConfidence` was removed.
+    - A hand-written ML test reads `appsettings.json` and the two model `.json` files and fails when the configured thresholds are not the ones chosen at training, so a retrain cannot silently leave old settings.
+    - Coverage: the two range checks share `IsProbability`, so the "too high" test of one setting and the "negative" test of the other cover both sides; `?? new MlOptions()` became `GetValue` with the default, because with an `Ml` section in `appsettings.json` its right side could never run.
+- **Checks:** "Banana" gets 0.41 from the real model, still below 0.60. Build 0 warnings; 10 architecture, 484 unit, 41 ML and 275 integration tests pass; SARIF logs of the API, the two ML projects and the unit and integration test projects empty; every new or changed line of the API covered in the merged coverage. The whole Postman collection with newman against a fresh database: 147 requests, 289 assertions, 0 failed.
+- **Result:** new `ml/.../Evaluation/ThresholdSelection.cs`; `CategoryTrainer.cs`, `SpamTrainer.cs`, `IModelTrainer.cs` (`Settings`), `ModelMetadata.cs` (`settings` object), `Program.cs`; `ml/models/category-classification.json` and `spam-detection.json`; new `Common/Categories/CategorySuggestionOptions.cs` and `Common/Moderation/SpamDetectionOptions.cs`; `SuggestCategoryHandler.cs`, `SuggestCategoryResponse.cs` (comment), `SpamDetector.cs`, `MlServiceCollectionExtensions.cs`, `appsettings.json`; new `tests/CampusMarket.ML.Tests/ThresholdSelectionTests.cs` (11 tests); README (endpoint table, moderation, section "Decision thresholds (chosen on validation)").
+- **Commits:** code ad48202; skill sections 2d54c3f; tests generated in 31f3668 (see Run 28 of unit-testing and Run 38 of integration-testing)
+
+## feature-weights
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Explicabilitate": the words that matter most for spam and for each category, as a table in the reports. Written by Ancuța Ilenei with Claude Code; the ML tests are written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task: explainability (Training/Evaluation/FeatureWeights.cs): the words that matter most for spam and for each category, a table in the reports; optionally in the API answer for spam.`
+- **Decisions:**
+    - Both classifiers are linear, so the explanation is their own weights, not an extra model: `MaximumEntropyModelParameters.GetWeights` for the category (one row per class, the class of each row is the matching slot name of the `Score` column) and `LinearBinaryModelParameters.Weights` for spam (positive towards spam, negative towards a normal listing). The feature names are the slot names of the `Features` column (`TitleFeatures.Word.notite`, `DescriptionFeatures.Word.la|0738`, `...Char.a|b|c`, `PriceFeatures`).
+    - Only the word features (single words and pairs) are listed, 10 per side; the groups of three letters are left out because nobody can read them; the price bins of the spam model are shown as one weight. Equal weights keep the slot order, so the tables do not change between runs.
+    - A freshly trained pipeline is a `TransformerChain<KeyToValueMappingTransformer>` while a loaded one is a `TransformerChain<ITransformer>`; the first version cast to the second and the training stopped with an `InvalidCastException` after the price model. The model is now read as a sequence of transformers, which works for both.
+    - The trainers print the tables after the report and the thresholds. Reading the weights and the schema does not touch the random generator of the shared `MLContext`: after the change every metric of the three models is identical to main (checked on freshly written `.json` files), so the committed models and metadata were kept unchanged.
+    - The optional part (the words in the API answer for spam) was not done: the API only has the prediction engine, not the weights, and the model card task can decide whether it is worth it.
+    - The README section says what the tables show, checked on the data: most words are the expected ones, the category model decides almost only from the title, "-" is the strongest Textbook word because 32% of the generated textbook titles are "Title - Author" (under 1% in the other categories), and spam is recognised from moving the talk elsewhere ("pe telegram", "link in", "suna", "scrie-mi"), which explains why the subtle spam of the external set is missed.
+- **Checks:** build 0 warnings; 10 architecture, 484 unit, 51 ML and 275 integration tests pass; the SARIF logs of the two ML projects have no finding.
+- **Result:** new `ml/.../Evaluation/FeatureWeights.cs`; `CategoryTrainer.cs` and `SpamTrainer.cs` (print the tables); new `tests/CampusMarket.ML.Tests/FeatureWeightsTests.cs` with 10 tests (reading a word, a pair, a letter group and the price feature; the highest and the lowest words; the count; equal weights; the length check; the Markdown tables; the committed category model has 10 positive words in decreasing order for each of the five categories, with "notite" for Notes and "manual" for Textbook; the committed spam model has 10 positive and 10 negative words, with "telegram" and "link" towards spam); README section "Explainability (which words matter)".
+- **Commits:** code and tests 031b583
+
+## model-cards
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Analiza erorilor + model cards": 10–20 wrong examples explained and one page per model (what it does, data, metrics, limits, when not to use it), in `docs/ml/category.md` and `docs/ml/spam.md`. Written by Ancuța Ilenei with Claude Code; the ML tests are written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task from week 2: error analysis + model cards. 10–20 wrong examples, explained. One page per model: what it does, data, metrics, limits, when it must not be used (docs/ml/category.md, docs/ml/spam.md).`
+- **Decisions:**
+    - The examples come from code, not from a one-off copy: `Evaluation/ErrorAnalysis.cs` lists the category mistakes with the highest confidence (the ones the API really shows) and, for spam at the chosen threshold, the normal listings flagged and the spam let through. The training program prints them for the test part and the external set after every retrain.
+    - Every explanation in the cards was checked on the data before writing it: the deliberate ~3% wrong labels of dataset v2 (`ml/data/README.md`) and how often the same title has each label (the Arduino kit is `LabEquipment` 11 times out of 12), the vocabulary of real notes ("grile", "materie", "sinteze" occur 0 times in `listings.csv`), "laptop" in 27 `Other` accessory titles, the dash artefact from the explainability task, and the `FeaturizeText` defaults (diacritics removed, punctuation kept glued to the word). Two first explanations were wrong and were corrected: "Lenovo is unknown" (it occurs 28 times, all `Electronics`) and "punctuation is dropped".
+    - Category: 8 of the 13 most confident test mistakes are deliberate wrong labels (the model is right), 3 sit between Textbook and Notes, 2 are real mistakes (LEDs, nitrile gloves). On the external set the gaps are the exam-preparation vocabulary of real notes and the dash artefact. At 0.60 the external set gets a suggestion for 64.7% of the listings, right 80.3% of the time (test: 85.6% and 91.1%).
+    - Spam: no mistake on the test part (saturated). External at 0.40: TP 10, FP 1, TN 101, FN 10 (precision 0.909, recall 0.500, PR-AUC 0.852); the flagged listing is a pair of hiking boots whose description contains "pe", the strongest spam word; the ten missed are scams that work through the payment (advance transfer, PayPal Friends & Family, crypto) and never ask to move the talk to another app. At 0.50 the boots would not be flagged; the card says the threshold should be chosen again on data that is not saturated.
+    - The card numbers come from the committed models (the ones the API serves). A spam model retrained on this machine has the same test metrics but gives the boots 0.45 instead of 0.42; a stale CRLF `listings.csv` in the working copy (checked out before `.gitattributes`) was suspected and fixed, but the difference stayed, so the card says the last digits can move after a retrain. The committed models and metadata are unchanged.
+- **Checks:** build 0 warnings; 10 architecture, 484 unit, 59 ML and 275 integration tests pass; the SARIF logs of the two ML projects have no finding; a full training run prints the same category lists as the cards and the same spam rows.
+- **Result:** new `docs/ml/category.md` and `docs/ml/spam.md`; new `ml/.../Evaluation/ErrorAnalysis.cs`; `Program.cs` (error analysis after the external evaluation, with the thresholds chosen at training); new `tests/CampusMarket.ML.Tests/ErrorAnalysisTests.cs` with 8 tests (only wrong predictions, most confident first; ties and count; flagged and missed spam split at the threshold, inclusive; a higher threshold; the Markdown tables and the empty case; pipes and long descriptions; ten wrong category predictions on the committed model; no spam mistake on the test part at 0.40); README links to both cards.
+- **Commits:** code, tests and docs 2696ed0
+
+## similar-listings
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Model nou: listări similare": `GET /api/v1/listings/{id}/similar` with 5 similar Active listings, evaluated by how many of the first 5 are of the same category, with the same structure as the other models (trainer, interface, implementation, endpoint, tests, `docs/ml/similar.md`). Written by Ancuța Ilenei with Claude Code; the API tests were generated with the unit-testing (Run 29) and integration-testing (Run 40) skills, the ML tests written by hand like the other `CampusMarket.ML.Tests`.
+
+### Run 1
+
+- **Prompt:** `Next task: new model, similar listings. GET /api/v1/listings/{id}/similar: 5 similar active listings. Evaluation: how many of the first 5 are of the same category. Same structure: trainer, interface, implementation, endpoint, tests (SimilarTrainer.cs, ISimilarListingsFinder.cs, Features/Listings/GetSimilarListings/, docs/ml/similar.md).`
+- **Decisions:**
+    - The model is a text-to-vector pipeline learnt on the train part: `FeaturizeText` on the title (and the description), concatenated, `NormalizeLpNorm` to unit length, so the dot product is the cosine similarity. There is no label: similarity is judged by the category of the closest listings. Non-spam rows only.
+    - Evaluation (`Evaluation/SimilarityEvaluation.cs`): precision@5 over sparse vectors (only the non-zero entries are compared). Listings with the same `TemplateId` are left out of each other's candidates: they are variations of the same item and would make the score trivial. The reference is the expected precision of 5 listings picked at random among the same candidates.
+    - Two variants chosen on validation: title only 0.597, title + description 0.672 (kept). Test: 0.668 against 0.202 for a random pick. The trainer runs after the other three, so it changes nothing in their training (their metrics are identical to main after the run; their committed files were kept), and writes the new `similar-listings.zip` and `.json`.
+    - API: `ISimilarListingsFinder` in `Common/Similarity/` returns one similarity per candidate; `SimilarListingsFinder` (Infrastructure/ML) gets the vectors from a `PredictionEnginePool<SimilarInput, SimilarVector>` and returns their dot product clamped to 0–1. The handler loads the target (any status, like `GET /listings/{id}`; unknown → 404 `Listing.NotFound`), takes every other Active listing, and keeps the five highest; ties by `CreatedAt` (newest first) then `Id`, the similarity rounded to two decimals. The ranking stays in the handler so it is unit tested without the model.
+    - The fourth model file is checked by the ready health check (`MlModelsHealthCheck`) and by the Docker build, like the other three; the csproj already copies every `ml/models/*.zip`.
+    - Postman: a `GetSimilarListings` folder (the published listing → at most 5, not itself, similarity 0–1 in decreasing order; a random id → 404), inserted as text so the rest of the collection keeps its formatting.
+- **Checks:** build 0 warnings; 10 architecture, 491 unit, 61 ML and 280 integration tests pass; the new code of the API covered in the merged coverage (the files still uncovered are from #95, #96 and the profile PR); SARIF logs of the API and the two ML projects empty; newman against a fresh database: 149 requests, 293 assertions, 0 failed.
+- **Result:** new `ml/.../SimilarTrainer.cs`, `ml/.../Evaluation/SimilarityEvaluation.cs`, `ml/models/similar-listings.zip` and `.json`; `Program.cs` (one line in the trainer list); new `Common/Similarity/ISimilarListingsFinder.cs`, `Infrastructure/ML/SimilarInput.cs`, `SimilarVector.cs`, `SimilarListingsFinder.cs`, `Features/Listings/GetSimilarListings/` (request, query, response, handler, endpoint); `ListingsEndpoints.cs`, `MlServiceCollectionExtensions.cs`, `MlModelsHealthCheck.cs`, `Dockerfile`; new `tests/CampusMarket.ML.Tests/SimilarListingsTests.cs` (10 tests: sparse vectors, dot and cosine, an empty vector, precision@k and the random pick on a worked example, items without candidates, the quality bar of the committed model, three hand-written pairs); new `docs/ml/similar.md`; README (endpoint, model section, Docker and ready check); Postman.
+- **Commits:** code 17bdcfc; skill sections 7cb4df8; tests generated in cfb9e5a (see Run 29 of unit-testing and Run 40 of integration-testing)
+
+## cors-render
+
+The deployed frontend (`https://campus-app-pucf.onrender.com`) could not read any answer of the deployed API (`https://campus-app-latest.onrender.com`): the API sent no `Access-Control-Allow-Origin` for that origin. Written by Ancuța Ilenei with Claude Code.
+
+### Run 1
+
+- **Prompt:** `Sara asked: add the frontend URL https://campus-app-pucf.onrender.com to the CORS origins, check AllowAnyHeader/AllowAnyMethod (and AllowCredentials if cookies are used) and that UseCors runs before UseAuthorization and the endpoints.`
+- **Decisions:** the policy already allowed any header and method, ran first in the pipeline and needed no credentials (the token goes in the `Authorization` header), so only the origin was missing. It is added to `Cors:AllowedOrigins` in `appsettings.json`, so it is deployed with the image and needs no setting in Render; `localhost:5173` stays for development. No new test: `CorsTests` already checks that the configured origins are allowed and the others are not.
+- **Checks:** against the deployed API, a request with the Render origin got no CORS header. Locally with the new config: preflight and GET from the Render origin and from `localhost:5173` get `Access-Control-Allow-Origin`, another origin does not; 275 integration tests pass.
+- **Result:** `appsettings.json` (the origin), README (the two places that list the allowed origins).
+- **Commits:** code add985e
+
+## conversations
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Mesaje între cumpărător și vânzător": a conversation about a listing, visible only to the two of them (another member → 403); send a message, read the messages, see my conversations. Written by Ancuța Ilenei with Claude Code; the tests were generated with the unit-testing (Run 30) and integration-testing (Run 41) skills. The chat page in the frontend comes in a separate PR.
+
+### Run 1
+
+- **Prompt:** `Next task from the plan: messages between buyer and seller. Conversation on a listing, visible only to the two (another member → 403). Send a message, see the messages, see my conversations. Domain/Conversations/, Features/Conversations/ (new).`
+- **Decisions:**
+    - Domain: `Conversation` (listing, seller, buyer, `CreatedAt`, `LastMessageAt`) owns its `Message`s, like `Listing` owns its reservations. The seller is taken from the listing, so a conversation has exactly two participants. `Start` refuses the seller's own listing and a listing that cannot be bought (only `Active` or `Reserved`); `Send` refuses anyone who is not one of the two (`ErrorType.Forbidden` → 403, an Admin too: the plan says only the two), an empty text and a text over 1000 characters (after trim).
+    - Each message has a `Number` (1, 2, 3…): the order stays the same when two messages have the same time, and the tests never depend on the clock.
+    - One conversation per buyer and listing (unique index). `POST /listings/{id}/conversations` adds the message to the existing conversation instead of answering 409, so the "write to the seller" button on the listing page works the same the first and the second time; the answer is always 201 with the message and `Location` to the conversation. An existing conversation keeps working after the listing is reserved or sold (to arrange the hand-over).
+    - `GET /members/me/conversations` lists the conversations as buyer and as seller, with the other member's name and the last message, the latest first; no paging (a student has few conversations).
+    - Cascade delete from the listing and from the two members, like reviews; no foreign key on the message sender (always one of the two).
+    - Migration `AddConversations` (two new tables only). #108 and #111 have migrations too: the PR merged last regenerates its migration.
+    - Postman: a `Conversations` folder (13 requests) that creates and publishes its own listing, so it does not depend on the state left by the other folders.
+- **Checks:** build 0 warnings; 10 architecture, 541 unit, 69 ML and 309 integration tests pass; the new code covered in the merged coverage (an unused `DbSet<Message>` was removed after the coverage run; `has-pending-model-changes` confirms the migration still matches); SARIF of the API: only CA1861 in the migrations, as in the older ones (Sonar leaves the migrations out); newman against a fresh database: 162 requests, 318 assertions, 0 failed; the whole flow tried by hand on a running API first.
+- **Result:** new `Domain/Conversations/` (`Conversation.cs`, `Message.cs`, `IConversationRepository.cs`), `Features/Conversations/` (four slices, `MessageResponse`, `SendMessageRequest`, `ConversationsEndpoints.cs`), `Infrastructure/Persistence/EfConversationRepository.cs`, `ConversationConfiguration.cs`, `MessageConfiguration.cs`, migration `AddConversations`; `CampusMarketDbContext.cs`, `CampusMarketSetup.cs` (repository and endpoints); README (use cases, endpoint table, a section); Postman.
+- **Commits:** code 0993bf8; skill sections 64131b7; tests generated in b9400fc (see Run 30 of unit-testing and Run 41 of integration-testing)
+
+## listing-photos
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Poze la listări": upload only jpg, png or webp, at most 2 MB, at most 5 per listing, only the seller; the files on disk (the Docker volume), only the name in the database. Written by Ancuța Ilenei with Claude Code; the tests were generated with the unit-testing (Run 31) and integration-testing (Run 42) skills. The photos on the listing page come with the frontend pages.
+
+### Run 1
+
+- **Prompt:** `Next task: photos on listings. Upload only jpg, png or webp, max 2 MB, max 5 per listing; only the seller. Files on disk (Docker volume), only the name in the database. Domain/Photos/, Features/Photos/, Common/Storage/IPhotoStorage.cs, Infrastructure/Storage/ (new).`
+- **Decisions:**
+    - The format is read from the first bytes of the file (`PhotoFormat.Detect`: JPEG `FF D8 FF`, PNG signature, WebP `RIFF…WEBP`), never from the file name or the content type the browser sends, which anyone can change. The stored name is `<photoId>.<ext>`, made by the domain, so a user-given name never reaches the disk.
+    - The endpoint reads at most 2 MB + 1 byte of the upload: one byte more is enough to answer `Photo.TooLarge`, and a big file is never held in memory.
+    - `Photo.Create` checks in this order: the seller (403), the 5-photo limit, empty, size, format. Any listing status (the seller can prepare a draft with photos).
+    - Storage: `IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`, one folder per listing (`<PhotosPath>/<listingId>/`), so deleting a listing removes all its files at once (`DeleteListingHandler` calls `DeleteListing` after the commit; the rows go by cascade). `Storage:PhotosPath` = `photos` locally (git-ignored), `/app/data/photos` in the Dockerfile, inside the volume of the database.
+    - Order of the writes: upload saves the file, then the row; delete removes the row, then the file. If the second step fails, an unused file is left, never a row without its file. `GET /photos/{id}` also answers 404 when the row exists but the file is missing.
+    - `GET /api/v1/photos/{id}` is public (an `<img src>` sends no token) with `Cache-Control: public, max-age=86400` (a photo never changes). `DELETE …/photos/{photoId}` was added so the seller can replace a photo once the 5 are used.
+    - The upload endpoint has `DisableAntiforgery()`: the token is in the `Authorization` header, no cookies.
+    - Migration `AddPhotos` (one new table).
+    - Postman: a `Photos` folder (11 requests) with a real 1×1 PNG in `postman/files/listing-photo.png` (path relative to the repository root, where newman is run).
+- **Checks:** build 0 warnings; 10 architecture, 581 unit, 69 ML and 338 integration tests pass; the new code covered in the merged coverage; SARIF of the API clean outside the migrations; newman against a fresh database: 173 requests, 338 assertions, 0 failed; the whole flow tried by hand on a running API (three formats, a GIF renamed `.png`, 2 MB + 1, the sixth photo, another member, delete, the folder gone with the listing, a JSON body → 415).
+- **Result:** new `Domain/Photos/` (`Photo.cs`, `PhotoFormat.cs`, `IPhotoRepository.cs`), `Common/Storage/` (`IPhotoStorage.cs`, `PhotoStorageOptions.cs`), `Infrastructure/Storage/LocalPhotoStorage.cs`, `Infrastructure/Persistence/EfPhotoRepository.cs`, `PhotoConfiguration.cs`, migration `AddPhotos`, `Features/Photos/` (four slices, `PhotoResponse`, `PhotosEndpoints.cs`); `DeleteListingHandler.cs`, `CampusMarketDbContext.cs`, `CampusMarketSetup.cs`, `Dockerfile`, `.gitignore`; README (use cases, endpoint table, a section, the Render note); Postman.
+- **Commits:** code f4520ff; skill sections 59b3660; tests generated in 237ab25 (see Run 31 of unit-testing and Run 42 of integration-testing)
+
+### Run 2 (merge with main after #108, #117, #119, #80)
+
+- **Prompt:** `#120 has conflicts after Sara's PRs went in; check everything that changed and make it all work.`
+- **Decisions:**
+    - Conflicts kept both sides (registrations, `DbSet`s, `.gitignore`, skills, Postman). The `AddPhotos` migration was regenerated on top of `AddPasswordResetTokens` from #108 (same content: one `Photos` table); `has-pending-model-changes` is clean.
+    - Compared with the main before these merges (`4568297`), some content was lost in earlier conflict resolutions and is put back unchanged: the "Feature: Similar listings (Anca)" sections of both test skills; unit-testing Runs 21–23 in this file (before "Skill update v25 → v26"); 11 Postman requests (filter by condition, public profile, my profile, health live/ready) with their folders; the `sellerId` line of "Create listing - valid" and the `sellerId`, `convListingId`, `conversationId` collection variables. Every Postman request of main is unchanged.
+- **Checks:** build 0 warnings; 10 architecture, 605 unit, 69 ML and 346 integration tests pass; newman against a fresh database: 175 requests, 342 assertions, 0 failed.
+- **Commits:** the merge commit of this run
 
 ## listings-sort
 

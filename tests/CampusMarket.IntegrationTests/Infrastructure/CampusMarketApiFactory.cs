@@ -18,12 +18,18 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
 
     public CampusMarketApiFactory() => _connection.Open();
 
+    // Uploaded photos go to a temp folder of this factory, never into the source tree.
+    public string PhotosPath { get; } = Path.Combine(Path.GetTempPath(), $"campusmarket-photos-{Guid.NewGuid()}");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseSetting("Storage:PhotosPath", PhotosPath);
         builder.UseSetting("Seed:AdminEmail", "");
         builder.UseSetting("Jwt:Key", TestTokens.Key);
         // The reservation expiry background service must not run during tests.
         builder.UseSetting("ReservationExpiry:Enabled", "false");
+        // Tests register many members; the real limit is tested on purpose in RegisterRateLimitTests.
+        builder.UseSetting("RateLimiting:RegisterPermitLimit", "1000");
         builder.ConfigureTestServices(services =>
         {
             // Remove the app's SQLite file registration, then use the open in-memory connection.
@@ -37,7 +43,12 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
 
-        if (disposing)
-            _connection.Dispose();
+        if (!disposing)
+            return;
+
+        _connection.Dispose();
+
+        if (Directory.Exists(PhotosPath))
+            Directory.Delete(PhotosPath, recursive: true);
     }
 }

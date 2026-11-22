@@ -1,6 +1,8 @@
+using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Domain.Photos;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Domain.Reviews;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +21,10 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<SaleRecord> SaleRecords => Set<SaleRecord>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<Photo> Photos => Set<Photo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -21,4 +21,7 @@ public sealed class ListingRow
 
     [LoadColumn(5)]
     public bool IsSpam { get; set; }
+
+    [LoadColumn(6)]
+    public string TemplateId { get; set; } = string.Empty;
 }

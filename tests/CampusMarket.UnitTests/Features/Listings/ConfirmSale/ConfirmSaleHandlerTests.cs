@@ -2,6 +2,7 @@ using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Features.Listings.ConfirmSale;
 using CampusMarket.UnitTests.Fakes;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CampusMarket.UnitTests.Features.Listings.ConfirmSale;
 
@@ -28,7 +29,7 @@ public class ConfirmSaleHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -48,7 +49,7 @@ public class ConfirmSaleHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var command = new ConfirmSaleCommand(listing.Id, reservation.Id, AdminId, true);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -68,7 +69,7 @@ public class ConfirmSaleHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var command = new ConfirmSaleCommand(listing.Id, reservation.Id, BuyerId, false);
         var statusBefore = listing.Status;
         var versionBefore = listing.Version;
@@ -93,7 +94,7 @@ public class ConfirmSaleHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var command = new ConfirmSaleCommand(listing.Id, reservation.Id, OtherMemberId, false);
         var statusBefore = listing.Status;
         var versionBefore = listing.Version;
@@ -116,7 +117,7 @@ public class ConfirmSaleHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var unknownListingId = Guid.NewGuid();
         var command = new ConfirmSaleCommand(unknownListingId, Guid.NewGuid(), SellerId, false);
 
@@ -135,7 +136,7 @@ public class ConfirmSaleHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var unknownListingId = Guid.NewGuid();
         var command = new ConfirmSaleCommand(unknownListingId, Guid.NewGuid(), OtherMemberId, false);
 
@@ -156,7 +157,7 @@ public class ConfirmSaleHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var command = new ConfirmSaleCommand(listing.Id, Guid.NewGuid(), SellerId, false);
         var statusBefore = listing.Status;
         var versionBefore = listing.Version;
@@ -180,7 +181,7 @@ public class ConfirmSaleHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(1)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
         var command = new ConfirmSaleCommand(listing.Id, Guid.NewGuid(), BuyerId, false);
         var statusBefore = listing.Status;
         var versionBefore = listing.Version;
@@ -204,7 +205,7 @@ public class ConfirmSaleHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new ConfirmSaleHandler(repository, unitOfWork, new FixedTimeProvider(Now.AddHours(48)));
+        var handler = new ConfirmSaleHandler(repository, new FakeSaleRecordRepository(), new FakePriceSuggester(), unitOfWork, new FixedTimeProvider(Now.AddHours(48)), NullLogger<ConfirmSaleHandler>.Instance);
         var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
         var statusBefore = listing.Status;
         var versionBefore = listing.Version;
@@ -220,5 +221,93 @@ public class ConfirmSaleHandlerTests
         reservation.Status.Should().Be(ReservationStatus.Active);
         unitOfWork.SaveCount.Should().Be(0);
         repository.UpdateCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_SuggesterReturns120_When_SellerConfirms_Then_SavesOneSaleRecord()
+    {
+        var (listing, reservation) = BuildReservedListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var saleRecords = new FakeSaleRecordRepository();
+        var suggester = new FakePriceSuggester { SuggestedPrice = 120 };
+        var handler = new ConfirmSaleHandler(repository, saleRecords, suggester, unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Sold);
+        unitOfWork.SaveCount.Should().Be(1);
+        saleRecords.Items.Should().HaveCount(1);
+        saleRecords.Items[0].ListingId.Should().Be(listing.Id);
+        saleRecords.Items[0].Category.Should().Be(Category.Textbook);
+        saleRecords.Items[0].Condition.Should().Be(Condition.Good);
+        saleRecords.Items[0].SuggestedPrice.Should().Be(120m);
+        saleRecords.Items[0].SoldPrice.Should().Be(25m);
+        saleRecords.Items[0].SoldAt.Should().Be(Now.AddHours(1));
+        suggester.LastTitle.Should().Be("Algebra book");
+        suggester.LastCategory.Should().Be(Category.Textbook);
+        suggester.LastCondition.Should().Be(Condition.Good);
+    }
+
+    [Fact]
+    public async Task Given_SuggesterThrows_When_SellerConfirms_Then_SaleSucceedsWithoutRecord()
+    {
+        var (listing, reservation) = BuildReservedListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var saleRecords = new FakeSaleRecordRepository();
+        var suggester = new FakePriceSuggester { ThrowOnSuggest = true };
+        var handler = new ConfirmSaleHandler(repository, saleRecords, suggester, unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Sold);
+        unitOfWork.SaveCount.Should().Be(1);
+        saleRecords.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_SuggesterReturnsZero_When_SellerConfirms_Then_SaleSucceedsWithoutRecord()
+    {
+        var (listing, reservation) = BuildReservedListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var saleRecords = new FakeSaleRecordRepository();
+        var suggester = new FakePriceSuggester { SuggestedPrice = 0 };
+        var handler = new ConfirmSaleHandler(repository, saleRecords, suggester, unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Sold);
+        unitOfWork.SaveCount.Should().Be(1);
+        saleRecords.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_BuyerConfirms_When_Confirming_Then_NoSaleRecordSaved()
+    {
+        var (listing, reservation) = BuildReservedListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var saleRecords = new FakeSaleRecordRepository();
+        var suggester = new FakePriceSuggester { SuggestedPrice = 120 };
+        var handler = new ConfirmSaleHandler(repository, saleRecords, suggester, unitOfWork, new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, BuyerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        saleRecords.Items.Should().BeEmpty();
+        suggester.CallCount.Should().Be(0);
     }
 }

@@ -7,6 +7,8 @@ public sealed class FakePriceSuggester : IPriceSuggester
 {
     public int SuggestedPrice { get; set; } = 123;
 
+    public bool ThrowOnSuggest { get; set; }
+
     public int CallCount { get; private set; }
 
     public string? LastTitle { get; private set; }
@@ -24,6 +26,8 @@ public sealed class FakePriceSuggester : IPriceSuggester
         LastDescription = description;
         LastCategory = category;
         LastCondition = condition;
+        if (ThrowOnSuggest)
+            throw new InvalidOperationException("Fake price suggester configured to throw.");
         return SuggestedPrice;
     }
 }
