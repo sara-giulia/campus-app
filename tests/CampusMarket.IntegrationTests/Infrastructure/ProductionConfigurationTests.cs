@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using CampusMarket.Api.Common.Email;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Features.Listings.GetListings;
+using CampusMarket.Api.Infrastructure.Mailing;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
@@ -125,6 +127,36 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Given_ProductionAndBrevoApiKey_When_Starting_Then_RegistersBrevoEmailSender()
+    {
+        // Arrange: Email__ApiKey wins over Email:Host, so BrevoEmailSender is registered
+        // (Render free blocks outbound SMTP ports).
+        const string variable = "Email__ApiKey";
+        var saved = Environment.GetEnvironmentVariable(variable);
+        Environment.SetEnvironmentVariable(variable, "brevo-prod-test-key");
+        try
+        {
+            await using var production = Factory.WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("Production");
+                builder.UseSetting("Jwt:Key", MakeTestJwtKey(LongEnoughJwtKeyLength));
+            });
+            var client = production.CreateClient();
+
+            // Act
+            var response = await client.GetAsync("/health");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            production.Services.GetRequiredService<IEmailSender>().Should().BeOfType<BrevoEmailSender>();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, saved);
+        }
     }
 
     [Fact]
