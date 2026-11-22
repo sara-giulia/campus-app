@@ -18,6 +18,8 @@ COPY --from=build /app .
 # The SQLite file lives in a folder the non-root user can write to
 RUN mkdir /app/data && chown $APP_UID /app/data
 ENV ConnectionStrings__CampusMarket="Data Source=/app/data/campusmarket.db"
+# The photo files next to the database, in the same volume
+ENV Storage__PhotosPath=/app/data/photos
 # Run as the non-root user that the .NET images provide
 USER $APP_UID
 EXPOSE 8080

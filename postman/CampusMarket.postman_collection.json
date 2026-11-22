@@ -6875,6 +6875,507 @@
       ]
     },
     {
+      "name": "Photos",
+      "item": [
+        {
+          "name": "Create a listing for the photos (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Calculator Casio fx-991\",\n  \"category\": \"Electronics\",\n  \"condition\": \"Good\",\n  \"price\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"photoListingId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload photo - seller, PNG (201 + Location)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "postman/files/listing-photo.png"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"PNG photo with its url\", () => {",
+                  "  pm.expect(body.contentType).to.eql(\"image/png\");",
+                  "  pm.expect(body.url).to.eql(\"/api/v1/photos/\" + body.id);",
+                  "});",
+                  "pm.test(\"Location points to the image\", () => pm.expect(pm.response.headers.get(\"Location\")).to.include(\"/api/v1/photos/\" + body.id));",
+                  "pm.collectionVariables.set(\"photoId\", body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload photo - second student (403)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "postman/files/listing-photo.png"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Error code is Photo.NotSeller\", () => pm.expect(pm.response.json().code).to.eql(\"Photo.NotSeller\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload photo - no file field (400)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "postman/files/listing-photo.png"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error code is Photo.Empty\", () => pm.expect(pm.response.json().code).to.eql(\"Photo.Empty\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload photo - JSON instead of a form (415)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file\": \"not an image\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 415\", () => pm.response.to.have.status(415));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listing photos - public (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"One photo\", () => {",
+                  "  pm.expect(pm.response.json().count).to.eql(1);",
+                  "  pm.expect(pm.response.json().items[0].id).to.eql(pm.collectionVariables.get(\"photoId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Photo file - public (200, image/png)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/photos/{{photoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "photos",
+                "{{photoId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"It is the PNG\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/png\"));",
+                  "pm.test(\"Cached for a day\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"max-age=86400\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Photo file - random id (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/photos/00000000-0000-0000-0000-000000000001",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "photos",
+                "00000000-0000-0000-0000-000000000001"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Error code is Photo.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Photo.NotFound\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete photo - second student (403)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos/{{photoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos",
+                "{{photoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Error code is Photo.NotSeller\", () => pm.expect(pm.response.json().code).to.eql(\"Photo.NotSeller\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete photo - seller (204)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos/{{photoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos",
+                "{{photoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Photo file - after delete (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/photos/{{photoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "photos",
+                "{{photoId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Admin",
       "item": [
         {
@@ -7029,6 +7530,14 @@
     },
     {
       "key": "conversationId",
+      "value": ""
+    },
+    {
+      "key": "photoListingId",
+      "value": ""
+    },
+    {
+      "key": "photoId",
       "value": ""
     }
   ]

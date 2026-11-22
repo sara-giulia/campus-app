@@ -273,6 +273,37 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
+            modelBuilder.Entity("CampusMarket.Api.Domain.Photos.Photo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ListingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId");
+
+                    b.ToTable("Photos", (string)null);
+                });
+
             modelBuilder.Entity("CampusMarket.Api.Domain.Reports.Report", b =>
                 {
                     b.Property<Guid>("Id")
@@ -390,6 +421,15 @@ namespace CampusMarket.Api.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
                         .WithMany("Reservations")
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CampusMarket.Api.Domain.Photos.Photo", b =>
+                {
+                    b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
+                        .WithMany()
                         .HasForeignKey("ListingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

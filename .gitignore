@@ -435,3 +435,6 @@ FodyWeavers.xsd
 *.db-wal
 
 StrykerOutput/
+
+# Photo files uploaded while running the API locally (Storage:PhotosPath)
+src/CampusMarket.Api/photos/

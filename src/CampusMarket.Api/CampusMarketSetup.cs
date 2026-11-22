@@ -20,6 +20,10 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
+using CampusMarket.Api.Domain.Photos;
+using CampusMarket.Api.Common.Storage;
+using CampusMarket.Api.Infrastructure.Storage;
+using CampusMarket.Api.Features.Photos;
 using CampusMarket.Api.Features.Conversations;
 using CampusMarket.Api.Features.Favorites;
 using CampusMarket.Api.Domain.Reports;
@@ -55,6 +59,9 @@ public static class CampusMarketSetup
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
         services.AddScoped<IConversationRepository, EfConversationRepository>();
+        services.AddScoped<IPhotoRepository, EfPhotoRepository>();
+        services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
+        services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -303,6 +310,7 @@ public static class CampusMarketSetup
         api.MapReviewsEndpoints();
         api.MapAdminEndpoints();
         api.MapConversationsEndpoints();
+        api.MapPhotosEndpoints();
 
         return app;
     }
