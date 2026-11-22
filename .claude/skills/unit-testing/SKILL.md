@@ -716,3 +716,27 @@ Tests to add:
 Rules for this feature:
 - `Options.Create` comes from `Microsoft.Extensions.Options`; never mock `IOptions`.
 - Never use real time.
+
+## Feature: Similar listings (Anca)
+
+Production code (read it before generating): `Features/Listings/GetSimilarListings/GetSimilarListingsHandler.cs`, a query handler with `IListingRepository` and `ISimilarListingsFinder` (`Common/Similarity/`, method `Similarities(ListingText target, IReadOnlyList<ListingText> candidates)` returning one similarity per candidate, in the same order). `GetSimilarListingsQuery.MaxResults` is 5.
+- Unknown id → `NotFound` `Listing.NotFound` (message `Listing '<id>' was not found.`); the finder is not called.
+- The target can have any status. The candidates are every `Active` listing except the target; when there is none, the result is an empty list and the finder is not called.
+- The finder gets the target's title and description and the candidates' titles and descriptions. The items are ordered by similarity (highest first), equal similarities by `CreatedAt` (newest first) then by `Id`; at most 5; each item has id, title, category, condition, price and the similarity rounded to two decimals (`MidpointRounding.AwayFromZero`).
+
+New fake: `Fakes/FakeSimilarListingsFinder.cs` implementing `ISimilarListingsFinder`: the test gives a similarity per candidate title (a dictionary; a title not in it gets 0); it records the call count, the last target and the last candidates.
+
+File: `Features/Listings/GetSimilarListings/GetSimilarListingsHandlerTests.cs` (new).
+
+Tests to add:
+- unknown id → `NotFound` `Listing.NotFound` with the exact message; finder call count 0.
+- the target is the only `Active` listing (the others are a draft, a reserved, a sold and a hidden listing) → success with an empty list; finder call count 0.
+- with a draft target and three `Active` listings → success; the finder got the target's title and description and exactly the three `Active` listings (never the target, never a non-`Active` one).
+- seven `Active` candidates with different similarities → five items, highest similarity first.
+- two candidates with the same similarity and different `CreatedAt` → the newer first; same similarity and same `CreatedAt` → the smaller `Id` first.
+- similarities 0.456 and 0.125 → 0.46 and 0.13 in the items; the item carries the candidate's id, title, category, condition and price.
+- the repository content is unchanged after every call.
+
+Rules for this feature:
+- Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
+- Build hidden, reserved and sold listings through the domain methods (`Publish`, `Reserve`, `ConfirmSale`, `Hide`), like the other handler tests.
