@@ -716,6 +716,31 @@ Tests to add:
 Rules for this feature:
 - `Options.Create` comes from `Microsoft.Extensions.Options`; never mock `IOptions`.
 - Never use real time.
+
+## Feature: Similar listings (Anca)
+
+Production code (read it before generating): `Features/Listings/GetSimilarListings/GetSimilarListingsHandler.cs`, a query handler with `IListingRepository` and `ISimilarListingsFinder` (`Common/Similarity/`, method `Similarities(ListingText target, IReadOnlyList<ListingText> candidates)` returning one similarity per candidate, in the same order). `GetSimilarListingsQuery.MaxResults` is 5.
+- Unknown id → `NotFound` `Listing.NotFound` (message `Listing '<id>' was not found.`); the finder is not called.
+- The target can have any status. The candidates are every `Active` listing except the target; when there is none, the result is an empty list and the finder is not called.
+- The finder gets the target's title and description and the candidates' titles and descriptions. The items are ordered by similarity (highest first), equal similarities by `CreatedAt` (newest first) then by `Id`; at most 5; each item has id, title, category, condition, price and the similarity rounded to two decimals (`MidpointRounding.AwayFromZero`).
+
+New fake: `Fakes/FakeSimilarListingsFinder.cs` implementing `ISimilarListingsFinder`: the test gives a similarity per candidate title (a dictionary; a title not in it gets 0); it records the call count, the last target and the last candidates.
+
+File: `Features/Listings/GetSimilarListings/GetSimilarListingsHandlerTests.cs` (new).
+
+Tests to add:
+- unknown id → `NotFound` `Listing.NotFound` with the exact message; finder call count 0.
+- the target is the only `Active` listing (the others are a draft, a reserved, a sold and a hidden listing) → success with an empty list; finder call count 0.
+- with a draft target and three `Active` listings → success; the finder got the target's title and description and exactly the three `Active` listings (never the target, never a non-`Active` one).
+- seven `Active` candidates with different similarities → five items, highest similarity first.
+- two candidates with the same similarity and different `CreatedAt` → the newer first; same similarity and same `CreatedAt` → the smaller `Id` first.
+- similarities 0.456 and 0.125 → 0.46 and 0.13 in the items; the item carries the candidate's id, title, category, condition and price.
+- the repository content is unchanged after every call.
+
+Rules for this feature:
+- Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
+- Build hidden, reserved and sold listings through the domain methods (`Publish`, `Reserve`, `ConfirmSale`, `Hide`), like the other handler tests.
+
 ## Feature: Password reset (Sara)
 
 Production code (written by hand, read it before generating):
@@ -758,6 +783,71 @@ Rules for this feature:
 - Never send a real email and never open an SMTP connection: the handler tests use `FakeEmailSender` and the `SmtpEmailSender` tests stop at what the class does without a server.
 - Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+
+## Feature: Conversations (Anca)
+
+Production code (read it before generating):
+- `Domain/Conversations/Conversation.cs`:
+    - `Conversation.Start(buyerId, listing, text, now)` checks, in this order: `Guid.Empty` → `Conversation.BuyerEmpty`; the buyer is the seller → `Conversation.OwnListing`; the listing is not `Active` or `Reserved` (draft, sold, hidden) → `Conversation.ListingNotAvailable`; then the errors of the first message (see `Send`). Otherwise a conversation with a new `Id`, `listing.Id`, `listing.SellerId`, the buyer, `CreatedAt` and `LastMessageAt` = `now`, and one message (number 1, from the buyer).
+    - `Send(senderId, text, now)` checks, in this order: the sender is neither the buyer nor the seller → `Conversation.NotParticipant` (`ErrorType.Forbidden`); the text is null, empty or blank → `Message.Empty`; longer than `Message.MaxTextLength` (1000) after trim → `Message.TooLong`. Otherwise it adds a message with a new `Id`, the conversation id, `Number` = count + 1, the sender, the **trimmed** text and `now`, sets `LastMessageAt` = `now` and returns the message. A failed `Send` changes nothing.
+    - `IsParticipant(memberId)`; `OtherParticipant(memberId)`: the buyer for the seller, the seller for anyone else.
+- `Domain/Conversations/IConversationRepository.cs`: `AddAsync`, `GetByIdAsync`, `GetByListingAndBuyerAsync(listingId, buyerId)`, `GetForMemberAsync(memberId)` (buyer or seller).
+- `Features/Conversations/StartConversation/`: `StartConversationCommand(BuyerId, ListingId, Text)`. Order: 404 `Listing.NotFound`, 404 `Member.NotFound`; if the buyer already has a conversation about this listing, the message is sent in it (`Send` errors), otherwise `Conversation.Start` (its errors) and `AddAsync`; then one `CommitAsync`. Returns `MessageResponse(ConversationId, Id, Number, SenderId, Text, SentAt)`.
+- `Features/Conversations/SendMessage/`: `SendMessageCommand(SenderId, ConversationId, Text)`. 404 `Conversation.NotFound`, then the `Send` errors, then one `CommitAsync`. Same `MessageResponse`.
+- `Features/Conversations/GetConversation/`: `GetConversationQuery(MemberId, ConversationId)`. 404 `Conversation.NotFound`; not the buyer or the seller → Forbidden `Conversation.NotParticipant` (message `Only the buyer and the seller can read this conversation.`). Returns the id, listing id and title, seller id and name, buyer id and name, `CreatedAt` and the messages ordered by `Number`.
+- `Features/Conversations/GetMyConversations/`: `GetMyConversationsQuery(MemberId)`. Every conversation where the member is the buyer or the seller; each item: id, listing id and title, the other member's id and name, the text, sender and time of the last message (highest `Number`), `LastMessageAt`, the message count; ordered by `LastMessageAt` descending, then by `Id`. `Count` = number of items. No conversation → empty list (the listing and member repositories are not needed).
+
+New fake `Fakes/FakeConversationRepository.cs`: a `List<Conversation>` exposed as `Items`; `AddAsync` stores; the three reads look in `Items` (`GetForMemberAsync` returns a snapshot with `ToList()`).
+
+Files: `Domain/Conversations/ConversationTests.cs`, `Features/Conversations/StartConversation/StartConversationHandlerTests.cs`, `Features/Conversations/SendMessage/SendMessageHandlerTests.cs`, `Features/Conversations/GetConversation/GetConversationHandlerTests.cs`, `Features/Conversations/GetMyConversations/GetMyConversationsHandlerTests.cs` (all new).
+
+Arrange: fixed, named ids `SellerId`, `BuyerId`, `OtherMemberId`; a published listing is `Listing.Create(SellerId, ...).Value` then `Publish()`; reserved, sold and hidden through the domain methods (`Reserve`, `ConfirmSale`, `Hide`). For the handlers the members must exist in `FakeMemberRepository` (create them with `Member.Create(...)` and use their `Id`s) and the listings in `FakeListingRepository`. `Now` is fixed and reaches the handlers through `FixedTimeProvider`; for later messages call `Send` with `Now.AddMinutes(...)`.
+
+Tests to add:
+- `Conversation.Start`: an active listing and `"  Mai e disponibil?  "` → success with a non-empty `Id`, `listing.Id`, `SellerId`, the buyer, `CreatedAt` and `LastMessageAt` = `Now`, one message with number 1, the buyer, `"Mai e disponibil?"`, `Now` and the conversation id; a reserved listing → success; a draft, a sold and a hidden listing → `Conversation.ListingNotAvailable`; the seller → `Conversation.OwnListing`; `Guid.Empty` → `Conversation.BuyerEmpty`; text `null`, `""`, `"   "` → `Message.Empty`; 1000 characters → success; 1001 → `Message.TooLong`. Order: `Guid.Empty` on a draft → `Conversation.BuyerEmpty`; the seller on a draft → `Conversation.OwnListing`; empty text on a draft → `Conversation.ListingNotAvailable`.
+- `Send`: the seller answers → number 2, `LastMessageAt` is the new time; the buyer again → number 3; another member → Forbidden `Conversation.NotParticipant`, still the same messages and `LastMessageAt`; empty and too long text → their errors, nothing added; another member with an empty text → `Conversation.NotParticipant`. `IsParticipant` true for the two, false for another member; `OtherParticipant` gives the buyer for the seller and the seller for the buyer.
+- `StartConversationHandler`: no conversation yet → the response (conversation id of the stored conversation, number 1, the buyer, the trimmed text, `Now`), one conversation in the fake, `SaveCount` 1; the buyer already has one → the message is added to it (number 2), still one conversation, `SaveCount` 1; the existing conversation's listing is now sold → the message is still sent; unknown listing → `Listing.NotFound`; unknown member → `Member.NotFound`; both unknown → `Listing.NotFound`; the seller → `Conversation.OwnListing`; a draft → `Conversation.ListingNotAvailable`; empty text, new and existing conversation → `Message.Empty`. In every failure `SaveCount` 0 and nothing new in the fake.
+- `SendMessageHandler`: the seller answers → the response (number 2, the seller, the trimmed text, `Now`), the message is in the stored conversation, `SaveCount` 1; unknown conversation → `Conversation.NotFound`; another member → Forbidden `Conversation.NotParticipant`; empty and too long → their errors. In every failure `SaveCount` 0 and no new message.
+- `GetConversationHandler`: as the buyer and as the seller → every field, messages in number order (seed three messages); another member → Forbidden `Conversation.NotParticipant`; unknown → `Conversation.NotFound`. The fakes are unchanged after every call.
+- `GetMyConversationsHandler`: a member with no conversation → empty list, `Count` 0; the seller with two conversations (two buyers, two listings) → both, the one with the latest message first, other member = the buyer, every field checked (last message text and sender, count); the buyer → other member = the seller; conversations of other members are not returned; two conversations with the same `LastMessageAt` → ordered by `Id`. The fakes are unchanged after every call.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the `Message.TooLong` message from `Message.MaxTextLength`.
+- Never use real time: `Now` is fixed.
+
+## Feature: Listing photos (Anca)
+
+Production code (read it before generating):
+- `Domain/Photos/PhotoFormat.cs`: `PhotoFormat.Detect(bytes)` → `PhotoFormat.Jpeg` (starts with `FF D8 FF`), `PhotoFormat.Png` (`89 50 4E 47 0D 0A 1A 0A`), `PhotoFormat.WebP` (`"RIFF"`, any 4 bytes, `"WEBP"`, so at least 12 bytes), otherwise `null`. Each format has `Extension` (`.jpg`, `.png`, `.webp`) and `ContentType` (`image/jpeg`, `image/png`, `image/webp`).
+- `Domain/Photos/Photo.cs`: `Photo.Create(uploaderId, listing, existingCount, content, createdAt)` checks, in this order: the uploader is not the seller → `Photo.NotSeller` (`ErrorType.Forbidden`); `existingCount` ≥ `Photo.MaxPerListing` (5) → `Photo.LimitReached`; empty content → `Photo.Empty`; more than `Photo.MaxSizeBytes` (2 MB = 2 097 152 bytes) → `Photo.TooLarge`; unknown format → `Photo.InvalidFormat`. Otherwise a photo with a new `Id`, `listing.Id`, `FileName` = `<Id><extension>`, the format's `ContentType`, `SizeBytes` = content length and `createdAt`. Any listing status is accepted.
+- `Common/Storage/IPhotoStorage.cs`: `SaveAsync(listingId, fileName, content)`, `OpenRead(listingId, fileName)` (null when missing), `Delete(listingId, fileName)`, `DeleteListing(listingId)`.
+- `Features/Photos/UploadPhoto/`: `UploadPhotoCommand(UploaderId, ListingId, Content)`. 404 `Listing.NotFound`, then the errors of `Photo.Create` (with the listing's current photo count), then the file is saved, the photo added and one `CommitAsync`. Returns `PhotoResponse(Id, ListingId, Url = "/api/v1/photos/<Id>", ContentType, SizeBytes, CreatedAt)`.
+- `Features/Photos/GetListingPhotos/`: 404 `Listing.NotFound`; the listing's photos ordered by `CreatedAt`, then `Id`; `Count`.
+- `Features/Photos/GetPhotoFile/`: 404 `Photo.NotFound` when the photo is unknown **or** its file is missing in the storage; otherwise `PhotoFile(Content, ContentType)`.
+- `Features/Photos/DeletePhoto/`: `DeletePhotoCommand(RequesterId, ListingId, PhotoId)`. 404 `Listing.NotFound`; not the seller → Forbidden `Photo.NotSeller`; unknown photo or a photo of another listing → 404 `Photo.NotFound`; then the photo is removed, one `CommitAsync`, then the file is deleted. Returns the photo id.
+- `Features/Listings/DeleteListing/DeleteListingHandler.cs`: has a new third constructor parameter `IPhotoStorage`; after a successful delete (after `CommitAsync`) it calls `DeleteListing(listing.Id)`; on a failure it does not.
+
+New fakes:
+- `Fakes/FakePhotoRepository.cs`: a `List<Photo>` exposed as `Items`; `AddAsync` stores; the reads look in `Items` (`GetByListingAsync` returns a snapshot with `ToList()`); `Delete` removes.
+- `Fakes/FakePhotoStorage.cs`: a dictionary `(listingId, fileName) → bytes` exposed as `Files`; `SaveAsync` stores, `OpenRead` returns a `MemoryStream` of the bytes or null, `Delete` removes the entry, `DeleteListing` removes every entry of the listing and records the id in `DeletedListings`.
+
+Files: `Domain/Photos/PhotoFormatTests.cs`, `Domain/Photos/PhotoTests.cs`, `Features/Photos/UploadPhoto/UploadPhotoHandlerTests.cs`, `Features/Photos/GetListingPhotos/GetListingPhotosHandlerTests.cs`, `Features/Photos/GetPhotoFile/GetPhotoFileHandlerTests.cs`, `Features/Photos/DeletePhoto/DeletePhotoHandlerTests.cs` (all new); `Features/Listings/DeleteListing/DeleteListingHandlerTests.cs` (change, see below).
+
+Arrange: fixed, named ids `SellerId`, `OtherMemberId`; a listing is `Listing.Create(SellerId, ...).Value`. Test images are byte arrays built from the signatures above followed by zeros (for example `[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, …]`); write them as `static readonly` fields. `Now` is fixed and reaches the handlers through `FixedTimeProvider`.
+
+Tests to add:
+- `PhotoFormat.Detect`: a JPEG, a PNG and a WebP start → the right format with its extension and content type; a GIF (`"GIF89a"`), random bytes, an empty array, only `"RIFF"` (4 bytes), `"RIFF"` + 4 bytes + `"WAVE"` → null; the first 2 bytes of a JPEG only → null.
+- `Photo.Create`: the seller with a PNG and 0 photos → success with every field (`FileName` = `<Id>.png`, `image/png`, the length, `Now`); a JPEG → `.jpg`, a WebP → `.webp`; another member → Forbidden `Photo.NotSeller`; `existingCount` 4 → success, 5 → `Photo.LimitReached`; empty → `Photo.Empty`; exactly `MaxSizeBytes` bytes (PNG start) → success; one byte more → `Photo.TooLarge`; a GIF → `Photo.InvalidFormat`. Order: another member with 5 photos → `Photo.NotSeller`; the seller with 5 photos and empty content → `Photo.LimitReached`; empty content can never be checked for its format → `Photo.Empty`. Two calls give two different `Id`s.
+- `UploadPhotoHandler`: success → the response (`Url` = `/api/v1/photos/<Id>`), one photo in the fake repository, the bytes in `FakePhotoStorage.Files` under `(listing.Id, FileName)`, `SaveCount` 1; the listing already has 5 photos in the fake → `Photo.LimitReached`; unknown listing → `Listing.NotFound`; another member → Forbidden `Photo.NotSeller`; a GIF → `Photo.InvalidFormat`. In every failure `SaveCount` 0, nothing in the repository and nothing in the storage.
+- `GetListingPhotosHandler`: three photos with different `CreatedAt` (seed them in the wrong order) → in `CreatedAt` order with every field; the same `CreatedAt` → by `Id`; photos of another listing are not returned; a listing with no photo → empty list, `Count` 0; unknown listing → `Listing.NotFound`. The fakes are unchanged.
+- `GetPhotoFileHandler`: a photo whose file is in the storage → the bytes (read the stream) and the content type; a photo whose file is not in the storage → `Photo.NotFound`; unknown id → `Photo.NotFound`.
+- `DeletePhotoHandler`: the seller → success with the photo id, the photo removed from the repository and its file from the storage, `SaveCount` 1, the other photos and files untouched; another member → Forbidden `Photo.NotSeller`; unknown listing → `Listing.NotFound`; unknown photo → `Photo.NotFound`; a photo of another listing of the same seller → `Photo.NotFound`. In every failure `SaveCount` 0 and nothing removed.
+- `DeleteListingHandlerTests` (change, keep every test and name): build the handler with a `FakePhotoStorage` as the third argument in every test; in the success test also check that `DeletedListings` contains the listing id; in every failure test check that `DeletedListings` is empty.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the messages from `Photo.MaxPerListing` and `Photo.MaxSizeBytes` the same way the domain does.
+- Never use real time: `Now` is fixed.
 
 
 ## Feature: Full coverage (Carina)

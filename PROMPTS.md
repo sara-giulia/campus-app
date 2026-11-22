@@ -696,6 +696,61 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md:** none after the run.
 - **Commits:** skill 4764342; generated code 1d76998
 
+### Run 21, skill v23 (Feature: Condition filter)
+
+- **Why a new version:** task 1 (issue #72). `GET /api/v1/listings` got an optional `condition` filter (`New`, `Good`, `Worn`); the new branch in `GetListingsHandler` had no tests.
+
+#### Change to SKILL.md (v22 → v23) and why
+
+| # | v22 (before) | v23 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the condition filter. | New section *"Feature: Condition filter (Carina)"*: the file and three tests (condition alone, condition with category, no condition). | Covers the new filter and proves that the default behaviour did not change. |
+| 2 | — | *"`Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument"*. | Existing tests build the query by position; if the parameter were in the middle, a literal `0` meant for `Page` would silently become `Condition.New`. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: Condition filter (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v23, commit 1be82be; section written and run by Carina Coman
+- **Result:** 3 new tests in `Features/Listings/GetListings/GetListingsHandlerTests.cs` (`Given_ListingsWithDifferentConditions_When_FilteringByCondition_Then_ReturnsOnlyThatCondition`, a test for `Category` and `Condition` together, `Given_NoConditionFilter_When_Handling_Then_ReturnsEveryActiveListing`); the 37 existing tests in the file are unchanged. Each test seeds its own `FakeListingRepository`, sets `Condition` with a named argument and checks that the repository still has its 3 items. 435/435 unit tests pass; coverage stays **100%**: 1026/1026 lines and 358/358 branches (`Domain/` 11 classes, handlers 30). The report in `coverage-report/` was generated again. Nothing changed in `src/`.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v23 is the final version.
+- **Commits:** skill 1be82be; generated code ab95b6d
+
+### Run 22, skill v24 (Feature: My profile)
+
+- **Why a new version:** task 10 (issue #76). New slices `GetMyProfile` (`GET /api/v1/members/me`) and `UpdateMyProfile` (`PUT /api/v1/members/me`, only the name changes) without tests.
+
+#### Change to SKILL.md (v23 → v24) and why
+
+| # | v23 (before) | v24 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the profile of the logged-in member. | New section *"Feature: My profile (Carina)"*: what each handler does, how to build the members (`Member.Register` with `FakePasswordHasher`, Student or Admin), and 6 tests. | Without it Claude would have to guess the order of the checks and what the response contains. |
+| 2 | — | *"`member.Update(command.Name, member.Email.Value)`, so only the name changes and the email stays the same"* + a test that checks the email after the update. | Proves that the profile update can never change the email. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests from the "Feature: My profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v24, commit f197c2c (numbered after the condition filter PR, #72, which makes v23); section written and run by Carina Coman
+- **Result:** 6 new tests in two new files: `Features/Members/GetMyProfile/GetMyProfileHandlerTests.cs` (a Student with its id, name, lower-case email, role and `CreatedAt`, the repository unchanged; an Admin → role `"Admin"`; unknown id → `Member.NotFound`) and `Features/Members/UpdateMyProfile/UpdateMyProfileHandlerTests.cs` (a valid name with spaces → trimmed, email unchanged, `UpdateCount` 1, `SaveCount` 1; a 1-character name → `Member.InvalidName`, name unchanged, `UpdateCount` 0, `SaveCount` 0; unknown id → `Member.NotFound`, `SaveCount` 0). Every error checks type, code and the exact message. No existing test, fake or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1045/1045 lines and 362/362 branches. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v24 is the final version.
+- **Commits:** skill f197c2c; generated code b9461db
+
+### Run 23, skill v25 (Feature: Public profile)
+
+- **Why a new version:** task 12 (issue #78). New query slice `GetPublicProfile` (`GET /api/v1/members/{id}/profile`): name, member since, average rating, review count and Active listings, without email or role. The handler had no tests.
+
+#### Change to SKILL.md (v24 → v25) and why
+
+| # | v24 (before) | v25 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the public profile. | New section *"Feature: Public profile (Carina)"*: what the handler returns, how to build Draft, Active and Sold listings and a review (`Publish`, `Reserve`, `ConfirmSale`, `Review.Create`), and 6 tests. | Building a review needs a sold listing with a completed reservation; without the steps Claude would have to guess them. |
+| 2 | — | *"reviews with ratings 5, 4 and 4 → `AverageRating` 4.33 (rounded to 2 decimals)"*. | Proves the rounding, not only an average that is already exact. |
+| 3 | — | *"If `FakeReviewRepository` already exists in `Fakes/`, use it as it is"*. | So the run does not write a second fake for the same interface. |
+
+- **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them and only add the tests (and the fake, if it is missing) from the "Feature: Public profile (Carina)" section. Follow the skill exactly, including the "Never do" list. Then run the tests with coverage, generate the HTML report as the skill says, and tell me the test results, the coverage for Domain/ and the handlers, and every file you changed.` (new session)
+- **Skill version:** v25, commit f4cb94c (numbered after the condition filter and my profile PRs, #72 and #76, which make v23 and v24); section written and run by Carina Coman
+- **Result:** one new file, `Features/Members/GetPublicProfile/GetPublicProfileHandlerTests.cs`, with the 6 tests of the section: 2 Active, 1 Draft and 1 Sold listing → only the 2 Active ones, newest first, with title and price (also the member's id, name and `MemberSince`); another seller's Active listing is not included; no reviews → `AverageRating` null, `ReviewCount` 0; ratings 5 and 4 → 4.5 and 2; ratings 5, 4 and 4 → 4.33; unknown id → `Member.NotFound`. The existing `FakeReviewRepository` was used, so no fake changed. No existing test or file in `src/` changed. 438/438 unit tests pass; coverage stays **100%**: 1044/1044 lines, 362/362 branches, 167/167 methods. The report in `coverage-report/` was generated again.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v25 is the final version.
+- **Commits:** skill f4cb94c; generated code 155cf71
+
 ### Skill update v25 → v26 (coverage-report is local only)
 
 - **Numbering:** numbered after #73, #77 and #79, which make unit-testing v23, v24 and v25, so those three PRs keep their numbers.
@@ -820,44 +875,61 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 64131b7; generated code b9400fc
 
-### Run 31, skill v33 (Feature: Full coverage)
+### Run 31, skill v33 (Feature: Listing photos)
 
-- **Why a new version:** issue #121 (100% coverage in SonarQube, every mutant killed). The `changeResult.IsFailure` branch of `ResetPasswordHandler` (lines 48–49) was not reached by any unit test: `FakePasswordHasher` never returns an empty hash, so `Member.ChangePassword` never failed.
+- **Why a new version:** new domain `Photos` (`Photo`, `PhotoFormat`), four new handlers (upload, list, get the file, delete) and `DeleteListingHandler` now takes an `IPhotoStorage`, so its tests no longer compiled.
 
 #### Change to SKILL.md (v32 → v33) and why
 
 | # | v32 (before) | v33 (after) | Why |
 |---|---|---|---|
-| 1 | Nothing about the `Member.ChangePassword` failure in `ResetPasswordHandler`. | New section *"Feature: Full coverage (Carina)"*: a private `EmptyHashPasswordHasher` in `ResetPasswordHandlerTests.cs` (`Hash` returns `""`, `Verify` returns `true`, the same rule as in `ChangePasswordHandlerTests`), the handler built directly (the `BuildHandler` helper takes a `FakePasswordHasher` and stays unchanged), and one test: `Member.PasswordRequired` with the exact message, hash unchanged, reset token not used, refresh token not revoked, no `Update` on any repository, `SaveCount` 0, no email. | The handler returns before `MarkUsed`, the refresh revocation, the `Update` calls, `CommitAsync` and the email; the test checks exactly that, so the branch is covered and its early return is asserted. |
+| 1 | Nothing about photos. | New section *"Feature: Listing photos (Anca)"*: the format detection by the first bytes, the rules of `Photo.Create` in their order (seller, 5 photos, empty, 2 MB, format), the four handlers, two new fakes (`FakePhotoRepository`, `FakePhotoStorage`) and the change to `DeleteListingHandlerTests` (the storage as third argument, the folder removed only after a successful delete). | The limits and the format check are the core of the task and are tested without a disk. |
 
-- **Prompt:** `/unit-testing Task: issue #121 "Coverage 100% in SonarQube and all mutants killed". Scope for this run: ResetPasswordHandler only. 1. First update .claude/skills/unit-testing/SKILL.md: add a section "Feature: Full coverage (Carina)" and bump the version from v32 to v33. The section must say: ResetPasswordHandler must also be tested when Member.ChangePassword fails (a password hasher that returns an empty hash, like the existing EmptyHashPasswordHasher rule) -> Validation failure Member.PasswordRequired; assert what the handler actually does in this case (check the code: token not marked as used, no commit, etc.). Commit only SKILL.md with the message "skills: unit-testing full coverage section (v33) (#121)". 2. Following the skill, write the unit tests for this case. Run the unit tests and coverage exactly as the skill says. ResetPasswordHandler.cs must have 100% line and branch coverage. 3. Add Run 31 to PROMPTS.md under unit-testing, in exactly the same format as Run 30 (skill version v32 -> v33, change table, prompt, result, problems, commit hashes, no TODO). 4. Restore coverage-report and delete TestResults so they are not committed. Then commit only the test files and PROMPTS.md with the message "test: unit tests for reset password empty hash, Run 31 (#121)". 5. Show me git log --oneline -4, git status, and the coverage of ResetPasswordHandler.cs.`
-- **Skill version:** v33, commit 3859f09 (section written by Carina with Claude Code)
-- **Result:** one new test in `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs`, `Given_HasherReturnsEmptyHash_When_Handling_Then_ReturnsPasswordRequiredAndChangesNothing`, with a private `EmptyHashPasswordHasher`; the existing tests and the `BuildHandler` helper are unchanged. 566 unit tests pass; `ResetPasswordHandler` 42/42 lines and 18/18 branches (100%).
-- **Problems seen:**
-    1. `SKILL.md` has no version line: the version lives only in this file, so the bump to v33 is the new section plus this entry.
-    2. Not from this section: the sections *"Feature: Similar listings (Anca)"* and *"Feature: Conversations (Anca)"* (v31 and v32, commits 7cb4df8 and 64131b7) are no longer in `SKILL.md`; they were dropped in the merge a5e2569. Left for the owner of those sections.
-    3. The `ConfirmSaleHandler` lines 72–75 (#96) noted in Runs 28–30 were removed from the production code in commit d000b76 (#121), so the gap is gone.
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Listing photos (Anca)": the new fakes, the new test files and the change to DeleteListingHandlerTests, only what it lists. Build and test the unit test project, check the coverage of Domain/ and the handlers and the SARIF log. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v33, commit 59b3660 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** two new fakes, `PhotoFormatTests` (9), `PhotoTests` (13) and one file per handler (18); the five `DeleteListingHandlerTests` kept, now also checking the photo folder. 581 unit tests pass; `Photo`, `PhotoFormat`, the four handlers and `DeleteListingHandler` at 100% lines and branches; SARIF log empty.
+- **Problems seen:** the run rewrote `DeleteListingHandlerTests.cs` with CRLF line endings; put back to LF by hand (no content change). One "order" case of the section was the same as the empty-content case, so it is one test.
 - **Change to SKILL.md after the run:** none.
-- **Commits:** skill 3859f09; generated code and this entry in the same commit (the one that changes `ResetPasswordHandlerTests.cs`)
+- **Commits:** skill 59b3660; generated code 237ab25
 
-### Run 32, skill v34 (Feature: Full coverage, surviving mutants)
+### Run 32, skill v34 (Feature: Full coverage)
 
-- **Why a new version:** issue #121 (100% coverage in SonarQube, every mutant killed). Stryker in `tests/CampusMarket.UnitTests` ended at 97.83% (812 killed, 18 survived): email bodies checked only with `Contain`, missing `Update` calls, `< limit` boundaries, `OrderBy`/`ThenBy` tie-breakers, `[LoggerMessage]` calls hidden by `NullLogger`, and two equivalent mutants (`Message.cs`, `Review.cs`). The section *"Feature: Surviving mutants (Diana)"* also said production code never changes, which contradicted marking the new equivalent mutants.
+- **Why a new version:** issue #121 (100% coverage in SonarQube, every mutant killed). The `changeResult.IsFailure` branch of `ResetPasswordHandler` (lines 48–49) was not reached by any unit test: `FakePasswordHasher` never returns an empty hash, so `Member.ChangePassword` never failed.
 
 #### Change to SKILL.md (v33 → v34) and why
 
 | # | v33 (before) | v34 (after) | Why |
 |---|---|---|---|
+| 1 | Nothing about the `Member.ChangePassword` failure in `ResetPasswordHandler`. | New section *"Feature: Full coverage (Carina)"*: a private `EmptyHashPasswordHasher` in `ResetPasswordHandlerTests.cs` (`Hash` returns `""`, `Verify` returns `true`, the same rule as in `ChangePasswordHandlerTests`), the handler built directly (the `BuildHandler` helper takes a `FakePasswordHasher` and stays unchanged), and one test: `Member.PasswordRequired` with the exact message, hash unchanged, reset token not used, refresh token not revoked, no `Update` on any repository, `SaveCount` 0, no email. | The handler returns before `MarkUsed`, the refresh revocation, the `Update` calls, `CommitAsync` and the email; the test checks exactly that, so the branch is covered and its early return is asserted. |
+
+- **Prompt:** `/unit-testing Task: issue #121 "Coverage 100% in SonarQube and all mutants killed". Scope for this run: ResetPasswordHandler only. 1. First update .claude/skills/unit-testing/SKILL.md: add a section "Feature: Full coverage (Carina)" and bump the version from v32 to v33. The section must say: ResetPasswordHandler must also be tested when Member.ChangePassword fails (a password hasher that returns an empty hash, like the existing EmptyHashPasswordHasher rule) -> Validation failure Member.PasswordRequired; assert what the handler actually does in this case (check the code: token not marked as used, no commit, etc.). Commit only SKILL.md with the message "skills: unit-testing full coverage section (v33) (#121)". 2. Following the skill, write the unit tests for this case. Run the unit tests and coverage exactly as the skill says. ResetPasswordHandler.cs must have 100% line and branch coverage. 3. Add Run 31 to PROMPTS.md under unit-testing, in exactly the same format as Run 30 (skill version v32 -> v33, change table, prompt, result, problems, commit hashes, no TODO). 4. Restore coverage-report and delete TestResults so they are not committed. Then commit only the test files and PROMPTS.md with the message "test: unit tests for reset password empty hash, Run 31 (#121)". 5. Show me git log --oneline -4, git status, and the coverage of ResetPasswordHandler.cs.`
+- **Skill version:** v34, commit 3859f09 (section written by Carina with Claude Code; renumbered from v33 when main was merged, because #120 (listing photos) makes v33)
+- **Result:** one new test in `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs`, `Given_HasherReturnsEmptyHash_When_Handling_Then_ReturnsPasswordRequiredAndChangesNothing`, with a private `EmptyHashPasswordHasher`; the existing tests and the `BuildHandler` helper are unchanged. 566 unit tests pass; `ResetPasswordHandler` 42/42 lines and 18/18 branches (100%).
+- **Problems seen:**
+    1. `SKILL.md` has no version line: the version lives only in this file, so the bump to v34 is the new section plus this entry.
+    2. Not from this section: the sections *"Feature: Similar listings (Anca)"* and *"Feature: Conversations (Anca)"* (v31 and v32, commits 7cb4df8 and 64131b7) are no longer in `SKILL.md`; they were dropped in the merge a5e2569. Left for the owner of those sections.
+    3. The `ConfirmSaleHandler` lines 72–75 (#96) noted in Runs 28–30 were removed from the production code in commit d000b76 (#121), so the gap is gone.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 3859f09; generated code and this entry in the same commit (the one that changes `ResetPasswordHandlerTests.cs`)
+
+### Run 33, skill v35 (Feature: Full coverage, surviving mutants)
+
+- **Why a new version:** issue #121 (100% coverage in SonarQube, every mutant killed). Stryker in `tests/CampusMarket.UnitTests` ended at 97.83% (812 killed, 18 survived): email bodies checked only with `Contain`, missing `Update` calls, `< limit` boundaries, `OrderBy`/`ThenBy` tie-breakers, `[LoggerMessage]` calls hidden by `NullLogger`, and two equivalent mutants (`Message.cs`, `Review.cs`). The section *"Feature: Surviving mutants (Diana)"* also said production code never changes, which contradicted marking the new equivalent mutants.
+
+#### Change to SKILL.md (v34 → v35) and why
+
+| # | v34 (before) | v35 (after) | Why |
+|---|---|---|---|
 | 1 | *"Feature: Full coverage (Carina)"* covers only the empty-hash branch of `ResetPasswordHandler`. | New subsection *"Surviving mutants of issue #121"* with six rules: equivalent mutants get `// Stryker disable once <Mutator> : <reason>` in `src/` (new ones: `Message.cs` `Text = string.Empty`, `Review.cs` `First` vs `FirstOrDefault`); a test at exactly the limit for every `< limit` check (`ResetPasswordHandler` 8 characters, `PageSize` 1 in `GetReportedListingsHandler` and `GetMemberReviewsHandler`); exact ordering tests with ties (same `SoldAt` in `PriceAccuracyHandler`, same `CreatedAt` in `GetPublicProfileHandler`, and the `PerCategory` order); `UpdateCount` on every fake the handler updates; emails asserted on the full exact `Body`; `[LoggerMessage]` logs asserted with a hand-written `FakeLogger<T>` (`IsEnabled` true, `Log` stores level and message). | Each rule kills one family of the 18 surviving mutants; written as general rules so the next handler is tested the same way. |
 | 2 | *"Feature: Surviving mutants (Diana)"*: "Production code does not change", point 6 lists only `Listing.cs` and `Member.cs`, rule "Never change production code". | The same section allows the `// Stryker disable once` comment for a mutant no test can kill and points to the new equivalent mutants in *"Feature: Full coverage (Carina)"*. | The two sections no longer contradict each other. |
 
 - **Prompt:** `/unit-testing Task: issue #121 "Coverage 100% in SonarQube and all mutants killed". Scope for this run: the 18 surviving mutants from the Stryker report you just analysed (#1-#18). 1. Update .claude/skills/unit-testing/SKILL.md: extend the section "Feature: Full coverage (Carina)" with the rules needed for these mutants, and update "Feature: Surviving mutants" so it no longer contradicts them: - equivalent mutants (only when no test can kill them) get a "// Stryker disable once <Mutator> : <reason>" comment in src, like Listing.cs and Member.cs; list Message.cs (Text = string.Empty) and Review.cs (First vs FirstOrDefault, Sold listing always has a Completed reservation) as the new equivalent mutants; - boundary tests for "< limit" checks (exact limit must succeed); - exact ordering tests with ties (same SoldAt / same CreatedAt) for OrderBy/ThenBy; - success tests assert UpdateCount on every fake repository that the handler updates; - emails are asserted on the full exact Body, not only Contain; - logs from [LoggerMessage] are asserted with a hand-written FakeLogger<T> (IsEnabled returns true, Log stores level and message). This is skill version v34 (recorded only in PROMPTS.md). Commit only SKILL.md with the message "skills: unit-testing surviving mutants rules (v34) (#121)". 2. Add only the two "// Stryker disable once" comments in src/CampusMarket.Api/Domain/Conversations/Message.cs and src/CampusMarket.Api/Domain/Reviews/Review.cs. No other change in src. Commit only these two files with the message "chore: mark equivalent mutants in Message and Review (#121)". 3. Following the skill, write the tests that kill mutants #3-#18. Run the unit tests, then run dotnet stryker in tests/CampusMarket.UnitTests. The final mutation score must be 100%. If a mutant still survives, stop and tell me why instead of forcing it. 4. Run dotnet build and dotnet test for the whole solution with coverage like the CI does: everything must pass and the 7 files from Run 42 must still be at 100% line and branch coverage. 5. Add Run 32 to PROMPTS.md under unit-testing, in exactly the same format as Run 31 (v33 -> v34, change table, prompt, result, problems, commit hashes, no TODO). Mention the Stryker score before (97.83%) and after. 6. Restore coverage-report, delete TestResults and make sure StrykerOutput/mutation-report are not committed. Commit only the test files and PROMPTS.md with the message "test: kill surviving mutants, Run 32 (#121)". 7. Show me git log --oneline -9, git status, and the final Stryker score line.`
-- **Skill version:** v34, commit 4a22915 (section written by Carina with Claude Code); the two `// Stryker disable once` comments in commit 481d4ae
-- **Result:** new `Fakes/FakeLogger.cs`; 9 new tests: `PriceAccuracyHandlerTests` (2: `PerCategory` order, same `SoldAt` ordered by `Id` descending), `ResetPasswordHandlerTests` (1: new password of exactly `RegisterHandler.MinPasswordLength`), `GetPublicProfileHandlerTests` (1: same `CreatedAt` ordered by `Id`), `GetReportedListingsHandlerTests` and `GetMemberReviewsHandlerTests` (1 each: `PageSize` 1), `ConfirmSaleHandlerTests` (3: the two warnings with their exact messages, and no log on a positive suggestion). Assertions added to two existing tests, names unchanged: the full `Body` in the success tests of `ForgotPasswordHandler` and `ResetPasswordHandler`, and `UpdateCount` 1 on `members`, `tokens` and `refreshTokens` in the `ResetPasswordHandler` one. 575 unit tests pass. Stryker: **97.83% before → 100.00% after** (1172 mutants: 828 killed, 0 survived, 47 compile errors, 297 ignored, including the two new equivalent mutants). Full run with coverage as in the CI: build 0 warnings; 10 architecture, 575 unit, 69 ML, 328 integration tests pass. The 7 files from Run 42 stay at 100% lines and branches (`PriceAccuracyEndpoint.cs` 9/9, `EfSaleRecordRepository.cs` 3/3, `UpdateMyProfileEndpoint.cs` 13/13 and 4/4, `CampusMarketSetup.cs` 200/200 and 54/54, `SmtpEmailSender.cs` 18/18 and 2/2, `ConfirmSaleHandler.cs` 43/43 and 10/10, `ResetPasswordHandler.cs` 42/42 and 18/18).
+- **Skill version:** v35, commit 4a22915 (section written by Carina with Claude Code; renumbered from v34 when main was merged, because #120 (listing photos) makes v33); the two `// Stryker disable once` comments in commit 481d4ae
+- **Result:** new `Fakes/FakeLogger.cs`; 9 new tests: `PriceAccuracyHandlerTests` (2: `PerCategory` order, same `SoldAt` ordered by `Id` descending), `ResetPasswordHandlerTests` (1: new password of exactly `RegisterHandler.MinPasswordLength`), `GetPublicProfileHandlerTests` (1: same `CreatedAt` ordered by `Id`), `GetReportedListingsHandlerTests` and `GetMemberReviewsHandlerTests` (1 each: `PageSize` 1), `ConfirmSaleHandlerTests` (3: the two warnings with their exact messages, and no log on a positive suggestion). Assertions added to two existing tests, names unchanged: the full `Body` in the success tests of `ForgotPasswordHandler` and `ResetPasswordHandler`, and `UpdateCount` 1 on `members`, `tokens` and `refreshTokens` in the `ResetPasswordHandler` one. 575 unit tests pass. Stryker: **97.83% before → 100.00% after** (1172 mutants: 828 killed, 0 survived, 47 compile errors, 297 ignored, including the two new equivalent mutants). Full run with coverage as in the CI: build 0 warnings; 10 architecture, 575 unit, 69 ML, 328 integration tests pass. The 7 files from Run 43 of integration-testing stay at 100% lines and branches (`PriceAccuracyEndpoint.cs` 9/9, `EfSaleRecordRepository.cs` 3/3, `UpdateMyProfileEndpoint.cs` 13/13 and 4/4, `CampusMarketSetup.cs` 200/200 and 54/54, `SmtpEmailSender.cs` 18/18 and 2/2, `ConfirmSaleHandler.cs` 43/43 and 10/10, `ResetPasswordHandler.cs` 42/42 and 18/18).
 - **Problems seen:**
     1. The report was not in `tests/CampusMarket.UnitTests/mutation-report/` as the analysis prompt said, but in `StrykerOutput/<date>/reports/mutation-report.json` (ignored by `.gitignore`). The tracked `mutation-report/mutation-report.html` at the repository root was left unchanged.
     2. Domain/ and the handlers from the unit tests alone: 1507/1508 lines and 480/480 branches. The missing line is the private constructor of `Message`, used only by EF Core, as already noted in Run 30; the integration tests cover it.
-    3. `SKILL.md` has no version line: the version lives only in this file, as in Run 31.
+    3. `SKILL.md` has no version line: the version lives only in this file, as in Run 32.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 4a22915; `src/` comments 481d4ae; generated code and this entry in the same commit (the one that adds `Fakes/FakeLogger.cs`)
 
@@ -1613,22 +1685,39 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 64131b7; generated code b9400fc
 
-### Run 42, skill v41 (Feature: Full coverage)
+### Run 42, skill v41 (Feature: Listing photos)
 
-- **Why a new version:** issue #121 (100% coverage in SonarQube, every mutant killed). After all four test projects ran, the coverage analysis still showed gaps in five files: `PriceAccuracyEndpoint.cs` (the whole `Handle`, no test called the endpoint as Admin), `EfSaleRecordRepository.GetAllAsync`, the 404 branch of `UpdateMyProfileEndpoint.cs`, `CampusMarketSetup.cs` (the IP branch of the `register` policy, a `Jwt:Key` of only spaces, the demo seed on a database that already has a member, and `TrySeedDemoMember` when `Member.Register` fails) and `SmtpEmailSender.cs` (the credentials branch and the end of `SendAsync`; Sara chose option (a), a local fake SMTP server).
+- **Why a new version:** four new endpoints (upload with `multipart/form-data`, list, the image, delete), files written on disk and the photo folder removed when a listing is deleted.
 
 #### Change to SKILL.md (v40 → v41) and why
 
 | # | v40 (before) | v41 (after) | Why |
 |---|---|---|---|
+| 1 | Nothing about photos. | New section *"Feature: Listing photos (Anca)"*: the endpoint table, a temporary photos folder per test factory (`Factory.PhotosPath`, deleted on dispose, never the source tree), how to upload with `MultipartFormDataContent`, and the tests: the three formats, a renamed GIF, exactly 2 MB and one byte more, no file, the sixth photo, 403/404/401/415, the image bytes and headers, a row whose file is missing, deleting one photo, and the folder removed with the listing. | Only real HTTP calls show the form binding, the 415, the `Location` and the files on disk. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Listing photos (Anca)": the change to CampusMarketApiFactory and the four new files under Photos/ with only the tests it lists. Build, run the integration tests three times and the whole solution once, section 10, the SARIF check, and check that no photos folder was created in the repository. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v41, commit 59b3660 (section written by Ancuța Ilenei with Claude Code; run in a new session)
+- **Result:** `CampusMarketApiFactory` with its own temporary `PhotosPath`; `Photos/UploadPhotoTests.cs` (13 cases), `GetListingPhotosTests.cs` (4), `GetPhotoFileTests.cs` (3), `DeletePhotoTests.cs` (9). Integration tests 338/338 three times; full run 10 architecture, 581 unit, 69 ML, 338 integration; SARIF log empty; no photos folder in the repository or left in the temp folder.
+- **Problems seen:** the 415 answer has `code` `Server.Error`, because the status-code mapping has no case for 415 (the same for every endpoint, not only photos); the test checks the status and the ProblemDetails shape, not the code. "Delete, then GET → 404" became its own test (one HTTP call per Act).
+- **Change to SKILL.md after the run:** none.
+- **Commits:** skill 59b3660; generated code 237ab25
+
+### Run 43, skill v42 (Feature: Full coverage)
+
+- **Why a new version:** issue #121 (100% coverage in SonarQube, every mutant killed). After all four test projects ran, the coverage analysis still showed gaps in five files: `PriceAccuracyEndpoint.cs` (the whole `Handle`, no test called the endpoint as Admin), `EfSaleRecordRepository.GetAllAsync`, the 404 branch of `UpdateMyProfileEndpoint.cs`, `CampusMarketSetup.cs` (the IP branch of the `register` policy, a `Jwt:Key` of only spaces, the demo seed on a database that already has a member, and `TrySeedDemoMember` when `Member.Register` fails) and `SmtpEmailSender.cs` (the credentials branch and the end of `SendAsync`; Sara chose option (a), a local fake SMTP server).
+
+#### Change to SKILL.md (v41 → v42) and why
+
+| # | v41 (before) | v42 (after) | Why |
+|---|---|---|---|
 | 1 | Nothing about these gaps; section 7 forbids starting a server on a port, and "Feature: Password reset (Sara)" forbids opening an SMTP connection. | New section *"Feature: Full coverage (Carina)"*: the production code of each gap and the tests: `Admin/PriceAccuracyTests.cs` (Admin with two seeded `SaleRecord`s → 200 with `count`, `mae`, `mape`, `perCategory` and `lastRecords`; student → 403; no token → 401), the unknown member on `PUT /members/me` → 404, two register rate limit tests with `TestRemoteIpStartupFilter`, three `ProductionConfigurationTests` (`Jwt:Key` of spaces, demo seed with a member already there, demo seed with `EmptyHashPasswordHasher`), and `SmtpEmailSenderTests` with a new `FakeSmtpServer` (`TcpListener` on `127.0.0.1`, port 0, plain-text SMTP with `AUTH LOGIN`). The two rules get an explicit, narrow exception for the fake SMTP server only; the tests that set `Email__Username` and `Email__Password` run in a collection with `DisableParallelization = true` and restore the variables in `Dispose`. | Every gap is behaviour that only shows through the real host, the real database or a real SMTP dialog; the exception is limited to a loopback fake so no test can reach a real mail server. |
 
 - **Prompt:** `/integration-testing Task: issue #121 "Coverage 100% in SonarQube and all mutants killed". Scope for this run: the integration cases from the coverage analysis, plus SmtpEmailSender (Sara chose option (a): a local fake SMTP server). 1. Update .claude/skills/integration-testing/SKILL.md: add a section "Feature: Full coverage (Carina)" describing these cases (v41 is recorded only in PROMPTS.md): a. GET /api/v1/admin/ml/price-accuracy as Admin with at least one SaleRecord seeded in the database -> 200 and the body matches the seeded data (covers PriceAccuracyEndpoint and EfSaleRecordRepository.GetAllAsync). Also non-admin -> 403 and no token -> 401. b. PUT /api/v1/members/me authenticated as a member id that does not exist in the database -> 404 Member.NotFound. c. Register rate limit with the X-Test-Remote-Ip header (TestRemoteIpStartupFilter), so the IP branch of the "register" policy is used. d. Production environment with Jwt:Key = "   " (only spaces) -> InvalidOperationException at startup. e. Seed:DemoData=true when the database already contains a member -> no demo listings are added. f. Seed:DemoData=true with a valid Seed:DemoPassword and EmptyHashPasswordHasher -> assert what CampusMarketSetup actually does at line 299 (member creation fails, returns null). g. SmtpEmailSender with a local fake SMTP server (TcpListener on a free port, answers the basic SMTP commands): a successful send reaches the end of the method, and a send with Email__Username set covers the credentials branch. Tests that set environment variables must not run in parallel with other tests and must restore the variables afterwards. Commit only SKILL.md with the message "skills: integration-testing full coverage section (v41) (#121)". 2. Following the skill, write the integration tests. Run all tests with coverage like the CI does. PriceAccuracyEndpoint.cs, EfSaleRecordRepository.cs, UpdateMyProfileEndpoint.cs, CampusMarketSetup.cs, SmtpEmailSender.cs, ConfirmSaleHandler.cs and ResetPasswordHandler.cs must all reach 100% line and branch coverage. If something still cannot be covered, stop and tell me why instead of forcing it. 3. Add Run 42 to PROMPTS.md under integration-testing, in exactly the same format as Run 41 (v40 -> v41, change table, prompt, result, problems, commit hashes, no TODO). 4. Restore coverage-report and delete TestResults. Commit only the test files and PROMPTS.md with the message "test: integration tests for full coverage, Run 42 (#121)". 5. Show me git log --oneline -6, git status, and the coverage percentage (line and branch) for each of the 7 files above.`
-- **Skill version:** v41, commit 095d3e7 (section written by Carina with Claude Code)
+- **Skill version:** v42, commit 095d3e7 (section written by Carina with Claude Code; renumbered from v41 when main was merged, because #120 (listing photos) makes v41)
 - **Result:** new `Admin/PriceAccuracyTests.cs` (3), `Infrastructure/FakeSmtpServer.cs` and `Infrastructure/SmtpEmailSenderTests.cs` (2); added to `Members/MyProfileTests.cs` (1), `Auth/RegisterRateLimitTests.cs` (2) and `Infrastructure/ProductionConfigurationTests.cs` (3): 11 new tests. Integration tests 328/328 three times; full run with coverage as in the CI: 10 architecture, 566 unit, 69 ML, 328 integration; build 0 warnings; SARIF log empty. Coverage (all test projects merged): `PriceAccuracyEndpoint.cs` 9/9 lines, `EfSaleRecordRepository.cs` 3/3 lines, `UpdateMyProfileEndpoint.cs` 13/13 lines and 4/4 branches, `CampusMarketSetup.cs` 200/200 lines and 54/54 branches, `SmtpEmailSender.cs` 18/18 lines and 2/2 branches, `ConfirmSaleHandler.cs` 43/43 lines and 10/10 branches, `ResetPasswordHandler.cs` 42/42 lines and 18/18 branches: 100% for all seven.
 - **Problems seen:**
-    1. `ConfirmSaleHandler.cs` and `ResetPasswordHandler.cs` were already at 100% before this run (commit d000b76 removed the unreachable `SaleRecord` check; Run 31 of unit-testing, commit 9f34b37, covered the empty-hash branch), so no integration test was needed for them.
-    2. Not from this section: the sections *"Feature: Similar listings (Anca)"* and *"Feature: Conversations (Anca)"* (v39 and v40, commits 7cb4df8 and 64131b7) are no longer in `SKILL.md`; they were dropped in the merge a5e2569, as in the unit-testing skill (Run 31). Left for the owner of those sections.
+    1. `ConfirmSaleHandler.cs` and `ResetPasswordHandler.cs` were already at 100% before this run (commit d000b76 removed the unreachable `SaleRecord` check; Run 32 of unit-testing, commit 9f34b37, covered the empty-hash branch), so no integration test was needed for them.
+    2. Not from this section: the sections *"Feature: Similar listings (Anca)"* and *"Feature: Conversations (Anca)"* (v39 and v40, commits 7cb4df8 and 64131b7) are no longer in `SKILL.md`; they were dropped in the merge a5e2569, as in the unit-testing skill (Run 32). Left for the owner of those sections.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 095d3e7; generated code and this entry in the same commit (the one that adds `Admin/PriceAccuracyTests.cs`)
 
@@ -2573,3 +2662,34 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Mesaje între cumpărător și
 - **Checks:** build 0 warnings; 10 architecture, 541 unit, 69 ML and 309 integration tests pass; the new code covered in the merged coverage (an unused `DbSet<Message>` was removed after the coverage run; `has-pending-model-changes` confirms the migration still matches); SARIF of the API: only CA1861 in the migrations, as in the older ones (Sonar leaves the migrations out); newman against a fresh database: 162 requests, 318 assertions, 0 failed; the whole flow tried by hand on a running API first.
 - **Result:** new `Domain/Conversations/` (`Conversation.cs`, `Message.cs`, `IConversationRepository.cs`), `Features/Conversations/` (four slices, `MessageResponse`, `SendMessageRequest`, `ConversationsEndpoints.cs`), `Infrastructure/Persistence/EfConversationRepository.cs`, `ConversationConfiguration.cs`, `MessageConfiguration.cs`, migration `AddConversations`; `CampusMarketDbContext.cs`, `CampusMarketSetup.cs` (repository and endpoints); README (use cases, endpoint table, a section); Postman.
 - **Commits:** code 0993bf8; skill sections 64131b7; tests generated in b9400fc (see Run 30 of unit-testing and Run 41 of integration-testing)
+
+## listing-photos
+
+Weeks 6–7 (plan of Sara and Anca), Anca's task "Poze la listări": upload only jpg, png or webp, at most 2 MB, at most 5 per listing, only the seller; the files on disk (the Docker volume), only the name in the database. Written by Ancuța Ilenei with Claude Code; the tests were generated with the unit-testing (Run 31) and integration-testing (Run 42) skills. The photos on the listing page come with the frontend pages.
+
+### Run 1
+
+- **Prompt:** `Next task: photos on listings. Upload only jpg, png or webp, max 2 MB, max 5 per listing; only the seller. Files on disk (Docker volume), only the name in the database. Domain/Photos/, Features/Photos/, Common/Storage/IPhotoStorage.cs, Infrastructure/Storage/ (new).`
+- **Decisions:**
+    - The format is read from the first bytes of the file (`PhotoFormat.Detect`: JPEG `FF D8 FF`, PNG signature, WebP `RIFF…WEBP`), never from the file name or the content type the browser sends, which anyone can change. The stored name is `<photoId>.<ext>`, made by the domain, so a user-given name never reaches the disk.
+    - The endpoint reads at most 2 MB + 1 byte of the upload: one byte more is enough to answer `Photo.TooLarge`, and a big file is never held in memory.
+    - `Photo.Create` checks in this order: the seller (403), the 5-photo limit, empty, size, format. Any listing status (the seller can prepare a draft with photos).
+    - Storage: `IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`, one folder per listing (`<PhotosPath>/<listingId>/`), so deleting a listing removes all its files at once (`DeleteListingHandler` calls `DeleteListing` after the commit; the rows go by cascade). `Storage:PhotosPath` = `photos` locally (git-ignored), `/app/data/photos` in the Dockerfile, inside the volume of the database.
+    - Order of the writes: upload saves the file, then the row; delete removes the row, then the file. If the second step fails, an unused file is left, never a row without its file. `GET /photos/{id}` also answers 404 when the row exists but the file is missing.
+    - `GET /api/v1/photos/{id}` is public (an `<img src>` sends no token) with `Cache-Control: public, max-age=86400` (a photo never changes). `DELETE …/photos/{photoId}` was added so the seller can replace a photo once the 5 are used.
+    - The upload endpoint has `DisableAntiforgery()`: the token is in the `Authorization` header, no cookies.
+    - Migration `AddPhotos` (one new table).
+    - Postman: a `Photos` folder (11 requests) with a real 1×1 PNG in `postman/files/listing-photo.png` (path relative to the repository root, where newman is run).
+- **Checks:** build 0 warnings; 10 architecture, 581 unit, 69 ML and 338 integration tests pass; the new code covered in the merged coverage; SARIF of the API clean outside the migrations; newman against a fresh database: 173 requests, 338 assertions, 0 failed; the whole flow tried by hand on a running API (three formats, a GIF renamed `.png`, 2 MB + 1, the sixth photo, another member, delete, the folder gone with the listing, a JSON body → 415).
+- **Result:** new `Domain/Photos/` (`Photo.cs`, `PhotoFormat.cs`, `IPhotoRepository.cs`), `Common/Storage/` (`IPhotoStorage.cs`, `PhotoStorageOptions.cs`), `Infrastructure/Storage/LocalPhotoStorage.cs`, `Infrastructure/Persistence/EfPhotoRepository.cs`, `PhotoConfiguration.cs`, migration `AddPhotos`, `Features/Photos/` (four slices, `PhotoResponse`, `PhotosEndpoints.cs`); `DeleteListingHandler.cs`, `CampusMarketDbContext.cs`, `CampusMarketSetup.cs`, `Dockerfile`, `.gitignore`; README (use cases, endpoint table, a section, the Render note); Postman.
+- **Commits:** code f4520ff; skill sections 59b3660; tests generated in 237ab25 (see Run 31 of unit-testing and Run 42 of integration-testing)
+
+### Run 2 (merge with main after #108, #117, #119, #80)
+
+- **Prompt:** `#120 has conflicts after Sara's PRs went in; check everything that changed and make it all work.`
+- **Decisions:**
+    - Conflicts kept both sides (registrations, `DbSet`s, `.gitignore`, skills, Postman). The `AddPhotos` migration was regenerated on top of `AddPasswordResetTokens` from #108 (same content: one `Photos` table); `has-pending-model-changes` is clean.
+    - Compared with the main before these merges (`4568297`), some content was lost in earlier conflict resolutions and is put back unchanged: the "Feature: Similar listings (Anca)" sections of both test skills; unit-testing Runs 21–23 in this file (before "Skill update v25 → v26"); 11 Postman requests (filter by condition, public profile, my profile, health live/ready) with their folders; the `sellerId` line of "Create listing - valid" and the `sellerId`, `convListingId`, `conversationId` collection variables. Every Postman request of main is unchanged.
+- **Checks:** build 0 warnings; 10 architecture, 605 unit, 69 ML and 346 integration tests pass; newman against a fresh database: 175 requests, 342 assertions, 0 failed.
+- **Commits:** the merge commit of this run
+
