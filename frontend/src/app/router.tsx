@@ -1,7 +1,11 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 import { authRoutes } from '../features/auth/routes'
+import { favoritesRoutes } from '../features/favorites/routes'
 import { listingsRoutes } from '../features/listings/routes'
+import { messagesRoutes } from '../features/messages/routes'
+import { moderationRoutes } from '../features/moderation/routes'
 import { profileRoutes } from '../features/profile/routes'
+import { reviewsRoutes } from '../features/reviews/routes'
 import { Layout } from './Layout'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -17,6 +21,10 @@ const featureRoutes: RouteObject[] = [
   ...authRoutes,
   ...profileRoutes,
   ...listingsRoutes,
+  ...messagesRoutes,
+  ...favoritesRoutes,
+  ...reviewsRoutes,
+  ...moderationRoutes,
 ]
 
 export const router = createBrowserRouter([

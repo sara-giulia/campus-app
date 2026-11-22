@@ -64,7 +64,12 @@ async function doRefresh(): Promise<boolean> {
 
 async function send(method: Method, path: string, options: RequestOptions): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' }
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  // A FormData body (file upload) sets its own multipart Content-Type with the boundary.
+  const isForm = options.body instanceof FormData
+  if (options.body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
+  let body: BodyInit | undefined
+  if (isForm) body = options.body as FormData
+  else if (options.body !== undefined) body = JSON.stringify(options.body)
 
   if (options.auth !== false) {
     const tokens = getTokens()
@@ -75,7 +80,7 @@ async function send(method: Method, path: string, options: RequestOptions): Prom
     return await fetch(`${API_URL}${API_PREFIX}${path}`, {
       method,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body,
       signal: options.signal,
     })
   } catch (error) {
