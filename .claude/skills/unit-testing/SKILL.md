@@ -716,3 +716,9 @@ Tests to add:
 Rules for this feature:
 - `Options.Create` comes from `Microsoft.Extensions.Options`; never mock `IOptions`.
 - Never use real time.
+
+## Feature: Observability (Sara)
+Production code (read it first): `Infrastructure/Observability/` (request / error / latency aggregation and ML prediction counters) and the metrics handler.
+Tests to add: recording requests increments the count per route and status; status >= 500 counts as an error; avg and p95 of known durations (e.g. 10, 20, ..., 100 ms → avg 55, p95 100); ML predictions counted per model with their average duration; an empty state returns zeros, not errors.
+Rules: no real time and no sleeps; Domain and handlers stay at 100%.
+
