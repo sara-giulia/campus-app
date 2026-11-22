@@ -14,9 +14,14 @@ export function LogoutPage() {
     // StrictMode fires effects twice in development; only trigger the logout once.
     if (ran.current) return
     ran.current = true
-    logout().finally(() => {
+    void (async () => {
+      try {
+        await logout()
+      } catch {
+        // Server call may fail; useAuth.logout still clears local tokens.
+      }
       navigate('/', { replace: true })
-    })
+    })()
   }, [logout, navigate])
 
   return <Loading text="Se închide sesiunea…" />
