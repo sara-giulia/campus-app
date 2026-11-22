@@ -1252,3 +1252,21 @@ Rules for this feature:
 - Read 400/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 and 403 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - Then run all the tests with coverage as the CI does: `Domain/Categories/`, `Features/Categories/`, `EfCategoryRepository.cs`, `ListingCategoryConfiguration.cs`, the three listing handlers, `CampusMarketSetup.cs` and `CampusMarketDbContext.cs` are at 100% for lines and branches (all test projects merged).
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Spam rules (Anca)
+
+`Infrastructure/ML/SpamRules.cs` (new) and `Infrastructure/ML/SpamDetector.cs` (changed): on publish (`POST /api/v1/listings/{id}/publish`) a listing is spam when the **real** model's probability reaches `Ml:Spam:Threshold` **or** when one of the rules matches its title or description (compared in lower case, without diacritics, after removing email addresses): a phrase from `SpamRules.Phrases` (for example `whatsapp`, `scrie-mi pe`, `bani usor`, `castiga`, `plata in avans`), a link (`http://`, `www.`, or a word ending in `.ro/.com/.net/.org/.info/.biz/.xyz/.io/.me`), a Romanian mobile number (`07xx xxx xxx`, `+40 7…`), an `@handle`, or `!!!`. When only a rule caught it, the automatic report has `SpamProbability` = `SpamRules.RuleProbability` (0.9); when the model caught it, the model's own probability (rounded to two decimals). A spam listing gets one automatic report (`Report.IsAutomatic`, reporter null) and stays `Active`, as before.
+
+Read `SpamRules.cs`, `SpamDetector.cs`, `Features/Listings/PublishListing/` and the existing "Feature: Spam and moderation (Anca)" tests before generating.
+
+File: `Moderation/SpamRulesTests.cs` (new), class `SpamRulesTests : IntegrationTestBase`: seed the seller, create a draft through `Listing.Create(seller.Id, title, Category.Other, Condition.Good, 40m, CreatedAt, description)` (price 40 for every listing: the model reads the price) and seed it, then publish it with the real endpoint logged in as the seller. Check the database through `db.Set<Report>()` for that listing.
+
+Tests to add (one listing each, 204 from publish every time):
+- rule only, each rule on its own (the model does not flag these): title `"Manual de fizica"`, description `"Plata in avans prin transfer"` (phrase); `"Manual de fizica"` / `"Detalii pe www.manuale-ieftine.com"` (link); `"Calculator Casio fx-991"` / `"Sunati la 0722 123 456"` (phone); `"Halat laborator"` / `"Mesaj la @halat_m"` (handle); `"Manual POO ieftin!!!"` / `"Stare foarte buna."` (`!!!`); `"Câștigă bani ușor"` / `"Fără investiție"` (diacritics removed before the phrases) → one automatic report with `SpamProbability` exactly 0.9. Use a `[Theory]` with the title and description as data.
+- the model flags it: `"Vand cont Netflix premium ieftin"` / `"Scrie-mi pe whatsapp pentru detalii"` → one automatic report with `SpamProbability` above 0.9 (the model's value, not the rule's).
+- not spam: `"Manual chimie organica"` / `"Folosit un semestru, cateva notite pe margine"`; `"Halat laborator"` / `"Marimea M, contact: ana.pop@student.ro"` (an email is not a link) → no report.
+
+Rules for this feature:
+- Never assert an exact probability from the model; only `> 0.9` for the model case and exactly `0.9` for the rule-only cases.
+- If the model already flags one of the rule-only texts (its probability is not exactly 0.9), stop and report which one; do not change `src/` and do not change the texts on your own.
+
