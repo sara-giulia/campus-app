@@ -33,7 +33,7 @@ It opens on `http://localhost:5173`. The API allows only the origins in `Cors:Al
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
 - The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container, on the named volume `campusmarket-data`, so the data is kept after `docker compose down`. `docker compose down -v` also removes the volume and starts from an empty database.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
-- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) was not copied to `ml-models/`.
+- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
 ### Deploy
@@ -239,6 +239,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
 | Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below `Ml:Category:MinConfidence`, 0.6, chosen on validation data), 400, 401 |
+| Listing | `GetSimilarListings` | `GET /api/v1/listings/{id}/similar` | everyone | 200 `{ items: [{ id, title, category, condition, price, similarity }] }` (at most 5 Active listings, never the listing itself, most similar first, similarity 0–1), 404 `Listing.NotFound` |
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
@@ -259,7 +260,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
-| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 3 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`) are present, 503 `Unhealthy` otherwise |
+| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
 
 GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
@@ -947,7 +948,7 @@ The first command rewrites `ml/data/listings.csv` (seed `2026`) and prints the
 row count, the number of item types per category, the rows per `Category` and
 `Condition`, the spam percentage, the min / avg / max price per `Category`,
 and 10 sample rows. Two runs produce identical bytes; compare the printed
-SHA256 hashes to check. The second command trains the three models with
+SHA256 hashes to check. The second command trains the four models with
 seed `2026` and writes them to `ml/models/`. The `PredictionEnginePool`
 registrations live in `src/CampusMarket.Api/Infrastructure/ML/`.
 
@@ -1084,6 +1085,27 @@ Model card (what it does, data, metrics, error analysis, limits): [docs/ml/categ
   fails if the micro accuracy drops below 0.8, the macro-F1 below 0.8 or the
   calibration error (ECE) goes above 0.1, or if three listings written by hand
   (not in the CSV) get the wrong category.
+
+### Similar listings model
+
+Model card (what it does, how it is evaluated, metrics, limits): [docs/ml/similar.md](docs/ml/similar.md).
+
+- Trainer: `SimilarTrainer` in `ml/CampusMarket.ML.Training`: every listing becomes a
+  text vector (`FeaturizeText` on the title and the description, concatenated, unit
+  length), and two listings are as similar as the cosine of their vectors. Non-spam
+  rows only.
+- Evaluation (`Evaluation/SimilarityEvaluation.cs`): precision@5, the share of the 5
+  closest listings that have the same category, leaving out the listings of the same
+  `TemplateId` (variations of the same item). Title only 0.597 and title + description
+  0.672 on validation; the second is kept. Test: **0.668**, against 0.202 for 5
+  listings picked at random.
+- The saved model (`ml/models/similar-listings.zip`) is loaded by the API through
+  `PredictionEnginePool<SimilarInput, SimilarVector>`; `GetSimilarListings` depends on
+  `ISimilarListingsFinder` (in `Common/Similarity/`), which returns the similarity of
+  every Active listing to the target; the handler keeps the five highest.
+- Quality gate: `CampusMarket.ML.Tests` fails if precision@5 drops below 0.6 or is less
+  than 0.3 above the random pick, or if three pairs written by hand are in the wrong
+  order.
 
 ### Spam detection model (B5)
 
