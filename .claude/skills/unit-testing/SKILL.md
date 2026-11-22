@@ -718,14 +718,45 @@ Rules for this feature:
 - `Options.Create` comes from `Microsoft.Extensions.Options`; never mock `IOptions`.
 - Never use real time.
 ## Feature: Password reset (Sara)
-Production code (written by hand, read it before generating): `Domain/Members/PasswordResetToken.cs` (factory returns the token and the plain value once; only the SHA-256 hash is stored; valid 30 minutes; single use), `Member.ChangePassword`, `Features/Auth/ForgotPassword/ForgotPasswordHandler.cs`, `Features/Auth/ResetPassword/ResetPasswordHandler.cs`.
-Fakes: `FakePasswordResetTokenRepository` (new, same hand-written style), `FakeEmailSender` (new: records every sent email in a list), the existing `FakeMemberRepository`, `FakeRefreshTokenRepository`, `FakePasswordHasher`, `FakeUnitOfWork`; fixed `Now` through a fake `TimeProvider` if the handlers use one.
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/PasswordResetToken.cs`: the factory returns the token and the plain value once; only the SHA-256 hash is stored; the token is valid 30 minutes; `MarkUsed` makes it single use; an expired or already used token is rejected by `IsValid(now)`.
+- `Features/Auth/ForgotPassword/ForgotPasswordHandler.cs`: unknown email → success (the same response as a known email), no email is sent, no token saved; known email → one token saved and one email sent whose body contains the plain token; if the handler invalidates old tokens, it does so before saving the new one.
+- `Features/Auth/ResetPassword/ResetPasswordHandler.cs`: a valid token and a matching strong password → the member's hash is the fake hash of the new password, the token is used, `SaveCount` 1; an unknown, expired or already used token → `Validation` `Auth.InvalidResetToken`; a weak password → `Validation` (`Auth.WeakPassword`).
+- `Infrastructure/Mailing/LoggingEmailSender.cs` and `Infrastructure/Mailing/SmtpEmailSender.cs`: only what can be tested without a real SMTP server (the logger message for `LoggingEmailSender`; for `SmtpEmailSender` only what reads from `IOptions<EmailOptions>` and the environment variables, never an actual `SendAsync` to a server).
+
+Fakes: `FakePasswordResetTokenRepository` (new, same hand-written style, `Items` by `Id`, `AddAsync`, `GetByHashAsync`, `Update`, `GetActiveByMemberAsync` if the handler uses it; `UpdateCount`), `FakeEmailSender` (new: implements `IEmailSender` and records every sent email in a public `List<(string To, string Subject, string Body)> Sent`), the existing `FakeMemberRepository`, `FakeRefreshTokenRepository`, `FakePasswordHasher`, `FakeUnitOfWork`; fixed `Now` through `FixedTimeProvider`.
+
+Files:
+- `Domain/Members/PasswordResetTokenTests.cs` (new).
+- `Features/Auth/ForgotPassword/ForgotPasswordHandlerTests.cs` (new).
+- `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs` (new).
+- `Infrastructure/Mailing/LoggingEmailSenderTests.cs` (new).
+- `Infrastructure/Mailing/SmtpEmailSenderTests.cs` (new).
+
 Tests to add:
-- `PasswordResetToken`: the stored hash is not the plain token and equals SHA-256 of it; valid before 30 minutes, invalid at/after; invalid after `MarkUsed`.
-- Forgot password, existing email → success, one token saved, one email to that address whose body contains the plain token, `SaveCount` 1.
-- Forgot password, unknown email → the same success response, no token, no email, `SaveCount` 0.
-- Reset, valid token and matching strong password → success; the member's hash is the fake hash of the new password; the token is used; every active refresh token of the member is revoked; one email "password changed" whose body does not contain the new password; `SaveCount` 1.
-- Reset with unknown, expired or already used token → `Auth.InvalidResetToken` (exact message), nothing changed, `SaveCount` 0, no email.
-- Reset with weak password → `Auth.WeakPassword`; different confirmation → `Auth.PasswordsDoNotMatch`; nothing changed.
-  Rules: every error checks type, code and exact message; Domain and handlers stay at 100% lines and branches.
+- `PasswordResetToken`:
+  - the stored hash is not the plain token and equals SHA-256 of it (hex, upper case).
+  - `IsValid(now)` is true one second before 30 minutes, false exactly at 30 minutes, false after 30 minutes.
+  - `MarkUsed(now)` sets `UsedAt`; a used token is rejected by `IsValid`; calling `MarkUsed` twice keeps the first time.
+  - an expired token is rejected even when it has not been used; a used token is rejected even when it has not expired.
+- `ForgotPasswordHandler`:
+  - unknown email → the response is the same shape as for a known email; no email captured (`FakeEmailSender.Sent` is empty); no token saved; `SaveCount` 0.
+  - known email → one token saved for this member, one email to that address whose body contains the plain token; `SaveCount` 1.
+  - if the handler invalidates old tokens: an existing active token of the same member is marked used before the new one is saved; a token of another member is not touched. If the handler does not do this, omit these two tests.
+- `ResetPasswordHandler`:
+  - valid token and matching strong password → success; the member's `PasswordHash` is `FakePasswordHasher.Hash(new)`; the token is marked used; `UpdateCount` 1; `SaveCount` 1.
+  - unknown token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - expired token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - already used token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - weak password (shorter than `RegisterHandler.MinPasswordLength`, `[Theory]` with `""` and a 7-character value) → `Validation` with the exact code and message, nothing changed, `SaveCount` 0; a confirmation different from the new password → `Validation` `Auth.PasswordsDoNotMatch`, nothing changed, `SaveCount` 0.
+- `LoggingEmailSender`: `SendAsync` writes one log entry at `Information` level whose message contains the `To` and the `Subject`, and never the `Body` (assert through a captured `ILogger<LoggingEmailSender>` or an `ITestOutputHelper`-style logger). No other side effect; `Task` completed.
+- `SmtpEmailSender`: only what can be tested without a real server: `IOptions<EmailOptions>` with `Host` null → a `SendAsync` call throws (the constructor or the call rejects a missing host, depending on the production code — assert what the code actually does); when `Email__Username` is set, the credentials are read from the environment variables (through a small seam if `SmtpEmailSender` exposes one; otherwise this test is not written). Never open an SMTP connection and never write the port or the TLS flag to disk.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code). Build the length and lifetime constants from the production code (`PasswordResetToken.Lifetime`, `RegisterHandler.MinPasswordLength`), not hard-coded values.
+- Never use real time: `Now` is a fixed `DateTimeOffset`, given to `FixedTimeProvider`. The 30-minute boundary is `Now.Add(PasswordResetToken.Lifetime)` and `Now.Add(PasswordResetToken.Lifetime).AddSeconds(-1)`.
+- Never send a real email and never open an SMTP connection: the handler tests use `FakeEmailSender` and the `SmtpEmailSender` tests stop at what the class does without a server.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
