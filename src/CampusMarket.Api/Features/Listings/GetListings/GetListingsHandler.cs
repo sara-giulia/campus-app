@@ -40,7 +40,9 @@ public sealed class GetListingsHandler(IListingRepository repository)
             filtered = filtered.Where(l =>
                 l.Title.Contains(query.Search.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        var ordered = (query.Sort ?? "newest") switch
+        var ordered = (
+            // Stryker disable once String : the switch has no "newest" arm, so null, "newest" and "" all fall into the default arm and the fallback value is never observable
+            query.Sort ?? "newest") switch
         {
             "price_asc" => filtered.OrderBy(l => l.Price.Amount).ThenBy(l => l.Id),
             "price_desc" => filtered.OrderByDescending(l => l.Price.Amount).ThenBy(l => l.Id),
