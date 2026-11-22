@@ -2438,3 +2438,15 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Analiza erorilor + model cards
 - **Result:** new `docs/ml/category.md` and `docs/ml/spam.md`; new `ml/.../Evaluation/ErrorAnalysis.cs`; `Program.cs` (error analysis after the external evaluation, with the thresholds chosen at training); new `tests/CampusMarket.ML.Tests/ErrorAnalysisTests.cs` with 8 tests (only wrong predictions, most confident first; ties and count; flagged and missed spam split at the threshold, inclusive; a higher threshold; the Markdown tables and the empty case; pipes and long descriptions; ten wrong category predictions on the committed model; no spam mistake on the test part at 0.40); README links to both cards.
 - **Commits:** code, tests and docs 2696ed0
 
+## cors-render
+
+The deployed frontend (`https://campus-app-pucf.onrender.com`) could not read any answer of the deployed API (`https://campus-app-latest.onrender.com`): the API sent no `Access-Control-Allow-Origin` for that origin. Written by Ancuța Ilenei with Claude Code.
+
+### Run 1
+
+- **Prompt:** `Sara asked: add the frontend URL https://campus-app-pucf.onrender.com to the CORS origins, check AllowAnyHeader/AllowAnyMethod (and AllowCredentials if cookies are used) and that UseCors runs before UseAuthorization and the endpoints.`
+- **Decisions:** the policy already allowed any header and method, ran first in the pipeline and needed no credentials (the token goes in the `Authorization` header), so only the origin was missing. It is added to `Cors:AllowedOrigins` in `appsettings.json`, so it is deployed with the image and needs no setting in Render; `localhost:5173` stays for development. No new test: `CorsTests` already checks that the configured origins are allowed and the others are not.
+- **Checks:** against the deployed API, a request with the Render origin got no CORS header. Locally with the new config: preflight and GET from the Render origin and from `localhost:5173` get `Access-Control-Allow-Origin`, another origin does not; 275 integration tests pass.
+- **Result:** `appsettings.json` (the origin), README (the two places that list the allowed origins).
+- **Commits:** code add985e
+
