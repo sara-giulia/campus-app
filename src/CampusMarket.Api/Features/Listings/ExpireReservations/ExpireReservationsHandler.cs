@@ -23,6 +23,7 @@ public sealed class ExpireReservationsHandler(
         {
             // Pin the active reservation (and its buyer) before expiring the listing,
             // so the notification goes to the right member.
+            // Stryker disable once Logical : IsExpired already requires Status == Active and a listing has at most one Active reservation, so || selects the same reservation as &&
             var active = listing.Reservations.FirstOrDefault(r => r.Status == ReservationStatus.Active && r.IsExpired(now));
             var expired = listing.ExpireReservations(now);
             if (expired == 0)

@@ -7,6 +7,7 @@ public class PhotoFormatTests
     private static readonly byte[] JpegBytes = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     private static readonly byte[] PngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0, 0, 0, 0, 0];
     private static readonly byte[] WebPBytes = [0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0, 0, 0, 0];
+    private static readonly byte[] WebPExactly12Bytes = [0x52, 0x49, 0x46, 0x46, 0x04, 0, 0, 0, 0x57, 0x45, 0x42, 0x50];
     private static readonly byte[] GifBytes = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     private static readonly byte[] RandomBytes = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0, 0x11, 0x22, 0x33, 0x44];
     private static readonly byte[] RiffOnlyBytes = [0x52, 0x49, 0x46, 0x46];
@@ -37,6 +38,16 @@ public class PhotoFormatTests
     public void Given_WebPStart_When_Detecting_Then_ReturnsWebPWithExtensionAndContentType()
     {
         var format = PhotoFormat.Detect(WebPBytes);
+
+        format.Should().Be(PhotoFormat.WebP);
+        format!.Extension.Should().Be(".webp");
+        format.ContentType.Should().Be("image/webp");
+    }
+
+    [Fact]
+    public void Given_WebPOfExactly12Bytes_When_Detecting_Then_ReturnsWebP()
+    {
+        var format = PhotoFormat.Detect(WebPExactly12Bytes);
 
         format.Should().Be(PhotoFormat.WebP);
         format!.Extension.Should().Be(".webp");

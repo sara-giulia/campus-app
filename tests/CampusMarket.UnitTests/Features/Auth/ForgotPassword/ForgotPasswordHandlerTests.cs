@@ -56,6 +56,11 @@ public class ForgotPasswordHandlerTests
 
         var tokenInLink = ExtractTokenFromLink(email.Body);
         PasswordResetToken.Hash(tokenInLink).Should().Be(saved.TokenHash);
+        email.Body.Should().Be(
+            $"Hello Ada,{Environment.NewLine}{Environment.NewLine}" +
+            $"You asked to reset your CampusMarket password. Open the link below to set a new one (valid for 30 minutes):{Environment.NewLine}" +
+            $"http://localhost:5173/reset-password?token={tokenInLink}{Environment.NewLine}{Environment.NewLine}" +
+            "If you did not ask for this, ignore this email.");
     }
 
     [Fact]

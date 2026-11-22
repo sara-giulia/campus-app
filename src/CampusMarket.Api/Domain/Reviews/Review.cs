@@ -32,6 +32,7 @@ public sealed class Review
                 Error.Validation("Review.SaleNotCompleted", "Only a sold listing can be reviewed."));
 
         // A sold listing always has exactly one completed reservation (see Listing.ConfirmSale): its member is the buyer.
+        // Stryker disable once Linq : a Sold listing always has exactly one Completed reservation, so First and FirstOrDefault return the same item
         var buyerId = listing.Reservations.First(r => r.Status == ReservationStatus.Completed).MemberId;
         if (reviewerId != buyerId)
             return Result<Review>.Failure(

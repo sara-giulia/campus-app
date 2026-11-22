@@ -109,4 +109,35 @@ public class PriceAccuracyHandlerTests
         result.Value.LastRecords[0].SoldAt.Should().Be(Now.AddHours(11));
         result.Value.LastRecords[9].SoldAt.Should().Be(Now.AddHours(2));
     }
+
+    [Fact]
+    public async Task Given_RecordsInTwoCategories_When_Handling_Then_PerCategoryIsOrderedByCategory()
+    {
+        var saleRecords = new FakeSaleRecordRepository();
+        saleRecords.Items.Add(BuildRecord(ListingA, Category.Electronics, Condition.Worn, 200m, 150m, Now));
+        saleRecords.Items.Add(BuildRecord(ListingB, Category.Textbook, Condition.Good, 100m, 80m, Now.AddHours(1)));
+        var handler = new PriceAccuracyHandler(saleRecords);
+
+        var result = await handler.HandleAsync(new PriceAccuracyQuery(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.PerCategory.Select(c => c.Category).Should().Equal(Category.Textbook, Category.Electronics);
+    }
+
+    [Fact]
+    public async Task Given_TwoRecordsSoldAtSameTime_When_Handling_Then_LastRecordsAreOrderedByIdDescending()
+    {
+        var saleRecords = new FakeSaleRecordRepository();
+        var first = BuildRecord(ListingA, Category.Textbook, Condition.Good, 100m, 80m, Now);
+        var second = BuildRecord(ListingB, Category.Notes, Condition.New, 20m, 20m, Now);
+        saleRecords.Items.Add(first);
+        saleRecords.Items.Add(second);
+        var expected = new[] { first, second }.OrderByDescending(r => r.Id).Select(r => r.ListingId).ToList();
+        var handler = new PriceAccuracyHandler(saleRecords);
+
+        var result = await handler.HandleAsync(new PriceAccuracyQuery(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.LastRecords.Select(r => r.ListingId).Should().Equal(expected);
+    }
 }

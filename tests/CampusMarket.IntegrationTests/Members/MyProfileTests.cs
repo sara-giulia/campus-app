@@ -156,4 +156,27 @@ public sealed class MyProfileTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(member);
     }
+
+    [Fact]
+    public async Task Given_MemberNotInDatabase_When_UpdatingMyProfile_Then_Returns404AndKeepsOtherMember()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        await SeedAsync(member);
+        AuthenticateAs(UnknownMemberId);
+        var request = new UpdateMyProfileRequest("Ion Ionescu");
+
+        // Act
+        var response = await Client.PutAsJsonAsync("/api/v1/members/me", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Member.NotFound");
+        error.Type.Should().Be(ErrorType.NotFound);
+
+        var saved = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(member);
+    }
 }

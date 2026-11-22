@@ -10,6 +10,7 @@ public sealed class Message
     public Guid ConversationId { get; private set; }
     public int Number { get; private set; }
     public Guid SenderId { get; private set; }
+    // Stryker disable once String : the internal constructor always sets Text and EF Core overwrites it, so the default value is never observable
     public string Text { get; private set; } = string.Empty;
     public DateTimeOffset SentAt { get; private set; }
 

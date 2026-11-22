@@ -317,4 +317,24 @@ public class GetReportedListingsHandlerTests
         reports.Items.Should().BeEmpty();
         listings.Items.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Given_PageSizeOfOne_When_Handling_Then_Succeeds()
+    {
+        var listing = BuildPublishedListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var reports = new FakeReportRepository();
+        reports.Items.Add(Report.Create(ReporterId, listing, "reason", Now).Value);
+        var handler = new GetReportedListingsHandler(reports, listings);
+        var query = new GetReportedListingsQuery(1, 1);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.PageSize.Should().Be(1);
+        result.Value.Items.Should().ContainSingle();
+        reports.Items.Should().HaveCount(1);
+        listings.Items.Should().HaveCount(1);
+    }
 }

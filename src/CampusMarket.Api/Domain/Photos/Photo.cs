@@ -12,7 +12,9 @@ public sealed class Photo
 
     public Guid Id { get; private set; }
     public Guid ListingId { get; private set; }
+    // Stryker disable once String : the factory always sets FileName, so the default value is never observable
     public string FileName { get; private set; } = string.Empty;
+    // Stryker disable once String : the factory always sets ContentType, so the default value is never observable
     public string ContentType { get; private set; } = string.Empty;
     public long SizeBytes { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
