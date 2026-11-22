@@ -892,18 +892,37 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 59b3660; generated code 237ab25
 
-### Run 32, skill v34 (Feature: Notifications)
+### Run 32, skill v34 (Feature: Sorting)
 
-- **Why a new version:** Sara's notifications (#111): new domain `Notification`, three handlers (my notifications, mark one as read, mark all as read) and a notification written by `ReserveListingHandler`, `ConfirmSaleHandler` and `ExpireReservationsHandler`, with no unit test.
+- **Why a new version:** `GetListingsQuery` has a new optional `Sort` (`newest`, `price_asc`, `price_desc`) and `GetListingsHandler` rejects any other value with `Listings.InvalidSort` and orders by price when asked. These branches had no tests.
 
 #### Change to SKILL.md (v33 → v34) and why
 
 | # | v33 (before) | v34 (after) | Why |
 |---|---|---|---|
+| 1 | Nothing about sorting. | New section *"Feature: Sorting (Diana)"*: the file (`GetListingsHandlerTests`, add to it) and the list of tests: three Active listings priced 30, 10, 20 → `price_asc` gives 10, 20, 30 and `price_desc` gives 30, 20, 10. | Prices out of order in the arrange prove that the handler sorts, not that the data was already sorted. |
+| 2 | — | *"`newest` and no sort → newest `CreatedAt` first (same as before)"*; *"two listings with the same price → ordered by `Id` ascending"*. | Proves that the default did not change and that equal prices still give a stable order, so the pages do not shift. |
+| 3 | — | *"`Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message"*. | The error code and the message are part of the contract of the endpoint. |
+
+- **Prompt:** `Run the unit-testing skill for the section "Feature: Sorting (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v34, commit b5da1ba (section written and run by Diana Preutu with Claude Code)
+- **Result:** 5 new test methods (7 cases) in `GetListingsHandlerTests`: price ascending and descending, `[Theory]` `newest` and `null` → newest first, `[Theory]` `price_asc` and `price_desc` with equal prices → `Id` ascending, and `Sort = "abc"` → `Validation`, `Listings.InvalidSort`, the exact message `Sort must be newest, price_asc or price_desc.`, repository unchanged. Every test checks the repository. A small private helper (`RepositoryWithActiveListings`) publishes and seeds the listings. No existing test and nothing in `src/` changed by the run. 442/442 unit tests pass. The coverage report was not generated again in this run (it is not part of the PR).
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v28 is the final version.
+- **Commits:** skill b5da1ba; generated code 2d27370
+
+### Run 33, skill v35 (Feature: Notifications)
+
+- **Why a new version:** Sara's notifications (#111): new domain `Notification`, three handlers (my notifications, mark one as read, mark all as read) and a notification written by `ReserveListingHandler`, `ConfirmSaleHandler` and `ExpireReservationsHandler`, with no unit test.
+
+#### Change to SKILL.md (v34 → v35) and why
+
+| # | v34 (before) | v35 (after) | Why |
+|---|---|---|---|
 | 1 | Nothing about notifications. | Section *"Feature: Notifications (Sara)"* (written by Sara, commit 155811a): the domain rules, the three handlers, a `FakeNotificationRepository`, and the notification checks to add to the reserve, confirm-sale and expiry handler tests. | The notification is written in the same unit of work as the action; only the handler tests show it is (or is not) added. |
 
 - **Prompt:** `Use the unit-testing skill in .claude/skills/unit-testing/SKILL.md. Unit tests already exist: keep them, do not change them, only add the tests from the "Feature: Notifications (Sara)" section. Run dotnet test. Do not commit.` (new session, run by Ancuța Ilenei at Sara's request)
-- **Skill version:** v34, commit 155811a
+- **Skill version:** v35, commit 155811a
 - **Result:** `Fakes/FakeNotificationRepository.cs`, `Domain/Notifications/NotificationTests.cs`, one test file per notification handler, and notification checks added to `ReserveListingHandlerTests`, `ConfirmSaleHandlerTests` and `ExpireReservationsHandlerTests`. After the merge with main: 654 unit tests pass.
 - **Problems seen:** none.
 - **Change to SKILL.md after the run:** none.
@@ -1678,19 +1697,36 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** skill 59b3660; generated code 237ab25
 
-### Run 43, skill v42 (Feature: Notifications)
+### Run 43, skill v42 (Feature: Sorting)
 
-- **Why a new version:** three new endpoints under `/api/v1/members/me/notifications` (list, mark one as read, mark all as read) and notifications written when a listing is reserved, sold or a reservation expires.
+- **Why a new version:** `GET /api/v1/listings?sort=...` is a new query parameter: `price_asc` orders by price over HTTP, an unknown value answers 400 `Listings.InvalidSort`.
 
 #### Change to SKILL.md (v41 → v42) and why
 
 | # | v41 (before) | v42 (after) | Why |
 |---|---|---|---|
+| 1 | Nothing about sorting. | New section *"Feature: Sorting (Diana)"*: the file (`Listings/GetListingsTests.cs`, add to it) and 2 tests: `?sort=price_asc` → 200 with the prices in ascending order; `?sort=abc` → 400 `Listings.InvalidSort`. | The parameter has to be bound from the query string and the error mapped to 400 with the `Error` body; only a real request shows that. |
+
+- **Prompt:** `Run the integration-testing skill for the section "Feature: Sorting (Diana)". Add only those tests. Run dotnet test.`
+- **Skill version:** v42, commit b5da1ba (section written and run by Diana Preutu with Claude Code)
+- **Result:** 2 new tests in `Listings/GetListingsTests.cs`: three published listings priced 90, 10 and 40 (created in another order) → `?sort=price_asc` gives 10, 40, 90; `?sort=abc` → 400, `Listings.InvalidSort`, type `Validation`, the exact message. Both check the database count. No existing test changed. `dotnet build` 0 warnings, 0 errors; full run: 10 architecture, 442 unit, 13 ML, 223 integration.
+- **Problems seen:** none.
+- **Change to SKILL.md:** none after the run; v29 is the final version.
+- **Commits:** skill b5da1ba; generated code 2d27370
+
+### Run 44, skill v43 (Feature: Notifications)
+
+- **Why a new version:** three new endpoints under `/api/v1/members/me/notifications` (list, mark one as read, mark all as read) and notifications written when a listing is reserved, sold or a reservation expires.
+
+#### Change to SKILL.md (v42 → v43) and why
+
+| # | v42 (before) | v43 (after) | Why |
+|---|---|---|---|
 | 1 | Nothing about notifications. | Section *"Feature: Notifications (Sara)"* (written by Sara, commit 155811a): reserve → the seller is notified, confirm sale → the buyer is notified, mark one / all as read, 404 for another member's notification, 401 without a token. | The notifications are written through the real reserve and confirm-sale endpoints and read back over HTTP. |
 | 2 | (after the first run) | Two more tests: two notifications come newest first (every field) and `unreadOnly` after reading one; `page=0` and `pageSize=101` → 400. | The coverage run after the merge with main showed the sorting in `EfNotificationRepository` and the 400 answer of the list endpoint were never run (Sonar needs 100% of the new code). |
 
 - **Prompt:** `Use the integration-testing skill in .claude/skills/integration-testing/SKILL.md. Integration tests already exist: keep them, only add the tests from the "Feature: Notifications (Sara)" section. Run dotnet test three times. Do not commit.` Then, after row 2: `Add only the tests for the two new bullets of the section to NotificationsTests.cs.` (new sessions, run by Ancuța Ilenei at Sara's request)
-- **Skill version:** v42, commit 155811a; row 2 in the merge commit c288b04
+- **Skill version:** v43, commit 155811a; row 2 in the merge commit c288b04
 - **Result:** `Notifications/NotificationsTests.cs`, 11 tests in the first run, 15 after row 2. Integration tests 361/361 three times; full run 10 architecture, 654 unit, 69 ML, 361 integration; SARIF log empty.
 - **Problems seen:** the first run found a real bug: `GET /members/me/notifications` answered 500, because SQLite cannot `ORDER BY` a `DateTimeOffset` column. Fixed in `EfNotificationRepository.GetByMemberAsync` (read, then sort in memory, like the other repositories), commit 4a1b0bb.
 - **Change to SKILL.md after the run:** row 2 of the table above.
@@ -2666,9 +2702,24 @@ Weeks 6–7 (plan of Sara and Anca), Anca's task "Poze la listări": upload only
 - **Checks:** build 0 warnings; 10 architecture, 605 unit, 69 ML and 346 integration tests pass; newman against a fresh database: 175 requests, 342 assertions, 0 failed.
 - **Commits:** the merge commit of this run
 
+## listings-sort
+
+Small extension of `GET /api/v1/listings`, written by Diana with Claude Code on top of the condition filter; the tests were generated afterwards with the unit-testing (Run 26) and integration-testing (Run 30) skills.
+
+### Run 1
+
+- **Prompt:** `Add a sort query parameter to GET /api/v1/listings (newest by default, price_asc, price_desc), with 400 Listings.InvalidSort for any other value. Update the README and the Postman collection, add the sections "Feature: Sorting (Diana)" to the two skills, run the skills for that section and dotnet test.`
+- **Decisions:**
+    - `Sort` is a string checked against `GetListingsQuery.AllowedSorts`, not an enum: an unknown value then reaches the handler and gets the usual `Error` body with `Listings.InvalidSort`, like `Listings.InvalidPage`. With an enum, ASP.NET Core would answer with its own `Request.Invalid` ProblemDetails.
+    - The check comes right after the price range check, before the repository is read, so an invalid request never touches the data.
+    - Every order ends with `ThenBy(l => l.Id)`, so the same query always returns the same pages even when prices are equal. `totalCount` and paging are unchanged; the sort is applied before paging.
+    - No default value in the endpoint: `null` means `newest`, the same order as before.
+- **Result:** `GetListingsQuery.Sort` and `AllowedSorts`, the `sort` parameter in `GetListingsEndpoint`, the check and the `switch` in `GetListingsHandler`. README: the `sort` row in the search table, the `Listings.InvalidSort` rows in both error tables. Postman, folder GetListings: "Get listings - sorted by price (200)" and "Get listings - unknown sort (400)". Unit tests (5 test methods, 7 cases): price ascending and descending, `newest` and no sort, equal prices by `Id`, unknown sort with the exact message. Integration tests (2): `?sort=price_asc` and `?sort=abc`. Build 0 errors, 0 warnings; all tests pass (442 unit, 223 integration).
+- **Commits:** code 42998f7; skill sections b5da1ba; tests generated in 2d27370 (see Run 26 of unit-testing and Run 30 of integration-testing)
+
 ## notifications
 
-Sara's notifications (#111), brought up to date and finished by Ancuța Ilenei with Claude Code at Sara's request: the tests generated with the skills (unit Run 32, integration Run 43), the merge with main and the fixes the tests and the coverage showed.
+Sara's notifications (#111), brought up to date and finished by Ancuța Ilenei with Claude Code at Sara's request: the tests generated with the skills (unit Run 33, integration Run 44), the merge with main and the fixes the tests and the coverage showed.
 
 ### Run 1
 
@@ -2680,4 +2731,3 @@ Sara's notifications (#111), brought up to date and finished by Ancuța Ilenei w
     - Two integration tests added through the skill (row 2 of the integration run) for the list order and the paging errors.
 - **Checks:** build 0 warnings; 10 architecture, 654 unit, 69 ML and 361 integration tests pass; the new notification code covered in the merged coverage; SARIF of the API clean; newman against a fresh database: 178 requests, 346 assertions, 0 failed.
 - **Commits:** 4a1b0bb (fix), 4d5a11a (tests), c288b04 (merge with main, endpoint, row 2 tests), this PROMPTS commit
-

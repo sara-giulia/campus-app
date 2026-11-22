@@ -1758,6 +1758,83 @@
                   }
                 }
               ]
+            },
+            {
+              "name": "Get listings - sorted by price (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?sort=price_asc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ],
+                  "query": [
+                    {
+                      "key": "sort",
+                      "value": "price_asc"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Prices are in ascending order\", () => {",
+                      "  const prices = pm.response.json().items.map(i => i.price);",
+                      "  pm.expect(prices).to.eql([...prices].sort((a, b) => a - b));",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - unknown sort (400)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?sort=abc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ],
+                  "query": [
+                    {
+                      "key": "sort",
+                      "value": "abc"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Listings.InvalidSort\", () => {",
+                      "  pm.expect(pm.response.json().code).to.eql(\"Listings.InvalidSort\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         },

@@ -849,6 +849,18 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the messages from `Photo.MaxPerListing` and `Photo.MaxSizeBytes` the same way the domain does.
 - Never use real time: `Now` is fixed.
 
+## Feature: Sorting (Diana)
+
+Production code: `GetListingsHandler`, `GetListingsQuery.Sort` (null, "newest", "price_asc", "price_desc").
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it).
+
+Tests to add:
+- three Active listings priced 30, 10, 20 → `price_asc` gives 10, 20, 30; `price_desc` gives 30, 20, 10.
+- `newest` and no sort → newest `CreatedAt` first (same as before).
+- two listings with the same price → ordered by `Id` ascending.
+- `Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message.
+
 ## Feature: Notifications (Sara)
 Production code (read it before generating): `Domain/Notifications/Notification.cs` (Create returns Result, MarkAsRead idempotent), the notification lines added in `ReserveListingHandler`, `ConfirmSaleHandler`, `ExpireReservationsHandler`, and the handlers in `Features/Notifications/` (GetMyNotifications, MarkNotificationRead, MarkAllNotificationsRead).
 Existing tests no longer compile (new constructor parameter): in `ReserveListingHandlerTests`, `ConfirmSaleHandlerTests` and `ExpireReservationsHandlerTests` pass a new `FakeNotificationRepository` (add it in `Fakes/`, same hand-written style: `Items`, `Add`, the query methods) wherever the handler is built; change nothing else in those tests.
@@ -861,4 +873,3 @@ Tests to add:
 - MarkNotificationRead: mine → read, `SaveCount` 1; unknown or someone else's → NotFound, `SaveCount` 0.
 - MarkAllNotificationsRead: all my unread become read, others' unchanged.
   Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100%.
-
