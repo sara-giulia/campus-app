@@ -698,3 +698,21 @@ Rules for this feature:
 - Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
 - If a branch of `ChangePasswordHandler` or `Member.ChangePassword` still cannot be reached with these fakes, stop and report it; do not remove code from `src/`.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Validation thresholds (Anca)
+
+Production code (read it before generating): the minimum confidence of the category suggestion is no longer a constant in the handler. `SuggestCategoryHandler(ICategorySuggester suggester, IOptions<CategorySuggestionOptions> options)` returns the category only when `suggestion.Confidence >= options.Value.MinConfidence`, otherwise `Category` null (the confidence is always returned). `CategorySuggestionOptions` is in `Common/Categories/`, property `MinConfidence` (default 0.6). `SuggestCategoryHandler.MinConfidence` does not exist any more.
+
+File: `Features/Listings/SuggestCategory/SuggestCategoryHandlerTests.cs` (update it).
+
+Changes to the existing tests (keep every test, its name and its assertions):
+- Build the handler with `new SuggestCategoryHandler(suggester, Options.Create(new CategorySuggestionOptions { MinConfidence = 0.7 }))` in every test, through one private helper in the class, so the tests written for the 0.7 limit keep their meaning (0.9 and exactly 0.7 give the category, 0.69 gives null).
+
+Tests to add:
+- `MinConfidence` 0.6 and a suggestion with confidence 0.6 → the category is returned (the limit is inclusive); with confidence 0.59 → `Category` null and `Confidence` 0.59.
+- `MinConfidence` 0.95 and confidence 0.9 → `Category` null: the handler uses the configured value, not a fixed one.
+- Each of these checks that the fake suggester was called once with the trimmed title.
+
+Rules for this feature:
+- `Options.Create` comes from `Microsoft.Extensions.Options`; never mock `IOptions`.
+- Never use real time.
