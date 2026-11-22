@@ -24,4 +24,13 @@ public sealed class FakeRefreshTokenRepository : IRefreshTokenRepository
         Items[refreshToken.Id] = refreshToken;
         UpdateCount++;
     }
+
+    public Task<List<RefreshToken>> GetActiveByMemberAsync(
+        Guid memberId, DateTimeOffset now, CancellationToken ct = default)
+    {
+        var active = Items.Values
+            .Where(t => t.MemberId == memberId && t.IsActive(now))
+            .ToList();
+        return Task.FromResult(active);
+    }
 }

@@ -11,4 +11,10 @@ export interface MenuItem {
 
 export const menuItems: MenuItem[] = [
   { to: '/', label: 'Acasă', show: 'always' },
+  { to: '/register', label: 'Cont nou', show: 'guest' },
+  { to: '/profile', label: 'Profilul meu', show: 'user' },
+  { to: '/listings/new', label: 'Publică anunț', show: 'user' },
+  { to: '/my/listings', label: 'Anunțurile mele', show: 'user' },
+  { to: '/my/reservations', label: 'Rezervările mele', show: 'user' },
+  { to: '/logout', label: 'Ieșire', show: 'user' },
 ]

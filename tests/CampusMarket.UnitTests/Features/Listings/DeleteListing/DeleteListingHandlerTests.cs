@@ -24,7 +24,8 @@ public class DeleteListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new DeleteListingHandler(repository, unitOfWork);
+        var photoStorage = new FakePhotoStorage();
+        var handler = new DeleteListingHandler(repository, unitOfWork, photoStorage);
         var command = new DeleteListingCommand(listing.Id, listing.SellerId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -33,6 +34,7 @@ public class DeleteListingHandlerTests
         result.Value.Should().Be(listing.Id);
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(1);
+        photoStorage.DeletedListings.Should().Equal(listing.Id);
     }
 
     [Fact]
@@ -40,7 +42,8 @@ public class DeleteListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new DeleteListingHandler(repository, unitOfWork);
+        var photoStorage = new FakePhotoStorage();
+        var handler = new DeleteListingHandler(repository, unitOfWork, photoStorage);
         var unknownId = Guid.NewGuid();
         var command = new DeleteListingCommand(unknownId, Guid.NewGuid(), false);
 
@@ -51,6 +54,7 @@ public class DeleteListingHandlerTests
         result.Error.Code.Should().Be("Listing.NotFound");
         result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
+        photoStorage.DeletedListings.Should().BeEmpty();
     }
 
     [Fact]
@@ -60,7 +64,8 @@ public class DeleteListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new DeleteListingHandler(repository, unitOfWork);
+        var photoStorage = new FakePhotoStorage();
+        var handler = new DeleteListingHandler(repository, unitOfWork, photoStorage);
         var command = new DeleteListingCommand(listing.Id, OtherMemberId, false);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -73,6 +78,7 @@ public class DeleteListingHandlerTests
         listing.Title.Should().Be("Algebra book");
         listing.Version.Should().Be(1);
         unitOfWork.SaveCount.Should().Be(0);
+        photoStorage.DeletedListings.Should().BeEmpty();
     }
 
     [Fact]
@@ -82,7 +88,8 @@ public class DeleteListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new DeleteListingHandler(repository, unitOfWork);
+        var photoStorage = new FakePhotoStorage();
+        var handler = new DeleteListingHandler(repository, unitOfWork, photoStorage);
         var command = new DeleteListingCommand(listing.Id, AdminId, true);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -91,6 +98,7 @@ public class DeleteListingHandlerTests
         result.Value.Should().Be(listing.Id);
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(1);
+        photoStorage.DeletedListings.Should().Equal(listing.Id);
     }
 
     [Fact]
@@ -98,7 +106,8 @@ public class DeleteListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new DeleteListingHandler(repository, unitOfWork);
+        var photoStorage = new FakePhotoStorage();
+        var handler = new DeleteListingHandler(repository, unitOfWork, photoStorage);
         var unknownId = Guid.NewGuid();
         var command = new DeleteListingCommand(unknownId, OtherMemberId, false);
 
@@ -109,5 +118,6 @@ public class DeleteListingHandlerTests
         result.Error.Code.Should().Be("Listing.NotFound");
         result.Error.Message.Should().Be($"Listing '{unknownId}' was not found.");
         unitOfWork.SaveCount.Should().Be(0);
+        photoStorage.DeletedListings.Should().BeEmpty();
     }
 }

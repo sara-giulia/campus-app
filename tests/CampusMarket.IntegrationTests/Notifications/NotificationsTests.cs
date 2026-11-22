@@ -275,6 +275,99 @@ public sealed class NotificationsTests : IntegrationTestBase
         await AssertStillUnreadAsync(notification.Id);
     }
 
+    [Fact]
+    public async Task Given_TwoNotifications_When_GettingNotifications_Then_ReturnsNewestFirst()
+    {
+        // Arrange
+        var (seller, listing, older, newer) = await SeedSellerWithTwoNotificationsAsync();
+        AuthenticateAs(seller.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/notifications");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyNotificationsResponse>(Json);
+        body!.Count.Should().Be(2);
+        body.TotalCount.Should().Be(2);
+        body.UnreadCount.Should().Be(2);
+        body.Items.Select(i => i.Id).Should().Equal(newer.Id, older.Id);
+
+        var first = body.Items[0];
+        first.Type.Should().Be(NotificationType.ReservationCreated);
+        first.Message.Should().Be("Maria Ionescu reserved Manual POO");
+        first.ListingId.Should().Be(listing.Id);
+        first.CreatedAt.Should().Be(newer.CreatedAt);
+        first.ReadAt.Should().BeNull();
+
+        var second = body.Items[1];
+        second.Type.Should().Be(NotificationType.ReservationCreated);
+        second.Message.Should().Be("Ana Popescu reserved Manual POO");
+        second.ListingId.Should().Be(listing.Id);
+        second.CreatedAt.Should().Be(older.CreatedAt);
+        second.ReadAt.Should().BeNull();
+
+        var saved = await QueryDbAsync(db => db.Set<Notification>().AsNoTracking()
+            .Where(n => n.MemberId == seller.Id).ToListAsync());
+        saved.Should().HaveCount(2);
+        saved.Should().OnlyContain(n => n.ReadAt == null);
+    }
+
+    [Fact]
+    public async Task Given_NewerNotificationRead_When_GettingUnreadOnly_Then_ReturnsOnlyTheOlderOne()
+    {
+        // Arrange
+        var (seller, _, older, newer) = await SeedSellerWithTwoNotificationsAsync();
+        AuthenticateAs(seller.Id);
+        var markRead = await Client.PostAsync($"/api/v1/members/me/notifications/{newer.Id}/read", content: null);
+        markRead.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/notifications?unreadOnly=true");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyNotificationsResponse>(Json);
+        body!.Count.Should().Be(1);
+        body.TotalCount.Should().Be(1);
+        body.UnreadCount.Should().Be(1);
+        var item = body.Items.Single();
+        item.Id.Should().Be(older.Id);
+        item.ReadAt.Should().BeNull();
+
+        var savedOlder = await QueryDbAsync(db => db.Set<Notification>().AsNoTracking()
+            .SingleAsync(n => n.Id == older.Id));
+        savedOlder.ReadAt.Should().BeNull();
+        var savedNewer = await QueryDbAsync(db => db.Set<Notification>().AsNoTracking()
+            .SingleAsync(n => n.Id == newer.Id));
+        savedNewer.ReadAt.Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData("page=0", "Notifications.InvalidPage")]
+    [InlineData("pageSize=101", "Notifications.InvalidPageSize")]
+    public async Task Given_InvalidPaging_When_GettingNotifications_Then_Returns400(string queryString, string expectedCode)
+    {
+        // Arrange
+        var notification = BuildNotification(SellerId);
+        await SeedAsync(notification);
+        AuthenticateAs(SellerId);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/members/me/notifications?{queryString}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be(expectedCode);
+        error.Type.Should().Be(ErrorType.Validation);
+
+        await AssertStillUnreadAsync(notification.Id);
+    }
+
     private static Notification BuildNotification(Guid memberId, DateTimeOffset? createdAt = null) =>
         Notification.Create(memberId, NotificationType.ReservationCreated, "Ana Popescu reserved Manual POO",
             listingId: null, createdAt ?? CreatedAt).Value;
@@ -287,6 +380,20 @@ public sealed class NotificationsTests : IntegrationTestBase
         listing.Publish();
         await SeedAsync(seller, buyer, listing);
         return (seller, buyer, listing);
+    }
+
+    // The older notification is seeded first, so the order of the response comes from CreatedAt.
+    private async Task<(Member Seller, Listing Listing, Notification Older, Notification Newer)> SeedSellerWithTwoNotificationsAsync()
+    {
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish();
+        var older = Notification.Create(seller.Id, NotificationType.ReservationCreated,
+            "Ana Popescu reserved Manual POO", listing.Id, CreatedAt.AddHours(1)).Value;
+        var newer = Notification.Create(seller.Id, NotificationType.ReservationCreated,
+            "Maria Ionescu reserved Manual POO", listing.Id, CreatedAt.AddHours(2)).Value;
+        await SeedAsync(seller, listing, older, newer);
+        return (seller, listing, older, newer);
     }
 
     // The notification is created by the reserve handler, so the reservation goes through the endpoint.

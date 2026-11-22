@@ -15,7 +15,7 @@ public static class MarkNotificationReadEndpoint
             .RequireAuthorization();
     }
 
-    private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>>> Handle(
+    private static async Task<Results<NoContent, NotFound<Error>>> Handle(
         Guid id,
         ClaimsPrincipal user,
         ICommandHandler<MarkNotificationReadCommand, Guid> handler,
@@ -23,12 +23,9 @@ public static class MarkNotificationReadEndpoint
     {
         var result = await handler.HandleAsync(new MarkNotificationReadCommand(id, user.GetMemberId()), ct);
 
+        // The handler's only failure is Notification.NotFound (unknown, or another member's notification).
         if (result.IsFailure)
-            return result.Error.Type switch
-            {
-                ErrorType.NotFound => TypedResults.NotFound(result.Error),
-                _ => TypedResults.BadRequest(result.Error)
-            };
+            return TypedResults.NotFound(result.Error);
 
         return TypedResults.NoContent();
     }
