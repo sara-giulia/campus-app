@@ -44,15 +44,31 @@ public sealed class CategoryTrainer : IModelTrainer
 
         var report = Report(mlContext, scored, trainNonSpam);
 
+        // Minimum confidence chosen on validation, then measured once on test. The validation work uses
+        // its own MLContext: every component created on the shared one draws from its random generator,
+        // which would change the models trained after this one.
+        var selection = new MLContext(seed: DatasetSplit.Seed);
+        var validationTable = ThresholdSelection.ConfidenceTable(
+            Predictions(selection, model.Transform(WithoutSpam(selection, validationData))), ThresholdSelection.CategoryCandidates);
+        var minConfidence = ThresholdSelection.ChooseMinConfidence(validationTable);
+        var onTest = ThresholdSelection.ConfidenceTable(Predictions(selection, scored), [minConfidence]).Single();
+
         var text =
             $"Micro accuracy: {metrics.MicroAccuracy:0.000}" + Environment.NewLine +
             $"Macro accuracy: {metrics.MacroAccuracy:0.000}" + Environment.NewLine +
             $"Log loss:       {metrics.LogLoss:0.000}" + Environment.NewLine +
             Environment.NewLine +
-            ClassificationReport.ToMarkdown(report);
+            ClassificationReport.ToMarkdown(report) + Environment.NewLine +
+            Environment.NewLine +
+            FormattableString.Invariant($"Minimum confidence, chosen on validation (smallest threshold whose shown suggestions are right at least {ThresholdSelection.TargetAccuracy:0%} of the time):") + Environment.NewLine +
+            ThresholdSelection.ToMarkdown(validationTable, minConfidence) + Environment.NewLine +
+            FormattableString.Invariant($"On test at {minConfidence:0.00}: {onTest.Coverage:0.0%} of the listings get a suggestion, right {onTest.Accuracy:0.0%} of the time.") + Environment.NewLine +
+            FormattableString.Invariant($"API setting: Ml:Category:MinConfidence = {minConfidence:0.00}");
 
         var structured = new Dictionary<string, double>(StringComparer.Ordinal)
         {
+            ["accuracyAtMinConfidence"] = onTest.Accuracy,
+            ["coverageAtMinConfidence"] = onTest.Coverage,
             ["ece"] = report.Calibration.ExpectedCalibrationError,
             ["logLoss"] = metrics.LogLoss,
             ["macroAccuracy"] = metrics.MacroAccuracy,
@@ -60,7 +76,9 @@ public sealed class CategoryTrainer : IModelTrainer
             ["microAccuracy"] = metrics.MicroAccuracy,
         };
 
-        return new TrainingResult(model, text, "SDCA maximum entropy", structured);
+        var settings = new Dictionary<string, double>(StringComparer.Ordinal) { ["minConfidence"] = minConfidence };
+
+        return new TrainingResult(model, text, "SDCA maximum entropy", structured, settings);
     }
 
     private static IDataView WithoutSpam(MLContext mlContext, IDataView data) =>
@@ -76,12 +94,14 @@ public sealed class CategoryTrainer : IModelTrainer
             .OrderBy(c => c, StringComparer.Ordinal)
             .ToList();
 
-        var predictions = mlContext.Data.CreateEnumerable<ScoredRow>(scored, reuseRowObject: false)
+        return ClassificationReport.Multiclass(Predictions(mlContext, scored), labels);
+    }
+
+    // (true category, predicted category, probability of the predicted category) for every scored row.
+    public static List<ClassificationReport.MulticlassPrediction> Predictions(MLContext mlContext, IDataView scored) =>
+        mlContext.Data.CreateEnumerable<ScoredRow>(scored, reuseRowObject: false)
             .Select(r => new ClassificationReport.MulticlassPrediction(r.Category, r.PredictedLabel, r.Score.Max()))
             .ToList();
-
-        return ClassificationReport.Multiclass(predictions, labels);
-    }
 
     private sealed class ScoredRow
     {

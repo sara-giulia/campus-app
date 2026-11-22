@@ -238,7 +238,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
-| Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below 0.7), 400, 401 |
+| Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below `Ml:Category:MinConfidence`, 0.6, chosen on validation data), 400, 401 |
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
@@ -464,7 +464,7 @@ A listing hidden by an Admin cannot be saved (400 `Favorite.ListingNotAvailable`
 Members report listings, the spam model reports suspicious ones on its own, and Admins decide.
 
 - `POST /api/v1/listings/{id}/reports` with `{ "reason": "..." }` (1–500 characters): 201 with `{ id, listingId, createdAt }`. Any logged-in member can report an `Active` or `Reserved` listing of someone else, once (409 `Report.AlreadyExists`).
-- When a listing is published, the spam model (see [Machine learning](#machine-learning)) checks its title, description and price. A listing that looks like spam is still published, but gets an **automatic report** (no reporter, with the spam probability).
+- When a listing is published, the spam model (see [Machine learning](#machine-learning)) checks its title, description and price. A listing that looks like spam (probability at least `Ml:Spam:Threshold`, 0.4, chosen on validation data) is still published, but gets an **automatic report** (no reporter, with the spam probability).
 - `GET /api/v1/moderation/listings?page=1&pageSize=20` (Admins only) lists the reported listings that are not hidden, one row per listing, the most reported first:
 
 ```json
@@ -1105,6 +1105,37 @@ lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
   on the same test part as training (`DatasetSplit`) and fails if the AUC drops
   below 0.95, the F1 score below 0.9 or the PR-AUC below 0.95, or if four listings
   written by hand (two spam, two normal) are classified wrongly.
+
+### Decision thresholds (chosen on validation)
+
+The two classifiers need a decision threshold in the API: the minimum confidence under
+which no category is suggested, and the probability from which a listing counts as spam.
+Both are chosen by the training program on the **validation** part (never on test) by
+`Evaluation/ThresholdSelection.cs`, printed as a table, saved under `"settings"` in the
+model's `.json` file, and configured in `src/CampusMarket.Api/appsettings.json`:
+
+```json
+"Ml": {
+  "Category": { "MinConfidence": 0.6 },
+  "Spam": { "Threshold": 0.4 }
+}
+```
+
+- **`Ml:Category:MinConfidence` = 0.60:** the smallest threshold (0.30 to 0.95, step 0.05)
+  at which the suggestions still shown are right at least 90% of the time. On validation,
+  0.55 gives 89.2% and 0.60 gives 90.3% with 85.1% of the listings getting a suggestion;
+  0.70, the value used before, would hide 8 more points of suggestions for 2 points of
+  accuracy. On test, at 0.60: 85.6% of the listings get a suggestion, right 91.1% of the time.
+- **`Ml:Spam:Threshold` = 0.40:** the threshold with the best F1, the balance between spam
+  let through and good listings flagged. On validation every threshold from 0.15 to 0.65
+  has F1 1.000 (below 0.15 good listings start to be flagged, above 0.65 spam is missed),
+  so the middle of that range is kept, as far as possible from both edges. On test, at
+  0.40: precision, recall and F1 1.000.
+- `SuggestCategoryHandler` and `SpamDetector` read them through `IOptions`
+  (`CategorySuggestionOptions`, `SpamDetectionOptions`); the API refuses to start with a
+  value outside 0–1. After retraining, copy the two "API setting" lines printed by the
+  training program to `appsettings.json`: a test in `CampusMarket.ML.Tests` fails when
+  the settings and the models' `.json` files disagree.
 
 ### Classification report (category and spam)
 
