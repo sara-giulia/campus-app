@@ -759,3 +759,20 @@ Rules for this feature:
 - Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
+
+## Feature: Full coverage (Carina)
+
+Production code (read it before generating): `Features/Auth/ResetPassword/ResetPasswordHandler.cs`, the `changeResult.IsFailure` branch. After the token and the member are found, the handler calls `member.ChangePassword(passwordHasher.Hash(command.NewPassword))`; when it fails it returns the error right away, before `token.MarkUsed`, before the refresh tokens are revoked, before any `Update`, before `CommitAsync` and before the email.
+
+File: `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs` (add to it, keep every existing test).
+
+Arrange: `FakePasswordHasher` never returns an empty hash, so add one small private class in `ResetPasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` and `Verify` returns `true` (the same rule as the `EmptyHashPasswordHasher` of `ChangePasswordHandlerTests`). This extra hasher is allowed only for this test. Build the handler with `new ResetPasswordHandler(...)` directly, because the existing `BuildHandler` helper takes a `FakePasswordHasher`; do not change the helper. Seed a valid token, the member and one active refresh token of the member.
+
+Test to add:
+- valid token, matching strong password, hasher returns an empty hash → `Validation` `Member.PasswordRequired` ("A password is required.", from `Member.ChangePassword`); the member's `PasswordHash` is unchanged; the reset token is not marked used (`UsedAt` null); the refresh token is not revoked (`RevokedAt` null); `members.UpdateCount` 0, `tokens.UpdateCount` 0, `refreshTokens.UpdateCount` 0; `SaveCount` 0; no email sent.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `ResetPasswordHandler.cs` is at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
