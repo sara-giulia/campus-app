@@ -21,12 +21,15 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 11.0.x
 
       - name: Install SonarScanner
         run: dotnet tool install --global dotnet-sonarscanner
 
+      # The scanner is built for an older .NET; let it run on the .NET 11 runtime of this job.
       - name: Begin analysis
+        env:
+          DOTNET_ROLL_FORWARD: Major
         run: >
           dotnet sonarscanner begin
           /k:"sara-giulia_campus-app" /o:"sara-giulia"
@@ -43,6 +46,8 @@ jobs:
         run: dotnet test --no-build --collect:"XPlat Code Coverage" --settings coverlet.runsettings
         
       - name: End analysis
+        env:
+          DOTNET_ROLL_FORWARD: Major
         run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
   docker:

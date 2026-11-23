@@ -3003,3 +3003,14 @@ The evening before the demo, Sara listed what did not look or work right: the pa
 - **Result:** new `Infrastructure/ML/SpamRules.cs`, `frontend/src/features/notifications/messageText.ts`; `SpamDetector.cs`, `frontend/src/app/Layout.tsx`, `menu.ts`, `layout.css`, `features/listings/browse.css`, `ListingPage.tsx`, `features/notifications/NotificationsPage.tsx`, `features/admin-categories/AdminCategoriesPage.tsx`; README and `docs/ml/spam.md` (the rules).
 - **Commits:** code a727e25; skill section 1cba445; tests generated in 4912528
 
+## dotnet-11
+
+Week 8, task 2: the professor asked for the move to .NET 11 (released on 10 November 2026, STS). One PR, announced on the group, before the other big tasks (SSE, generated images, PostgreSQL). Done by Ancuța Ilenei with Claude Code.
+
+### Run 1
+
+- **Prompt:** `Do task 2 from the week 8 plan: move the project to .NET 11. Take the latest main, install what is needed, and check everything still works.`
+- **Changes:** `net10.0` → `net11.0` in the 7 projects; the Microsoft packages (`JwtBearer`, `OpenApi`, `EntityFrameworkCore.Sqlite`, `EntityFrameworkCore.Design`, `HealthChecks.EntityFrameworkCore`, `Mvc.Testing`) from `10.0.*` to `11.0.*`; the local `dotnet-ef` tool 10.0.14 → 11.0.0; `Dockerfile` on `sdk:11.0` and `aspnet:11.0`; `setup-dotnet` on `11.0.x` in `build.yml`, `ml.yml` and `deploy.yml`, and `DOTNET_ROLL_FORWARD: Major` on the two SonarScanner steps (the scanner tool is built for an older .NET). ML.NET (5.0.1), xUnit, FluentAssertions, NetArchTest and Scalar stay on the same versions: they do not depend on the .NET version and work on 11. README and the skills say .NET 11.
+- **Problems seen:** EF Core 11 marks `ExecuteSqlInterpolatedAsync` obsolete (warning CS0618 in `ListingsCacheTests.cs`): replaced with `ExecuteSqlAsync`, same behaviour.
+- **Checks:** build 0 warnings, SARIF empty; 10 architecture, 727 unit, 69 ML and 413 integration tests pass on net11.0; `dotnet ef migrations has-pending-model-changes`: no changes, so no new migration; the dataset regenerates byte for byte and the retrained models give exactly the same metrics (`check_metrics.py` passes, only `trainedAt` changed, so the committed models were kept); the API starts, `/health/ready` is 200 (database and the 4 models), the OpenAPI document is now **3.2.0** (the ASP.NET Core 11 default) and Scalar shows it correctly; the Postman collection with newman: 188 requests, 367 assertions, 0 failures. The Docker image is checked by the `docker` job of `build.yml`.
+- **Commits:** to be filled in

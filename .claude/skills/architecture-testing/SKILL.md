@@ -27,7 +27,7 @@ tests/CampusMarket.ArchitectureTests/
   FeatureTests.cs
 ```
 - Namespace: `CampusMarket.ArchitectureTests`.
-- `.csproj`: copy the structure of `tests/CampusMarket.UnitTests/CampusMarket.UnitTests.csproj`: `net10.0`, `Nullable` and `ImplicitUsings` enabled, `IsPackable` false, `<Using Include="Xunit" />` and `<Using Include="FluentAssertions" />`, `<FrameworkReference Include="Microsoft.AspNetCore.App" />` (the API is a web project, so the test project does not build without it), and a `ProjectReference` to `src/CampusMarket.Api/CampusMarket.Api.csproj`.
+- `.csproj`: copy the structure of `tests/CampusMarket.UnitTests/CampusMarket.UnitTests.csproj`: `net11.0`, `Nullable` and `ImplicitUsings` enabled, `IsPackable` false, `<Using Include="Xunit" />` and `<Using Include="FluentAssertions" />`, `<FrameworkReference Include="Microsoft.AspNetCore.App" />` (the API is a web project, so the test project does not build without it), and a `ProjectReference` to `src/CampusMarket.Api/CampusMarket.Api.csproj`.
 - Packages, with the same versions as `CampusMarket.UnitTests` where they overlap: `Microsoft.NET.Test.Sdk`, `xunit`, `xunit.runner.visualstudio`, `FluentAssertions` 7.2.0 (never 8), and `NetArchTest.Rules` (latest 1.3.x).
 - Add the project to the solution: `dotnet sln add tests/CampusMarket.ArchitectureTests`. The CI already runs `dotnet test` on the whole solution, so nothing else is needed.
 
