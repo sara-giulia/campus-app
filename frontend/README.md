@@ -84,6 +84,7 @@ The top bar has Acasă, Anunțuri, Publică anunț, Mesaje and Notificări; the 
 | `/my/favorites` | the listings I saved | logged in |
 | `/admin/moderation` | reported listings, hide one | Admin |
 | `/admin/categories` | the 5 base categories: change the display name, the description and the active flag | Admin |
+| `/admin/price-accuracy` | how close the suggested prices were to the sold prices: number of sales, MAE, MAPE, per category, the last 10 sales | Admin |
 | `/listings/new`, `/my/listings`, `/my/listings/:id/edit`, `/my/reservations`, `/profile`, `/register`, `/forgot-password`, `/reset-password` | publish and edit, my listings, my reservations, my profile, account pages (Sara) | see the routes |
 
 ## Login state
