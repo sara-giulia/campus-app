@@ -5,6 +5,8 @@ using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Listings.CreateListing;
+using CampusMarket.Api.Features.Listings.GetListingById;
+using CampusMarket.Api.Features.Listings.GetListings;
 using CampusMarket.Api.Features.Listings.UpdateListing;
 using CampusMarket.Api.Infrastructure.Persistence;
 using CampusMarket.IntegrationTests.Infrastructure;
@@ -117,6 +119,92 @@ public sealed class InactiveCategoryTests : IntegrationTestBase
 
         var reports = await QueryDbAsync(db => db.Set<Report>().CountAsync());
         reports.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ActiveListingWhoseCategoryBecameInactive_When_SearchingListings_Then_Returns200WithListing()
+    {
+        // Arrange
+        var listing = await SeedActiveListingAsync();
+        await DeactivateAsync(Category.Textbook);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/listings");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+        body!.Items.Select(i => i.Id).Should().Equal(listing.Id);
+        body.TotalCount.Should().Be(1);
+
+        await AssertListingAndCategoryUnchangedAsync(listing.Id);
+    }
+
+    [Fact]
+    public async Task Given_ActiveListingWhoseCategoryBecameInactive_When_FilteringByThatCategory_Then_Returns200WithListing()
+    {
+        // Arrange
+        var listing = await SeedActiveListingAsync();
+        await DeactivateAsync(Category.Textbook);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/listings?category=Textbook");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+        body!.Items.Select(i => i.Id).Should().Equal(listing.Id);
+        body.Items[0].Category.Should().Be(Category.Textbook);
+        body.TotalCount.Should().Be(1);
+
+        await AssertListingAndCategoryUnchangedAsync(listing.Id);
+    }
+
+    [Fact]
+    public async Task Given_ActiveListingWhoseCategoryBecameInactive_When_GettingListingById_Then_Returns200()
+    {
+        // Arrange
+        var listing = await SeedActiveListingAsync();
+        await DeactivateAsync(Category.Textbook);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingByIdResponse>(Json);
+        body!.Id.Should().Be(listing.Id);
+        body.Title.Should().Be("Manual POO");
+        body.Category.Should().Be(Category.Textbook);
+        body.Status.Should().Be(ListingStatus.Active);
+        body.Version.Should().Be(2);
+
+        await AssertListingAndCategoryUnchangedAsync(listing.Id);
+    }
+
+    // Arrange: a published Textbook listing of the seller, saved straight into the database.
+    private async Task<Listing> SeedActiveListingAsync()
+    {
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish();
+        await SeedAsync(listing);
+        return listing;
+    }
+
+    // Assert: the read touched nothing, the listing is still Active and the category still inactive.
+    private async Task AssertListingAndCategoryUnchangedAsync(Guid listingId)
+    {
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Id.Should().Be(listingId);
+        saved.Status.Should().Be(ListingStatus.Active);
+        saved.Version.Should().Be(2);
+
+        var category = await QueryDbAsync(db =>
+            db.Set<ListingCategory>().AsNoTracking().SingleAsync(c => c.Key == Category.Textbook));
+        category.IsActive.Should().BeFalse();
     }
 
     // Arrange: deactivates one category straight in this test's own database.

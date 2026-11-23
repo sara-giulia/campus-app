@@ -1927,6 +1927,27 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill 1cba445; generated code 4912528
 
+### Run 48, skill v47 (Feature: Admin categories, existing listings in a deactivated category)
+
+- **Why a new version:** branch `feature/inactive-category-listings`, week 8, task 12. Decision: deactivating a category only stops new listings (create, move by edit, publish of a draft, already refused with `Listing.CategoryInactive`); listings that are already `Active` in it stay visible in the search, in the category filter and by id. The code already behaved like this (`GetListingsHandler` and `GetListingByIdHandler` never read `ListingCategory`, the category filter of `BrowsePage.tsx` lists all 5 keys), but no test fixed the behaviour.
+
+#### Change to SKILL.md (v46 → v47) and why
+
+| # | v46 (before) | v47 (after) | Why |
+|---|---|---|---|
+| 1 | *"Feature: Admin categories (Carina)"* covered only the refused cases (create, move, publish) and the edit that keeps the category. | New rule in the same section: an `Active` listing whose category is deactivated afterwards stays visible; three tests in `InactiveCategoryTests` (search without parameters, `?category=` of that category, `GET /{id}`), arranged as published listing → `SeedAsync` → deactivate with the helper, no token, and the database check that the listing is still `Active`, `Version` 2, and the category still inactive. | Without it a later change could hide these listings (for example a join on the active categories in the search) and no test would fail. |
+
+- **Prompt:** `/integration-testing Task: week 8, task 12 - what happens to existing listings in a deactivated category. Branch: feature/inactive-category-listings. Rules: do NOT commit, do NOT push, no Co-Authored-By. Do not touch the "my listings" endpoint, page or tests (a teammate is fixing them). Do not change src/ or frontend/ unless step 1 finds that the behaviour is different from the decision below; in that case STOP and tell me before changing anything. Decision: deactivating a category only stops NEW listings (create, move by edit, publish draft are already refused). Existing active listings in a deactivated category stay visible: they appear in GET /api/v1/listings search, can be filtered by that category, and GET /api/v1/listings/{id} still works. 1. First check in the code (GetListingsHandler, the listing details handler, the frontend search filter) that the current behaviour matches this decision. Tell me what you found. 2. Update .claude/skills/integration-testing/SKILL.md: add to the section "Feature: Admin categories (Carina)" the rule for this case. 3. Following the skill, write the integration tests: an active listing whose category is deactivated afterwards (deactivate it directly in the test database, like the existing admin categories tests do) -> it still appears in the search, it is returned when filtering by that category, and GET by id returns 200. 4. Run all tests with coverage like the CI does: everything passes, dotnet build with 0 warnings. 5. README.md: in the categories part, add one or two lines that document this behaviour. Only add lines. 6. Add the next integration-testing Run to PROMPTS.md (next free Run number and next skill version after the last ones recorded), same format as the previous Runs, with "- **Commits:** commit hashes: to be filled in". 7. Restore coverage-report and delete TestResults. 8. Show me: what you found in step 1, the tests added, the Run number, the build/test results and git status. Answer in Romanian, short.` (new session)
+- **Skill version:** v47 (rule written by Carina with Claude Code; the last integration-testing version was v46, Run 47)
+- **Result:** step 1 found the code already matches the decision, so nothing changed in `src/` or `frontend/`. Three tests added to `Listings/InactiveCategoryTests.cs` (with the private helpers `SeedActiveListingAsync` and `AssertListingAndCategoryUnchangedAsync`); no existing test changed:
+    - published `Textbook` listing, `Textbook` deactivated → `GET /api/v1/listings` → 200, the listing is the only item, `totalCount` 1;
+    - the same → `GET /api/v1/listings?category=Textbook` → 200, the listing is returned with category `Textbook`, `totalCount` 1;
+    - the same → `GET /api/v1/listings/{id}` → 200, id, title, category, `Active`, `Version` 2.
+  Every test checks that the listing is still `Active` with `Version` 2 and `Textbook` is still inactive. Full run with coverage as in the CI: 10 architecture, 720 unit, 69 ML, 407 integration, all pass. `dotnet build --no-incremental`: 0 warnings, 0 errors; SARIF log empty. README: one line added under the Admin categories paragraph.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** 36b0422 (skills), e224165 (tests)
+
 ### Run 49, skill v48 (Feature: My listings)
 
 - **Why a new version:** branch `fix/my-listings`. New endpoint `GET /api/v1/members/me/listings` (login needed, every status, newest first, not output-cached) used by the my listings page; it had no integration test.
