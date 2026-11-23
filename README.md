@@ -25,6 +25,7 @@ npm run dev
 It opens on `http://localhost:5173`. The API allows only the origins in `Cors:AllowedOrigins` (`appsettings.json`: `http://localhost:5173` and the deployed frontend, `https://campus-app-pucf.onrender.com`); for another address set `Cors__AllowedOrigins__2` in the API's environment. To use another API address in the frontend, copy `frontend/.env.example` to `frontend/.env.local` and change `VITE_API_URL`. How the frontend is organised (where to add a page, the API client, login): [frontend/README.md](frontend/README.md).
 
 Admin page `/admin/categories` (menu **Categorii**, Admins only): change the display name, the description and the active flag of the 5 base categories. A deactivated category is not offered for new listings.
+Listings that are already `Active` in a deactivated category stay visible: they still appear in `GET /api/v1/listings`, can be filtered by that category (`?category=...`), and `GET /api/v1/listings/{id}` still returns them. Deactivating only stops new listings (create, move by edit, publish of a draft).
 
 ### With Docker
 
