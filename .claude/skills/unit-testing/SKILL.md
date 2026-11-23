@@ -954,3 +954,29 @@ Rules for this feature:
 - Never use real time.
 - Then run the tests with coverage and generate the report as this skill says: every file in `Domain/Categories/`, the handlers in `Features/Categories/` and the three listing handlers are at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: My listings (Diana)
+
+Production code (read it before generating):
+- `Features/Members/GetMyListings/GetMyListingsQuery.cs`: `GetMyListingsQuery(Guid MemberId)`.
+- `Features/Members/GetMyListings/GetMyListingsHandler.cs`: a query handler (no `IUnitOfWork`) with only `IListingRepository`. It reads `GetAllAsync`, keeps the listings whose `SellerId` is `MemberId`, in **every** status, orders by `CreatedAt` descending then `Id` ascending, and returns `GetMyListingsResponse(Items, Count)`. It never fails: the result is always a success.
+- `Features/Members/GetMyListings/GetMyListingsResponse.cs`: `MyListingItem(Id, SellerId, Title, Category, Condition, Price, Status, CreatedAt)`, built by `MyListingItem.From(listing)`; `Price` is the `Amount` (a `decimal`).
+
+File: `Features/Members/GetMyListings/GetMyListingsHandlerTests.cs` (new).
+
+Arrange: use `FakeListingRepository` only (no time provider, no unit of work). Fixed, named ids: `MemberId`, `OtherMemberId`. A listing is `Listing.Create(sellerId, title, Category.Textbook, Condition.Good, price, createdAt).Value`, seeded straight into `FakeListingRepository.Items`. Reach every status in the domain before seeding: `Draft` is the new listing; `Active` after `Publish()`; `Reserved` after `Publish()` then `Reserve(BuyerId, createdAt)`; `Sold` after `Reserve` then `ConfirmSale(reservation.Id, createdAt)`; `Hidden` after `Publish()` then `Hide()`. A private static helper builds a listing in a given status; no `if` or loop in the tests, so use one helper per status or a `switch` expression inside the helper.
+
+Tests to add:
+- Only the member's listings: two listings of `MemberId` and one of `OtherMemberId` → `Items` has exactly the two ids, `Count` 2.
+- Every status: one listing of the member in each of `Draft`, `Active`, `Reserved`, `Sold` and `Hidden` → all five come back, `Count` 5, and the `Status` of each item matches its listing.
+- Order: three listings with three different `CreatedAt` (`Now`, `Now.AddHours(1)`, `Now.AddHours(2)`), seeded oldest first → returned newest first (check the ids with `Equal`).
+- Tie: two listings with the same `CreatedAt` → ordered by `Id` ascending (`BeInAscendingOrder(i => i.Id)`).
+- No listings for the member (the repository has only another member's listing) → success, empty `Items`, `Count` 0.
+- Empty repository → success, empty `Items`, `Count` 0.
+- Item content: one listing → `Id`, `SellerId`, `Title`, `Category`, `Condition`, `Price` (the amount), `Status` and `CreatedAt` all match the listing.
+
+Rules for this feature:
+- The handler is a query handler: in every test assert that the repository still has the same items after the call (same count, `UpdateCount` 0).
+- Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
+- The handler has no failure branch: never invent an error test for it.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
