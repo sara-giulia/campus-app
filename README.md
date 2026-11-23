@@ -850,6 +850,8 @@ SonarCloud measures more than this report: the whole API, merged from all the te
 
 The AI module (price, category and spam) is trained offline and served by the API.
 
+Index of all ML models, metrics and limits: [ML.md](ML.md).
+
 ```
 ml/
 ├── CampusMarket.ML.DatasetGenerator/   # writes the synthetic CSV
