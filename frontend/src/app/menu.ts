@@ -24,4 +24,5 @@ export const menuItems: MenuItem[] = [
   { to: '/notifications', label: 'Notificări', show: 'user' },
   { to: '/admin/moderation', label: 'Moderare', show: 'Admin', place: 'account' },
   { to: '/admin/categories', label: 'Categorii', show: 'Admin', place: 'account' },
+  { to: '/admin/price-accuracy', label: 'Acuratețe prețuri', show: 'Admin', place: 'account' },
 ]
