@@ -1927,20 +1927,20 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill 1cba445; generated code 4912528
 
-### Run 48, skill v47 (Feature: My listings)
+### Run 49, skill v48 (Feature: My listings)
 
 - **Why a new version:** branch `fix/my-listings`. New endpoint `GET /api/v1/members/me/listings` (login needed, every status, newest first, not output-cached) used by the my listings page; it had no integration test.
 
-#### Change to SKILL.md (v46 → v47) and why
+#### Change to SKILL.md (v47 → v48) and why
 
-| # | v46 (before) | v47 (after) | Why |
+| # | v47 (before) | v48 (after) | Why |
 |---|---|---|---|
 | 1 | Nothing about the member's own listings. | New section *"Feature: My listings (Diana)"*: the route, the body (`items`, `count`, the eight fields of an item), the only failure (401 ProblemDetails `Auth.Unauthorized`) and the tests to add. | Without it Claude would copy the public search (only `Active`, paging) or look for a 404/400 that does not exist. |
 | 2 | — | The "appears immediately" case is one call in the Act: a first `GET` in the Arrange, then a seeded `Draft` listing, then the second `GET` as the Act. | Act is exactly one HTTP call (section 6); this also shows the answer is not cached. |
 | 3 | — | `Hidden` and `Reserved` seeded in the domain (`Publish()` then `Hide()` or `Reserve(...)`) before `SeedAsync`, never through an endpoint. | Same rule as the other sections: Arrange never calls another endpoint. |
 
 - **Prompt:** the same prompt as Run 39 of unit-testing (one prompt for both skills, see there) (new session)
-- **Skill version:** v47 (section written by Diana with Claude Code; the last integration-testing version was v46, Run 47)
+- **Skill version:** v48 (section written by Diana with Claude Code; the last integration-testing version was v47, Run 48)
 - **Result:** new `Members/GetMyListingsTests.cs`, 6 tests: no token → 401 ProblemDetails `Auth.Unauthorized` (the seeded listing still there); two members with listings, the seller sees only their two, newest first; the other student sees only their one; a first `GET` then a seeded `Draft` listing → the second `GET` returns it with status `Draft`; a `Hidden` and a `Reserved` listing both come back with their status (and the database has the same statuses); three listings → newest first by id. Every test checks the status, the body and the database. The new tests passed at the first run (6/6); the full suite once at the end: 10 architecture, 727 unit, 69 ML and 410 integration tests pass. No coverage report, as asked.
 - **Problems seen:** none.
 - **Change to SKILL.md after the run:** none.
