@@ -2141,6 +2141,43 @@
               ]
             },
             {
+              "name": "My listings (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/members/me/listings",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "members",
+                    "me",
+                    "listings"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"items is an array\", () => pm.expect(pm.response.json().items).to.be.an(\"array\"));",
+                      "pm.test(\"count equals items.length\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body.count).to.eql(body.items.length);",
+                      "});",
+                      "pm.test(\"Every item has a status\", () => pm.response.json().items.forEach(i => pm.expect(i.status).to.be.a(\"string\").and.not.empty));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Cancel reservation - buyer (204)",
               "request": {
                 "auth": {

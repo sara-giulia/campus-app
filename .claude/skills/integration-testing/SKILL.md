@@ -1271,3 +1271,23 @@ Rules for this feature:
 - Never assert an exact probability from the model; only `> 0.9` for the model case and exactly `0.9` for the rule-only cases.
 - If the model already flags one of the rule-only texts (its probability is not exactly 0.9), stop and report which one; do not change `src/` and do not change the texts on your own.
 
+
+## Feature: My listings (Diana)
+
+Endpoint: `GET /api/v1/members/me/listings` (`Features/Members/GetMyListings/GetMyListingsEndpoint.cs`). It needs a login (`RequireAuthorization()`), takes no parameters and always answers 200 `{ items, count }`; each item is `id`, `sellerId`, `title`, `category`, `condition`, `price`, `status`, `createdAt`. It returns the listings of the logged-in member in **every** status (`Draft`, `Active`, `Reserved`, `Sold`, `Hidden`), newest `CreatedAt` first, then `Id`. It is not output-cached, so a change shows up in the next call. Failure: 401 only (no token); the 401 body is ProblemDetails `Auth.Unauthorized`, as in "Feature: Reservations (Sara)".
+
+File: `Members/GetMyListingsTests.cs` (new), class `GetMyListingsTests : IntegrationTestBase`, with the fixed `SellerId`, `OtherStudentId` and `CreatedAt` of the other member tests. Members do not need to exist in the database to log in.
+
+Arrange: seed listings with `SeedAsync`, built in the domain before seeding: `Listing.Create(sellerId, ...)` (`Draft`), `Publish()` (`Active`), then `Reserve(buyerId, CreatedAt)` (`Reserved`) or `Hide()` (`Hidden`). Log in with `AuthenticateAs(memberId)` before the one HTTP call.
+
+Tests to add (status, body, then the database still has the same listings):
+- no token → 401, the ProblemDetails `Auth.Unauthorized`; the database has 0 listings.
+- two members with listings (two for `SellerId`, one for `OtherStudentId`), logged in as `SellerId` → 200, `count` 2, only the two ids of `SellerId`. A second test, logged in as `OtherStudentId` → 200, `count` 1, only their own id. One call per test.
+- a new `Draft` listing appears immediately: the first `GET` (part of the Arrange, logged in as `SellerId`, no listings yet) → 200; then seed a `Draft` listing of `SellerId` and make the Act `GET` again → 200, `count` 1, the `Draft` listing is in `items` with status `Draft`. This also shows the response is not cached.
+- a listing in another status still appears: one `Hidden` and one `Reserved` listing of the member → both in `items`, with the right `status`, `count` 2.
+- order: three listings of the member with `CreatedAt`, plus 1 hour, plus 2 hours, seeded oldest first → `items` newest first, checked by id with `Equal`.
+
+Rules for this feature:
+- Read the success body into `GetMyListingsResponse`; check the order of `items` by id, not only their count.
+- For 401 check the status code and the ProblemDetails code, as in the reservations tests.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
