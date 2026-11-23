@@ -116,6 +116,8 @@ before Render is wired up and remains idempotent afterwards.
 7. [Work packages](#7-work-packages)
 8. [How we work](#8-how-we-work)
 
+Architecture diagrams (Mermaid, in Romanian): [docs/architecture.md](docs/architecture.md)
+
 ---
 
 ## 1. Team
