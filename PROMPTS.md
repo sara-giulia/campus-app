@@ -1041,6 +1041,25 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 0865eb0 (feat), 236c00d (skills), 89c2b88 (tests)
 
+### Run 39, skill v41 (Feature: My listings)
+
+- **Why a new version:** branch `fix/my-listings`. New query `GET /members/me/listings` (`Features/Members/GetMyListings/`): every listing of the logged-in member in every status, newest first. `GetMyListingsHandler` had no unit test.
+
+#### Change to SKILL.md (v40 → v41) and why
+
+| # | v40 (before) | v41 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the member's own listings. | New section *"Feature: My listings (Diana)"*: what `GetMyListingsHandler` does (only the member's listings, every status, `CreatedAt` descending then `Id`, never fails) and the tests to add. | Without it Claude would not know that, unlike `GetListings`, the handler does not filter by status, and could invent an error test. |
+| 2 | — | How to build a listing in each of the five statuses in the domain (`Publish`, `Reserve`, `ConfirmSale`, `Hide`) before seeding the fake. | `Sold` and `Hidden` need several domain calls; a fixed recipe keeps the Arrange identical in every test. |
+| 3 | — | *"The handler has no failure branch: never invent an error test for it."* and the repository-unchanged assertion in every test. | A query handler has no unit of work; the unchanged repository is the only side-effect check. |
+
+- **Prompt:** `Feature: GET /api/v1/members/me/listings (GetMyListings slice in Features/Members/GetMyListings), already committed. It returns all listings of the logged-in member in every status (Draft, Active, Reserved, Sold, Hidden), newest first, requires authentication, and is not output-cached. 1. Add a section for this feature to .claude/skills/unit-testing/SKILL.md and .claude/skills/integration-testing/SKILL.md, following the format and versioning of the existing sections. 2. Generate the tests with those skills: unit tests for GetMyListingsHandler: only the member's listings, every status included, ordered by CreatedAt descending then Id, empty list when the member has none; integration tests: 401 without a token; two members with listings, each sees only their own; a new Draft listing appears immediately; a listing in another status (e.g. Hidden or Reserved) still appears. 3. Run only the new tests first until they pass, then run the full test suite once at the end. Do not generate a coverage report. 4. Add the PROMPTS.md entry for these runs, in the same format as the latest entries (version change, table, prompt, result, no TODO). All names in English. Do not commit. Do not push.` (new session)
+- **Skill version:** v41 (section written by Diana with Claude Code; the last unit-testing version was v40, Run 38)
+- **Result:** new `Features/Members/GetMyListings/GetMyListingsHandlerTests.cs`, 7 tests: only the member's two listings out of three (`Count` 2); one listing in each of the five statuses, all returned with the right `Status`; three different `CreatedAt` → newest first; the same `CreatedAt` → `Id` ascending; a member with no listings → empty, `Count` 0; an empty repository → empty; one listing → every field of the item matches. In every test the repository is unchanged. The new tests passed at the first run (7/7); the full suite once at the end: 10 architecture, 727 unit, 69 ML and 410 integration tests pass. No coverage report, as asked.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 31fbffd; skill section a286010; tests generated in 7e729c3
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1907,6 +1926,25 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the two texts of row 2, reported by the run instead of being changed.
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** skill 1cba445; generated code 4912528
+
+### Run 48, skill v47 (Feature: My listings)
+
+- **Why a new version:** branch `fix/my-listings`. New endpoint `GET /api/v1/members/me/listings` (login needed, every status, newest first, not output-cached) used by the my listings page; it had no integration test.
+
+#### Change to SKILL.md (v46 → v47) and why
+
+| # | v46 (before) | v47 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about the member's own listings. | New section *"Feature: My listings (Diana)"*: the route, the body (`items`, `count`, the eight fields of an item), the only failure (401 ProblemDetails `Auth.Unauthorized`) and the tests to add. | Without it Claude would copy the public search (only `Active`, paging) or look for a 404/400 that does not exist. |
+| 2 | — | The "appears immediately" case is one call in the Act: a first `GET` in the Arrange, then a seeded `Draft` listing, then the second `GET` as the Act. | Act is exactly one HTTP call (section 6); this also shows the answer is not cached. |
+| 3 | — | `Hidden` and `Reserved` seeded in the domain (`Publish()` then `Hide()` or `Reserve(...)`) before `SeedAsync`, never through an endpoint. | Same rule as the other sections: Arrange never calls another endpoint. |
+
+- **Prompt:** the same prompt as Run 39 of unit-testing (one prompt for both skills, see there) (new session)
+- **Skill version:** v47 (section written by Diana with Claude Code; the last integration-testing version was v46, Run 47)
+- **Result:** new `Members/GetMyListingsTests.cs`, 6 tests: no token → 401 ProblemDetails `Auth.Unauthorized` (the seeded listing still there); two members with listings, the seller sees only their two, newest first; the other student sees only their one; a first `GET` then a seeded `Draft` listing → the second `GET` returns it with status `Draft`; a `Hidden` and a `Reserved` listing both come back with their status (and the database has the same statuses); three listings → newest first by id. Every test checks the status, the body and the database. The new tests passed at the first run (6/6); the full suite once at the end: 10 architecture, 727 unit, 69 ML and 410 integration tests pass. No coverage report, as asked.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 31fbffd; skill section a286010; tests generated in 7e729c3
 
 ## code-review
 
