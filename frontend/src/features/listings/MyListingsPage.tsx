@@ -8,20 +8,14 @@ import { useCategories } from './categories'
 import {
   CONDITION_LABELS,
   LISTING_STATUS_LABELS,
-  type GetListingsResponse,
   type ListingStatus,
   type ListingSummary,
 } from './types'
 import './listings.css'
 
-// GET /api/v1/listings only returns Active listings (see GetListingsHandler).
-// There is no "my listings" endpoint, so we fetch Active listings and filter
-// by the logged-in user's id on the client. Drafts, Reserved, Sold and Hidden
-// listings of the current user are therefore not shown here — this is called
-// out in the end-of-task notes and left for a dedicated API endpoint.
-
 const PAGE_SIZE = 10
-const FETCH_PAGE_SIZE = 100
+
+type MyListingsResponse = { items: ListingSummary[]; count: number }
 
 function statusTone(status: ListingStatus): 'neutral' | 'success' | 'warning' | 'danger' | 'accent' {
   switch (status) {
@@ -52,9 +46,9 @@ export function MyListingsPage() {
     if (!user) return
     const controller = new AbortController()
     api
-      .get<GetListingsResponse>(`/listings?pageSize=${FETCH_PAGE_SIZE}`, { signal: controller.signal })
+      .get<MyListingsResponse>('/members/me/listings', { signal: controller.signal })
       .then((data) => {
-        setItems(data.items.filter((item) => item.sellerId === user.id))
+        setItems(data.items)
       })
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
@@ -70,8 +64,8 @@ export function MyListingsPage() {
   async function reloadMine() {
     if (!user) return
     try {
-      const data = await api.get<GetListingsResponse>(`/listings?pageSize=${FETCH_PAGE_SIZE}`)
-      setItems(data.items.filter((item) => item.sellerId === user.id))
+      const data = await api.get<MyListingsResponse>('/members/me/listings')
+      setItems(data.items)
     } catch (err) {
       if (err instanceof ApiError) {
         setFormError(err.code === 'Network.Unreachable' ? 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' : err.message)
@@ -122,7 +116,7 @@ export function MyListingsPage() {
       <PageHeader
         eyebrow="Contul meu"
         title="Anunțurile mele"
-        lead="Doar anunțurile active apar aici."
+        lead="Toate anunțurile tale, inclusiv ciornele, cele rezervate și cele vândute."
         actions={<ButtonLink to="/listings/new">Publică anunț</ButtonLink>}
       />
 
@@ -130,10 +124,10 @@ export function MyListingsPage() {
 
       {all.length === 0 ? (
         <EmptyState
-          title="Nu ai încă niciun anunț activ."
+          title="Nu ai încă niciun anunț."
           action={<ButtonLink to="/listings/new">Publică primul anunț</ButtonLink>}
         >
-          Anunțurile tale publice vor apărea aici.
+          Anunțurile tale vor apărea aici.
         </EmptyState>
       ) : (
         <div className="listings-list">
