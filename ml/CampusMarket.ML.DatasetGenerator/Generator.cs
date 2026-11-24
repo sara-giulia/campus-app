@@ -35,6 +35,7 @@ public sealed class Generator
     public const double TypoRate = 0.18;
     public const double AbbreviationRate = 0.35;
     public const double NormalWithSpamyWordRate = 0.06;
+    public const double NewPatternShare = 0.5;
 
     private static readonly string[] Emojis =
     {
@@ -64,13 +65,17 @@ public sealed class Generator
     };
 
     private readonly Random _rng;
+    private readonly Random _spamRng;
     private readonly ItemTemplate[] _items;
     private readonly Dictionary<Category, ItemTemplate[]> _byCategory;
     private readonly Category[] _allCategories;
 
-    public Generator(Random rng, IReadOnlyList<ItemTemplate> items)
+    // rng drives every row; spamRng only decides the pattern and the text of spam rows, so adding
+    // spam patterns does not move the main stream that the non-spam rows are drawn from.
+    public Generator(Random rng, Random spamRng, IReadOnlyList<ItemTemplate> items)
     {
         _rng = rng;
+        _spamRng = spamRng;
         _items = items.ToArray();
         _byCategory = _items
             .GroupBy(i => i.Category)
@@ -117,7 +122,7 @@ public sealed class Generator
         }
 
         title = DecorateTitle(title);
-        description = DecorateDescription(description);
+        description = DecorateDescription(description, _rng);
 
         return new Row(
             Title: ClampTitle(title),
@@ -129,6 +134,10 @@ public sealed class Generator
             TemplateId: item.Id);
     }
 
+    // The main stream (_rng) makes exactly the draws of the original generator, in the same order,
+    // so every non-spam row is unchanged. Which pattern the row finally uses, and the text of the
+    // new patterns, come from _spamRng, which only spam rows touch. Every spam row, loud or
+    // disguised, gets its pattern as TemplateId, so a pattern's texts stay in one part of the split.
     private Row GenerateSpam()
     {
         var disguised = _rng.NextDouble() < DisguisedSpamShare;
@@ -138,11 +147,19 @@ public sealed class Generator
             var item = _items[_rng.Next(_items.Length)];
             var title = PickTitle(item);
             var condition = PickCondition();
-            var description = Spam.PickDescription(_rng);
+            var (description, legacyIndex) = Spam.PickDescriptionWithIndex(_rng);
             var price = ComputePrice(item.BasePriceMin, item.BasePriceMax, condition);
 
             title = DecorateTitle(title);
-            description = DecorateDescription(description, allowAbbrev: false);
+            description = DecorateDescription(description, _rng, allowAbbrev: false);
+
+            var pattern = PickPattern(legacyIndex);
+            if (IsNewPattern(pattern))
+            {
+                price = SpamPriceFor(pattern, price, disguised: true);
+                var template = pattern.Descriptions[_spamRng.Next(pattern.Descriptions.Length)];
+                description = DecorateDescription(Spam.Fill(template, _spamRng, price), _spamRng, allowAbbrev: false);
+            }
 
             return new Row(
                 Title: ClampTitle(title),
@@ -151,13 +168,14 @@ public sealed class Generator
                 Condition: condition,
                 Price: price,
                 IsSpam: true,
-                TemplateId: item.Id);
+                TemplateId: pattern.Id);
         }
         else
         {
-            var title = Spam.PickTitle(_rng);
+            // Drawn only to keep the main stream aligned; the title now belongs to the pattern.
+            _ = Spam.PickTitle(_rng);
             var condition = PickCondition();
-            var (description, descriptionIndex) = Spam.PickDescriptionWithIndex(_rng);
+            var (description, legacyIndex) = Spam.PickDescriptionWithIndex(_rng);
 
             int price;
             var trick = _rng.Next(3);
@@ -174,6 +192,15 @@ public sealed class Generator
                 price = _rng.Next(5, 50);
             }
 
+            var pattern = PickPattern(legacyIndex);
+            var title = pattern.Titles[_spamRng.Next(pattern.Titles.Length)];
+            if (IsNewPattern(pattern))
+            {
+                price = SpamPriceFor(pattern, price, disguised: false);
+                var template = pattern.Descriptions[_spamRng.Next(pattern.Descriptions.Length)];
+                description = Spam.Fill(template, _spamRng, price);
+            }
+
             return new Row(
                 Title: ClampTitle(title),
                 Description: ClampDescription(description),
@@ -181,8 +208,34 @@ public sealed class Generator
                 Condition: condition,
                 Price: price,
                 IsSpam: true,
-                TemplateId: $"spam-{descriptionIndex:D2}");
+                TemplateId: pattern.Id);
         }
+    }
+
+    // About half of the spam keeps its original pattern (spam-00 ... spam-11, the text already
+    // drawn on the main stream); the rest gets one of the new patterns. Always two draws.
+    private SpamPattern PickPattern(int legacyIndex)
+    {
+        var useNew = _spamRng.NextDouble() < NewPatternShare;
+        var newIndex = _spamRng.Next(Spam.New.Count);
+        return useNew ? Spam.New[newIndex] : Spam.Patterns[legacyIndex];
+    }
+
+    private static bool IsNewPattern(SpamPattern pattern) => Spam.New.Contains(pattern);
+
+    // Absurd keeps the price already drawn (loud: 1 leu, 5-49 or 50000-99999; disguised: the
+    // item's price). TooCheap is 10-25% of the item's price, or 49-399 lei for a loud row.
+    // Plausible keeps the item's price, or 20-299 lei for a loud row.
+    private int SpamPriceFor(SpamPattern pattern, int drawnPrice, bool disguised)
+    {
+        return pattern.Price switch
+        {
+            SpamPrice.TooCheap when disguised =>
+                Math.Max(1, (int)Math.Round(drawnPrice * (0.10 + _spamRng.NextDouble() * 0.15), MidpointRounding.AwayFromZero)),
+            SpamPrice.TooCheap => _spamRng.Next(49, 400),
+            SpamPrice.Plausible when !disguised => _spamRng.Next(20, 300),
+            _ => drawnPrice,
+        };
     }
 
     private string PickTitle(ItemTemplate item) =>
@@ -273,11 +326,11 @@ public sealed class Generator
         }
         if (_rng.NextDouble() < TypoRate)
         {
-            text = IntroduceTypo(text);
+            text = IntroduceTypo(text, _rng);
         }
         if (_rng.NextDouble() < AbbreviationRate)
         {
-            text = ApplyAbbreviations(text);
+            text = ApplyAbbreviations(text, _rng);
         }
         var capsRoll = _rng.NextDouble();
         if (capsRoll < AllCapsRate)
@@ -290,33 +343,33 @@ public sealed class Generator
         }
         if (_rng.NextDouble() < EmojiRate)
         {
-            text = AddEmoji(text);
+            text = AddEmoji(text, _rng);
         }
         return text;
     }
 
-    private string DecorateDescription(string description, bool allowAbbrev = true)
+    private static string DecorateDescription(string description, Random rng, bool allowAbbrev = true)
     {
         if (string.IsNullOrEmpty(description))
         {
             return description;
         }
         var text = description;
-        if (_rng.NextDouble() < StripDiacriticsRate)
+        if (rng.NextDouble() < StripDiacriticsRate)
         {
             text = StripDiacritics(text);
         }
-        if (allowAbbrev && _rng.NextDouble() < AbbreviationRate)
+        if (allowAbbrev && rng.NextDouble() < AbbreviationRate)
         {
-            text = ApplyAbbreviations(text);
+            text = ApplyAbbreviations(text, rng);
         }
-        if (_rng.NextDouble() < TypoRate)
+        if (rng.NextDouble() < TypoRate)
         {
-            text = IntroduceTypo(text);
+            text = IntroduceTypo(text, rng);
         }
-        if (_rng.NextDouble() < EmojiRate)
+        if (rng.NextDouble() < EmojiRate)
         {
-            text = AddEmoji(text);
+            text = AddEmoji(text, rng);
         }
         return text;
     }
@@ -341,12 +394,12 @@ public sealed class Generator
             .Replace('Ț', 'T');
     }
 
-    private string ApplyAbbreviations(string value)
+    private static string ApplyAbbreviations(string value, Random rng)
     {
         var text = value;
         foreach (var (pattern, replacement) in Abbreviations)
         {
-            if (_rng.NextDouble() < 0.6)
+            if (rng.NextDouble() < 0.6)
             {
                 text = text.Replace(pattern, replacement, StringComparison.Ordinal);
             }
@@ -354,7 +407,7 @@ public sealed class Generator
         return text;
     }
 
-    private string IntroduceTypo(string value)
+    private static string IntroduceTypo(string value, Random rng)
     {
         if (value.Length < 4)
         {
@@ -364,7 +417,7 @@ public sealed class Generator
         var attempts = 0;
         while (attempts++ < 6)
         {
-            var idx = _rng.Next(chars.Length - 1);
+            var idx = rng.Next(chars.Length - 1);
             if (char.IsLetter(chars[idx]) && char.IsLetter(chars[idx + 1]) && chars[idx] != ' ')
             {
                 (chars[idx], chars[idx + 1]) = (chars[idx + 1], chars[idx]);
@@ -390,10 +443,10 @@ public sealed class Generator
         return new string(chars);
     }
 
-    private string AddEmoji(string value)
+    private static string AddEmoji(string value, Random rng)
     {
-        var emoji = Emojis[_rng.Next(Emojis.Length)];
-        return _rng.NextDouble() < 0.5 ? emoji + " " + value : value + " " + emoji;
+        var emoji = Emojis[rng.Next(Emojis.Length)];
+        return rng.NextDouble() < 0.5 ? emoji + " " + value : value + " " + emoji;
     }
 
     private static string ClampTitle(string title)
