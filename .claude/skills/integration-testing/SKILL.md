@@ -956,6 +956,15 @@ Tests to add:
 - Never hard-code a real key; use generated test strings.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+### Connection string check in Production (added in v54)
+Production code: in `ValidateCampusMarketProductionConfiguration`, after the `Jwt:Key` check, Production throws `InvalidOperationException` when `ConnectionStrings:CampusMarket` is missing or whitespace; the message names `ConnectionStrings__CampusMarket` and says it must be a PostgreSQL connection string in key/value form, not a `postgresql://` URL.
+Test host: `CampusMarketApiFactory` sets `ConnectionStrings:CampusMarket` with `UseSetting` to its own test database, so every other Production test passes this check. The new tests override it with `UseSetting` in their own `WithWebHostBuilder` copy (a later `UseSetting` for the same key wins).
+Tests to add in `Infrastructure/ProductionConfigurationTests.cs` (three; a valid 40-character `Jwt:Key` in every one, so the connection string check is the one that fires):
+- Environment Production, `ConnectionStrings:CampusMarket` = `""` → creating the client throws `InvalidOperationException` whose message mentions `ConnectionStrings__CampusMarket`.
+- Environment Production, `ConnectionStrings:CampusMarket` = `"   "` → the same exception and message.
+- Environment Development, `ConnectionStrings:CampusMarket` = `""` → this check does not run: `GET /health` is 200. The factory registers the DbContext on its own database whatever the setting says, so the empty setting changes only what the check would read.
+- Never put a real connection string or password in a test; the factory's Testcontainers string is the only one used.
+
 
 
 ## Feature: Price feedback loop (Sara)
