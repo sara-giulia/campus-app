@@ -23,7 +23,7 @@ generate, dataset v2: 5000 de rânduri, 10% spam, seed 2026) și sunt salvate ca
   0.60 (aleasă pe validare) API-ul nu dă nicio sugestie. Fișa:
   [docs/ml/category.md](docs/ml/category.md).
 - **Spam** (`spam-detection.zip`) — dă probabilitatea ca un anunț să fie spam din
-  titlu, descriere și preț. SDCA logistic regression, prag 0.40 (ales pe
+  titlu, descriere și preț. SDCA logistic regression, prag 0.35 (ales pe
   validare). Un anunț peste prag rămâne publicat, dar primește un raport automat
   pentru Admin. În API, peste model mai sunt și reguli fixe (`SpamRules.cs`).
   Fișa: [docs/ml/spam.md](docs/ml/spam.md).
@@ -37,8 +37,11 @@ Alte modele în repo: nu există; `ml/models/` conține doar cele patru `.zip`.
 
 ## Metrici
 
-Test = partea de test (15%, grupată după `TemplateId`, 711 rânduri; preț,
-categorie și similare folosesc doar cele 693 de rânduri non-spam). Extern =
+Test = partea de test (15%, grupată după `TemplateId`). Numărul de rânduri
+diferă pe model, după `dataset.rowCountTest` din `ml/models/*.json`: preț,
+categorie și similare au fost antrenate pe setul dinainte de cele 12 tipare noi
+de spam (711 rânduri de test, din care folosesc doar cele 693 non-spam); spam a
+fost reantrenat pe setul nou (780 de rânduri de test, 87 spam). Extern =
 `ml/data/external.csv` (122 de rânduri, 102 non-spam, 20 spam), nefolosit
 niciodată la antrenare sau la alegerea pragurilor.
 
@@ -51,16 +54,18 @@ niciodată la antrenare sau la alegerea pragurilor.
 | Categorie | Micro accuracy | 0.853 | 0.281 / 0.519 | 0.618 | 0.196 / lipsește | cea mai frecventă clasă / regulă cu cuvinte cheie |
 | Categorie | Macro accuracy | 0.856 | 0.200 / 0.484 | 0.616 | 0.200 / lipsește | idem |
 | Categorie | Macro-F1 | 0.864 | lipsește | lipsește | lipsește | — |
-| Spam (prag 0.40) | Precision | 1.000 | 0.667 | 0.909 | 0.765 | regulă: telefon, link, whatsapp/telegram, `!!!`, preț ≤ 5 lei |
-| Spam (prag 0.40) | Recall | 1.000 | 1.000 | 0.500 | 0.650 | idem |
-| Spam (prag 0.40) | F1 | 1.000 | 0.800 | 0.645 | 0.703 | idem |
-| Spam | PR-AUC | 1.000 | — | 0.852 | — | — |
+| Spam (prag 0.35) | Precision | 1.000 | 0.890 | 0.680 (la 0.50) | 0.765 | regulă: telefon, link, whatsapp/telegram, `!!!`, preț ≤ 5 lei |
+| Spam (prag 0.35) | Recall | 0.747 | 0.839 | 0.850 (la 0.50) | 0.650 | idem |
+| Spam (prag 0.35) | F1 | 0.855 | 0.864 | 0.756 (la 0.50) | 0.703 | idem |
+| Spam | PR-AUC | 0.975 | — | lipsește | — | — |
 | Similare | Precision@5 | 0.668 | 0.202 | lipsește | lipsește | 5 anunțuri alese la întâmplare |
 
 Note:
 
-- La pragul 0.50, spam pe extern are precision 1.000, recall 0.500, F1 0.667
-  (`docs/ml/spam.md`); tabelul extern din `README.md` folosește aceste valori.
+- Spam pe extern: programul de antrenare afișează precision, recall și F1 doar la
+  pragul 0.50 (coloana „Extern (model)”). La pragul API-ului, 0.35, pe extern sunt
+  **10 anunțuri bune semnalate** și 3 spam ratate (`docs/ml/spam.md`). Pe test, la
+  0.50: precision 1.000, recall 0.701, F1 0.824.
 - Baseline-ul de preț pe test apare cu valori puțin diferite în documente:
   `README.md` și tabelul extern din `docs/ml/price.md` dau MAE 345.44 / MAPE
   176.5%, iar tabelul „Final metrics” din `docs/ml/price.md` dau MAE 346.41 /
@@ -120,38 +125,36 @@ sau F1 scad cu mai mult de 0.02 sau dacă MAE crește cu mai mult de 5%.
   pregătire pentru examene („grile”, „materie”, „sinteze”, cuvinte care nu apar în
   date) și trimite spre `Textbook` orice titlu cu cratimă („X - Y”). Chiar peste
   0.60, cam 1 sugestie din 10 e greșită pe test și 1 din 5 pe extern.
-- **Spam:** prinde spamul care mută discuția pe Telegram/WhatsApp sau dă un link;
-  ratează frauda prin plată (avans, PayPal Friends & Family, crypto). Pragul 0.40
-  a fost ales pe o validare saturată și pe extern semnalează un anunț bun
-  (bocanci, probabilitate 0.42). Cuvinte foarte comune („pe”, „cu”) au greutăți
-  mari.
+- **Spam:** pe extern, la pragul 0.35, semnalează **10 din cele 102 anunțuri bune**
+  (bocanci și un stetoscop la 0.91) și ratează 3 spam. Cele mai puternice 10 cuvinte
+  spre spam sunt generice („pe”, „in”, „e”, „pret”, „lei”, „raspund”, „doar”), deci
+  modelul învață și stilul datelor generate, nu doar semnalele de contact.
 - **Anunțuri similare:** compară cuvinte, nu sens; ignoră prețul și starea; cam o
   sugestie din trei e din altă categorie; calculează vectorii pentru toate anunțurile
   active la fiecare cerere. Nu are evaluare pe setul extern.
 
-## De ce spam are 1.0 pe test, dar recall 0.50 pe extern
+## De ce spam avea 1.0 pe test și ce s-a schimbat
 
-- **Spamul generat are puține tipare.** `Spam.cs` are 12 titluri ALL CAPS, 10
-  titluri normale și doar **12 texte de descriere**, din care se aleg toate
-  rândurile de spam (și cele zgomotoase, și cele deghizate). Fiecare text conține
-  un semnal de contact: WhatsApp, Telegram, „link in bio”, un număr de telefon sau
-  `!!!`. Modelul învață exact aceste semnale (cele mai puternice cuvinte: „pe”,
-  „telegram”, „link”, „suna”, „pe telegram”).
-- **Testul nu are un tipar cu adevărat nou.** Gruparea după `spam-00` … `spam-11`
-  ține spamul zgomotos al unui tipar într-o singură parte, dar spamul deghizat
-  folosește aceleași 12 descrieri și e grupat după produs, nu după tipar, așa că
-  textele pot apărea și în train. Pe test sunt 18 rânduri spam; toate sunt prinse,
-  fără niciun anunț bun semnalat (TP 18, FP 0, FN 0). Validarea e la fel de
-  saturată: orice prag între 0.15 și 0.65 dă F1 1.000.
-- **Setul extern e scris de echipă după anunțuri reale.** Are 20 de rânduri spam,
-  dintre care 10 subtile: titlu și preț normale, fără cuvinte de înșelătorie.
-  Modelul le prinde pe cele 10 zgomotoase și le ratează pe cele 10 subtile
-  (TP 10, FN 10 → recall 0.500). Cele ratate sunt fraude prin plată (avans prin
-  transfer, PayPal Friends & Family, crypto, conturi Netflix), un preț absurd fără
-  text, un telefon mascat („07xx xxx xxx”) sau „!!!” lipit de un cuvânt rar —
-  tipuri de text pe care generatorul nu le-a produs niciodată.
-- **Concluzie:** 1.0 pe test arată doar că modelul recunoaște tiparele
-  generatorului; 0.50 pe extern e cifra cinstită. Pentru a o crește trebuie
-  adăugat spam de tip fraudă prin plată în generator (sau anunțuri reale
-  raportate) și ales din nou pragul pe date care nu sunt saturate. Până atunci,
-  regulile din `SpamRules.cs` rămân lângă model în API.
+- **Înainte, testul nu avea un tipar cu adevărat nou.** Tot spamul era ales din doar
+  12 texte de descriere (`spam-00` … `spam-11`). Spamul zgomotos era grupat după
+  tipar, dar spamul deghizat era grupat după produsul imitat, așa că aceleași texte
+  ajungeau și în train, și în test. Pe test erau 18 rânduri spam, toate prinse
+  (TP 18, FP 0, FN 0), iar validarea era saturată (orice prag între 0.15 și 0.65 dădea
+  F1 1.000). 1.0 arăta doar că modelul recunoaște textele pe care le văzuse deja.
+- **Acum:** `Spam.cs` are **12 tipare noi** (`spam-12` … `spam-23`: giveaway fals,
+  giveaway cu taxă, dublare crypto, semnale forex, telefon ascuns, cont pe altă
+  aplicație, preț prea bun, link scurt, ofertă și job în română amestecată cu engleză,
+  recrutare falsă, schemă piramidală), folosite de cam jumătate din rândurile de spam.
+  Fiecare rând de spam, zgomotos sau deghizat, are tiparul ca `TemplateId`, iar
+  `DatasetSplit` amestecă cele 24 de tipare și le taie 70 / 15 / 15 după număr, deci
+  validarea și testul au doar tipare întregi pe care modelul nu le-a văzut. Rândurile
+  non-spam au rămas identice.
+- **Cifrele cinstite:** pe test (780 de rânduri, 87 spam), la pragul 0.35: precision
+  1.000, recall 0.747, F1 0.855 (FP 0, FN 22); AUC 0.996. Pragul 0.35 e mijlocul
+  pragurilor 0.25 … 0.50, care au toate cel mai bun F1 pe validare (0.959). Pe extern
+  recall-ul a urcat de la 0.500 la 0.850 (la 0.50), dar anunțurile bune semnalate au
+  crescut de la 1 la 10 (la pragul API-ului).
+- **Concluzie:** spamul nou e prins mai bine, dar modelul semnalează prea multe
+  anunțuri bune pe text real și se bazează pe cuvinte generice. Pentru a-l folosi pe
+  trafic real trebuie adăugate anunțuri reale (bune și raportate) și ales din nou
+  pragul pe ele. Până atunci, regulile din `SpamRules.cs` rămân lângă model în API.
