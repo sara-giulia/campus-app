@@ -13,6 +13,7 @@ public class PhotoFormatTests
     private static readonly byte[] RiffOnlyBytes = [0x52, 0x49, 0x46, 0x46];
     private static readonly byte[] WaveBytes = [0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0, 0x57, 0x41, 0x56, 0x45, 0, 0, 0, 0];
     private static readonly byte[] JpegFirstTwoBytes = [0xFF, 0xD8];
+    private static readonly byte[] SvgBytes = "<svg xmlns='http://www.w3.org/2000/svg'></svg>"u8.ToArray();
 
     [Fact]
     public void Given_JpegStart_When_Detecting_Then_ReturnsJpegWithExtensionAndContentType()
@@ -98,6 +99,25 @@ public class PhotoFormatTests
     public void Given_FirstTwoBytesOfJpeg_When_Detecting_Then_ReturnsNull()
     {
         var format = PhotoFormat.Detect(JpegFirstTwoBytes);
+
+        format.Should().BeNull();
+    }
+
+    [Fact]
+    public void Given_SvgFormat_When_ReadingIt_Then_HasSvgExtensionAndContentType()
+    {
+        var format = PhotoFormat.Svg;
+
+        var extension = format.Extension;
+
+        extension.Should().Be(".svg");
+        format.ContentType.Should().Be("image/svg+xml");
+    }
+
+    [Fact]
+    public void Given_SvgText_When_Detecting_Then_ReturnsNull()
+    {
+        var format = PhotoFormat.Detect(SvgBytes);
 
         format.Should().BeNull();
     }

@@ -8,6 +8,7 @@ using CampusMarket.Api.Features.Members.GetMyListings;
 using CampusMarket.Api.Features.Members.GetMyProfile;
 using CampusMarket.Api.Features.Members.UpdateMyProfile;
 using CampusMarket.Api.Features.Members.GetPublicProfile;
+using CampusMarket.Api.Features.Members.StreamMyEvents;
 
 namespace CampusMarket.Api.Features.Members;
 
@@ -27,6 +28,7 @@ public static class MembersEndpoints
         GetMyProfileEndpoint.Map(group);
         UpdateMyProfileEndpoint.Map(group);
         GetPublicProfileEndpoint.Map(group);
+        StreamMyEventsEndpoint.Map(group);
 
         return app;
     }

@@ -174,6 +174,11 @@ function ListingView({ id }: { id: string }) {
         <div className="gallery">
           <div className={`gallery__main lcard__image--${listing.category.toLowerCase()}`}>
             {photo ? <img src={photoSrc(photo.url)} alt={listing.title} /> : <span>{labelOf(listing.category)}</span>}
+            {photo?.isGenerated && (
+              <span className="generated-badge" title="Anunțul nu are încă poze; imaginea e făcută din titlu și categorie.">
+                Imagine generată
+              </span>
+            )}
           </div>
           {photos.length > 1 && (
             <div className="gallery__thumbs">

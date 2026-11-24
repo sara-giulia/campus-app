@@ -11,6 +11,9 @@ const MAX_BYTES = 2 * 1024 * 1024
 // and remove. The API checks everything again; the checks here only spare a useless upload.
 export function PhotoManager({ listingId, photos, onChange }: { listingId: string; photos: PhotoItem[]; onChange: () => void }) {
   const [busy, setBusy] = useState(false)
+  // A generated image does not count towards the limit and is replaced by the first real photo.
+  const real = photos.filter((p) => !p.isGenerated)
+  const generated = photos.length > real.length
   const [error, setError] = useState<string | null>(null)
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
@@ -54,12 +57,15 @@ export function PhotoManager({ listingId, photos, onChange }: { listingId: strin
       <div className="photo-manager__head">
         <h2 className="listing-page__section-title">Pozele anunțului</h2>
         <span className="photo-manager__count">
-          {photos.length} / {MAX_PHOTOS}
+          {real.length} / {MAX_PHOTOS}
         </span>
       </div>
-      {photos.length > 0 && (
+      {generated && (
+        <p className="photo-manager__hint">Acum se vede o imagine generată din titlu și categorie. Dispare când adaugi prima ta poză.</p>
+      )}
+      {real.length > 0 && (
         <ul className="photo-manager__list">
-          {photos.map((p) => (
+          {real.map((p) => (
             <li key={p.id}>
               <img src={photoSrc(p.url)} alt="" />
               <Button variant="ghost" size="sm" onClick={() => remove(p)} disabled={busy}>
@@ -69,7 +75,7 @@ export function PhotoManager({ listingId, photos, onChange }: { listingId: strin
           ))}
         </ul>
       )}
-      {photos.length < MAX_PHOTOS && (
+      {real.length < MAX_PHOTOS && (
         <label className={busy ? 'btn btn--secondary btn--sm photo-manager__add is-busy' : 'btn btn--secondary btn--sm photo-manager__add'}>
           {busy ? 'Se încarcă…' : 'Adaugă o poză'}
           <input type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} disabled={busy} hidden />

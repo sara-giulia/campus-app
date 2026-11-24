@@ -1292,6 +1292,75 @@ Rules for this feature:
 - For 401 check the status code and the ProblemDetails code, as in the reservations tests.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Live events (Anca)
+
+Endpoint: `GET /api/v1/members/me/events` (`Features/Members/StreamMyEvents/StreamMyEventsEndpoint.cs`), Server-Sent Events. It needs a login (`RequireAuthorization()`); without a token → 401 ProblemDetails `Auth.Unauthorized`, as in "Feature: Reservations (Sara)". With a token → 200, `Content-Type: text/event-stream`, and the response stays open. Every event is two lines and an empty line: `event: <type>` and `data: {"type":"<type>","conversationId":<guid or null>}`. Types: `ping`, `notification`, `message`.
+
+How it works (read these files before generating): `Common/Events/LiveEvent.cs`, `ILiveEvents.cs`, `LiveEventsOptions.cs`; `Infrastructure/Events/InMemoryLiveEvents.cs`; `Infrastructure/Persistence/EfUnitOfWork.cs`.
+- The **first** event of every connection is a `ping`, written right after the connection is registered. Once a test has read it, the server is subscribed and the test can trigger an event.
+- After that a `ping` comes every `LiveEvents:HeartbeatSeconds` (default 25, valid 1–300, checked at start with the message `LiveEvents:HeartbeatSeconds must be between 1 and 300.`).
+- `EfUnitOfWork.CommitAsync` publishes **after** the save: a new `Notification` → `notification` to its `MemberId` (`conversationId` null); a new `Message` → `message` to the **other** member of its conversation (`conversationId` = the conversation). The sender gets nothing. A member who is not in the conversation gets nothing.
+
+File: `Members/StreamMyEventsTests.cs` (new), class `StreamMyEventsTests : IntegrationTestBase`, with a fixed `CreatedAt` and a fixed `OtherStudentId` (not seeded: a token is enough to open a stream). The seller and the buyer are seeded with `Member.Create(...)`, which makes their ids, so use `seller.Id` and `buyer.Id` (the listing, the reservation and the conversation need them to exist), as `SendMessageTests` does.
+
+How to read the stream (private helpers in the test class, no `if` or loop inside the tests themselves):
+- `OpenStreamAsync(Guid memberId)` (or with a factory argument for the heartbeat tests): a **separate** client `Factory.CreateClient()` with `Authorization: Bearer TestTokens.Create(memberId, "Student")`, `GetAsync("/api/v1/members/me/events", HttpCompletionOption.ResponseHeadersRead)`, then a `StreamReader` over `ReadAsStreamAsync()`. Keep the client and the response alive until the end of the test (`using`), so the stream is closed when the test ends.
+- `ReadEventAsync(StreamReader reader, TimeSpan timeout)`: reads lines until the empty line that ends an event and returns the event name and the parsed `data` (a small private record or `JsonElement`), or `null` when the timeout (a `CancellationTokenSource(timeout)` passed to `ReadLineAsync`) runs out first. Use 5 seconds when an event is expected and 1 second when **no** event is expected. Never `Task.Delay` or `Thread.Sleep`.
+- The action (reserve, send a message) is the one HTTP call of the Act, sent with the normal `Client` after `AuthenticateAs(...)`. Opening the stream and reading its first `ping` are part of the Arrange.
+
+Arrange data with `SeedAsync` and the domain, never through another endpoint: members with `Member.Create(...)` (the reservation and conversation handlers look them up), a published listing (`Listing.Create(seller.Id, ...)` then `Publish()`), a conversation with `Conversation.Start(buyer.Id, listing, "Buna, mai e valabil?", CreatedAt).Value`.
+
+Tests to add (status, the events, then the database):
+- no token → 401, ProblemDetails `Auth.Unauthorized`; the database is unchanged.
+- logged in → 200, `Content-Type` `text/event-stream`, the first event is `ping` with `conversationId` null.
+- reservation: the seller's stream is open; the buyer reserves the seller's listing (`POST /api/v1/listings/{id}/reservations`) → 201; the seller's next event is `notification` with `conversationId` null; the database has the reservation and one `Notification` for the seller.
+- message to the other member: the buyer's stream is open; the seller sends `POST /api/v1/conversations/{id}/messages` → 201; the buyer's next event is `message` with that conversation id; the database has 2 messages in the conversation.
+- the sender gets nothing: the seller's stream is open; the seller sends a message → 201; no event on the seller's stream within 1 second; the message is saved.
+- a member outside the conversation gets nothing: `OtherStudentId`'s stream is open; the seller sends a message → 201; no event within 1 second.
+- two connections of the same member both get it: two streams of the buyer, both past their first `ping`; the seller sends a message → both streams get `message` with the conversation id.
+- heartbeat: a factory copy with `LiveEvents:HeartbeatSeconds` = `1` (`Factory.WithWebHostBuilder(b => b.UseSetting("LiveEvents:HeartbeatSeconds", "1"))`, create its database as the base class does) → after the first `ping`, a second `ping` arrives within 5 seconds.
+- invalid setting: `HeartbeatSeconds` `0` and `301` (`[Theory]`) → creating a client of that factory copy throws `OptionsValidationException` whose message contains `LiveEvents:HeartbeatSeconds must be between 1 and 300.`.
+
+Rules for this feature:
+- Never assert on the number of `ping` events or on their timing beyond "within 5 seconds".
+- Never parse the stream with a regex; split the lines on `event:` / `data:` as above.
+- Then run all the tests with coverage as the CI does: `StreamMyEventsEndpoint.cs`, `InMemoryLiveEvents.cs`, `LiveEvent.cs`, `EfUnitOfWork.cs` and the `LiveEvents` lines of `CampusMarketSetup.cs` are at 100% for lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Generated images (Anca)
+
+What changed (read these files before generating): `Common/Images/` (`IImageGenerator`, `ImagePrompt`, `GeneratedImage`, `IImageGenerationQueue`, `ImageGenerationOptions`), `Infrastructure/Images/` (`SvgImageGenerator`, `OllamaImageGenerator`, `ImageGenerationQueue`), `Infrastructure/Background/ImageGenerationService.cs`, `Features/Photos/GenerateListingImage/`, `Features/Listings/PublishListing/PublishListingEndpoint.cs`, `Features/Photos/UploadPhoto/UploadPhotoHandler.cs`, `Features/Photos/GetPhotoFile/GetPhotoFileEndpoint.cs`, the `AddImageGeneration` part of `CampusMarketSetup.cs`, migration `AddGeneratedPhotos`.
+- After a successful publish (`POST /api/v1/listings/{id}/publish`) the listing id goes into the queue; `ImageGenerationService` (a hosted service, registered only when `ImageGeneration:Enabled` is true) reads the queue and, for an `Active` listing **without any photo**, saves a generated photo (`IsGenerated` true). At start the service also queues every `Active` listing (the handler skips the ones with a photo).
+- Provider `Svg` (default): an `image/svg+xml` file, 800×600, the title on at most 3 lines of at most 24 characters (whole words; a longer word is cut with `…`; when the title does not fit, the third line ends with `…` without cutting a word), the category's display name under it; every text XML-escaped. Provider `Ollama`: `POST {BaseUrl}/v1/images/generations` with `model`, `prompt`, `size`, `response_format` `b64_json`; a PNG/JPEG/WebP in `data[0].b64_json` is saved as is; any failure (connection, non-2xx, bad JSON, bad base64, bytes that are not an image) → the SVG is used and a warning is logged. `ImageGeneration:Provider` other than `Svg`/`Ollama` → `OptionsValidationException` at start with `ImageGeneration:Provider must be Svg or Ollama.`.
+- Upload of a real photo removes the generated photo (row and file); the generated photo does not count towards the 5-photo limit.
+- `GET /api/v1/photos/{id}` now also sends `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff`. `PhotoResponse` has a new field `isGenerated`.
+
+**First, in `Infrastructure/CampusMarketApiFactory.cs`:** add `builder.UseSetting("ImageGeneration:Enabled", "false");` next to `ReservationExpiry:Enabled`, so the background service does not run in the other tests (with it on, 4 publish tests failed because the service saved photos while they ran). This is the only change to existing test files allowed for this feature.
+
+Test copies of the API: like `ReservationExpiryServiceTests`, `Factory.WithWebHostBuilder(...)` with `UseSetting("ImageGeneration:Enabled", "true")` (and `Provider`, `Ollama:BaseUrl` when needed), `ConfigureLogging` with a `CapturingLoggerProvider` for the log checks, and `ConfigureTestServices` to replace `IImageGenerator` or the Ollama `HttpClient`'s handler (`services.AddHttpClient<IImageGenerator, OllamaImageGenerator>().ConfigurePrimaryHttpMessageHandler(() => fakeHandler)`) — a small private `HttpMessageHandler` in the test file that returns a given status and body and counts the calls. Never call a real Ollama. Waiting for the background service: wait for the service's own log line about that listing (`Generated image…`, `No image generated…` at Debug, so capture Debug for `ImageGenerationService` with `AddFilter<CapturingLoggerProvider>(..., LogLevel.Debug)`, or `Image generation failed…`), checked every 50 ms for at most 5 seconds as `WaitForCallsAsync` in `ReservationExpiryServiceTests` does, then read the database **once**. Never poll the database while the service may be writing: the test and the service share the in-memory connection, and a read during the service's save makes that save fail (`database is locked`). Only the generation-off test, where no service runs, reads the database after waiting. The wait helper is the only place with `Task.Delay`.
+
+Files: `Photos/GeneratedImagesTests.cs` (new, class `GeneratedImagesTests : IntegrationTestBase`); the upload and header cases may also go there. Seed members with `Member.Create(...)` and use their ids; listings with `Listing.Create(seller.Id, ...)` (and `Publish()` when the test needs `Active` before the host starts).
+
+Tests to add (status, body, then the database and the files):
+- publish a draft (seller, generation on, SVG) → 204; within 5 s the listing has exactly one photo with `IsGenerated` true and `ContentType` `image/svg+xml`; `GET /api/v1/listings/{id}/photos` → `isGenerated` true; `GET /api/v1/photos/{id}` → 200, `image/svg+xml`, the body starts with `<svg`, contains the title and the category display name, and the response has the CSP and nosniff headers above.
+- the title is escaped: title `<script>alert(1)</script> & Co` → the SVG contains `&lt;script&gt;` and `&amp;` and does not contain `<script>`.
+- wrapping: a title of more than 3 lines of words (for example `Osciloscop digital pentru laboratorul de electronica analogica si digitala aproape nou`) → exactly 3 title lines, the third ends with `…`, no line longer than 25 characters; a title with one word of 30 letters → that line is 23 letters and `…`.
+- a listing that already has a real photo when published → after the service ran (wait for a log entry or 1 s with the helper), still one photo, `IsGenerated` false.
+- at start: an `Active` listing seeded **before** the host copy starts (seed through the base `Factory`, then create the copy with generation on) → it gets a generated photo; a `Draft` listing → no photo.
+- upload replaces it: a listing with a generated photo (seeded with `Photo.CreateGenerated` and its file written through `IPhotoStorage` from the factory's services), the seller uploads `postman/files/listing-photo.png` → 201 with `isGenerated` false; the database has only the new photo; the generated file is gone from the photos folder, the new one is there.
+- the limit ignores the generated photo: 4 real photos and 1 generated, upload → 201, 5 real photos, no generated one; 5 real and 1 generated → 400 `Photo.LimitReached`, the generated one is still there.
+- Ollama answers a PNG: `Provider` `Ollama`, the fake handler returns 200 with `{"data":[{"b64_json":"<base64 of postman/files/listing-photo.png>"}]}` → the photo is `image/png`, `IsGenerated` true, the file has the same bytes; the request went to `/v1/images/generations` with `model` and `response_format` `b64_json` in its JSON body.
+- Ollama fails → SVG: the fake handler returns 500; a body that is not JSON; `b64_json` that is not base64; base64 of bytes that are not an image; and four answers with no image in them: the JSON `null`, `{}`, `{"data":[]}`, `{"data":[{}]}` (one `[Theory]`) → the photo is `image/svg+xml` and a warning from `OllamaImageGenerator` was logged.
+- the generator throws: replace `IImageGenerator` with a private fake that throws `InvalidOperationException` → no photo, one error logged by `ImageGenerationService`, and a second listing published after it still gets its image (the service keeps running) — the second one can use a fake that throws only the first time.
+- generation off (the base `Factory`): publish → 204, no photo after 1 s.
+- invalid provider: `ImageGeneration:Provider` = `Dall-E` → creating a client throws `OptionsValidationException` with the message above.
+
+Rules for this feature:
+- Never assert on exact SVG coordinates or colours; only on the texts, the escaping, the number of title lines and the content type.
+- Never call a real Ollama or any network address; the Ollama base URL in the tests is `http://ollama.test/`.
+- Then run all the tests with coverage as the CI does: `SvgImageGenerator.cs`, `OllamaImageGenerator.cs`, `ImageGenerationQueue.cs`, `ImageGenerationService.cs`, `GenerateListingImageHandler.cs`, `UploadPhotoHandler.cs`, `GetPhotoFileEndpoint.cs`, `PublishListingEndpoint.cs`, `Photo.cs` and the `AddImageGeneration` lines of `CampusMarketSetup.cs` are at 100% (the service's loop ends when the app stops: `ImageGenerationService` registers `queue.Complete` on the stopping token, so disposing a factory copy with generation on covers it) for lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Observability (Sara)
 
 Production code (read it before generating): `Infrastructure/Observability/` (`MetricsMiddleware`, `MetricsRegistry`, `MetricsRouteExtensions`, `MetricsSnapshot`, `CampusMarketMeters`) and the two lines in `Program.cs` (`UseMiddleware<MetricsMiddleware>()` right after `CorrelationIdMiddleware`, before `UseExceptionHandler`; `MapAdminMetrics()`).

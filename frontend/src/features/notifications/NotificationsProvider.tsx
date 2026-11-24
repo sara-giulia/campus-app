@@ -3,10 +3,12 @@ import { useLocation } from 'react-router'
 import { api } from '../../api/client'
 import { useAuth } from '../../app/auth/AuthContext'
 import { isAbort } from '../../app/errorMessage'
+import { useLiveEvents } from '../live/LiveEventsContext'
 import { NotificationsContext, type NotificationsState } from './NotificationsContext'
 import type { GetMyNotificationsResponse } from './types'
 
 // Keep the badge quiet: never refetch faster than this, no matter how many route changes happen.
+// A new notification does not wait for it: the live stream (features/live) tells us at once.
 const REFRESH_THROTTLE_MS = 60_000
 
 // Fetches the unread count only, by asking for the smallest page the API allows.
@@ -57,6 +59,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       doFetch()
     }
   }, [user, location.pathname, doFetch])
+
+  // A new notification arrived on the live stream: load the count now, without the throttle.
+  useLiveEvents((event) => {
+    if (event.type === 'notification') refresh()
+  })
 
   // Cancel on unmount.
   useEffect(() => () => controllerRef.current?.abort(), [])

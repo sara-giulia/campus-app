@@ -215,6 +215,7 @@ flowchart LR
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
 | View my reservations | `GetMyReservations` | `GET /api/v1/members/me/reservations` | only your own (the member comes from the token); expired reservations shown as expired |
 | View my listings | `GetMyListings` | `GET /api/v1/members/me/listings` | only your own (the member comes from the token); every status, newest first |
+| Live events | `StreamMyEvents` | `GET /api/v1/members/me/events` | only your own events (the member comes from the token); Server-Sent Events, the connection stays open |
 | Member | `GetMyProfile` | `GET /api/v1/members/me` | anyone logged in; only their own profile | 200, 401, 404 |
 | Member | `UpdateMyProfile` | `PUT /api/v1/members/me` | anyone logged in; only their own name (the email does not change) | 204, 400 `Member.InvalidName`, 401, 404 |
 | Member | `GetPublicProfile` | `GET /api/v1/members/{id}/profile` | everyone; no email and no role in the response, only `Active` listings | 200, 404 `Member.NotFound` |
@@ -271,6 +272,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
 | Listing | `GetMyListings` | `GET /api/v1/members/me/listings` | anyone logged in; only their own listings, in every status, newest first | 200 `{ items, count }`, 401 |
+| Member | `StreamMyEvents` | `GET /api/v1/members/me/events` | anyone logged in; only their own events | 200 `text/event-stream` (stays open: `ping`, `notification`, `message`), 401 |
 | Auth | `Register` | `POST /api/v1/auth/register` | everyone, at most 5 registrations per minute per IP | 201 + `Location`, 400, 409, 429 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
 | Auth | `ChangePassword` | `POST /api/v1/auth/change-password` | anyone logged in; only their own password | 204, 400 `Auth.InvalidCredentials` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`, 401, 404 `Member.NotFound` |
@@ -292,7 +294,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
 
 ### Searching listings
 
@@ -578,16 +580,46 @@ A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.
 
 The seller adds up to 5 photos to a listing (any status), each a JPEG, PNG or WebP of at most 2 MB.
 
-- `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, contentType, sizeBytes, createdAt }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 2 MB is ever read into memory.
+- `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, contentType, sizeBytes, createdAt, isGenerated }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 2 MB is ever read into memory.
 - `GET /api/v1/listings/{id}/photos` (public): the photos in the order they were added. `url` is what an `<img src>` uses.
-- `GET /api/v1/photos/{id}` (public): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id).
+- `GET /api/v1/photos/{id}` (public): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id), `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff` (a generated image is an SVG, which must not run anything when opened directly).
 - `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
 
 The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, inside the same volume as the database, so the photos survive a restart. The database (`Photos` table, migration `AddPhotos`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
 
+### Generated images for listings without photos
+
+A listing that is published without any photo gets a picture made by the app, so its card and its page are not empty. The picture is a photo with `isGenerated: true`, shown on the page with the label "Imagine generată", and it goes away as soon as the seller adds a real photo (it does not count towards the 5-photo limit).
+
+- Publishing does not wait: `PublishListingEndpoint` puts the listing id in a queue (`IImageGenerationQueue`) and answers 204; `ImageGenerationService` (a background service) makes the images one by one through `GenerateListingImageHandler`, which checks again that the listing is `Active` and has no photo, and saves the file through the same `IPhotoStorage` as the uploads. At start the service also goes through the `Active` listings, so the demo seed on Render gets its pictures after every deploy.
+- `IImageGenerator` has two implementations, chosen with `ImageGeneration:Provider`:
+  - `Svg` (default, used on Render, where there is no GPU): an 800×600 SVG with the colour and icon of the category, the title (at most 3 lines, whole words) and the category name. Only the seller's own words, nothing invented; every text is XML-escaped.
+  - `Ollama`: a local image model through Ollama's OpenAI-compatible `POST /v1/images/generations` (`ImageGeneration:Ollama:BaseUrl`, `Model` `x/z-image-turbo`, `TimeoutSeconds`). The prompt is the title and the first 200 characters of the description, and asks for no text in the picture. Image generation in Ollama is experimental (it ran only on macOS when we checked), so any failure falls back to the SVG.
+- `ImageGeneration:Enabled` (true) turns the whole thing off; the integration tests turn it off except in their own tests.
+- The `Photos` table has a new `IsGenerated` column (migration `AddGeneratedPhotos`, the first one made with EF Core 11, which also rewrote the model snapshot in its new format). On Render the files are lost at a restart like the uploaded photos, and the service makes them again at the next start.
+
 ### Notifications
 
 Members are told when something relevant happens to a listing of theirs. Three kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you") and `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired"). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `AddNotifications`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
+
+### Live events (Server-Sent Events)
+
+New messages and notifications reach the open pages at once, without the page asking again every few seconds. `GET /api/v1/members/me/events` (logged in) answers `text/event-stream` and keeps the connection open; the server writes one event per change:
+
+```
+event: message
+data: {"type":"message","conversationId":"096ed240-..."}
+
+event: notification
+data: {"type":"notification","conversationId":null}
+```
+
+- `message`: a new message in one of your conversations, written by the other member (the sender gets nothing). `notification`: a new notification for you (reservation, sale, expired reservation). `ping`: right after the connection opens, then every `LiveEvents:HeartbeatSeconds` (25), so a proxy (Render) does not close an idle connection.
+- An event only says that something new is there; the page then loads it through the normal endpoints, so the stream never carries message texts.
+- Events are published by `EfUnitOfWork` **after** a successful save (new `Notification` and `Message` rows), so no handler had to change and a member is never told about something that was not saved. `ILiveEvents` (`Common/Events/`) is implemented by `InMemoryLiveEvents` (`Infrastructure/Events/`): one channel per open connection, so two tabs both get the event. It works because the API runs as one instance; with several instances the events would need a shared broker (Redis, Postgres `LISTEN/NOTIFY`).
+- The frontend (`frontend/src/features/live/`) reads the stream with `fetch`, not `EventSource`, because `EventSource` cannot send the `Authorization` header and a token in the URL would end up in logs. It reconnects after 2 s, then up to 30 s. The notifications badge and page and the messages pages reload on an event; the conversation page asks every 5 s only while the stream is not connected.
+
+Why SSE and not WebSocket or SignalR: the data only goes from the server to the browser (the browser already sends with normal requests), SSE is plain HTTP (same authentication, CORS and proxies as the rest of the API, no extra package), and the format is a few text lines. ASP.NET Core has it built in (`TypedResults.ServerSentEvents`).
 
 
 ## 4. Domain model

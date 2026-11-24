@@ -28,6 +28,8 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:Key", TestTokens.Key);
         // The reservation expiry background service must not run during tests.
         builder.UseSetting("ReservationExpiry:Enabled", "false");
+        // The image generation background service must not run during tests either; GeneratedImagesTests turns it on.
+        builder.UseSetting("ImageGeneration:Enabled", "false");
         // Tests register many members; the real limit is tested on purpose in RegisterRateLimitTests.
         builder.UseSetting("RateLimiting:RegisterPermitLimit", "1000");
         builder.ConfigureTestServices(services =>

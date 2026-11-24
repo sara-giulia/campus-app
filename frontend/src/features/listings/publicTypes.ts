@@ -9,6 +9,9 @@ export interface PhotoItem {
   contentType: string
   sizeBytes: number
   createdAt: string
+  // Made by the app for a listing without photos (title and category on a coloured picture); it goes
+  // away when the seller adds a real photo.
+  isGenerated: boolean
 }
 
 export interface GetListingPhotosResponse {

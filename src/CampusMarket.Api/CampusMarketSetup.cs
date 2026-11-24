@@ -39,6 +39,10 @@ using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Features.Notifications;
 using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Features.Categories;
+using CampusMarket.Api.Common.Events;
+using CampusMarket.Api.Infrastructure.Events;
+using CampusMarket.Api.Common.Images;
+using CampusMarket.Api.Infrastructure.Images;
 
 namespace CampusMarket.Api;
 
@@ -78,6 +82,12 @@ public static class CampusMarketSetup
         services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
         services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
         services.AddScoped<INotificationRepository, EfNotificationRepository>();
+        services.AddOptions<LiveEventsOptions>()
+            .Bind(configuration.GetSection(LiveEventsOptions.SectionName))
+            .Validate(o => o.HeartbeatSeconds is >= 1 and <= 300, "LiveEvents:HeartbeatSeconds must be between 1 and 300.")
+            .ValidateOnStart();
+        // One instance for the whole app: every request and the unit of work see the same open connections.
+        services.AddSingleton<ILiveEvents, InMemoryLiveEvents>();
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
@@ -145,6 +155,8 @@ public static class CampusMarketSetup
         if (expiryEnabled)
             services.AddHostedService<ReservationExpiryService>();
 
+        AddImageGeneration(services, configuration);
+
         // Enums are sent as text in JSON ("Active"), not as numbers (1)
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -195,6 +207,36 @@ public static class CampusMarketSetup
     // or when the SMTP sender is used without TLS. Dev and Test keep their own
     // keys (appsettings.Development.json / the integration-test factory) and
     // talk to Mailpit without TLS, so these checks are production-only.
+    // Generated images for listings without photos: the SVG by default, Ollama when
+    // ImageGeneration:Provider is "Ollama" (it falls back to the SVG). The background service only
+    // runs when ImageGeneration:Enabled is true (the tests turn it off to keep the host quiet).
+    private static void AddImageGeneration(IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(ImageGenerationOptions.SectionName);
+        services.AddOptions<ImageGenerationOptions>()
+            .Bind(section)
+            .Validate(o => o.Provider is ImageGenerationOptions.SvgProvider or ImageGenerationOptions.OllamaProvider,
+                "ImageGeneration:Provider must be Svg or Ollama.")
+            .ValidateOnStart();
+
+        services.AddSingleton<IImageGenerationQueue, ImageGenerationQueue>();
+        services.AddSingleton<SvgImageGenerator>();
+
+        var options = new ImageGenerationOptions();
+        section.Bind(options);
+        if (options.Provider == ImageGenerationOptions.OllamaProvider)
+            services.AddHttpClient<IImageGenerator, OllamaImageGenerator>(client =>
+            {
+                client.BaseAddress = new Uri(options.Ollama.BaseUrl.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(options.Ollama.TimeoutSeconds);
+            });
+        else
+            services.AddSingleton<IImageGenerator>(sp => sp.GetRequiredService<SvgImageGenerator>());
+
+        if (options.Enabled)
+            services.AddHostedService<ImageGenerationService>();
+    }
+
     public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
     {
         if (!app.Environment.IsProduction())
