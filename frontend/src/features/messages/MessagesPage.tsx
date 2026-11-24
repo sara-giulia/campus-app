@@ -4,6 +4,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../app/auth/AuthContext'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, ButtonLink, EmptyState, Loading, PageHeader } from '../../app/ui'
+import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
 import type { GetMyConversationsResponse } from './types'
 import './messages.css'
@@ -13,6 +14,12 @@ export function MessagesPage() {
   const { user } = useAuth()
   const [data, setData] = useState<GetMyConversationsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Bumped on a live message event, so a new conversation or a new last message shows up at once.
+  const [version, setVersion] = useState(0)
+
+  useLiveEvents((event) => {
+    if (event.type === 'message') setVersion((v) => v + 1)
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -23,7 +30,7 @@ export function MessagesPage() {
         if (!isAbort(err)) setError(errorMessage(err))
       })
     return () => controller.abort()
-  }, [])
+  }, [version])
 
   return (
     <div className="messages">

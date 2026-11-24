@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import type { CurrentUser } from '../api/jwt'
 import { useNotifications } from '../features/notifications/NotificationsContext'
 import { NotificationsProvider } from '../features/notifications/NotificationsProvider'
+import { LiveEventsProvider } from '../features/live/LiveEventsProvider'
 import { useAuth } from './auth/AuthContext'
 import { menuItems, type MenuItem } from './menu'
 import { ButtonLink, CloseIcon, Logo, LogoutIcon, MenuIcon, ThemeToggle } from './ui'
@@ -30,9 +31,11 @@ function initials(email: string): string {
 // The frame of every page: the top bar (logo, menu, theme, account), the page (<Outlet />), the footer.
 export function Layout() {
   return (
-    <NotificationsProvider>
-      <LayoutShell />
-    </NotificationsProvider>
+    <LiveEventsProvider>
+      <NotificationsProvider>
+        <LayoutShell />
+      </NotificationsProvider>
+    </LiveEventsProvider>
   )
 }
 

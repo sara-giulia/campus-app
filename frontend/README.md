@@ -69,6 +69,7 @@ await api.post('/listings/' + id + '/reservations')
 - For login, register and logout use `useAuth()` or `src/api/auth.ts`, not `api.post` directly.
 - A file upload sends a `FormData` body: `api.post('/listings/' + id + '/photos', form)`; the client leaves the multipart `Content-Type` to the browser. Photo urls from the API (`/api/v1/photos/{id}`) go through `photoSrc()` in `features/listings/photoSrc.ts`, which puts the API address in front.
 - `errorMessage(error)` in `src/app/errorMessage.ts` gives the Romanian text for the error codes of the public pages (falls back to the API's message).
+- Live updates: `LiveEventsProvider` (`features/live/`, around the whole layout) keeps one Server-Sent Events stream open while someone is logged in (`openStream` in the client, same token handling) and reconnects when it drops. A page reacts with `useLiveEvents((event) => ...)`: `event.type` is `message` (with `conversationId`) or `notification`; the hook returns `true` while the stream is connected, so a page can keep a slow poll only as a fallback.
 
 ## Pages
 

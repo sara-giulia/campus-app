@@ -38,6 +38,8 @@ using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Features.Notifications;
 using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Features.Categories;
+using CampusMarket.Api.Common.Events;
+using CampusMarket.Api.Infrastructure.Events;
 
 namespace CampusMarket.Api;
 
@@ -71,6 +73,12 @@ public static class CampusMarketSetup
         services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
         services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
         services.AddScoped<INotificationRepository, EfNotificationRepository>();
+        services.AddOptions<LiveEventsOptions>()
+            .Bind(configuration.GetSection(LiveEventsOptions.SectionName))
+            .Validate(o => o.HeartbeatSeconds is >= 1 and <= 300, "LiveEvents:HeartbeatSeconds must be between 1 and 300.")
+            .ValidateOnStart();
+        // One instance for the whole app: every request and the unit of work see the same open connections.
+        services.AddSingleton<ILiveEvents, InMemoryLiveEvents>();
         services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
