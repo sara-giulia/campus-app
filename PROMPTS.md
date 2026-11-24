@@ -1060,6 +1060,24 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 31fbffd; skill section a286010; tests generated in 7e729c3
 
+### Run 40, skill v42 (Feature: Generated images)
+
+- **Why a new version:** branch `feature/generated-images`, week 8, task 4. `Photo` has `IsGenerated`, `CheckCanGenerate` and `CreateGenerated` (the size checks moved into a shared `CheckSize`), `PhotoFormat.Svg`, a new command handler `GenerateListingImageHandler`, and `UploadPhotoHandler` now replaces a generated photo and does not count it towards the limit. None of it had a unit test.
+
+#### Change to SKILL.md (v41 → v42) and why
+
+| # | v41 (before) | v42 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about generated photos. | New section *"Feature: Generated images (Anca)"*: the domain rules (`Photo.ListingNotActive`, `Photo.ListingHasPhotos`, the size checks), what the handler does in which order (the generator is not called when the listing cannot get an image), the upload changes, a `FakeImageGenerator` that records the prompts, and the tests to add. | Without it Claude would not know that the generator must not run for a Draft or a listing with a photo, nor that a generated photo does not count towards the limit. |
+| 2 | The *Files* line listed `PhotoTests.cs` but not `PhotoFormatTests.cs`, while the section asked for `PhotoFormat.Svg` tests. | Both files listed. | Reported by the run; it put the two tests in `PhotoFormatTests.cs`, next to the other format tests. Changed after the run. |
+
+- **Prompt:** `Use the unit-testing skill (read the whole file first). Unit tests already exist: keep them all. Generate the tests for the section "Feature: Generated images (Anca)": the new fake and test files and the new tests in the existing files it lists, with only the tests it lists. Build, run the unit tests, the coverage check the section asks for, and the SARIF check. You may only change files under tests/CampusMarket.UnitTests/.` (new session)
+- **Skill version:** v42
+- **Result:** new `Fakes/FakeImageGenerator.cs` and `Features/Photos/GenerateListingImage/GenerateListingImageHandlerTests.cs` (6 tests: unknown listing, Draft, listing with a photo, success with the prompt and the saved file, no category row → enum name, empty image → `Photo.Empty`); 9 new tests in `PhotoTests.cs` (`CheckCanGenerate` and `CreateGenerated`), 2 in `PhotoFormatTests.cs` (`Svg`, an SVG is not detected), 3 in `UploadPhotoHandlerTests.cs` (the generated photo replaced, 5 real + 1 generated → `Photo.LimitReached` and the generated one kept, 4 real + 1 generated → success). Unit tests 727 → 747, all pass; `Photo.cs`, `PhotoFormat.cs`, `GenerateListingImageHandler.cs`, `UploadPhotoHandler.cs` at 100% lines and branches; SARIF empty. No existing test changed.
+- **Problems seen:** row 2 of the table.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** code 5f655b1; skill sections 59509c3; tests generated in b708c53
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -1984,6 +2002,26 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** (1) row 2 of the table. (2) The run reported that the end of the event loop in `InMemoryLiveEvents.SubscribeAsync` and in the endpoint (the `await foreach` ending normally) could not be covered: the stream only ever ends by cancellation. Fixed in `src/`, not in the tests: `SubscribeAsync` now returns `channel.Reader.ReadAllAsync(ct)` and cleans up in `ct.Register(...)`, and the endpoint maps the events with `Select` instead of its own loop. After that `StreamMyEventsEndpoint.cs`, `InMemoryLiveEvents.cs`, `LiveEvent.cs`, `LiveEventsOptions.cs`, `EfUnitOfWork.cs` and `CampusMarketSetup.cs` are at 100% lines and branches, with the same tests.
 - **Change to SKILL.md after the run:** row 2 of the table above.
 - **Commits:** code 0c6032f; skill section 6885bcc; tests generated in efac720
+
+### Run 51, skill v50 (Feature: Generated images)
+
+- **Why a new version:** branch `feature/generated-images`, week 8, task 4. A background service makes an image for a listing published without photos (SVG by default, Ollama optional with a fallback to the SVG), an upload replaces it, the photo file answer has new security headers, and a new setting turns it all off. With the service on, 4 existing publish tests failed, so the tests need it off by default.
+
+#### Change to SKILL.md (v49 → v50) and why
+
+| # | v49 (before) | v50 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about generated images or a background service that writes after the request. | New section *"Feature: Generated images (Anca)"*: `ImageGeneration:Enabled` false in `CampusMarketApiFactory` (the only change allowed to an existing test file), factory copies with generation on, a fake `HttpMessageHandler` for Ollama (never a real one), and the tests to add: publish → SVG, escaping, wrapping, a listing with a photo, the listings at start, upload replacing it, the limit, Ollama PNG, Ollama failures → SVG, the generator throwing, generation off, an invalid provider. | Without the factory setting the other tests become flaky; without the fake handler a test would try to reach a real Ollama. |
+| 2 | Wait for the service by polling `db.Set<Photo>()` every 50 ms. | Wait for the service's own log line about the listing (Debug captured for `ImageGenerationService`), then read the database once; poll the database only in the generation-off test. | Reported by the run: about 1 run in 8 the service's save failed with `database is locked`, because a test read on the shared in-memory connection while the service wrote. Changed after the run; the generated test file already did it this way. |
+| 3 | The Ollama failure theory had 4 answers. | Also the JSON `null`, `{}`, `{"data":[]}` and `{"data":[{}]}`. | Reported by the run: the null checks on the answer (`body?.Data?.FirstOrDefault()?.B64Json`) were not covered. Real cases (an answer with no image), not tests written only for coverage. |
+| 4 | The CSP header was `default-src 'none'; style-src 'unsafe-inline'`. | `default-src 'none'`. | SonarCloud failed the PR on the Security Rating ("Content Security Policies should be restrictive"); the SVG draws with attributes, not style sheets, so it does not need `style-src`. Changed in `src/` and here after the PR; only the header assertion of the generated test changed. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Generated images (Anca)": first the one setting it asks for in CampusMarketApiFactory, then the new file Photos/GeneratedImagesTests.cs with only the tests it lists. Build, run the integration tests three times and the whole solution once, the coverage check the section asks for, and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` Then, after rows 2 and 3: `Add those four cases to the Ollama failure theory (nothing else), then rebuild and run everything again.` (new session)
+- **Skill version:** v50
+- **Result:** `CampusMarketApiFactory` turns generation off; new `Photos/GeneratedImagesTests.cs`, 14 tests (21 cases): publish → one generated SVG with the title, the category name and the CSP and nosniff headers; the title escaped; 3 lines with `…` and a long word cut; a listing with a real photo gets nothing; at start only the Active listing gets an image; an upload replaces the generated photo and its file; 4 real + 1 generated → 201, 5 real + 1 generated → 400 and the generated one kept; Ollama PNG saved as is, with the title and the first 200 characters of the description in the prompt; 8 Ollama failures → SVG and a warning; a throwing generator → an error logged and the next listing still gets its image; generation off → no photo; an unknown provider → `OptionsValidationException`. The new class 5 times 21/21, integration tests 444/444 three times; full run 10 architecture, 747 unit, 69 ML, 444 integration; SARIF empty.
+- **Problems seen:** rows 2 and 3, and three places in `src/` that no test could reach. Fixed in `src/`: `AddImageGeneration` binds the options without a `?? new` branch (the section always exists); `IImageGenerationQueue` has `Complete()` and `ImageGenerationService` registers it on the stopping token, so its loop ends normally when the app stops instead of only by cancellation. After that every listed file is at 100% lines and branches with the same tests.
+- **Change to SKILL.md after the run:** rows 2, 3 and 4 of the table above.
+- **Commits:** code 5f655b1; skill sections 59509c3; tests generated in b708c53
 
 ## code-review
 
@@ -3051,3 +3089,28 @@ Week 8, task 3: new messages and notifications appear on the open pages without 
 - **Checks:** build 0 warnings, SARIF of the API clean (only the old migration warnings); `npm run build` and `npm run lint` clean; all tests pass (10 architecture, 727 unit, 69 ML, 423 integration). By hand on a running API: 401 without a token; with two users, the seller's stream gets `notification` when the buyer reserves and `message` when the buyer writes, the buyer gets `message` when the seller answers, the sender gets nothing. In headless Chrome, the buyer's conversation page shows the seller's new message about 0.1 s after it was sent (before: up to 5 s).
 - **Result:** new `Common/Events/` (`LiveEvent`, `ILiveEvents`, `LiveEventsOptions`), `Infrastructure/Events/InMemoryLiveEvents.cs`, `Features/Members/StreamMyEvents/StreamMyEventsEndpoint.cs`, `frontend/src/features/live/`; changed `EfUnitOfWork.cs`, `CampusMarketSetup.cs`, `MembersEndpoints.cs`, `appsettings.json`, `api/client.ts`, `Layout.tsx`, `NotificationsProvider.tsx`, `NotificationsPage.tsx`, `MessagesPage.tsx`, `ConversationPage.tsx`; README (endpoint tables and the section "Live events (Server-Sent Events)", with why SSE and not WebSocket/SignalR) and `frontend/README.md`.
 - **Commits:** code 0c6032f; skill section 6885bcc; tests generated in efac720
+
+## generated-images
+
+Week 8, task 4: a listing published without photos gets a picture made by the app, so its card and page are not empty. Done by Ancuța Ilenei with Claude Code; tests generated with the unit-testing skill (Run 40) and the integration-testing skill (Run 51).
+
+### Run 1
+
+- **Prompt:** `Task 4 from the week 8 plan: generated images for listings without photos, IImageGenerator like the email senders (Ollama and an SVG per category for Render), in the background, saved through IPhotoStorage, marked "imagine generată" in the UI.`
+- **Decisions:**
+    - Publishing does not wait: `PublishListingEndpoint` puts the id in `IImageGenerationQueue` (an in-memory channel) and answers 204; `ImageGenerationService` makes the images one by one through `GenerateListingImageHandler` (a command handler, no endpoint), which checks again that the listing is `Active` and has no photo, then saves the file through `IPhotoStorage`. At start the service queues every `Active` listing, so the demo seed on Render (wiped at every deploy) gets its pictures again; locally the 54 demo listings got theirs in about a second.
+    - `IImageGenerator`: `SvgImageGenerator` (default; colour and icon per category, the title on at most 3 lines of whole words, the category's display name; only the seller's words, all XML-escaped) and `OllamaImageGenerator` (`POST /v1/images/generations`, `b64_json`; a prompt with the title and 200 characters of the description and "no text, no letters"); any Ollama failure falls back to the SVG. Ollama was not installed here (its image generation ran only on macOS), so that path is covered by tests with a fake HTTP handler only.
+    - `Photo.IsGenerated` (migration `AddGeneratedPhotos`, announced on the group). The first migration made with EF Core 11 rewrote the model snapshot in the new format (file-scoped namespace, a new `LastMigrationId`): about 45 lines without the whitespace. The generated class was named `_20261124075112_AddGeneratedPhotos`; renamed to `AddGeneratedPhotos` like the others.
+    - An upload removes the generated photo (row before the commit, file after it); the generated photo does not count towards the 5-photo limit. An SVG upload is still refused (`PhotoFormat.Detect` does not know SVG; `PhotoFormat.Svg` is only for the app's own images).
+    - `GET /api/v1/photos/{id}` sends `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'` and `X-Content-Type-Options: nosniff`, so an SVG opened directly cannot run anything.
+    - Frontend: `isGenerated` on `PhotoItem`, the label "Imagine generată" on the card and the listing page, and the seller's photo controls show only real photos (with a line saying the generated one goes away with the first photo).
+    - `ImageGeneration:Enabled` (true) and `Provider` (`Svg`) in `appsettings.json`; the tests turn generation off except in their own tests.
+- **Checks:** build 0 warnings, SARIF of the API clean (only the old migration warnings); `npm run build` and `npm run lint` clean; all tests pass (10 architecture, 747 unit, 69 ML, 444 integration). By hand on a running API with the demo seed: 54 SVGs made at start; publishing a new listing → its SVG within a second; uploading a PNG → the SVG row and file gone; a title with `<script>` is escaped; the headers are there. Screenshots of the search page and a listing page show the pictures and the label. Newman on an API with generation on: 188 requests, 367 assertions, 0 failures (6 images made during the run).
+- **Result:** new `Common/Images/`, `Infrastructure/Images/`, `Infrastructure/Background/ImageGenerationService.cs`, `Features/Photos/GenerateListingImage/`, migration `AddGeneratedPhotos`; changed `Photo.cs`, `PhotoFormat.cs`, `PhotoResponse.cs`, `UploadPhotoHandler.cs`, `GetPhotoFileEndpoint.cs`, `PublishListingEndpoint.cs`, `CampusMarketSetup.cs`, `appsettings.json`, the model snapshot; frontend `publicTypes.ts`, `ListingCard.tsx`, `ListingPage.tsx`, `PhotoManager.tsx`, `browse.css`; README (section "Generated images for listings without photos").
+- **Commits:** code 5f655b1; skill sections 59509c3; tests generated in b708c53
+
+### Run 2
+
+- **Prompt:** `SonarCloud failed the PR: C Security Rating on New Code, "Content Security Policies should be restrictive" on GetPhotoFileEndpoint.cs line 31.`
+- **Change:** `Content-Security-Policy` of `GET /api/v1/photos/{id}` is now only `default-src 'none'`. The generated SVG sets its colours and fonts with attributes (`fill`, `stroke`, `font-family`), which a CSP does not block, so `style-src 'unsafe-inline'` was never needed. README and the integration-testing section say the same; the generated test checks the new value (integration Run 51, row 4).
+- **Commits:** 3bc08d3

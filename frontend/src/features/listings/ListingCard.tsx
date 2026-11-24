@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../../api/client'
-import { formatPrice, photoSrc, type GetListingPhotosResponse } from './publicTypes'
+import { formatPrice, photoSrc, type GetListingPhotosResponse, type PhotoItem } from './publicTypes'
 import { useCategories } from './categories'
 import { CONDITION_LABELS, type Category, type Condition } from './types'
 
@@ -16,13 +16,13 @@ interface CardListing {
 // A listing in a grid: the first photo (or a coloured tile with the category), title, price.
 export function ListingCard({ listing }: { listing: CardListing }) {
   const { labelOf } = useCategories()
-  const [cover, setCover] = useState<string | null>(null)
+  const [cover, setCover] = useState<PhotoItem | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
     api
       .get<GetListingPhotosResponse>(`/listings/${listing.id}/photos`, { signal: controller.signal, auth: false })
-      .then((data) => setCover(data.items[0]?.url ?? null))
+      .then((data) => setCover(data.items[0] ?? null))
       .catch(() => setCover(null))
     return () => controller.abort()
   }, [listing.id])
@@ -30,7 +30,8 @@ export function ListingCard({ listing }: { listing: CardListing }) {
   return (
     <Link to={`/listings/${listing.id}`} className="lcard">
       <div className={`lcard__image lcard__image--${listing.category.toLowerCase()}`}>
-        {cover ? <img src={photoSrc(cover)} alt="" loading="lazy" /> : <span>{labelOf(listing.category)}</span>}
+        {cover ? <img src={photoSrc(cover.url)} alt="" loading="lazy" /> : <span>{labelOf(listing.category)}</span>}
+        {cover?.isGenerated && <span className="generated-badge">Imagine generată</span>}
       </div>
       <div className="lcard__body">
         <h3 className="lcard__title">{listing.title}</h3>

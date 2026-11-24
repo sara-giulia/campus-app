@@ -7,6 +7,10 @@ public sealed record PhotoFormat(string Extension, string ContentType)
     public static readonly PhotoFormat Png = new(".png", "image/png");
     public static readonly PhotoFormat WebP = new(".webp", "image/webp");
 
+    // Only for images the app draws itself (generated images); an upload is never accepted as SVG,
+    // because Detect does not recognise it.
+    public static readonly PhotoFormat Svg = new(".svg", "image/svg+xml");
+
     private static readonly byte[] JpegStart = [0xFF, 0xD8, 0xFF];
     private static readonly byte[] PngStart = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
     private static readonly byte[] Riff = "RIFF"u8.ToArray();

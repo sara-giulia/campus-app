@@ -579,12 +579,23 @@ A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.
 
 The seller adds up to 5 photos to a listing (any status), each a JPEG, PNG or WebP of at most 2 MB.
 
-- `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, contentType, sizeBytes, createdAt }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 2 MB is ever read into memory.
+- `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, contentType, sizeBytes, createdAt, isGenerated }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 2 MB is ever read into memory.
 - `GET /api/v1/listings/{id}/photos` (public): the photos in the order they were added. `url` is what an `<img src>` uses.
-- `GET /api/v1/photos/{id}` (public): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id).
+- `GET /api/v1/photos/{id}` (public): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id), `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff` (a generated image is an SVG, which must not run anything when opened directly).
 - `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
 
 The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, inside the same volume as the database, so the photos survive a restart. The database (`Photos` table, migration `AddPhotos`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
+
+### Generated images for listings without photos
+
+A listing that is published without any photo gets a picture made by the app, so its card and its page are not empty. The picture is a photo with `isGenerated: true`, shown on the page with the label "Imagine generată", and it goes away as soon as the seller adds a real photo (it does not count towards the 5-photo limit).
+
+- Publishing does not wait: `PublishListingEndpoint` puts the listing id in a queue (`IImageGenerationQueue`) and answers 204; `ImageGenerationService` (a background service) makes the images one by one through `GenerateListingImageHandler`, which checks again that the listing is `Active` and has no photo, and saves the file through the same `IPhotoStorage` as the uploads. At start the service also goes through the `Active` listings, so the demo seed on Render gets its pictures after every deploy.
+- `IImageGenerator` has two implementations, chosen with `ImageGeneration:Provider`:
+  - `Svg` (default, used on Render, where there is no GPU): an 800×600 SVG with the colour and icon of the category, the title (at most 3 lines, whole words) and the category name. Only the seller's own words, nothing invented; every text is XML-escaped.
+  - `Ollama`: a local image model through Ollama's OpenAI-compatible `POST /v1/images/generations` (`ImageGeneration:Ollama:BaseUrl`, `Model` `x/z-image-turbo`, `TimeoutSeconds`). The prompt is the title and the first 200 characters of the description, and asks for no text in the picture. Image generation in Ollama is experimental (it ran only on macOS when we checked), so any failure falls back to the SVG.
+- `ImageGeneration:Enabled` (true) turns the whole thing off; the integration tests turn it off except in their own tests.
+- The `Photos` table has a new `IsGenerated` column (migration `AddGeneratedPhotos`, the first one made with EF Core 11, which also rewrote the model snapshot in its new format). On Render the files are lost at a restart like the uploaded photos, and the service makes them again at the next start.
 
 ### Notifications
 
