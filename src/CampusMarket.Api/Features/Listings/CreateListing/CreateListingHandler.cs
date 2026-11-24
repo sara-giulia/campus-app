@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 
@@ -7,12 +8,20 @@ namespace CampusMarket.Api.Features.Listings.CreateListing;
 public sealed class CreateListingHandler(
     IListingRepository repository,
     IUnitOfWork unitOfWork,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ICategoryRepository categories)
     : ICommandHandler<CreateListingCommand, CreateListingResponse>
 {
     public async Task<Result<CreateListingResponse>> HandleAsync(
         CreateListingCommand command, CancellationToken ct)
     {
+        // A deactivated category takes no new listings. An unknown category is not found here
+        // and is refused by Listing.Create (Listing.CategoryInvalid), as before.
+        var category = await categories.GetByKeyAsync(command.Category, ct);
+        var categoryError = category?.CheckAcceptsListings();
+        if (categoryError is not null)
+            return Result<CreateListingResponse>.Failure(categoryError);
+
         var created = Listing.Create(
             command.SellerId, command.Title, command.Category,
             command.Condition, command.Price, timeProvider.GetUtcNow(), command.Description);

@@ -9,7 +9,7 @@ description: Generates xUnit integration tests for CampusMarket that send real H
 
 ## 1. Project facts (do not change these)
 
-- .NET 10 minimal API in `src/CampusMarket.Api`, root namespace `CampusMarket.Api`. Routes are under `/api/v1`.
+- .NET 11 minimal API in `src/CampusMarket.Api`, root namespace `CampusMarket.Api`. Routes are under `/api/v1`.
 - Endpoints call CQRS handlers; handlers use the repositories and `IUnitOfWork`. The tests do not call handlers or repositories: they go through HTTP only.
 - The database is SQLite through EF Core. DbContext: `CampusMarketDbContext` in `CampusMarket.Api.Infrastructure.Persistence`, registered in `CampusMarketSetup.AddCampusMarket` with `AddDbContext<CampusMarketDbContext>((sp, options) => options.UseSqlite(...))` and the connection string `CampusMarket` from `appsettings.json`.
 - `Program.cs` calls `app.EnsureCampusMarketDatabase()` at startup. In the tests it runs on the in-memory connection, so the file `campusmarket.db` is never used.
@@ -54,7 +54,7 @@ tests/CampusMarket.IntegrationTests/
 ```
 
 - Namespace: `CampusMarket.IntegrationTests` plus the folder (`CampusMarket.IntegrationTests.Listings`).
-- `.csproj`: `net10.0`, `Nullable` and `ImplicitUsings` enabled, `IsPackable` false, `<Using Include="Xunit" />`, a `ProjectReference` to `src/CampusMarket.Api/CampusMarket.Api.csproj`.
+- `.csproj`: `net11.0`, `Nullable` and `ImplicitUsings` enabled, `IsPackable` false, `<Using Include="Xunit" />`, a `ProjectReference` to `src/CampusMarket.Api/CampusMarket.Api.csproj`.
 - Packages (same versions as `CampusMarket.UnitTests` where they overlap):
   - `Microsoft.NET.Test.Sdk` 17.14.1, `xunit` 2.9.3, `xunit.runner.visualstudio` 3.1.4, `coverlet.collector` 6.0.4
   - `Microsoft.AspNetCore.Mvc.Testing` 10.0.*
@@ -66,7 +66,7 @@ tests/CampusMarket.IntegrationTests/
 
 ### `Program` must be visible to the test project
 
-`WebApplicationFactory<Program>` needs the `Program` class of the API. `Program.cs` uses top-level statements, so the compiler creates `Program` for us. In .NET 10 the Web SDK also generates a `public partial class Program`, so the test project can see it without any change.
+`WebApplicationFactory<Program>` needs the `Program` class of the API. `Program.cs` uses top-level statements, so the compiler creates `Program` for us. Since .NET 10 the Web SDK also generates a `public partial class Program`, so the test project can see it without any change.
 Only if the build fails with "`Program` is inaccessible due to its protection level" (CS0122), add this single line at the end of `src/CampusMarket.Api/Program.cs`, and nothing else:
 
 ```csharp
@@ -231,6 +231,7 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 - Never commit or push; report the results.
 - Never edit `postman/`, `.github/`, or anything in `tests/CampusMarket.UnitTests`.
 - Never declare a private helper with an interface return type when it always returns one concrete type (for example `IReadOnlyList<T>` for a method that returns `.ToList()`): return the concrete type (`List<T>`). SonarCloud reports it as CA1859. After generating, build with `-p:ErrorLog=<file>.sarif%2Cversion=2.1` and check that the new test files have no CA or IDE diagnostic.
+- Never pass a constant array literal as an argument (CA1861): put it in a `private static readonly` field.
 
 ## 8. Old API tests
 
@@ -477,8 +478,8 @@ Tests to add (status, body, then the database). In every test the Act is the one
 - `"  Admin@Campus.Test  "` in the config → login with `admin@campus.test` and `AdminPassword` → 200, non-empty `token`; exactly one member, `Email.Value` is `admin@campus.test`, `Role` is `MemberRole.Admin`.
 - the app starts twice with `"Admin@Campus.Test"` (Arrange: start a first copy with `CreateClient()` and dispose it; Act: start a second copy and log in) → 200; still exactly one member. This is the case from issue #44: before the fix, the second start failed on the unique email index.
 - an Admin already in the database (seeded with `Member.Register("Admin", "admin@campus.test", new AspNetPasswordHasher().Hash(AdminPassword), CreatedAt, MemberRole.Admin)`) and `"Admin@Campus.Test"` in the config → login 200; still exactly one member, with the id of the seeded one.
-- `"not-an-email"` in the config → `GET /` → 200 with the body `CampusMarket API is running`; no member saved.
-- a valid email and an empty password in the config → `GET /` → 200 with the same body; no member saved.
+- `"not-an-email"` in the config → `GET /health` → 200 with the body `Healthy`; no member saved.
+- a valid email and an empty password in the config → `GET /health` → 200 with the same body; no member saved.
 
 Code review v5, row 11 (`REVIEW.md`): in `Auth/LoginTests.cs` three 401 tests check only the status and the body. Add the database check at the end of each one, the same way `Given_UnknownEmail_When_LoggingIn_Then_Returns401` does it (`CountAsync` on `db.Set<Member>()`), and change nothing else in them:
 - `Given_WrongPassword_When_LoggingIn_Then_Returns401` → 1 member.
@@ -769,7 +770,7 @@ Files and tests to add:
 - `Infrastructure/RepositoryTests.cs`, class `RepositoryTests : IntegrationTestBase`. For each of the five repositories: seed one entity with `SeedAsync`, then in a new scope create the repository over the scoped `CampusMarketDbContext` and call `AddAsync` with the same entity instance loaded from that context (or a new instance with the same `Id`) → `false`; then `SaveChangesAsync` and the table still has exactly one row with that `Id`. Also one test per repository where a new entity → `true` and after `SaveChangesAsync` it is in the database. Build the entities the same way the other test classes do (members, a published listing, `Favorite.Create`, `Report.Create`, `Review.Create` on a sold listing). Act is the `AddAsync` call; there is no HTTP request in this class.
 - `Listings/CreateListingTests.cs` (add one test): `IListingRepository` replaced by `Infrastructure/DuplicateIdListingRepository.cs` (delegates every method to `new EfListingRepository(db)`, except `AddAsync`, which returns `false`) → `POST /api/v1/listings` with a valid body → 409, body read into `Error` with `Code` `Listing.Duplicate` and `Type` `Conflict`; no listing in the database.
 - `Auth/LoginTests.cs` (add one test): with `TestRemoteIpStartupFilter`, five login attempts with `X-Test-Remote-Ip: 10.0.0.1` (the helper may loop, like `ExhaustLoginRateLimitAsync`), then the Act: one login with `X-Test-Remote-Ip: 10.0.0.2` and the right password → 200 with a token (another IP has its own limit). A second test: the sixth attempt from `10.0.0.1` → 429 ProblemDetails `Request.TooManyRequests`. Both check the member count at the end.
-- `Auth/SeedAdminTests.cs` (add one test): `WithAdminSeed("admin@campus.test")` plus `IPasswordHasher` replaced by `Infrastructure/EmptyHashPasswordHasher.cs` (`Hash` returns `""`, `Verify` returns `false`) → `GET /` → 200 with the body `CampusMarket API is running`; no member saved.
+- `Auth/SeedAdminTests.cs` (add one test): `WithAdminSeed("admin@campus.test")` plus `IPasswordHasher` replaced by `Infrastructure/EmptyHashPasswordHasher.cs` (`Hash` returns `""`, `Verify` returns `false`) → `GET /health` → 200 with the body `Healthy`; no member saved.
 - `Infrastructure/ReservationExpiryServiceTests.cs`, class `ReservationExpiryServiceTests : IntegrationTestBase`:
     - the handler returns a failure → poll (every 50 ms, at most 5 s) until the fake was called at least twice; there is an `Error` log entry of category `CampusMarket.Api.Infrastructure.Background.ReservationExpiryService` whose message contains `Test.Failure` and `Run failed on purpose.`.
     - the handler throws → poll until it was called at least twice; there is an `Error` entry with the `InvalidOperationException` and the message `ReservationExpiryService run failed.`.
@@ -1034,6 +1035,261 @@ Rules for this feature:
 - For the two startup failures there is no HTTP call: the Act is `CreateClient()`; check that the database has no listing.
 - In a copy made with `WithWebHostBuilder`, `AuthenticateAs` does not apply: set `Authorization: Bearer` with `TestTokens.Create(SellerId)` on the copy's client, as `ErrorHandlingTests` and `CorsTests` do.
 - This section goes with changes made by hand before the run (`src/`, `ml/`, the unit tests generated by the unit-testing skill and the hand-written ML tests), so the section 10 check on `git status` also lists them.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Similar listings (Anca)
+
+Endpoint: `GET /api/v1/listings/{id}/similar`, public (no token needed). It uses the **real** similar-listings model (`ml/models/similar-listings.zip`, copied to `ml-models/` like the others; do not replace `ISimilarListingsFinder` in the test factory). Read `Features/Listings/GetSimilarListings/` and `Infrastructure/ML/SimilarListingsFinder.cs` before generating.
+- 200 `{ items: [{ id, title, category, condition, price, similarity }] }`: at most 5 `Active` listings, never the listing itself, the most similar first, `similarity` between 0 and 1.
+- 404 `Listing.NotFound` (handler error body `{ code, message, type }`) for an unknown id.
+- The target can have any status (a draft has similar listings too).
+
+File: `Listings/GetSimilarListingsTests.cs` (new), class `GetSimilarListingsTests : IntegrationTestBase` (fixed `SellerId`, each listing with its own fixed `CreatedAt`).
+
+Arrange for the ranking tests: published listings of `SellerId`, condition `Good`, each with this title and description:
+- `"Manual Analiza matematica, editia 2"` — `"Manual pentru anul I, cu exercitii rezolvate."` (Textbook, 40)
+- `"Culegere Analiza matematica, exercitii rezolvate"` — `"Culegere pentru examen, exercitii rezolvate pe capitole."` (Textbook, 30)
+- `"Laptop Lenovo ThinkPad, i5, 8GB"` — `"Laptop pentru facultate, baterie buna, 8GB RAM."` (Electronics, 1500)
+- `"Laptop Dell Latitude, i7, 16GB"` — `"Laptop rapid, 16GB RAM, SSD 512GB."` (Electronics, 2200)
+- `"Notite curs Structuri de date"` — `"Notite scrise de mana, cursurile din anul II."` (Notes, 20)
+- `"Bicicleta de oras"` — **no description** (Other, 300)
+- plus a draft textbook `"Manual Analiza matematica, editia 1"` — `"Editie mai veche, cu sublinieri."` (Textbook, 25, not published).
+Both kinds of description (with text and none) must be there: `SimilarListingsFinder` handles a missing description separately.
+
+Tests to add:
+- target the published `"Manual Analiza matematica, editia 2"` → 200; at most 5 items; the first item is the other math textbook; the draft and the target are not in the list; every item is `Active` in the database; similarities between 0 and 1, in decreasing order.
+- target one laptop → 200; the first item is the other laptop.
+- target the draft textbook → 200; the first item is a math textbook (the draft is not a candidate of itself, but it can be a target).
+- the only published listing is the target (plus a draft) → 200 with an empty `items`.
+- unknown id → 404 `Listing.NotFound`.
+- every call is made without a token; the database is unchanged at the end (same number of listings).
+
+Change to an existing test (keep it and its name): `Infrastructure/HealthTests.cs`, the "models folder does not exist" test also checks that the description contains `similar-listings.zip`.
+
+Rules for this feature:
+- Never assert an exact similarity from the real model; only the order of the clear cases above and the 0–1 range.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Password reset (Sara)
+
+Endpoints:
+- `POST /api/v1/auth/forgot-password` `{ email }` → 202 with the same body for a known email and for an unknown email (so the API never leaks whether the email exists).
+- `POST /api/v1/auth/reset-password` `{ token, newPassword, confirmNewPassword }` → 204 on success, or 400 ProblemDetails with `Auth.InvalidResetToken` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`.
+
+File: `Auth/PasswordResetTests.cs` (new), class `PasswordResetTests : IntegrationTestBase` (fixed `SellerId`, a seeded member with a known password).
+
+Test host: replace `IEmailSender` with a capturing fake (a `TestEmailSender` in the test project that records every email in a thread-safe list) through `ConfigureTestServices` in a host started with `Factory.WithWebHostBuilder(...)`, disposed with `await using`. The handler builds the reset link with the plain token as `?token=...`; read it from the captured email's body with a private static helper (store the terminators in a `private static readonly char[]` field — CA1861). For the expiry test, the same `WithWebHostBuilder` host also replaces `TimeProvider` with a fake that returns a fixed `Now`. The `forgot-password` endpoint shares the "login" rate limit (if configured): keep each test to a few calls, and when the test needs to call it more often, the host is a fresh copy.
+
+Tests to add:
+- `POST /auth/forgot-password` always 202:
+  - registered email → 202 with the standard body, one email captured for that address.
+  - unknown email → 202 with exactly the same body, no email captured, no token in the database.
+- Full flow: a registered member sends `forgot-password`, the test reads the plain token from the captured email's link, then `POST /auth/reset-password` with that token and a strong new password → 204; `POST /auth/login` with the new password → 200 and returns an access token; `POST /auth/login` with the old password → 401 `Auth.InvalidCredentials`. One extra email is captured for "password changed" and its body does not contain the new password. The token row in the database has `UsedAt` set.
+- Reused token: the same token used a second time → 400 ProblemDetails with `Auth.InvalidResetToken`; the member's password is not changed again and no new email is captured.
+- Expired token: through a fake `TimeProvider` set to `Now + PasswordResetToken.Lifetime` (30 minutes), reset with the token → 400 ProblemDetails with `Auth.InvalidResetToken`; the member's password is unchanged and no email is captured.
+- Random token (never issued) → 400 ProblemDetails with `Auth.InvalidResetToken`.
+- Weak password (`""` and a 7-character value, `[Theory]`) → 400 ProblemDetails with `Auth.WeakPassword`; a confirmation different from the new password → 400 ProblemDetails with `Auth.PasswordsDoNotMatch`.
+- Rate limiting (only if `forgot-password` has a configured limit): call the endpoint until the limit is reached; the next call returns 429. Check it on a fresh `WithWebHostBuilder` host so the other tests are not touched; skip this test if no limit is configured.
+
+Rules for this feature:
+- Never send a real email: the capturing `IEmailSender` is registered in every test host; never open an SMTP connection.
+- Never use real time for the 30-minute boundary: the expired-token test uses the fake `TimeProvider` through `ConfigureTestServices`. For `sentAt`/`createdAt` that come from HTTP, assert that they are close to now (`BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))`), never an exact value.
+- Never put a constant array literal in an argument (CA1861): the token-extraction helper reads terminators from a `private static readonly char[]` field.
+- 400 bodies are ProblemDetails, as in "Feature: Error handling (Anca)": assert on the response body's `Extensions`/`Detail` for `Code`, or on the response status plus the `Code` that the handler puts in ProblemDetails.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+
+## Feature: Conversations (Anca)
+
+Endpoints (all need a token; the member is the user in the token):
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/conversations`, body `{ text }` | a member who is not the seller | 201, body `{ conversationId, id, number, senderId, text, sentAt }`, `Location` ends with `/api/v1/conversations/{conversationId}`. The first message starts the conversation; if this member already has one about the listing, the message is added to it (same `conversationId`, next `number`) | 404 `Listing.NotFound`; 404 `Member.NotFound`; 400 `Conversation.OwnListing` (the seller), `Conversation.ListingNotAvailable` (draft, sold or hidden listing, only for a new conversation), `Message.Empty`, `Message.TooLong` (over 1000 characters after trim); 401 |
+| `POST /api/v1/conversations/{id}/messages`, body `{ text }` | the buyer or the seller of the conversation | 201, same body and `Location` | 404 `Conversation.NotFound`; 403 `Conversation.NotParticipant` (anyone else, an Admin too; body is our `Error`); 400 `Message.Empty`, `Message.TooLong`; 401 |
+| `GET /api/v1/conversations/{id}` | the buyer or the seller | 200 `{ id, listingId, listingTitle, sellerId, sellerName, buyerId, buyerName, createdAt, messages: [{ id, number, senderId, text, sentAt }] }`, messages in `number` order | 404 `Conversation.NotFound`; 403 `Conversation.NotParticipant`; 401 |
+| `GET /api/v1/members/me/conversations` | any member | 200 `{ items: [{ id, listingId, listingTitle, otherMemberId, otherMemberName, lastMessage, lastMessageSenderId, lastMessageAt, messageCount }], count }`, as buyer and as seller, the latest message first | 401 |
+
+Read `Features/Conversations/`, `Domain/Conversations/` and `Infrastructure/Persistence/Configurations/ConversationConfiguration.cs` / `MessageConfiguration.cs` before generating. The `Conversations` table has foreign keys to `Listings` and to `Members` twice (seller and buyer), all with cascade delete, and a unique index on `(ListingId, BuyerId)`; `Messages` belong to their conversation (cascade). So the seller **and** the buyer must be seeded as members.
+
+Files: `Conversations/StartConversationTests.cs`, `Conversations/SendMessageTests.cs`, `Conversations/GetConversationTests.cs`, `Conversations/GetMyConversationsTests.cs`, same base class and login helper as the other classes. Read the bodies into `MessageResponse`, `GetConversationResponse` and `GetMyConversationsResponse` from `Features/Conversations/`.
+
+Arrange: seed the seller, the buyer and (when needed) another member with `Member.Create(...).Value`; a published listing is `Listing.Create(seller.Id, ...).Value` then `Publish()` (sold: `Reserve` then `ConfirmSale`). An existing conversation is `Conversation.Start(buyer.Id, listing, "text", CreatedAt).Value`, more messages with `conversation.Send(memberId, "text", CreatedAt.AddMinutes(n))`, seeded together with the members and the listing in one `SeedAsync`. Log in with `AuthenticateAs(member.Id)`.
+
+Tests to add (status, body, then the database through `db.Set<Conversation>()` / `db.Set<Message>()`):
+- `StartConversationTests`: the buyer on a published listing with `"  Mai e disponibil?  "` → 201 with number 1, the buyer as sender, the trimmed text and `Location`; one conversation (this listing, seller and buyer) and one message saved; the same buyer again → 201 with the same `conversationId` and number 2, still one conversation and two messages; a reserved listing → 201; the seller → 400 `Conversation.OwnListing`; a draft → 400 `Conversation.ListingNotAvailable`; a sold listing with no conversation → 400 `Conversation.ListingNotAvailable`; a sold listing where the buyer already has a conversation (seed it before the sale) → 201, number 2; empty text → 400 `Message.Empty`; 1001 characters → 400 `Message.TooLong`; unknown listing → 404 `Listing.NotFound`; logged in as a member that is not in the database → 404 `Member.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`. Nothing saved in any failure.
+- `SendMessageTests`: the seller answers → 201, number 2, sender the seller, `Location`; the message is saved and the conversation's `LastMessageAt` is the time of the answer; the buyer answers again → number 3; another member → 403 `Conversation.NotParticipant` with `Type` `Forbidden`; an Admin (`AuthenticateAs(AdminId, "Admin")`, as in the moderation tests) → 403; empty → 400 `Message.Empty`; unknown conversation → 404 `Conversation.NotFound`; no token → 401. No message saved in any failure.
+- `GetConversationTests`: as the buyer and as the seller → 200 with every field (names and listing title), three messages in number order; another member → 403 `Conversation.NotParticipant`; unknown → 404 `Conversation.NotFound`; no token → 401. The database is unchanged after every call.
+- `GetMyConversationsTests`: the seller with two conversations (two buyers) → 200, `count` 2, the latest message first, `otherMemberId`/`otherMemberName` = the buyer, `lastMessage`, `lastMessageSenderId` and `messageCount` checked; the buyer → one item with the seller as the other member; another member → empty `items`, `count` 0; no token → 401. The database is unchanged after every call.
+- Cascade, in `StartConversationTests`: the seller deletes the listing (`DELETE /api/v1/listings/{id}` logged in as the seller) → 204, and its conversation and messages are gone from the database.
+
+Rules for this feature:
+- Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- Real time is used for the messages sent through HTTP: assert that `sentAt` is close to now (`BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1))`), never an exact value.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Listing photos (Anca)
+
+Endpoints:
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `POST /api/v1/listings/{listingId}/photos`, `multipart/form-data` with the image in the `file` field | the seller (any listing status) | 201, body `{ id, listingId, url, contentType, sizeBytes, createdAt }` (`url` = `/api/v1/photos/{id}`), `Location` ends with `/api/v1/photos/{id}`; the file is saved on disk | 404 `Listing.NotFound`; 403 `Photo.NotSeller` (body is our `Error`); 400 `Photo.LimitReached` (already 5), `Photo.Empty` (no `file` field or an empty file), `Photo.TooLarge` (over 2 MB = 2 097 152 bytes), `Photo.InvalidFormat` (not JPEG/PNG/WebP by its first bytes, whatever the name and type sent); 401 |
+| `GET /api/v1/listings/{listingId}/photos` | everyone | 200 `{ items: [...same fields...], count }` in the order they were added | 404 `Listing.NotFound` |
+| `GET /api/v1/photos/{id}` | everyone | 200 with the image bytes, `Content-Type` of the photo, `Cache-Control: public, max-age=86400` | 404 `Photo.NotFound` (unknown, or the file is missing on disk) |
+| `DELETE /api/v1/listings/{listingId}/photos/{photoId}` | the seller | 204; the row and the file are gone | 404 `Listing.NotFound`, `Photo.NotFound` (also a photo of another listing); 403 `Photo.NotSeller`; 401 |
+
+Also: `DELETE /api/v1/listings/{id}` now removes the listing's photo folder from disk (the rows go by cascade).
+
+Read `Features/Photos/`, `Domain/Photos/`, `Common/Storage/`, `Infrastructure/Storage/LocalPhotoStorage.cs` and `Infrastructure/Persistence/Configurations/PhotoConfiguration.cs` before generating. Files are stored as `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>`.
+
+Change to the test infrastructure (keep everything else): `Infrastructure/CampusMarketApiFactory.cs` sets `Storage:PhotosPath` to a new folder under `Path.GetTempPath()` (a new `Guid` in the name, one per factory), exposes it as a public `PhotosPath` property and deletes the folder (if it exists) in `Dispose`. No test may write photos into the source tree.
+
+Files: `Photos/UploadPhotoTests.cs`, `Photos/GetListingPhotosTests.cs`, `Photos/GetPhotoFileTests.cs`, `Photos/DeletePhotoTests.cs`, same base class and login helper as the other classes. Read the bodies into `PhotoResponse` and `GetListingPhotosResponse` from `Features/Photos/`. Upload with `MultipartFormDataContent` and a `ByteArrayContent` named `file` (with a file name). Test images are byte arrays that start with the signatures (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WebP `"RIFF"` + 4 bytes + `"WEBP"`) followed by zeros, as `static readonly` fields.
+
+Arrange: seed the seller (and another member when needed) and a listing of the seller. Existing photos: upload them through the endpoint as the seller (so the file is on disk), except for the "already 5" case, where 5 `Photo.Create(...)` rows may be seeded directly (no files needed).
+
+Tests to add (status, body, then the database through `db.Set<Photo>()` and the disk under `Factory.PhotosPath`):
+- `UploadPhotoTests`: the seller uploads a PNG → 201 with `contentType` `image/png`, the size, `url` and `Location`; one row (this listing, `FileName` = `<id>.png`) and the file on disk with the same bytes; a JPEG and a WebP → 201 with their types; a draft listing → 201; a GIF sent as `image/png` with name `a.png` → 400 `Photo.InvalidFormat`; a file of 2 097 153 bytes (PNG start) → 400 `Photo.TooLarge`; exactly 2 097 152 bytes → 201; no `file` field (another field name) → 400 `Photo.Empty`; 5 photos already → 400 `Photo.LimitReached`; another member → 403 `Photo.NotSeller`; unknown listing → 404 `Listing.NotFound`; no token → 401 ProblemDetails `Auth.Unauthorized`; a JSON body instead of a form → 415. No row and no file in any failure.
+- `GetListingPhotosTests`: no token, three uploaded photos → 200, `count` 3, in upload order, every field; a listing with no photo → empty `items`; photos of another listing are not returned; unknown listing → 404. The database is unchanged.
+- `GetPhotoFileTests`: no token, an uploaded PNG → 200, the same bytes, `Content-Type` `image/png`, the `Cache-Control` header; unknown id → 404 `Photo.NotFound`; the row exists but the file was deleted from disk by the test → 404 `Photo.NotFound`.
+- `DeletePhotoTests`: the seller deletes one of two photos → 204, the row and the file are gone, the other photo stays (row and file), then `GET /api/v1/photos/{id}` → 404; another member → 403 `Photo.NotSeller`; a photo of another listing (same seller) → 404 `Photo.NotFound`; unknown photo → 404; unknown listing → 404 `Listing.NotFound`; no token → 401. Nothing removed in any failure.
+- Cascade, in `DeletePhotoTests`: the seller deletes the listing (`DELETE /api/v1/listings/{id}`) → 204, its photo rows are gone and its folder under `Factory.PhotosPath` no longer exists; deleting a listing that never had a photo → 204 (no folder, no error).
+
+Rules for this feature:
+- Read 400/403/404 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+
+## Feature: Full coverage (Carina)
+
+Issue #121: SonarCloud must show 100% line and branch coverage and every mutant killed. After every test project runs, these cases are still not covered (the coverage analysis of #121). Add the tests below and nothing else; keep every existing test. Read each production file named here before generating.
+
+Production code:
+- `Features/Admin/PriceAccuracy/PriceAccuracyEndpoint.cs`: `GET /api/v1/admin/ml/price-accuracy`, `RequireAuthorization("Admin")`, returns 200 with the handler's `PriceAccuracyResponse` (`count`, `mae`, `mape`, `perCategory`, `lastRecords`). It reads the records through `Infrastructure/Persistence/EfSaleRecordRepository.GetAllAsync`. `SaleRecords` has no foreign key to `Listings`, so a record can be seeded alone.
+- `Features/Members/UpdateMyProfile/UpdateMyProfileEndpoint.cs`: a `NotFound` error from the handler → 404 with `Error`; any other error → 400.
+- `CampusMarketSetup.cs`:
+    - the `register` rate limit policy is partitioned by `context.Connection.RemoteIpAddress?.ToString() ?? "unknown"`; the existing `RegisterRateLimitTests` only use the `"unknown"` partition.
+    - `ValidateCampusMarketProductionConfiguration`: in Production, `string.IsNullOrWhiteSpace(Jwt:Key)` or a key shorter than 32 characters → `InvalidOperationException`. The existing tests cover only the short key.
+    - `SeedDemoDataIfRequested`: returns without seeding when the database already has a member or a listing.
+    - `TrySeedDemoMember`: with a `Seed:DemoPassword` of at least 8 characters it calls `Member.Register("Demo Student", ..., hasher.Hash(password), ...)`; when that fails (an empty hash → `Member.PasswordRequired`) it returns `null`, so no member is saved and the 3 demo listings are still seeded, owned by a new random seller id.
+- `Infrastructure/Mailing/SmtpEmailSender.cs`: builds a `MailMessage` and an `SmtpClient(Host, Port)` with `EnableSsl = UseSsl`; when the environment variable `Email__Username` is set it sets `NetworkCredential(Email__Username, Email__Password)`; then `SendMailAsync`.
+
+Files and tests to add (status, body, then the database, as section 4 says):
+- `Admin/PriceAccuracyTests.cs` (new), class `PriceAccuracyTests : IntegrationTestBase`, fixed `AdminId`, `OtherStudentId`, `CreatedAt`:
+    - as Admin (`AuthenticateAs(AdminId, "Admin")`), two `SaleRecord`s seeded with `SeedAsync` (`SaleRecord.Create(listingId, category, condition, suggested, sold, soldAt).Value`; suggested 100 / sold 80 in `Textbook` and suggested 50 / sold 50 in `Electronics`, with different fixed `soldAt`) → 200, read into `PriceAccuracyResponse`: `count` 2, `mae` 10, `mape` 12.5, one `perCategory` row per category, `lastRecords` newest first with every field of the seeded records; the database still has exactly the 2 records.
+    - as a student → 403 ProblemDetails `Auth.Forbidden`; no token → 401 ProblemDetails `Auth.Unauthorized` (as in "Feature: Error handling (Anca)"); the seeded record is unchanged in both.
+- `Members/MyProfileTests.cs` (add one test): `PUT /api/v1/members/me` with a valid name, logged in as `UnknownMemberId` (never seeded) → 404 `Member.NotFound`, type `NotFound`; a seeded member is unchanged and there is still exactly one member.
+- `Auth/RegisterRateLimitTests.cs` (add two tests): a copy of the API with `RateLimiting:RegisterPermitLimit` 5 **and** `TestRemoteIpStartupFilter` (register it with `ConfigureTestServices(s => s.AddSingleton<IStartupFilter, TestRemoteIpStartupFilter>())`, as `LoginTests` does); five valid registrations with `X-Test-Remote-Ip: 10.0.0.1`, then the Act: one valid registration with `X-Test-Remote-Ip: 10.0.0.2` → 201 (another IP has its own limit), 6 members; and a second test where the sixth registration comes from `10.0.0.1` → 429, 5 members and none with the sixth email. Set the header on each `HttpRequestMessage`, not on the client.
+- `Infrastructure/ProductionConfigurationTests.cs` (add three tests):
+    - Production with `Jwt:Key` = `"   "` (only spaces) → `CreateClient()` throws `InvalidOperationException` whose message mentions `Jwt__Key`; the database has no listing and no member.
+    - `Seed:DemoData` true and a valid `Seed:DemoPassword`, with one member already seeded with `SeedAsync` → `GET /api/v1/listings` → 200, `totalCount` 0; the database still has exactly that one member and no listing.
+    - `Seed:DemoData` true, a valid `Seed:DemoPassword` and `IPasswordHasher` replaced by the existing `Infrastructure/EmptyHashPasswordHasher` (singleton, as in `SeedAdminTests`) → `GET /api/v1/listings` → 200, `totalCount` 3; the database has 0 members and 3 listings, and their `SellerId` is the same for all three and is not the id of any member.
+- `Infrastructure/SmtpEmailSenderTests.cs` (new), class `SmtpEmailSenderTests` (not an `IntegrationTestBase`: there is no API and no database here), with a new fake `Infrastructure/FakeSmtpServer.cs`:
+    - `FakeSmtpServer`: a `TcpListener` on `IPAddress.Loopback` and port 0 (a free port chosen by the OS, read back from `LocalEndpoint`), `IAsyncDisposable`. It accepts one connection and answers the basic SMTP commands in plain text: `220` greeting; `EHLO`/`HELO` → `250` with `AUTH LOGIN` advertised; `AUTH LOGIN` (with or without the initial username) → `334` prompts, then `235`; `MAIL FROM`, `RCPT TO` → `250`; `DATA` → `354`, read until the line `.`, then `250`; `QUIT` → `221` and close. It records the decoded username and password (null when no `AUTH` came), the `MAIL FROM` and `RCPT TO` lines and the message data, and completes a `Task` when the dialog ends. One-line comment on top, like the other fakes.
+    - a send without `Email__Username` → `SendAsync` completes; the server got the message with the `From`, the `To`, the subject and the body, and no `AUTH` (username null).
+    - a send with `Email__Username` and `Email__Password` set → `SendAsync` completes; the server got the same message and the decoded username and password equal the two variables.
+    - Options: `Options.Create(new EmailOptions { Host = "127.0.0.1", Port = server.Port, From = "noreply@campusmarket.local", UseSsl = false })`. `UseSsl` false is only for this local fake (there is no TLS on it); never use it for anything else.
+    - These tests change process environment variables, so they must never run in parallel with another test: put the class in `[Collection(SmtpEnvironmentCollection.Name)]` and define `SmtpEnvironmentCollection` with `[CollectionDefinition(Name, DisableParallelization = true)]` in the same file. The constructor saves the current values of `Email__Username` and `Email__Password` and clears them; `Dispose` restores the saved values, so every test starts without the variables and nothing leaks.
+    - Every wait on the server has a timeout (`WaitAsync(TimeSpan.FromSeconds(5))`), so a broken dialog fails the test instead of hanging it.
+
+Rules for this feature:
+- This section is the only exception to two general rules: `FakeSmtpServer` listens on a local port (section 7 forbids a real server for the API, which is still never started on a port), and `SmtpEmailSenderTests` opens an SMTP connection, but only to `FakeSmtpServer` on `127.0.0.1` ("Feature: Password reset (Sara)" still forbids any other SMTP connection). Never connect to a real SMTP server.
+- Never change `CampusMarketApiFactory` or `IntegrationTestBase` in this feature (the temporary `PhotosPath` of "Feature: Listing photos (Anca)" is already there and stays as it is); every special setup goes through `Factory.WithWebHostBuilder(...)`, disposed with `await using`.
+- Never hard-code a real JWT key or a real password; use generated test strings, as `ProductionConfigurationTests` does.
+- Then run all the tests with coverage as the CI does (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`): `PriceAccuracyEndpoint.cs`, `EfSaleRecordRepository.cs`, `UpdateMyProfileEndpoint.cs`, `CampusMarketSetup.cs`, `SmtpEmailSender.cs`, `ConfirmSaleHandler.cs` and `ResetPasswordHandler.cs` are at 100% for lines and branches. If a line or branch is still not covered, stop and report which one and why; never change `src/` and never write a test whose only purpose is to execute a line without checking its behaviour.
+- Run `dotnet test tests/CampusMarket.IntegrationTests` three times in a row: the new tests must never fail.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Sorting (Diana)
+
+File: `Listings/GetListingsTests.cs` (add to it).
+
+Tests to add:
+- `?sort=price_asc` → 200, prices in ascending order.
+- `?sort=abc` → 400 `Listings.InvalidSort`.
+
+## Feature: Notifications (Sara)
+Endpoints (token needed): `GET /api/v1/members/me/notifications?unreadOnly=&page=&pageSize=`, `POST /api/v1/members/me/notifications/{id}/read` (204, 404 if not mine or unknown), `POST /api/v1/members/me/notifications/read-all` (204).
+File: `Notifications/NotificationsTests.cs` (new).
+Tests to add:
+- seller and buyer seeded, published listing; the buyer reserves → the seller's GET has 1 unread ReservationCreated notification for that listing; the buyer's GET is empty.
+- the seller confirms the sale → the buyer has 1 ListingSold notification.
+- mark one as read → 204, `unreadCount` 0, `readAt` set in the database; marking someone else's → 404.
+- read-all → 204, all mine read.
+- no token → 401 on the three endpoints.
+- the list order: seed two notifications of the seller with `Notification.Create(seller.Id, NotificationType.ReservationCreated, "...", listing.Id, createdAt)` at two fixed times (the older one first in the seed) → `GET` returns the newer first, `count` 2, `totalCount` 2, `unreadCount` 2, every field of both items; after marking the newer one as read, `?unreadOnly=true` → only the older one, `totalCount` 1, `unreadCount` 1.
+- paging: `?page=0` → 400 `Notifications.InvalidPage`; `?pageSize=101` → 400 `Notifications.InvalidPageSize` (body is our `Error`); the database is unchanged.
+  Rules: if a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Admin categories (Carina)
+
+Production code (written by hand, read it before generating): `Domain/Categories/` (`ListingCategory`, `ICategoryRepository`), `Features/Categories/` (`GetCategories`, `UpdateCategory`), `Infrastructure/Persistence/EfCategoryRepository.cs`, `Infrastructure/Persistence/Configurations/ListingCategoryConfiguration.cs`, and the category check in `CreateListingHandler`, `UpdateListingHandler` and `PublishListingHandler`.
+
+| Request | Who | Success | Failures |
+|---|---|---|---|
+| `GET /api/v1/categories` | everyone (no token) | 200 `{ items: [{ key, displayName, description, isActive }], count }`, in enum order (Textbook, Notes, Electronics, LabEquipment, Other), active and inactive ones | none |
+| `PUT /api/v1/categories/{category}`, body `{ displayName, description?, isActive }` | Admins only (`RequireAuthorization("Admin")`) | 204, empty body; name and description saved trimmed, a blank description saved as `null` | 401 ProblemDetails `Auth.Unauthorized`; 403 ProblemDetails `Auth.Forbidden` (a member); 404 `Category.NotFound` (the key is matched by name, case-insensitive); 400 `Category.IsActiveRequired` (`isActive` missing), `Category.DisplayNameEmpty`, `Category.DisplayNameTooLong` (over `ListingCategory.MaxDisplayNameLength` = 100), `Category.DescriptionTooLong` (over `ListingCategory.MaxDescriptionLength` = 500); 409 `Category.LastActive` (deactivating the last active category) |
+
+Listings: `POST /api/v1/listings` in an inactive category → 400 `Listing.CategoryInactive`; `PUT /api/v1/listings/{id}` that **moves** a listing into an inactive category → 400 `Listing.CategoryInactive`, while editing a listing that is already in an inactive category without changing the category succeeds (204); `POST /api/v1/listings/{id}/publish` of a draft whose category is inactive → 400 `Listing.CategoryInactive`.
+
+Facts:
+- The 5 categories are **seeded by the migration** `AddCategories` (`HasData` in `ListingCategoryConfiguration`): `Textbook` "Manuale", `Notes` "Notițe", `Electronics` "Electronice", `LabEquipment` "Echipament de laborator", `Other` "Altele", all active, description `null`. Every test database already has them; never seed or delete category rows.
+- Read the bodies into `GetCategoriesResponse` / `GetCategoriesItem` and send `UpdateCategoryRequest` (its fields are nullable, so `isActive` can be left out).
+
+Files: `Categories/GetCategoriesTests.cs`, `Categories/UpdateCategoryTests.cs`, `Listings/InactiveCategoryTests.cs` (new).
+
+Arrange: to deactivate a category, a private helper in the test class opens a scope, loads all the categories from `CampusMarketDbContext` (tracked), calls the domain `Update(displayName, description, isActive: false, all)` on the ones to deactivate and `SaveChangesAsync`. Never deactivate through the endpoint in an Arrange.
+
+Tests to add (status, body, then the database through `db.Set<ListingCategory>()` / `db.Set<Listing>()`):
+- `GetCategoriesTests`: no token → 200, `count` 5, the 5 seeded categories in order with key, display name, description and `isActive`, all active; the database still has exactly the 5 seeded ones.
+- `UpdateCategoryTests`: Admin → 204, empty body, then `GET /api/v1/categories` (in the Assert) shows the new trimmed display name, description and `isActive`; the database has the new values and the other 4 unchanged. No token → 401; a member → 403; unknown key (`Books`) → 404 `Category.NotFound`; missing `isActive` → 400 `Category.IsActiveRequired`; display name `""`, `"   "`, `null` → 400 `Category.DisplayNameEmpty`; 101 characters → 400 `Category.DisplayNameTooLong`; description of 501 characters → 400 `Category.DescriptionTooLong`; the 4 others deactivated in the Arrange, deactivating the last one → 409 `Category.LastActive` (type `Conflict`) and it stays active. Every failure: the 5 categories are unchanged.
+- `InactiveCategoryTests`: create in an inactive category → 400 `Listing.CategoryInactive`, no listing; move a listing into an inactive category → 400, listing unchanged; edit a listing already in an inactive category without changing the category → 204, new values, `Version` 2; publish a draft whose category became inactive → 400, still `Draft` with `Version` 1, no report.
+- Existing listings in a deactivated category (decision of week 8, task 12): deactivating a category only stops **new** listings (create, move by edit, publish draft). An `Active` listing whose category is deactivated afterwards stays visible. In `InactiveCategoryTests`, seed a published listing (`Publish()` before `SeedAsync`), then deactivate its category with the helper, then send the one HTTP call without a token: `GET /api/v1/listings` → 200, the listing is in `items` (`totalCount` 1); `GET /api/v1/listings?category=<that category>` → 200, the listing is returned; `GET /api/v1/listings/{id}` → 200 with the listing's fields and `Active`. Every test checks at the end that the listing is unchanged (`Active`, `Version` 2) and that the category is still inactive in the database.
+
+Rules for this feature:
+- A test that deactivates a category must not affect other tests: it deactivates only in its own database (every test has a fresh factory and in-memory database, section 3), never through a shared or static state, and never with a `WithWebHostBuilder` copy kept between tests.
+- The existing publish, create and edit integration tests (`PublishListingTests`, `CreateListingTests`, `UpdateListingTests`) stay unchanged: they run with all 5 categories active, as the migration seeds them. The new cases go in `Listings/InactiveCategoryTests.cs`.
+- Read 400/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 and 403 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
+- Then run all the tests with coverage as the CI does: `Domain/Categories/`, `Features/Categories/`, `EfCategoryRepository.cs`, `ListingCategoryConfiguration.cs`, the three listing handlers, `CampusMarketSetup.cs` and `CampusMarketDbContext.cs` are at 100% for lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Spam rules (Anca)
+
+`Infrastructure/ML/SpamRules.cs` (new) and `Infrastructure/ML/SpamDetector.cs` (changed): on publish (`POST /api/v1/listings/{id}/publish`) a listing is spam when the **real** model's probability reaches `Ml:Spam:Threshold` **or** when one of the rules matches its title or description (compared in lower case, without diacritics, after removing email addresses): a phrase from `SpamRules.Phrases` (for example `whatsapp`, `scrie-mi pe`, `bani usor`, `castiga`, `plata in avans`), a link (`http://`, `www.`, or a word ending in `.ro/.com/.net/.org/.info/.biz/.xyz/.io/.me`), a Romanian mobile number (`07xx xxx xxx`, `+40 7…`), an `@handle`, or `!!!`. When only a rule caught it, the automatic report has `SpamProbability` = `SpamRules.RuleProbability` (0.9); when the model caught it, the model's own probability (rounded to two decimals). A spam listing gets one automatic report (`Report.IsAutomatic`, reporter null) and stays `Active`, as before.
+
+Read `SpamRules.cs`, `SpamDetector.cs`, `Features/Listings/PublishListing/` and the existing "Feature: Spam and moderation (Anca)" tests before generating.
+
+File: `Moderation/SpamRulesTests.cs` (new), class `SpamRulesTests : IntegrationTestBase`: seed the seller, create a draft through `Listing.Create(seller.Id, title, Category.Other, Condition.Good, 40m, CreatedAt, description)` (price 40 for every listing: the model reads the price) and seed it, then publish it with the real endpoint logged in as the seller. Check the database through `db.Set<Report>()` for that listing.
+
+Tests to add (one listing each, 204 from publish every time):
+- rule only, each rule on its own (the model does not flag these): title `"Manual de fizica"`, description `"Plata in avans prin transfer"` (phrase); `"Manual de fizica"` / `"Detalii pe www.manuale-ieftine.com"` (link); `"Calculator Casio fx-991"` / `"Sunati la 0722 123 456"` (phone); `"Halat laborator"` / `"Mesaj la @halat_m"` (handle); `"Manual POO ieftin!!!"` / `"Stare foarte buna."` (`!!!`); `"Câștigă bani ușor"` / `"Fără investiție"` (diacritics removed before the phrases) → one automatic report with `SpamProbability` exactly 0.9. Use a `[Theory]` with the title and description as data.
+- the model flags it: `"Vand cont Netflix premium ieftin"` / `"Scrie-mi pe whatsapp pentru detalii"` → one automatic report with `SpamProbability` above 0.9 (the model's value, not the rule's).
+- not spam: `"Manual chimie organica"` / `"Folosit un semestru, cateva notite pe margine"`; `"Halat laborator"` / `"Marimea M, contact: ana.pop@student.ro"` (an email is not a link) → no report.
+
+Rules for this feature:
+- Never assert an exact probability from the model; only `> 0.9` for the model case and exactly `0.9` for the rule-only cases.
+- If the model already flags one of the rule-only texts (its probability is not exactly 0.9), stop and report which one; do not change `src/` and do not change the texts on your own.
+
+
+## Feature: My listings (Diana)
+
+Endpoint: `GET /api/v1/members/me/listings` (`Features/Members/GetMyListings/GetMyListingsEndpoint.cs`). It needs a login (`RequireAuthorization()`), takes no parameters and always answers 200 `{ items, count }`; each item is `id`, `sellerId`, `title`, `category`, `condition`, `price`, `status`, `createdAt`. It returns the listings of the logged-in member in **every** status (`Draft`, `Active`, `Reserved`, `Sold`, `Hidden`), newest `CreatedAt` first, then `Id`. It is not output-cached, so a change shows up in the next call. Failure: 401 only (no token); the 401 body is ProblemDetails `Auth.Unauthorized`, as in "Feature: Reservations (Sara)".
+
+File: `Members/GetMyListingsTests.cs` (new), class `GetMyListingsTests : IntegrationTestBase`, with the fixed `SellerId`, `OtherStudentId` and `CreatedAt` of the other member tests. Members do not need to exist in the database to log in.
+
+Arrange: seed listings with `SeedAsync`, built in the domain before seeding: `Listing.Create(sellerId, ...)` (`Draft`), `Publish()` (`Active`), then `Reserve(buyerId, CreatedAt)` (`Reserved`) or `Hide()` (`Hidden`). Log in with `AuthenticateAs(memberId)` before the one HTTP call.
+
+Tests to add (status, body, then the database still has the same listings):
+- no token → 401, the ProblemDetails `Auth.Unauthorized`; the database has 0 listings.
+- two members with listings (two for `SellerId`, one for `OtherStudentId`), logged in as `SellerId` → 200, `count` 2, only the two ids of `SellerId`. A second test, logged in as `OtherStudentId` → 200, `count` 1, only their own id. One call per test.
+- a new `Draft` listing appears immediately: the first `GET` (part of the Arrange, logged in as `SellerId`, no listings yet) → 200; then seed a `Draft` listing of `SellerId` and make the Act `GET` again → 200, `count` 1, the `Draft` listing is in `items` with status `Draft`. This also shows the response is not cached.
+- a listing in another status still appears: one `Hidden` and one `Reserved` listing of the member → both in `items`, with the right `status`, `count` 2.
+- order: three listings of the member with `CreatedAt`, plus 1 hour, plus 2 hours, seeded oldest first → `items` newest first, checked by id with `Equal`.
+
+Rules for this feature:
+- Read the success body into `GetMyListingsResponse`; check the order of `items` by id, not only their count.
+- For 401 check the status code and the ProblemDetails code, as in the reservations tests.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
 ## Feature: Observability (Sara)

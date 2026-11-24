@@ -1,5 +1,6 @@
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Common.Moderation;
+using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Reports;
@@ -11,7 +12,8 @@ public sealed class PublishListingHandler(
     IUnitOfWork unitOfWork,
     ISpamDetector spamDetector,
     IReportRepository reports,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ICategoryRepository categories)
     : ICommandHandler<PublishListingCommand, Guid>
 {
     public async Task<Result<Guid>> HandleAsync(
@@ -26,6 +28,16 @@ public sealed class PublishListingHandler(
         if (listing.SellerId != command.RequesterId && !command.IsAdmin)
             return Result<Guid>.Failure(
                 Error.Forbidden("Listing.NotOwner", "Only the seller or an Admin can publish this listing."));
+
+        // A draft in a deactivated category cannot go public. Only a draft is checked, so a listing
+        // that is not a draft still gets Listing.NotDraft from Publish, as before.
+        if (listing.Status == ListingStatus.Draft)
+        {
+            var category = await categories.GetByKeyAsync(listing.Category, ct);
+            var categoryError = category?.CheckAcceptsListings();
+            if (categoryError is not null)
+                return Result<Guid>.Failure(categoryError);
+        }
 
         var published = listing.Publish();
 

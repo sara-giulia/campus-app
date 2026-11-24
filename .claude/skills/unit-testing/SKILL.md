@@ -9,7 +9,7 @@ description: Generates xUnit unit tests with FluentAssertions 7.* for the domain
 Generate unit tests for `src/CampusMarket.Api/Domain/` and for every handler in `Features/`, reaching 100% line and branch coverage, with assertions that check behaviour. Never edit production code to make a test pass.
 
 ## Project facts (read the real files, do not guess)
-- Test project: `tests/CampusMarket.UnitTests` (net10.0). It already references xUnit 2.9.3, coverlet.collector and the API project.
+- Test project: `tests/CampusMarket.UnitTests` (net11.0). It already references xUnit 2.9.3, coverlet.collector and the API project.
 - Add the package `FluentAssertions` with version `7.*` to the test project if it is missing. Never use version 8 or newer (different licence).
 - No mocking library (no Moq, no NSubstitute) and no `Microsoft.Extensions.TimeProvider.Testing`.
 - `Result<T>` and `Error` (with `ErrorType`: `Validation`, `NotFound`, `Conflict`) are in `Domain/Common/`. Assert on `result.IsSuccess`, `result.IsFailure`, `result.Error.Type` and `result.Error.Code`. `Result<T>.Value` is of type `T` (not nullable) and throws when the result is a failure: read it only after asserting `IsSuccess`, never use the `!` operator on it and never read it in a failure test (assert on `Error` instead).
@@ -61,6 +61,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 9. Every test has at least one assertion.
 10. ResultTests must also check both throwing branches: reading `Value` on a failed result throws `InvalidOperationException`, and reading `Error` on a successful result throws `InvalidOperationException`. Use `Action act = () => _ = result.Value;` and `act.Should().Throw<InvalidOperationException>()`. Otherwise those branches stay uncovered.
 11. Every run starts in a new Claude Code session, so that the current version of this file is read and not an older context.
+12. Never pass a constant array literal as an argument (CA1861): put it in a `private static readonly` field.
 
 - If unit tests already exist, keep them and only add the tests that are missing for the current code. Then generate the coverage report again.
 
@@ -68,8 +69,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
 - Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"`
 - Target: 100% line and branch coverage for every file in the report (all of `Domain/` and every handler).
-- Commit `coverage-report/` (the HTML report is a deliverable of the assignment). Never commit `TestResults/`.
-- After generating, check that Git sees the report: `git status` must list `coverage-report/`, and `git check-ignore -v coverage-report/index.html` must print nothing.
+- The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either.
 - When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
 - Everything that is not in the report is outside the target. This is the single list of exclusions (the README copies it word for word):
   - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
@@ -289,7 +289,7 @@ Rules for this feature:
 
 ## Feature: Surviving mutants (Diana)
 
-Stryker.NET left mutants alive in `Domain/` and the handlers. The goal is a mutation score of 100%: add or extend unit tests so that each mutant below makes at least one test fail. Production code does not change.
+Stryker.NET left mutants alive in `Domain/` and the handlers. The goal is a mutation score of 100%: add or extend unit tests so that each mutant below makes at least one test fail. Production code does not change, except the `// Stryker disable once` comments for equivalent mutants (point 6 and *"Feature: Full coverage (Carina)"*).
 
 Read the production code of every file named below before writing a test, and use the exact texts and values from it.
 
@@ -318,12 +318,12 @@ Stryker replaces error messages with `""`. Today the tests check only `Error.Cod
 `GetMyReservationsHandler` orders by `CreatedAt` descending, then by `ReservationId` ascending.
 - New test: the same buyer reserves two different active listings at the same fixed time (same `CreatedAt`). The items come back ordered by `ReservationId` ascending (`BeInAscendingOrder(i => i.ReservationId)`).
 
-### 6. Equivalent mutants (2): no test
-`Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them.
+### 6. Equivalent mutants: no test
+`Listing.cs:14` (`Title = string.Empty`) and `Member.cs:8` (`Name = string.Empty`) are always overwritten by the factories, so no test can see the change. They are marked in the code with `// Stryker disable once` by hand. Do not write tests for them. The later equivalent mutants (`Message.cs` `Text = string.Empty`, `Review.cs` `First` vs `FirstOrDefault`, `Photo.cs` `FileName` and `ContentType` defaults, `ExpireReservationsHandler.cs` `&&` vs `||` in the active-reservation predicate, `GetListingsHandler.cs` the `"newest"` fallback of the sort) and the rule for marking them are in *"Feature: Full coverage (Carina)"*.
 
 Rules for this feature:
 - Keep every existing test and its name. In existing tests, only add the assertions described in points 1 and 2; everything else is a new test.
-- Never change production code.
+- Never change production code, except a `// Stryker disable once <Mutator> : <reason>` comment on a mutant that no test can kill (see *"Feature: Full coverage (Carina)"*).
 - After the run, `dotnet test` passes and coverage of `Domain/` and the handlers stays 100%.
 
 
@@ -716,6 +716,270 @@ Tests to add:
 Rules for this feature:
 - `Options.Create` comes from `Microsoft.Extensions.Options`; never mock `IOptions`.
 - Never use real time.
+
+## Feature: Similar listings (Anca)
+
+Production code (read it before generating): `Features/Listings/GetSimilarListings/GetSimilarListingsHandler.cs`, a query handler with `IListingRepository` and `ISimilarListingsFinder` (`Common/Similarity/`, method `Similarities(ListingText target, IReadOnlyList<ListingText> candidates)` returning one similarity per candidate, in the same order). `GetSimilarListingsQuery.MaxResults` is 5.
+- Unknown id → `NotFound` `Listing.NotFound` (message `Listing '<id>' was not found.`); the finder is not called.
+- The target can have any status. The candidates are every `Active` listing except the target; when there is none, the result is an empty list and the finder is not called.
+- The finder gets the target's title and description and the candidates' titles and descriptions. The items are ordered by similarity (highest first), equal similarities by `CreatedAt` (newest first) then by `Id`; at most 5; each item has id, title, category, condition, price and the similarity rounded to two decimals (`MidpointRounding.AwayFromZero`).
+
+New fake: `Fakes/FakeSimilarListingsFinder.cs` implementing `ISimilarListingsFinder`: the test gives a similarity per candidate title (a dictionary; a title not in it gets 0); it records the call count, the last target and the last candidates.
+
+File: `Features/Listings/GetSimilarListings/GetSimilarListingsHandlerTests.cs` (new).
+
+Tests to add:
+- unknown id → `NotFound` `Listing.NotFound` with the exact message; finder call count 0.
+- the target is the only `Active` listing (the others are a draft, a reserved, a sold and a hidden listing) → success with an empty list; finder call count 0.
+- with a draft target and three `Active` listings → success; the finder got the target's title and description and exactly the three `Active` listings (never the target, never a non-`Active` one).
+- seven `Active` candidates with different similarities → five items, highest similarity first.
+- two candidates with the same similarity and different `CreatedAt` → the newer first; same similarity and same `CreatedAt` → the smaller `Id` first.
+- similarities 0.456 and 0.125 → 0.46 and 0.13 in the items; the item carries the candidate's id, title, category, condition and price.
+- the repository content is unchanged after every call.
+
+Rules for this feature:
+- Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
+- Build hidden, reserved and sold listings through the domain methods (`Publish`, `Reserve`, `ConfirmSale`, `Hide`), like the other handler tests.
+
+## Feature: Password reset (Sara)
+
+Production code (written by hand, read it before generating):
+- `Domain/Members/PasswordResetToken.cs`: the factory returns the token and the plain value once; only the SHA-256 hash is stored; the token is valid 30 minutes; `MarkUsed` makes it single use; an expired or already used token is rejected by `IsValid(now)`.
+- `Features/Auth/ForgotPassword/ForgotPasswordHandler.cs`: unknown email → success (the same response as a known email), no email is sent, no token saved; known email → one token saved and one email sent whose body contains the plain token; if the handler invalidates old tokens, it does so before saving the new one.
+- `Features/Auth/ResetPassword/ResetPasswordHandler.cs`: a valid token and a matching strong password → the member's hash is the fake hash of the new password, the token is used, `SaveCount` 1; an unknown, expired or already used token → `Validation` `Auth.InvalidResetToken`; a weak password → `Validation` (`Auth.WeakPassword`).
+- `Infrastructure/Mailing/LoggingEmailSender.cs` and `Infrastructure/Mailing/SmtpEmailSender.cs`: only what can be tested without a real SMTP server (the logger message for `LoggingEmailSender`; for `SmtpEmailSender` only what reads from `IOptions<EmailOptions>` and the environment variables, never an actual `SendAsync` to a server).
+
+Fakes: `FakePasswordResetTokenRepository` (new, same hand-written style, `Items` by `Id`, `AddAsync`, `GetByHashAsync`, `Update`, `GetActiveByMemberAsync` if the handler uses it; `UpdateCount`), `FakeEmailSender` (new: implements `IEmailSender` and records every sent email in a public `List<(string To, string Subject, string Body)> Sent`), the existing `FakeMemberRepository`, `FakeRefreshTokenRepository`, `FakePasswordHasher`, `FakeUnitOfWork`; fixed `Now` through `FixedTimeProvider`.
+
+Files:
+- `Domain/Members/PasswordResetTokenTests.cs` (new).
+- `Features/Auth/ForgotPassword/ForgotPasswordHandlerTests.cs` (new).
+- `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs` (new).
+- `Infrastructure/Mailing/LoggingEmailSenderTests.cs` (new).
+- `Infrastructure/Mailing/SmtpEmailSenderTests.cs` (new).
+
+Tests to add:
+- `PasswordResetToken`:
+  - the stored hash is not the plain token and equals SHA-256 of it (hex, upper case).
+  - `IsValid(now)` is true one second before 30 minutes, false exactly at 30 minutes, false after 30 minutes.
+  - `MarkUsed(now)` sets `UsedAt`; a used token is rejected by `IsValid`; calling `MarkUsed` twice keeps the first time.
+  - an expired token is rejected even when it has not been used; a used token is rejected even when it has not expired.
+- `ForgotPasswordHandler`:
+  - unknown email → the response is the same shape as for a known email; no email captured (`FakeEmailSender.Sent` is empty); no token saved; `SaveCount` 0.
+  - known email → one token saved for this member, one email to that address whose body contains the plain token; `SaveCount` 1.
+  - if the handler invalidates old tokens: an existing active token of the same member is marked used before the new one is saved; a token of another member is not touched. If the handler does not do this, omit these two tests.
+- `ResetPasswordHandler`:
+  - valid token and matching strong password → success; the member's `PasswordHash` is `FakePasswordHasher.Hash(new)`; the token is marked used; `UpdateCount` 1; `SaveCount` 1.
+  - unknown token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - expired token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - already used token → `Validation` `Auth.InvalidResetToken` with the exact message, nothing changed, `SaveCount` 0.
+  - weak password (shorter than `RegisterHandler.MinPasswordLength`, `[Theory]` with `""` and a 7-character value) → `Validation` with the exact code and message, nothing changed, `SaveCount` 0; a confirmation different from the new password → `Validation` `Auth.PasswordsDoNotMatch`, nothing changed, `SaveCount` 0.
+- `LoggingEmailSender`: `SendAsync` writes one log entry at `Information` level whose message contains the `To` and the `Subject`, and never the `Body` (assert through a captured `ILogger<LoggingEmailSender>` or an `ITestOutputHelper`-style logger). No other side effect; `Task` completed.
+- `SmtpEmailSender`: only what can be tested without a real server: `IOptions<EmailOptions>` with `Host` null → a `SendAsync` call throws (the constructor or the call rejects a missing host, depending on the production code — assert what the code actually does); when `Email__Username` is set, the credentials are read from the environment variables (through a small seam if `SmtpEmailSender` exposes one; otherwise this test is not written). Never open an SMTP connection and never write the port or the TLS flag to disk.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code). Build the length and lifetime constants from the production code (`PasswordResetToken.Lifetime`, `RegisterHandler.MinPasswordLength`), not hard-coded values.
+- Never use real time: `Now` is a fixed `DateTimeOffset`, given to `FixedTimeProvider`. The 30-minute boundary is `Now.Add(PasswordResetToken.Lifetime)` and `Now.Add(PasswordResetToken.Lifetime).AddSeconds(-1)`.
+- Never send a real email and never open an SMTP connection: the handler tests use `FakeEmailSender` and the `SmtpEmailSender` tests stop at what the class does without a server.
+- Then run the tests with coverage and generate the report as this skill says: `Domain/` and the handlers stay at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+
+## Feature: Conversations (Anca)
+
+Production code (read it before generating):
+- `Domain/Conversations/Conversation.cs`:
+    - `Conversation.Start(buyerId, listing, text, now)` checks, in this order: `Guid.Empty` → `Conversation.BuyerEmpty`; the buyer is the seller → `Conversation.OwnListing`; the listing is not `Active` or `Reserved` (draft, sold, hidden) → `Conversation.ListingNotAvailable`; then the errors of the first message (see `Send`). Otherwise a conversation with a new `Id`, `listing.Id`, `listing.SellerId`, the buyer, `CreatedAt` and `LastMessageAt` = `now`, and one message (number 1, from the buyer).
+    - `Send(senderId, text, now)` checks, in this order: the sender is neither the buyer nor the seller → `Conversation.NotParticipant` (`ErrorType.Forbidden`); the text is null, empty or blank → `Message.Empty`; longer than `Message.MaxTextLength` (1000) after trim → `Message.TooLong`. Otherwise it adds a message with a new `Id`, the conversation id, `Number` = count + 1, the sender, the **trimmed** text and `now`, sets `LastMessageAt` = `now` and returns the message. A failed `Send` changes nothing.
+    - `IsParticipant(memberId)`; `OtherParticipant(memberId)`: the buyer for the seller, the seller for anyone else.
+- `Domain/Conversations/IConversationRepository.cs`: `AddAsync`, `GetByIdAsync`, `GetByListingAndBuyerAsync(listingId, buyerId)`, `GetForMemberAsync(memberId)` (buyer or seller).
+- `Features/Conversations/StartConversation/`: `StartConversationCommand(BuyerId, ListingId, Text)`. Order: 404 `Listing.NotFound`, 404 `Member.NotFound`; if the buyer already has a conversation about this listing, the message is sent in it (`Send` errors), otherwise `Conversation.Start` (its errors) and `AddAsync`; then one `CommitAsync`. Returns `MessageResponse(ConversationId, Id, Number, SenderId, Text, SentAt)`.
+- `Features/Conversations/SendMessage/`: `SendMessageCommand(SenderId, ConversationId, Text)`. 404 `Conversation.NotFound`, then the `Send` errors, then one `CommitAsync`. Same `MessageResponse`.
+- `Features/Conversations/GetConversation/`: `GetConversationQuery(MemberId, ConversationId)`. 404 `Conversation.NotFound`; not the buyer or the seller → Forbidden `Conversation.NotParticipant` (message `Only the buyer and the seller can read this conversation.`). Returns the id, listing id and title, seller id and name, buyer id and name, `CreatedAt` and the messages ordered by `Number`.
+- `Features/Conversations/GetMyConversations/`: `GetMyConversationsQuery(MemberId)`. Every conversation where the member is the buyer or the seller; each item: id, listing id and title, the other member's id and name, the text, sender and time of the last message (highest `Number`), `LastMessageAt`, the message count; ordered by `LastMessageAt` descending, then by `Id`. `Count` = number of items. No conversation → empty list (the listing and member repositories are not needed).
+
+New fake `Fakes/FakeConversationRepository.cs`: a `List<Conversation>` exposed as `Items`; `AddAsync` stores; the three reads look in `Items` (`GetForMemberAsync` returns a snapshot with `ToList()`).
+
+Files: `Domain/Conversations/ConversationTests.cs`, `Features/Conversations/StartConversation/StartConversationHandlerTests.cs`, `Features/Conversations/SendMessage/SendMessageHandlerTests.cs`, `Features/Conversations/GetConversation/GetConversationHandlerTests.cs`, `Features/Conversations/GetMyConversations/GetMyConversationsHandlerTests.cs` (all new).
+
+Arrange: fixed, named ids `SellerId`, `BuyerId`, `OtherMemberId`; a published listing is `Listing.Create(SellerId, ...).Value` then `Publish()`; reserved, sold and hidden through the domain methods (`Reserve`, `ConfirmSale`, `Hide`). For the handlers the members must exist in `FakeMemberRepository` (create them with `Member.Create(...)` and use their `Id`s) and the listings in `FakeListingRepository`. `Now` is fixed and reaches the handlers through `FixedTimeProvider`; for later messages call `Send` with `Now.AddMinutes(...)`.
+
+Tests to add:
+- `Conversation.Start`: an active listing and `"  Mai e disponibil?  "` → success with a non-empty `Id`, `listing.Id`, `SellerId`, the buyer, `CreatedAt` and `LastMessageAt` = `Now`, one message with number 1, the buyer, `"Mai e disponibil?"`, `Now` and the conversation id; a reserved listing → success; a draft, a sold and a hidden listing → `Conversation.ListingNotAvailable`; the seller → `Conversation.OwnListing`; `Guid.Empty` → `Conversation.BuyerEmpty`; text `null`, `""`, `"   "` → `Message.Empty`; 1000 characters → success; 1001 → `Message.TooLong`. Order: `Guid.Empty` on a draft → `Conversation.BuyerEmpty`; the seller on a draft → `Conversation.OwnListing`; empty text on a draft → `Conversation.ListingNotAvailable`.
+- `Send`: the seller answers → number 2, `LastMessageAt` is the new time; the buyer again → number 3; another member → Forbidden `Conversation.NotParticipant`, still the same messages and `LastMessageAt`; empty and too long text → their errors, nothing added; another member with an empty text → `Conversation.NotParticipant`. `IsParticipant` true for the two, false for another member; `OtherParticipant` gives the buyer for the seller and the seller for the buyer.
+- `StartConversationHandler`: no conversation yet → the response (conversation id of the stored conversation, number 1, the buyer, the trimmed text, `Now`), one conversation in the fake, `SaveCount` 1; the buyer already has one → the message is added to it (number 2), still one conversation, `SaveCount` 1; the existing conversation's listing is now sold → the message is still sent; unknown listing → `Listing.NotFound`; unknown member → `Member.NotFound`; both unknown → `Listing.NotFound`; the seller → `Conversation.OwnListing`; a draft → `Conversation.ListingNotAvailable`; empty text, new and existing conversation → `Message.Empty`. In every failure `SaveCount` 0 and nothing new in the fake.
+- `SendMessageHandler`: the seller answers → the response (number 2, the seller, the trimmed text, `Now`), the message is in the stored conversation, `SaveCount` 1; unknown conversation → `Conversation.NotFound`; another member → Forbidden `Conversation.NotParticipant`; empty and too long → their errors. In every failure `SaveCount` 0 and no new message.
+- `GetConversationHandler`: as the buyer and as the seller → every field, messages in number order (seed three messages); another member → Forbidden `Conversation.NotParticipant`; unknown → `Conversation.NotFound`. The fakes are unchanged after every call.
+- `GetMyConversationsHandler`: a member with no conversation → empty list, `Count` 0; the seller with two conversations (two buyers, two listings) → both, the one with the latest message first, other member = the buyer, every field checked (last message text and sender, count); the buyer → other member = the seller; conversations of other members are not returned; two conversations with the same `LastMessageAt` → ordered by `Id`. The fakes are unchanged after every call.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the `Message.TooLong` message from `Message.MaxTextLength`.
+- Never use real time: `Now` is fixed.
+
+## Feature: Listing photos (Anca)
+
+Production code (read it before generating):
+- `Domain/Photos/PhotoFormat.cs`: `PhotoFormat.Detect(bytes)` → `PhotoFormat.Jpeg` (starts with `FF D8 FF`), `PhotoFormat.Png` (`89 50 4E 47 0D 0A 1A 0A`), `PhotoFormat.WebP` (`"RIFF"`, any 4 bytes, `"WEBP"`, so at least 12 bytes), otherwise `null`. Each format has `Extension` (`.jpg`, `.png`, `.webp`) and `ContentType` (`image/jpeg`, `image/png`, `image/webp`).
+- `Domain/Photos/Photo.cs`: `Photo.Create(uploaderId, listing, existingCount, content, createdAt)` checks, in this order: the uploader is not the seller → `Photo.NotSeller` (`ErrorType.Forbidden`); `existingCount` ≥ `Photo.MaxPerListing` (5) → `Photo.LimitReached`; empty content → `Photo.Empty`; more than `Photo.MaxSizeBytes` (2 MB = 2 097 152 bytes) → `Photo.TooLarge`; unknown format → `Photo.InvalidFormat`. Otherwise a photo with a new `Id`, `listing.Id`, `FileName` = `<Id><extension>`, the format's `ContentType`, `SizeBytes` = content length and `createdAt`. Any listing status is accepted.
+- `Common/Storage/IPhotoStorage.cs`: `SaveAsync(listingId, fileName, content)`, `OpenRead(listingId, fileName)` (null when missing), `Delete(listingId, fileName)`, `DeleteListing(listingId)`.
+- `Features/Photos/UploadPhoto/`: `UploadPhotoCommand(UploaderId, ListingId, Content)`. 404 `Listing.NotFound`, then the errors of `Photo.Create` (with the listing's current photo count), then the file is saved, the photo added and one `CommitAsync`. Returns `PhotoResponse(Id, ListingId, Url = "/api/v1/photos/<Id>", ContentType, SizeBytes, CreatedAt)`.
+- `Features/Photos/GetListingPhotos/`: 404 `Listing.NotFound`; the listing's photos ordered by `CreatedAt`, then `Id`; `Count`.
+- `Features/Photos/GetPhotoFile/`: 404 `Photo.NotFound` when the photo is unknown **or** its file is missing in the storage; otherwise `PhotoFile(Content, ContentType)`.
+- `Features/Photos/DeletePhoto/`: `DeletePhotoCommand(RequesterId, ListingId, PhotoId)`. 404 `Listing.NotFound`; not the seller → Forbidden `Photo.NotSeller`; unknown photo or a photo of another listing → 404 `Photo.NotFound`; then the photo is removed, one `CommitAsync`, then the file is deleted. Returns the photo id.
+- `Features/Listings/DeleteListing/DeleteListingHandler.cs`: has a new third constructor parameter `IPhotoStorage`; after a successful delete (after `CommitAsync`) it calls `DeleteListing(listing.Id)`; on a failure it does not.
+
+New fakes:
+- `Fakes/FakePhotoRepository.cs`: a `List<Photo>` exposed as `Items`; `AddAsync` stores; the reads look in `Items` (`GetByListingAsync` returns a snapshot with `ToList()`); `Delete` removes.
+- `Fakes/FakePhotoStorage.cs`: a dictionary `(listingId, fileName) → bytes` exposed as `Files`; `SaveAsync` stores, `OpenRead` returns a `MemoryStream` of the bytes or null, `Delete` removes the entry, `DeleteListing` removes every entry of the listing and records the id in `DeletedListings`.
+
+Files: `Domain/Photos/PhotoFormatTests.cs`, `Domain/Photos/PhotoTests.cs`, `Features/Photos/UploadPhoto/UploadPhotoHandlerTests.cs`, `Features/Photos/GetListingPhotos/GetListingPhotosHandlerTests.cs`, `Features/Photos/GetPhotoFile/GetPhotoFileHandlerTests.cs`, `Features/Photos/DeletePhoto/DeletePhotoHandlerTests.cs` (all new); `Features/Listings/DeleteListing/DeleteListingHandlerTests.cs` (change, see below).
+
+Arrange: fixed, named ids `SellerId`, `OtherMemberId`; a listing is `Listing.Create(SellerId, ...).Value`. Test images are byte arrays built from the signatures above followed by zeros (for example `[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, …]`); write them as `static readonly` fields. `Now` is fixed and reaches the handlers through `FixedTimeProvider`.
+
+Tests to add:
+- `PhotoFormat.Detect`: a JPEG, a PNG and a WebP start → the right format with its extension and content type; a GIF (`"GIF89a"`), random bytes, an empty array, only `"RIFF"` (4 bytes), `"RIFF"` + 4 bytes + `"WAVE"` → null; the first 2 bytes of a JPEG only → null.
+- `Photo.Create`: the seller with a PNG and 0 photos → success with every field (`FileName` = `<Id>.png`, `image/png`, the length, `Now`); a JPEG → `.jpg`, a WebP → `.webp`; another member → Forbidden `Photo.NotSeller`; `existingCount` 4 → success, 5 → `Photo.LimitReached`; empty → `Photo.Empty`; exactly `MaxSizeBytes` bytes (PNG start) → success; one byte more → `Photo.TooLarge`; a GIF → `Photo.InvalidFormat`. Order: another member with 5 photos → `Photo.NotSeller`; the seller with 5 photos and empty content → `Photo.LimitReached`; empty content can never be checked for its format → `Photo.Empty`. Two calls give two different `Id`s.
+- `UploadPhotoHandler`: success → the response (`Url` = `/api/v1/photos/<Id>`), one photo in the fake repository, the bytes in `FakePhotoStorage.Files` under `(listing.Id, FileName)`, `SaveCount` 1; the listing already has 5 photos in the fake → `Photo.LimitReached`; unknown listing → `Listing.NotFound`; another member → Forbidden `Photo.NotSeller`; a GIF → `Photo.InvalidFormat`. In every failure `SaveCount` 0, nothing in the repository and nothing in the storage.
+- `GetListingPhotosHandler`: three photos with different `CreatedAt` (seed them in the wrong order) → in `CreatedAt` order with every field; the same `CreatedAt` → by `Id`; photos of another listing are not returned; a listing with no photo → empty list, `Count` 0; unknown listing → `Listing.NotFound`. The fakes are unchanged.
+- `GetPhotoFileHandler`: a photo whose file is in the storage → the bytes (read the stream) and the content type; a photo whose file is not in the storage → `Photo.NotFound`; unknown id → `Photo.NotFound`.
+- `DeletePhotoHandler`: the seller → success with the photo id, the photo removed from the repository and its file from the storage, `SaveCount` 1, the other photos and files untouched; another member → Forbidden `Photo.NotSeller`; unknown listing → `Listing.NotFound`; unknown photo → `Photo.NotFound`; a photo of another listing of the same seller → `Photo.NotFound`. In every failure `SaveCount` 0 and nothing removed.
+- `DeleteListingHandlerTests` (change, keep every test and name): build the handler with a `FakePhotoStorage` as the third argument in every test; in the success test also check that `DeletedListings` contains the listing id; in every failure test check that `DeletedListings` is empty.
+
+Rules for this feature:
+- Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`; build the messages from `Photo.MaxPerListing` and `Photo.MaxSizeBytes` the same way the domain does.
+- Never use real time: `Now` is fixed.
+
+
+## Feature: Full coverage (Carina)
+
+Production code (read it before generating): `Features/Auth/ResetPassword/ResetPasswordHandler.cs`, the `changeResult.IsFailure` branch. After the token and the member are found, the handler calls `member.ChangePassword(passwordHasher.Hash(command.NewPassword))`; when it fails it returns the error right away, before `token.MarkUsed`, before the refresh tokens are revoked, before any `Update`, before `CommitAsync` and before the email.
+
+File: `Features/Auth/ResetPassword/ResetPasswordHandlerTests.cs` (add to it, keep every existing test).
+
+Arrange: `FakePasswordHasher` never returns an empty hash, so add one small private class in `ResetPasswordHandlerTests.cs` that implements `IPasswordHasher`, whose `Hash` returns `""` and `Verify` returns `true` (the same rule as the `EmptyHashPasswordHasher` of `ChangePasswordHandlerTests`). This extra hasher is allowed only for this test. Build the handler with `new ResetPasswordHandler(...)` directly, because the existing `BuildHandler` helper takes a `FakePasswordHasher`; do not change the helper. Seed a valid token, the member and one active refresh token of the member.
+
+Test to add:
+- valid token, matching strong password, hasher returns an empty hash → `Validation` `Member.PasswordRequired` ("A password is required.", from `Member.ChangePassword`); the member's `PasswordHash` is unchanged; the reset token is not marked used (`UsedAt` null); the refresh token is not revoked (`RevokedAt` null); `members.UpdateCount` 0, `tokens.UpdateCount` 0, `refreshTokens.UpdateCount` 0; `SaveCount` 0; no email sent.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: `ResetPasswordHandler.cs` is at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+### Surviving mutants of issue #121 (Stryker run of 2026-11-22, 18 mutants)
+
+Stryker (`dotnet stryker` in `tests/CampusMarket.UnitTests`) left 18 mutants alive (score 97.83%). The goal is 100%. Read the production code of every file below before writing a test and use its exact texts and values.
+
+Rules for these mutants (they apply to every future test too):
+- **Equivalent mutants.** Only when no test can kill a mutant (the changed value is never observable), mark it in `src/` with a comment on the line above: `// Stryker disable once <Mutator> : <reason>`, like `Listing.cs` and `Member.cs`. This comment is the only change allowed in `src/`. The new equivalent mutants:
+  - `Domain/Conversations/Message.cs`, `Text = string.Empty` (String): the `internal` constructor always sets `Text`, and the private constructor is only used by EF Core, which overwrites it.
+  - `Domain/Reviews/Review.cs`, `listing.Reservations.First(...)` (Linq, `First` vs `FirstOrDefault`): a `Sold` listing always has exactly one `Completed` reservation (`Listing.ConfirmSale`), so the predicate always matches.
+  - `Domain/Photos/Photo.cs`, `FileName = string.Empty` and `ContentType = string.Empty` (String, 2 mutants, found after the merge with main, #120): `Photo.Create` always sets both (`FileName` = `<Id><extension>`, `ContentType` = the format's type), and the private constructor is only used by EF Core, which overwrites them. One comment above each property.
+  - `Features/Listings/ExpireReservations/ExpireReservationsHandler.cs`, `r.Status == ReservationStatus.Active && r.IsExpired(now)` (Logical, `&&` → `||`, found after the merge with main, #111): `Reservation.IsExpired` already requires `Status == Active`, so the mutant is just `Status == Active`; a listing has at most one `Active` reservation (`Reserve` needs an `Active` listing and makes it `Reserved`), and the notification is written only when that reservation was expired, so both pick the same reservation.
+  - `Features/Listings/GetListings/GetListingsHandler.cs`, `(query.Sort ?? "newest")` (String, `"newest"` → `""`, found after the merge with main, sorting): the switch has no `"newest"` arm, so `null`, `"newest"` and `""` all fall into the default arm (newest first), and `AllowedSorts` is checked before the fallback.
+  - Before marking a mutant as equivalent, look for an input that behaves differently with the mutation (other statuses, older reservations, ties, the empty value); if one exists, write that test instead.
+- **Boundaries of `< limit` checks.** For every `x < limit` (or `x > limit`) check, add a test with exactly the limit that succeeds; a value inside the limits that is far from it does not kill `<` → `<=`:
+  - `ResetPasswordHandler`: a new password of exactly `RegisterHandler.MinPasswordLength` (8) characters → success.
+  - `GetReportedListingsHandler` and `GetMemberReviewsHandler`: `PageSize` exactly 1 → success, `PageSize` 1 in the response.
+  - `PhotoFormat.Detect` (`content.Length >= 12` for WebP): a WebP of exactly 12 bytes (`"RIFF"`, 4 size bytes, `"WEBP"`, nothing after) → `PhotoFormat.WebP`. The other WebP test images are longer, so they do not kill `>=` → `>`. Test name: `Given_WebPOfExactly12Bytes_When_Detecting_Then_ReturnsWebP` in `Domain/Photos/PhotoFormatTests.cs`.
+- **Ordering with ties.** For every `OrderBy`/`ThenBy`, at least one test checks the exact order, and the tie-breaker (`ThenBy`) is tested with two items that have the same first key:
+  - `PriceAccuracyHandler`: `PerCategory` comes back in `Category` order (records in `Electronics` and `Textbook` → `Textbook`, `Electronics`); two records with the same `SoldAt` → `LastRecords` ordered by the record `Id` descending.
+  - `GetPublicProfileHandler`: two Active listings of the member with the same `CreatedAt` → ordered by `Id` ascending (`BeInAscendingOrder(i => i.Id)`).
+  - Build the expected order from the ids in the test (`OrderBy`/`OrderByDescending` on the arranged objects), never from the handler's output.
+- **`UpdateCount` on every updated fake.** A success test asserts `UpdateCount` on every fake repository the handler calls `Update` on (for example `ResetPasswordHandler`: `members.UpdateCount`, `tokens.UpdateCount`, `refreshTokens.UpdateCount` each 1). The fakes store the same instance, so a missing `Update` is only visible through the counter.
+- **Emails: the full exact `Body`.** When a handler sends an email, the success test asserts `Body` with `.Be(...)` on the whole expected text (built with `Environment.NewLine` and the test's values, the same way the handler does), not only `Contain`/`NotContain`. This applies to `ForgotPasswordHandler` (the link is built from the plain token taken from the email) and `ResetPasswordHandler`.
+- **Logs from `[LoggerMessage]`.** Add `Fakes/FakeLogger.cs`: `FakeLogger<T> : ILogger<T>`, hand-written, `IsEnabled` returns `true`, `BeginScope` returns `null`, `Log` stores the level and the message (`formatter(state, exception)`) in a public `List<(LogLevel Level, string Message)> Entries`. A handler that logs gets it instead of `NullLogger<T>.Instance` in the tests that check the log:
+  - `ConfirmSaleHandler`, suggester throws → exactly one entry, `Warning`, message `"Price suggester threw while recording a sale; no SaleRecord saved for this confirmation."`.
+  - `ConfirmSaleHandler`, suggester returns 0 → exactly one entry, `Warning`, message `$"Price suggester returned no usable suggestion (<= 0) for listing {listing.Id}; no SaleRecord saved."`.
+  - A successful sale with a positive suggestion logs nothing (`Entries` empty).
+
+Rules for these mutants:
+- Keep every existing test and its name. In existing tests only add assertions (`UpdateCount`, the full `Body`); everything else is a new test.
+- After the run, `dotnet test` passes, coverage of `Domain/` and the handlers stays 100%, and `dotnet stryker` in `tests/CampusMarket.UnitTests` reports 100%. If a mutant still survives, stop and report why; do not force it.
+
+## Feature: Sorting (Diana)
+
+Production code: `GetListingsHandler`, `GetListingsQuery.Sort` (null, "newest", "price_asc", "price_desc").
+
+File: `Features/Listings/GetListings/GetListingsHandlerTests.cs` (add to it).
+
+Tests to add:
+- three Active listings priced 30, 10, 20 → `price_asc` gives 10, 20, 30; `price_desc` gives 30, 20, 10.
+- `newest` and no sort → newest `CreatedAt` first (same as before).
+- two listings with the same price → ordered by `Id` ascending.
+- `Sort = "abc"` → `Validation` `Listings.InvalidSort`, exact message.
+
+## Feature: Notifications (Sara)
+Production code (read it before generating): `Domain/Notifications/Notification.cs` (Create returns Result, MarkAsRead idempotent), the notification lines added in `ReserveListingHandler`, `ConfirmSaleHandler`, `ExpireReservationsHandler`, and the handlers in `Features/Notifications/` (GetMyNotifications, MarkNotificationRead, MarkAllNotificationsRead).
+Existing tests no longer compile (new constructor parameter): in `ReserveListingHandlerTests`, `ConfirmSaleHandlerTests` and `ExpireReservationsHandlerTests` pass a new `FakeNotificationRepository` (add it in `Fakes/`, same hand-written style: `Items`, `Add`, the query methods) wherever the handler is built; change nothing else in those tests.
+Tests to add:
+- `Notification.Create`: valid → all fields; invalid input → the exact error. `MarkAsRead` sets `ReadAt`; a second call keeps the first value.
+- Reserve success → one notification for the seller, type ReservationCreated; reserve failure → none.
+- Confirm sale success → one notification for the buyer, type ListingSold; failure → none.
+- Expire → one notification per expired reservation, for its buyer; nothing to expire → none.
+- GetMyNotifications: only mine, newest first, `unreadOnly` filter, `unreadCount`, paging.
+- MarkNotificationRead: mine → read, `SaveCount` 1; unknown or someone else's → NotFound, `SaveCount` 0.
+- MarkAllNotificationsRead: all my unread become read, others' unchanged.
+  Rules: every error checks type, code and exact message; fixed `Now`; Domain and handlers stay at 100%.
+
+## Feature: Admin categories (Carina)
+
+Production code (written by hand, read it before generating):
+- `Domain/Categories/ListingCategory.cs`: the admin settings of one of the 5 base categories (the `Category` enum). `Create(key, displayName, description = null, isActive = true)`: undefined key → NotFound `Category.NotFound`; then the text checks. Text checks, in this order: display name null, empty or blank → `Category.DisplayNameEmpty`; longer than `MaxDisplayNameLength` (100) after trim → `Category.DisplayNameTooLong`; description longer than `MaxDescriptionLength` (500) after trim → `Category.DescriptionTooLong`. Name and description are stored trimmed; an empty or blank description is stored as `null`. `Update(displayName, description, isActive, allCategories)`: the text checks, then deactivating the last active category (no other category in `allCategories` is active) → Conflict `Category.LastActive`; otherwise it changes the three values and returns the same instance. A failed `Update` changes nothing. `CheckAcceptsListings()`: `null` when active, otherwise the `Validation` error `Listing.CategoryInactive`.
+- `Domain/Categories/ICategoryRepository.cs`: `GetAllAsync` (snapshot ordered by key), `GetByKeyAsync` (null when missing), `Update`.
+- `Features/Categories/GetCategories/GetCategoriesHandler.cs`: query handler (no `IUnitOfWork`), returns every category as `GetCategoriesItem(Key, DisplayName, Description, IsActive)` and `Count`.
+- `Features/Categories/UpdateCategory/UpdateCategoryHandler.cs`: `UpdateCategoryCommand(Category, DisplayName, Description, IsActive)`; `Category` is the key as text, matched by name only and case-insensitive (a number such as `"1"` is not a key). Order: unknown key or key not in the repository → NotFound `Category.NotFound`; `IsActive` null → `Validation` `Category.IsActiveRequired`; the errors of `Update`; then `repository.Update` and one `CommitAsync`; returns the key.
+- `CreateListingHandler`, `UpdateListingHandler`, `PublishListingHandler`: a new **last** constructor parameter `ICategoryRepository`. Create: an inactive category → `Listing.CategoryInactive` before `Listing.Create`; a category not in the repository goes on to `Listing.Create` (`Listing.CategoryInvalid` for an undefined value, as before). Update: after 404 and 403, **only when the command changes the category**, an inactive target → `Listing.CategoryInactive`. Publish: after 404 and 403, **only for a draft**, an inactive category → `Listing.CategoryInactive` (a listing that is not a draft still gets `Listing.NotDraft`).
+
+New fake `Fakes/FakeCategoryRepository.cs` (hand-written, no business logic):
+- `Items`: a `Dictionary<Category, ListingCategory>` that starts with **all 5 categories active**, built with `ListingCategory.Create(key, displayName).Value` and the seed display names (`Manuale`, `Notițe`, `Electronice`, `Echipament de laborator`, `Altele`).
+- `Deactivate(Category key)`: replaces the entry with `ListingCategory.Create(key, <same name>, null, isActive: false).Value`, so a test can make one category inactive without going through `Update`.
+- `GetAllAsync` returns a snapshot ordered by key; `GetByKeyAsync` reads `Items` (null after `Items.Remove(key)`, the only way to reach the "not in the repository" branches); `Update` stores and increments a public `UpdateCount`.
+
+Update the existing tests (do not delete any): in `CreateListingHandlerTests`, `UpdateListingHandlerTests` and `PublishListingHandlerTests` every `new ...Handler(...)` gets `new FakeCategoryRepository()` as the last argument. Only the constructor calls change: every existing publish, create and edit test keeps all its assertions.
+
+Files (new): `Domain/Categories/ListingCategoryTests.cs`, `Features/Categories/UpdateCategory/UpdateCategoryHandlerTests.cs`, `Features/Categories/GetCategories/GetCategoriesHandlerTests.cs`; new tests in the three listing handler test files.
+
+Tests to add:
+- `ListingCategory`: `Create` valid (trimmed name and description, active by default), `isActive: false`, undefined key → `Category.NotFound`, blank description → `null`; display name `null`/`""`/`"   "` → `Category.DisplayNameEmpty`; exactly 100 characters → success, 101 → `Category.DisplayNameTooLong`; description of 500 → success, 501 → `Category.DescriptionTooLong`. `Update` changes the display name and the description (trimmed, same instance returned); each text error leaves the category unchanged; deactivate while another is active → inactive; reactivate → active; deactivating the last active one → Conflict `Category.LastActive`, still active and unchanged; an inactive category kept inactive while all the others are inactive → success (the rule is only about deactivating). `CheckAcceptsListings`: active → `null`, inactive → `Listing.CategoryInactive`.
+- `UpdateCategoryHandler`: unknown key (`"Books"`, `"1"`) → `Category.NotFound`; a key removed from the fake → `Category.NotFound`; `IsActive` null → `Category.IsActiveRequired`; empty name → `Category.DisplayNameEmpty`; deactivating the last active one (the other 4 deactivated in the fake) → `Category.LastActive` and nothing saved; success (key in lower case) → values changed, returns the key, `UpdateCount` 1, `SaveCount` 1. In every failure `UpdateCount` 0, `SaveCount` 0, category unchanged.
+- `GetCategoriesHandler`: the 5 categories in key order with display name, description and active flag, `Count` 5; an inactive one comes back with `IsActive` false; the fake is unchanged.
+- `CreateListingHandler`: inactive category → `Listing.CategoryInactive`, nothing stored, `SaveCount` 0; undefined category → `Listing.CategoryInvalid` (the null branch).
+- `UpdateListingHandler`: moving into an inactive category → `Listing.CategoryInactive`, listing unchanged, `UpdateCount` 0, `SaveCount` 0; moving into an active category → success; editing a listing that is already in an inactive category without changing the category → assert what the handler does (success, saved); moving to an undefined category → `Listing.CategoryInvalid`.
+- `PublishListingHandler`: a draft in an inactive category → `Listing.CategoryInactive`, still `Draft`, `UpdateCount` 0, `SaveCount` 0, spam detector not called, no report; a draft whose category is not in the fake (`Items.Remove`) → published as before.
+
+Rules for this feature:
+- Every error assertion checks `Type`, `Code` and `Message` (exact text from the production code; build the length messages from `ListingCategory.MaxDisplayNameLength` and `ListingCategory.MaxDescriptionLength`).
+- Never use real time.
+- Then run the tests with coverage and generate the report as this skill says: every file in `Domain/Categories/`, the handlers in `Features/Categories/` and the three listing handlers are at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: My listings (Diana)
+
+Production code (read it before generating):
+- `Features/Members/GetMyListings/GetMyListingsQuery.cs`: `GetMyListingsQuery(Guid MemberId)`.
+- `Features/Members/GetMyListings/GetMyListingsHandler.cs`: a query handler (no `IUnitOfWork`) with only `IListingRepository`. It reads `GetAllAsync`, keeps the listings whose `SellerId` is `MemberId`, in **every** status, orders by `CreatedAt` descending then `Id` ascending, and returns `GetMyListingsResponse(Items, Count)`. It never fails: the result is always a success.
+- `Features/Members/GetMyListings/GetMyListingsResponse.cs`: `MyListingItem(Id, SellerId, Title, Category, Condition, Price, Status, CreatedAt)`, built by `MyListingItem.From(listing)`; `Price` is the `Amount` (a `decimal`).
+
+File: `Features/Members/GetMyListings/GetMyListingsHandlerTests.cs` (new).
+
+Arrange: use `FakeListingRepository` only (no time provider, no unit of work). Fixed, named ids: `MemberId`, `OtherMemberId`. A listing is `Listing.Create(sellerId, title, Category.Textbook, Condition.Good, price, createdAt).Value`, seeded straight into `FakeListingRepository.Items`. Reach every status in the domain before seeding: `Draft` is the new listing; `Active` after `Publish()`; `Reserved` after `Publish()` then `Reserve(BuyerId, createdAt)`; `Sold` after `Reserve` then `ConfirmSale(reservation.Id, createdAt)`; `Hidden` after `Publish()` then `Hide()`. A private static helper builds a listing in a given status; no `if` or loop in the tests, so use one helper per status or a `switch` expression inside the helper.
+
+Tests to add:
+- Only the member's listings: two listings of `MemberId` and one of `OtherMemberId` → `Items` has exactly the two ids, `Count` 2.
+- Every status: one listing of the member in each of `Draft`, `Active`, `Reserved`, `Sold` and `Hidden` → all five come back, `Count` 5, and the `Status` of each item matches its listing.
+- Order: three listings with three different `CreatedAt` (`Now`, `Now.AddHours(1)`, `Now.AddHours(2)`), seeded oldest first → returned newest first (check the ids with `Equal`).
+- Tie: two listings with the same `CreatedAt` → ordered by `Id` ascending (`BeInAscendingOrder(i => i.Id)`).
+- No listings for the member (the repository has only another member's listing) → success, empty `Items`, `Count` 0.
+- Empty repository → success, empty `Items`, `Count` 0.
+- Item content: one listing → `Id`, `SellerId`, `Title`, `Category`, `Condition`, `Price` (the amount), `Status` and `CreatedAt` all match the listing.
+
+Rules for this feature:
+- The handler is a query handler: in every test assert that the repository still has the same items after the call (same count, `UpdateCount` 0).
+- Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
+- The handler has no failure branch: never invent an error test for it.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
 ## Feature: Observability (Sara)
 Production code (read it first): `Infrastructure/Observability/` (request / error / latency aggregation and ML prediction counters) and the metrics handler.

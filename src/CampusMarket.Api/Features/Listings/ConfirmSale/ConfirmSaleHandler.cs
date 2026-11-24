@@ -2,12 +2,14 @@ using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Common.Pricing;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Notifications;
 
 namespace CampusMarket.Api.Features.Listings.ConfirmSale;
 
 public sealed partial class ConfirmSaleHandler(
     IListingRepository repository,
     ISaleRecordRepository saleRecords,
+    INotificationRepository notifications,
     IPriceSuggester suggester,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
@@ -28,6 +30,8 @@ public sealed partial class ConfirmSaleHandler(
                 Error.Forbidden("Listing.NotOwner", "Only the seller or an Admin can confirm this sale."));
 
         var now = timeProvider.GetUtcNow();
+        // The buyer of the confirmed sale is the member on the matching reservation.
+        var buyerId = listing.Reservations.FirstOrDefault(r => r.Id == command.ReservationId)?.MemberId;
         var confirmed = listing.ConfirmSale(command.ReservationId, now);
 
         if (confirmed.IsFailure)
@@ -35,6 +39,20 @@ public sealed partial class ConfirmSaleHandler(
 
         repository.Update(listing);
         TryAddSaleRecord(listing, now);
+
+        // Notify the buyer, in the same unit of work.
+        if (buyerId is not null)
+        {
+            var notification = Notification.Create(
+                buyerId.Value,
+                NotificationType.ListingSold,
+                $"{listing.Title} was sold to you",
+                listing.Id,
+                now);
+            if (notification.IsSuccess)
+                notifications.Add(notification.Value);
+        }
+
         await unitOfWork.CommitAsync(ct);
 
         return command.ReservationId;
@@ -69,12 +87,6 @@ public sealed partial class ConfirmSaleHandler(
             soldPrice: listing.Price.Amount,
             soldAt: now);
 
-        if (record.IsFailure)
-        {
-            LogSaleRecordInvalid(logger, listing.Id, record.Error.Code, record.Error.Message);
-            return;
-        }
-
         saleRecords.Add(record.Value);
     }
 
@@ -83,7 +95,4 @@ public sealed partial class ConfirmSaleHandler(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Price suggester returned no usable suggestion (<= 0) for listing {ListingId}; no SaleRecord saved.")]
     private static partial void LogSuggesterReturnedNothing(ILogger logger, Guid listingId);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "SaleRecord.Create failed for listing {ListingId}: {Code} {Message}")]
-    private static partial void LogSaleRecordInvalid(ILogger logger, Guid listingId, string code, string message);
 }

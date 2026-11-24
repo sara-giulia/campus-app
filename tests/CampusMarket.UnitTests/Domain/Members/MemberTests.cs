@@ -204,4 +204,14 @@ public class MemberTests
         result.Error.Message.Should().Be("A password is required.");
         member.PasswordHash.Should().Be("hashed:secret12");
     }
+
+    [Fact]
+    public void Given_RegisteredMember_When_ChangingPassword_Then_StoresTheNewHash()
+    {
+        var member = Member.Register("Ada", "ada@student.ro", "hashed:old", Now).Value;
+
+        member.ChangePassword("hashed:new");
+
+        member.PasswordHash.Should().Be("hashed:new");
+    }
 }

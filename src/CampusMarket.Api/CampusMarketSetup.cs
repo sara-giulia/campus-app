@@ -9,6 +9,7 @@ using CampusMarket.Api.Infrastructure.Background;
 using CampusMarket.Api.Infrastructure.ML;
 using CampusMarket.Api.Infrastructure.Observability;
 using CampusMarket.Api.Infrastructure.Persistence;
+using CampusMarket.Api.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
 using CampusMarket.Api.Infrastructure.Auth;
 using CampusMarket.Api.Features.Auth;
@@ -19,13 +20,25 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
+using CampusMarket.Api.Domain.Photos;
+using CampusMarket.Api.Common.Storage;
+using CampusMarket.Api.Infrastructure.Storage;
+using CampusMarket.Api.Features.Photos;
+using CampusMarket.Api.Features.Conversations;
 using CampusMarket.Api.Features.Favorites;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Moderation;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews;
 using CampusMarket.Api.Features.Admin;
+using CampusMarket.Api.Common.Email;
+using CampusMarket.Api.Infrastructure.Mailing;
+using CampusMarket.Api.Domain.Notifications;
+using CampusMarket.Api.Features.Notifications;
+using CampusMarket.Api.Domain.Categories;
+using CampusMarket.Api.Features.Categories;
 
 namespace CampusMarket.Api;
 
@@ -59,6 +72,13 @@ public static class CampusMarketSetup
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
+        services.AddScoped<IConversationRepository, EfConversationRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, EfPasswordResetTokenRepository>();
+        services.AddScoped<IPhotoRepository, EfPhotoRepository>();
+        services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
+        services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
+        services.AddScoped<INotificationRepository, EfNotificationRepository>();
+        services.AddScoped<ICategoryRepository, EfCategoryRepository>();
         services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
@@ -129,6 +149,26 @@ public static class CampusMarketSetup
         services.ConfigureHttpJsonOptions(options =>
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+        // Email sender: Brevo HTTP API when Email__ApiKey is set (used on Render free,
+        // where outbound SMTP ports are blocked); SMTP when Email:Host is set
+        // (e.g. Mailpit on docker compose); otherwise a logger-only sender so the API
+        // runs without SMTP in dev and in tests. The Brevo API key and the SMTP
+        // username/password are read from env vars by the senders themselves; they
+        // must never be in appsettings.*.json.
+        services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.SectionName);
+        services.AddOptions<FrontendOptions>().BindConfiguration(FrontendOptions.SectionName);
+        var brevoApiKey = Environment.GetEnvironmentVariable("Email__ApiKey");
+        var emailHost = configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (!string.IsNullOrWhiteSpace(brevoApiKey))
+        {
+            services.AddHttpClient<IEmailSender, BrevoEmailSender>(client =>
+                client.BaseAddress = new Uri("https://api.brevo.com/"));
+        }
+        else if (!string.IsNullOrWhiteSpace(emailHost))
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        else
+            services.AddSingleton<IEmailSender, LoggingEmailSender>();
+
         // GET /health: the API is up and can reach the database.
         services.AddHealthChecks()
             .AddDbContextCheck<CampusMarketDbContext>(tags: ["ready"])
@@ -151,9 +191,10 @@ public static class CampusMarketSetup
         return services;
     }
 
-    // Fails fast in Production when the JWT signing key is missing or too
-    // short. Dev and Test keep their own keys (appsettings.Development.json /
-    // the integration-test factory), so this check is production-only.
+    // Fails fast in Production when the JWT signing key is missing or too short,
+    // or when the SMTP sender is used without TLS. Dev and Test keep their own
+    // keys (appsettings.Development.json / the integration-test factory) and
+    // talk to Mailpit without TLS, so these checks are production-only.
     public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
     {
         if (!app.Environment.IsProduction())
@@ -166,6 +207,19 @@ public static class CampusMarketSetup
                 $"Jwt:Key is missing or shorter than {MinJwtKeyLength} characters. " +
                 "Set the Jwt__Key environment variable to a random value of at least " +
                 $"{MinJwtKeyLength} characters before starting the API in Production.");
+        }
+
+        var emailHost = app.Configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
+        if (!string.IsNullOrWhiteSpace(emailHost))
+        {
+            var useSsl = app.Configuration.GetValue($"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)}", true);
+            if (!useSsl)
+            {
+                throw new InvalidOperationException(
+                    $"{EmailOptions.SectionName}:{nameof(EmailOptions.UseSsl)} must be true in Production when an SMTP host is configured. " +
+                    $"Set the {EmailOptions.SectionName}__{nameof(EmailOptions.UseSsl)} environment variable to true (STARTTLS on port 587) " +
+                    "before starting the API in Production.");
+            }
         }
 
         return app;
@@ -215,87 +269,97 @@ public static class CampusMarketSetup
 
     private const int MinDemoPasswordLength = 8;
 
-    // Idempotent demo seed: only runs when Seed:DemoData is "true" AND the
-    // database is empty (no members, no listings). Safe to leave wired across
-    // restarts — a redeploy on Render loses the SQLite file, so the first
-    // start after a redeploy seeds again, every later start is a no-op.
-    // Off by default; tests leave Seed:DemoData unset.
+    // Idempotent demo seed: only runs when Seed:DemoData is "true" AND no demo
+    // listings have been seeded yet. The member table may already hold rows (an
+    // Admin created by SeedAdmin, or a real sign-up) — the demo listings still
+    // seed next to them. Safe to leave wired across restarts: a redeploy on
+    // Render loses the SQLite file, so the first start after a redeploy seeds
+    // again, every later start is a no-op. Off by default; tests leave
+    // Seed:DemoData unset.
     private static void SeedDemoDataIfRequested(IServiceProvider services, CampusMarketDbContext db, IConfiguration config)
     {
         if (!config.GetValue("Seed:DemoData", false))
             return;
 
-        if (db.Members.Any() || db.Listings.Any())
+        // Only the listing table drives idempotency: a stray member (Admin or
+        // a real sign-up) must NOT block the demo catalog, which is the Render
+        // regression this skip condition used to cause.
+        if (db.Listings.Any())
             return;
 
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("CampusMarket.DemoSeed");
         var clock = services.GetRequiredService<TimeProvider>();
         var now = clock.GetUtcNow();
 
         // Seed the demo listings even when the password env var is unusable, so
         // a fresh Render instance has something to browse; the listings then
-        // belong to an orphan seller id, which is fine because nobody can log
-        // in as that account.
-        var sellerId = TrySeedDemoMember(services, db, config, now) ?? Guid.NewGuid();
+        // all belong to one orphan seller id, which is fine because nobody can
+        // log in as that account.
+        var sellerIds = TrySeedDemoMembers(logger, services, db, config, now);
+        var seededMemberCount = sellerIds.Count;
+        if (sellerIds.Count == 0)
+            sellerIds.Add(Guid.NewGuid());
 
-        foreach (var draft in BuildDemoListings(sellerId, now))
-        {
-            draft.Publish();
-            db.Listings.Add(draft);
-        }
+        var listings = DemoListings.BuildListings(sellerIds, now);
+        foreach (var listing in listings)
+            db.Listings.Add(listing);
 
         db.SaveChanges();
+        
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("Demo seed: {MemberCount} members, {ListingCount} listings", seededMemberCount, listings.Count);
+        }
     }
 
-    // Returns the demo member's id when Seed:DemoPassword is at least
-    // MinDemoPasswordLength characters; null (with a warning in the log)
-    // when the env var is missing or too short. The demo member is ALWAYS
-    // created with the Student role — never Admin.
-    private static Guid? TrySeedDemoMember(IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
+    // Returns the ids of the demo members that were added for seeding when
+    // Seed:DemoPassword is at least MinDemoPasswordLength characters; an empty
+    // list (with a warning in the log) when the env var is missing or too
+    // short. Demo members whose email already exists in the database are
+    // skipped, so the seed stays idempotent when other startup code (SeedAdmin)
+    // reserves an overlapping email. Demo members are ALWAYS created with the
+    // Student role — never Admin.
+    private static List<Guid> TrySeedDemoMembers(ILogger logger, IServiceProvider services, CampusMarketDbContext db, IConfiguration config, DateTimeOffset now)
     {
-        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("CampusMarket.DemoSeed");
         var password = config["Seed:DemoPassword"];
 
         if (string.IsNullOrEmpty(password) || password.Length < MinDemoPasswordLength)
         {
             logger.LogWarning(
-                "{Variable} is missing or shorter than {MinLength} characters; seeding the demo listings without a demo member. " +
-                "Set the Seed__DemoPassword environment variable to a value of at least that length to enable sign-in as the demo student.",
+                "{Variable} is missing or shorter than {MinLength} characters; seeding the demo listings without any demo members. " +
+                "Set the Seed__DemoPassword environment variable to a value of at least that length to enable sign-in as a demo student.",
                 "Seed:DemoPassword", MinDemoPasswordLength);
-            return null;
+            return [];
         }
 
         var hasher = services.GetRequiredService<IPasswordHasher>();
-        var member = Member.Register(
-            "Demo Student",
-            "demo@campusmarket.ro",
-            hasher.Hash(password),
-            now,
-            MemberRole.Student);
-        if (member.IsFailure)
-            return null;
+        var members = DemoListings.BuildMembers(hasher, password, now);
 
-        db.Members.Add(member.Value);
-        return member.Value.Id;
-    }
+        // Pre-load existing emails so a pre-seeded Admin (or any other row)
+        // with a colliding address does not fail the SaveChanges on the
+        // unique email index.
+        var existingEmails = new HashSet<string>(
+            db.Members.AsEnumerable().Select(m => m.Email.Value),
+            StringComparer.Ordinal);
 
-    private static List<Listing> BuildDemoListings(Guid sellerId, DateTimeOffset now)
-    {
-        var drafts = new List<Listing>();
-        TryAdd(drafts, Listing.Create(sellerId, "Manual Analiza Matematica anul I", Category.Textbook, Condition.Good, 40m, now, "Stare buna, notite in creion pe ultimele pagini."));
-        TryAdd(drafts, Listing.Create(sellerId, "Casti wireless aproape noi", Category.Electronics, Condition.Good, 180m, now, "Autonomie buna, cutia originala."));
-        TryAdd(drafts, Listing.Create(sellerId, "Notite curs structuri de date", Category.Notes, Condition.New, 20m, now, "Scrise de mana, sem 2, anul I."));
-        return drafts;
-    }
-
-    private static void TryAdd(List<Listing> drafts, Result<Listing> result)
-    {
-        if (result.IsSuccess)
-            drafts.Add(result.Value);
+        var ids = new List<Guid>(members.Count);
+        foreach (var member in members)
+        {
+            if (!existingEmails.Add(member.Email.Value))
+                continue;
+            db.Members.Add(member);
+            ids.Add(member.Id);
+        }
+        return ids;
     }
 
     public static IEndpointRouteBuilder MapCampusMarket(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/", () => "CampusMarket API is running");
+        // GET / is NOT mapped here on purpose: UseDefaultFiles + UseStaticFiles
+        // serve wwwroot/index.html for the root in Production (the React SPA on
+        // Render). An endpoint on "/" would win over the static files middleware.
+        // When wwwroot is missing (tests, dotnet run without a frontend build)
+        // the SPA fallback in Program.cs returns 404 for "/", which is fine.
 
         // All endpoints live under /api/v1; each group is created in its own *Endpoints class
         var api = app.MapGroup("/api/v1");
@@ -306,6 +370,10 @@ public static class CampusMarketSetup
         api.MapModerationEndpoints();
         api.MapReviewsEndpoints();
         api.MapAdminEndpoints();
+        api.MapConversationsEndpoints();
+        api.MapPhotosEndpoints();
+        api.MapNotificationsEndpoints();
+        api.MapCategoriesEndpoints();
 
         return app;
     }

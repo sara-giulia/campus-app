@@ -1,0 +1,117 @@
+/* Notifications page: toolbar + list of items (unread ones get an accent strip). */
+
+.notifications {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.notifications__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notifications__count {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.notif-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.notif-item {
+  display: flex;
+  gap: 16px;
+  padding: 14px 18px;
+  align-items: flex-start;
+}
+
+.notif-item--unread {
+  background: var(--accent-soft, var(--surface-2));
+  box-shadow: inset 3px 0 0 0 var(--accent);
+}
+
+.notif-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notif-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notif-item__time {
+  color: var(--muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.notif-item__message {
+  margin: 0;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.notif-item__link {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.notif-item__actions {
+  flex: none;
+}
+
+/* Badge on top of the menu link, when there are unread notifications. */
+.nav__link {
+  position: relative;
+}
+
+.nav__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink, #fff);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (max-width: 640px) {
+  .notif-item {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .notif-item__actions .btn {
+    width: 100%;
+  }
+}

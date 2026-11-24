@@ -287,4 +287,23 @@ public class GetMemberReviewsHandlerTests
         members.Items.Should().ContainSingle();
         reviews.Items.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Given_PageSizeOfOne_When_Handling_Then_ReturnsSuccess()
+    {
+        var seller = BuildSeller();
+        var members = BuildMembers(seller);
+        var reviews = new FakeReviewRepository();
+        reviews.Items.Add(BuildReview(seller.Id, 5, Now));
+        var handler = new GetMemberReviewsHandler(members, reviews);
+        var query = new GetMemberReviewsQuery(seller.Id, PageSize: 1);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.PageSize.Should().Be(1);
+        result.Value.Items.Should().ContainSingle();
+        members.Items.Should().ContainSingle();
+        reviews.Items.Should().ContainSingle();
+    }
 }

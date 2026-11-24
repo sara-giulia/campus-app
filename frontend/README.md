@@ -67,6 +67,25 @@ await api.post('/listings/' + id + '/reservations')
 - When someone is logged in, the token is added automatically. The client refreshes it 30 seconds before it expires and, if the API still answers 401, refreshes once and repeats the request. Requests that get a 401 at the same time share one refresh (the API rotates the refresh token). If the refresh fails, the user is logged out and `RequireAuth` sends them to `/login`.
 - Errors come as `ApiError` with `status`, `code` (the API's error code, for example `Listing.NotOwner`) and `message`. Both error shapes of the API (`{ code, message, type }` and ProblemDetails) end up the same. When the API cannot be reached, `code` is `Network.Unreachable`.
 - For login, register and logout use `useAuth()` or `src/api/auth.ts`, not `api.post` directly.
+- A file upload sends a `FormData` body: `api.post('/listings/' + id + '/photos', form)`; the client leaves the multipart `Content-Type` to the browser. Photo urls from the API (`/api/v1/photos/{id}`) go through `photoSrc()` in `features/listings/photoSrc.ts`, which puts the API address in front.
+- `errorMessage(error)` in `src/app/errorMessage.ts` gives the Romanian text for the error codes of the public pages (falls back to the API's message).
+
+## Pages
+
+The top bar has Acasă, Anunțuri, Publică anunț, Mesaje and Notificări; the personal pages and the Admin pages (`place: 'account'` in `src/app/menu.ts`) are in the menu that opens from the avatar, and everything is in the phone menu below 900px.
+
+| Address | Page | Who |
+|---|---|---|
+| `/` | landing + the newest listings | everyone |
+| `/listings?search=&category=&condition=&minPrice=&maxPrice=&sort=&page=` | search with filters, sorting and pages (the filters are in the address) | everyone |
+| `/listings/:id` | photos, details, seller, similar listings; reserve, save, write to the seller, report; the seller adds and removes photos | everyone (actions need login) |
+| `/members/:id` | a seller's active listings and reviews | everyone |
+| `/messages`, `/messages/:id` | my conversations and one conversation (refreshed every 5 seconds) | logged in |
+| `/my/favorites` | the listings I saved | logged in |
+| `/admin/moderation` | reported listings, hide one | Admin |
+| `/admin/categories` | the 5 base categories: change the display name, the description and the active flag | Admin |
+| `/admin/price-accuracy` | how close the suggested prices were to the sold prices: number of sales, MAE, MAPE, per category, the last 10 sales | Admin |
+| `/listings/new`, `/my/listings`, `/my/listings/:id/edit`, `/my/reservations`, `/profile`, `/register`, `/forgot-password`, `/reset-password` | publish and edit, my listings, my reservations, my profile, account pages (Sara) | see the routes |
 
 ## Login state
 

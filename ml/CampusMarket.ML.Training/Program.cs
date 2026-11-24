@@ -48,7 +48,8 @@ var trainers = new List<IModelTrainer>
 {
     new PriceTrainer(),
     new CategoryTrainer(),
-    new SpamTrainer()
+    new SpamTrainer(),
+    new SimilarTrainer()
 };
 
 var trainedModels = new Dictionary<string, ITransformer>();
