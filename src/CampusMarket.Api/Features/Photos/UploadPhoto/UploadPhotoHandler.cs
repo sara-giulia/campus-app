@@ -21,8 +21,12 @@ public sealed class UploadPhotoHandler(
             return Result<PhotoResponse>.Failure(
                 Error.NotFound("Listing.NotFound", $"Listing '{command.ListingId}' was not found."));
 
-        var existing = await photos.CountForListingAsync(command.ListingId, ct);
-        var created = Photo.Create(command.UploaderId, listing, existing, command.Content, timeProvider.GetUtcNow());
+        // A generated image only stands in until the seller adds a real photo: it does not count towards
+        // the limit and it goes away with this upload.
+        var current = await photos.GetByListingAsync(command.ListingId, ct);
+        var generated = current.Where(p => p.IsGenerated).ToList();
+        var created = Photo.Create(
+            command.UploaderId, listing, current.Count - generated.Count, command.Content, timeProvider.GetUtcNow());
         if (created.IsFailure)
             return Result<PhotoResponse>.Failure(created.Error);
 
@@ -30,8 +34,12 @@ public sealed class UploadPhotoHandler(
 
         // The file first: if saving the row fails, an unused file is left, never a row without its file.
         await storage.SaveAsync(listing.Id, photo.FileName, command.Content, ct);
+        generated.ForEach(photos.Delete);
         await photos.AddAsync(photo, ct);
         await unitOfWork.CommitAsync(ct);
+
+        // The generated files only after the save, so a failed save never leaves a row without its file.
+        generated.ForEach(old => storage.Delete(listing.Id, old.FileName));
 
         return PhotoResponse.From(photo);
     }
