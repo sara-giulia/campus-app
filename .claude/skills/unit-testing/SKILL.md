@@ -67,8 +67,8 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 
 ## Coverage
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
-- Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"`
-- Target: 100% line and branch coverage for every file in the report (all of `Domain/` and every handler).
+- Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs;+*Infrastructure*Observability*MetricsRegistry.cs"`
+- Target: 100% line and branch coverage for every file in the report (all of `Domain/`, every handler and `Infrastructure/Observability/MetricsRegistry.cs`).
 - The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either.
 - When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
 - Everything that is not in the report is outside the target. This is the single list of exclusions (the README copies it word for word):
@@ -76,6 +76,7 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
   - `CampusMarketSetup.cs`: only registers services and routes.
   - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
   - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
+    Exception: `Infrastructure/Observability/MetricsRegistry.cs` is part of the unit target (see *"Feature: Observability (Sara)"*): it holds real logic (counters, error rule, average, p95, ring reservoir) and no I/O, so it can be tested exactly with a fake `TimeProvider`.
   - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 
 ## Never do
@@ -982,7 +983,26 @@ Rules for this feature:
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
 ## Feature: Observability (Sara)
-Production code (read it first): `Infrastructure/Observability/` (request / error / latency aggregation and ML prediction counters) and the metrics handler.
-Tests to add: recording requests increments the count per route and status; status >= 500 counts as an error; avg and p95 of known durations (e.g. 10, 20, ..., 100 ms → avg 55, p95 100); ML predictions counted per model with their average duration; an empty state returns zeros, not errors.
-Rules: no real time and no sleeps; Domain and handlers stay at 100%.
+Production code (read it first): `Infrastructure/Observability/MetricsRegistry.cs` (`MetricsRegistry`, `EndpointBucket`, `PredictionBucket`), `MetricsSnapshot.cs` and `CampusMarketMeters.cs`.
+- `MetricsRegistry(CampusMarketMeters meters, TimeProvider timeProvider, int reservoirCapacity = EndpointBucket.DefaultReservoirSize)` (1024). `RecordRequest(route, method, statusCode, durationMs)` counts per route and status; status >= 500 is an error. `MeasurePrediction(model, predict)` times the call with `timeProvider.GetTimestamp()` / `GetElapsedTime` (also when `predict` throws) and returns its value. `Snapshot()` orders routes and models by name (ordinal); `AverageMs` and `P95Ms` are rounded to 2 decimals; p95 is `samples[Math.Clamp(ceil(0.95 * n) - 1, 0, n - 1)]` over the reservoir.
+- `EndpointBucket` and `PredictionBucket` are `internal` (visible through `InternalsVisibleTo`): a bucket is only created on the first record, so the empty state (`Requests`/`Count` 0, `AverageMs` and `P95Ms` null) is tested on a new bucket directly.
 
+Why it is in the unit target although it is in `Infrastructure/`: it is pure in-memory logic with no database, HTTP or file access; every branch can be reached with a fake clock. This is the only exception to the `Infrastructure/` exclusion; `MetricsMiddleware`, `MetricsRouteExtensions` and `CampusMarketMeters` stay excluded.
+
+New fake `Fakes/ManualTimeProvider.cs` (hand-written): `TimestampFrequency` = `TimeSpan.TicksPerSecond`, `GetTimestamp()` returns a counter that moves only with `Advance(TimeSpan)`. The `predict` lambda of a test calls `Advance`, so the measured duration is exact. Never use `Microsoft.Extensions.TimeProvider.Testing`.
+
+File: `Infrastructure/Observability/MetricsRegistryTests.cs` (same folders as `src/`). Each test builds its own `using var meters = new CampusMarketMeters();`.
+
+Tests to add:
+- nothing recorded → `Endpoints` and `MlPredictions` empty; a new `EndpointBucket` → `Requests` 0, `Errors` 0, `AverageMs` and `P95Ms` null, no status codes; a new `PredictionBucket` → `Count` 0, `AverageMs` null.
+- requests on two routes → one item per route in name order, `Requests` and `StatusCodes` (keys `"200"`, `"404"`, ...) per route.
+- status 500 and 503 (`[Theory]`) → `Errors` 1; 200, 404 and 499 → `Errors` 0.
+- durations 10, 20, ..., 100 ms recorded in a shuffled order → `AverageMs` 55, `P95Ms` 100; one request of 12.345 ms → `AverageMs` and `P95Ms` 12.35 (rounded to 2 decimals).
+- capacity 3 and four requests (100, 10, 20, 30) → `Requests` 4 and `AverageMs` 40 over all four, `P95Ms` 30 over the kept values (the oldest, 100, was replaced).
+- predictions of two models with durations from `ManualTimeProvider` → per model `Count` and `AverageMs`, in model name order; `MeasurePrediction` returns the value of `predict`; a `predict` that throws → the exception goes through and the call is still recorded.
+
+Rules for this feature:
+- Durations come only from `ManualTimeProvider` or are passed as numbers to `RecordRequest`: no real time, no `Stopwatch`, no `Thread.Sleep`, no `Task.Delay`.
+- The "reservoir full" branch is tested with a small positive capacity (3); never pass 0 (the index is taken modulo the capacity).
+- The endpoint `GET /api/v1/admin/metrics` and `MetricsMiddleware` are tested by the integration-testing skill, not here.
+- `MetricsRegistry.cs` is in the coverage filter of this skill and must be at 100% lines and branches; `Domain/` and the handlers stay at 100%.
