@@ -16,7 +16,8 @@ var items = Catalog.LoadAll(catalogDir);
 Console.WriteLine($"Loaded {items.Count} item types across {items.Select(i => i.Category).Distinct().Count()} categories.");
 
 var rng = new Random(Seed); // NOSONAR: fixed seed on purpose, the dataset must be reproducible
-var generator = new Generator(rng, items);
+var spamRng = new Random(Seed + 1); // NOSONAR: fixed seed on purpose, only picks the pattern and text of spam rows
+var generator = new Generator(rng, spamRng, items);
 var rows = generator.Generate().ToList();
 
 var utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);

@@ -527,7 +527,7 @@ A listing hidden by an Admin cannot be saved (400 `Favorite.ListingNotAvailable`
 Members report listings, the spam model reports suspicious ones on its own, and Admins decide.
 
 - `POST /api/v1/listings/{id}/reports` with `{ "reason": "..." }` (1–500 characters): 201 with `{ id, listingId, createdAt }`. Any logged-in member can report an `Active` or `Reserved` listing of someone else, once (409 `Report.AlreadyExists`).
-- When a listing is published, the spam model (see [Machine learning](#machine-learning)) checks its title, description and price. A listing that looks like spam (probability at least `Ml:Spam:Threshold`, 0.4, chosen on validation data) is still published, but gets an **automatic report** (no reporter, with the spam probability).
+- When a listing is published, the spam model (see [Machine learning](#machine-learning)) checks its title, description and price. A listing that looks like spam (probability at least `Ml:Spam:Threshold`, 0.35, chosen on validation data) is still published, but gets an **automatic report** (no reporter, with the spam probability).
 - `GET /api/v1/moderation/listings?page=1&pageSize=20` (Admins only) lists the reported listings that are not hidden, one row per listing, the most reported first:
 
 ```json
@@ -1088,7 +1088,7 @@ generator, not a regression in the committed model.
   spam, so the classifier has to look at the whole context.
 - **CSV columns:** `Title,Description,Category,Condition,Price,IsSpam,TemplateId`.
   `TemplateId` is the item-type id from the catalog (`tb-analiza-mate-y1`,
-  `elec-laptop-thinkpad`, …) or `spam-generic` for the loud spam rows; it is
+  `elec-laptop-thinkpad`, …) or the spam pattern (`spam-00` … `spam-23`) for every spam row, loud or disguised; it is
   the **last** column so the existing `ListingRow` column indexes 0–5 do not
   shift.
 
@@ -1306,7 +1306,7 @@ model's `.json` file, and configured in `src/CampusMarket.Api/appsettings.json`:
 ```json
 "Ml": {
   "Category": { "MinConfidence": 0.6 },
-  "Spam": { "Threshold": 0.4 }
+  "Spam": { "Threshold": 0.35 }
 }
 ```
 
@@ -1315,11 +1315,11 @@ model's `.json` file, and configured in `src/CampusMarket.Api/appsettings.json`:
   0.55 gives 89.2% and 0.60 gives 90.3% with 85.1% of the listings getting a suggestion;
   0.70, the value used before, would hide 8 more points of suggestions for 2 points of
   accuracy. On test, at 0.60: 85.6% of the listings get a suggestion, right 91.1% of the time.
-- **`Ml:Spam:Threshold` = 0.40:** the threshold with the best F1, the balance between spam
-  let through and good listings flagged. On validation every threshold from 0.15 to 0.65
-  has F1 1.000 (below 0.15 good listings start to be flagged, above 0.65 spam is missed),
-  so the middle of that range is kept, as far as possible from both edges. On test, at
-  0.40: precision, recall and F1 1.000.
+- **`Ml:Spam:Threshold` = 0.35:** the threshold with the best F1, the balance between spam
+  let through and good listings flagged. On validation every threshold from 0.25 to 0.50
+  has the best F1, 0.959 (below 0.25 good listings start to be flagged, above 0.50 more spam
+  is missed), so the middle of that range is kept, as far as possible from both edges. On
+  test, at 0.35: precision 1.000, recall 0.747, F1 0.855.
 - `SuggestCategoryHandler` and `SpamDetector` read them through `IOptions`
   (`CategorySuggestionOptions`, `SpamDetectionOptions`); the API refuses to start with a
   value outside 0–1. After retraining, copy the two "API setting" lines printed by the

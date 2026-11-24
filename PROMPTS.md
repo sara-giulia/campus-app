@@ -2072,6 +2072,27 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** row 4 (the 500 test does not assert the route), then row 5 after the `MetricsMiddleware` fix (the note removed, the 500 checked on its own route).
 - **Commits:** 74f6193 (code), 5479664 (skills), a9aced1 (tests)
 
+### Run 53, skill v52 (Spam rules and validation thresholds after the spam retraining)
+
+- **Why a new version:** branch `feature/spam-variety`, week 8, task 14. The spam model was retrained on the dataset with 12 new spam patterns (fe84163) and `Ml:Spam:Threshold` in `appsettings.json` is now 0.35 (Sara accepted the new, honest numbers; see Run 2 of ml-dataset). 3 integration tests failed because they depended on the old model: `MlThresholdsTests.Given_DefaultHost_When_ResolvingThresholdOptions_Then_ReadsAppSettingsValues` (spam threshold 0.4 written in the test) and two cases of `SpamRulesTests.Given_TextCaughtOnlyByARule_...` (the new model catches `"Plata in avans prin transfer"` with 0.59 and `"Detalii pe www.manuale-ieftine.com"` with 0.95 by itself, so they no longer test "caught only by a rule").
+
+#### Change to SKILL.md (v51 → v52) and why
+
+| # | v51 (before) | v52 (after) | Why |
+|---|---|---|---|
+| 1 | *"Feature: Validation thresholds (Anca)"*: the default host test expects `MinConfidence` 0.6 and `Threshold` 0.4. | The expected values are read from the `appsettings.json` copied to the test output (its own `ConfigurationBuilder`), and a new rule: never hard-code a threshold of `appsettings.json` in a test; only the values the test sets with `UseSetting` are written in it. | The thresholds are chosen again on validation at every retraining (0.4 → 0.35); a number in the test breaks at every retraining without showing a bug. |
+| 2 | *"Feature: Spam rules (Anca)"*: phrase text `"Plata in avans prin transfer"`, link text `"Detalii pe www.manuale-ieftine.com"`, trusted to be rule-only. | Phrase `"Plata in avans"`, link `"Vezi www.fizica-liceu.ro"`; new rule: the rule-only theory first predicts with the real model (`PredictionEnginePool<SpamInput, SpamPrediction>`, `SpamDetector.ModelName`, price 40) and asserts the probability is below the configured threshold, with a `because`; the report is compared with `SpamRules.RuleProbability`. | A retrained model that catches a rule-only text now fails at that precondition with a clear message, instead of at the report's 0.9. |
+
+- **Prompt:** `/integration-testing Task: week 8, task 14, branch feature/spam-variety. The spam model was retrained (commit fe84163) and the spam threshold in appsettings.json is now 0.35 (Sara accepted the new honest numbers). 3 integration tests fail because they depend on the old model. Rules: do NOT commit, do NOT push, no Co-Authored-By. Do not change src/ or frontend/. Do not touch the ML tests or the docs already changed on this branch. 1. MlThresholdsTests (Given_DefaultHost_...ReadsAppSettingsValues): it hardcodes the spam threshold 0.4; make it check the value from appsettings (0.35). 2. SpamRulesTests (Given_TextCaughtOnlyByARule_..., 2 cases): the new model now catches "Plata in avans prin transfer" (0.59) and "Detalii pe www.manuale-ieftine.com" (0.95) by itself, so they no longer test "caught only by a rule". Replace them with texts that match the same rules but that the current model scores below the threshold, and make the test check that the model score is below the threshold first (so it fails clearly if a future model catches them), instead of relying on fixed texts silently. 3. If the integration-testing skill has a section about spam rules or ML thresholds, add the rule that explains this (no hardcoded thresholds, rule-only texts checked against the model score). 4. Run all tests with coverage like the CI does: everything passes, dotnet build 0 warnings. 5. In ML.md, also fix the row counts in the intro of the Metrics section with the real numbers per model (it still says 711 rows). 6. Add the next integration-testing Run to PROMPTS.md (next free Run number and skill version), same format as the previous Runs, with "- **Commits:** commit hashes: to be filled in". 7. Delete TestResults, restore coverage-report. 8. Show me: the tests changed, the new rule texts and their model scores, the test results, the Run number and git status. Answer in Romanian, short.` (new session)
+- **Skill version:** v52 (rules written by Carina with Claude Code; the last integration-testing version was v51, Run 52)
+- **Result:** two test files changed, no test added or renamed:
+    - `Infrastructure/MlThresholdsTests.cs`: the default host test compares `MinConfidence` and `Threshold` with `Ml:Category:MinConfidence` and `Ml:Spam:Threshold` read from `appsettings.json` (private helper `AppSettings()`), not 0.6 / 0.4.
+    - `Moderation/SpamRulesTests.cs`: the two cases replaced by `"Manual de fizica"` / `"Plata in avans"` (phrase rule, model 0.19) and `"Manual de fizica"` / `"Vezi www.fizica-liceu.ro"` (link rule, model 0.01), chosen with a temporary probe test (removed) over the real model at price 40; the theory's Arrange asserts the model probability is below the configured threshold (private helper `ModelProbability`); the report is compared with `SpamRules.RuleProbability`. The other four rule-only cases have model probabilities 0.003–0.10, below 0.35.
+  Full run with coverage as in the CI (`dotnet build --no-incremental`, `dotnet test --no-build --collect:"XPlat Code Coverage" --settings coverlet.runsettings`): 10 architecture, 747 unit, 69 ML, 444 integration, all pass. Build 0 warnings, 0 errors; SARIF empty. `ML.md`: the intro of "Metrici" gives the test rows per model (711, of which 693 non-spam are used, for price, category and similar, still trained on the old dataset; 780 with 87 spam for spam).
+- **Problems seen:** none in the run. Section 7 of the skill says never edit `.claude/skills/` or `PROMPTS.md`; both were changed here because the task asked for it explicitly.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** 2ac52bc (generator and split), fe84163 (dataset and spam model), d1accd2 (threshold), fe29a22 (skills), 0a6ce3e (tests)
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -2281,6 +2302,43 @@ Do not change anything in src/ or tests/. Do not commit or push.
 - **Follow-up prompt:** `Show the same price statistics (min / avg / max per Category, and per Category + Condition) only for rows with IsSpam = false. Then show 3 non-spam examples per Category with their price. Do not change any file.`
 - **Result:** 3000 rows, 300 spam (10.00%); the same file on two runs (same SHA-256). Non-spam prices: Notes 5–53 lei, Textbook 17–188, LabEquipment 8–364, Other 10–1403, Electronics 28–5022; the averages follow New > Good > Worn (Textbook 90 / 64 / 39, Electronics 963 / 710 / 529). No change in src/ or tests/.
 - **Problems seen:** none.
+
+### Run 2 (12 new spam patterns, spam split by pattern, honest spam numbers)
+
+- **Why:** the spam model scored 1.000 on test because every spam row came from 12 texts and the disguised spam was split by product, so the same spam texts were in train and in test. The generator got 12 new spam patterns and the split now keeps every spam pattern in one part (commits 2ac52bc and fe84163). After the retraining 4 ML tests failed; Sara decided to accept the new, honest spam numbers.
+- **Prompt:** (new session)
+
+```
+Task: week 8, task 14, branch feature/spam-variety. Sara decided: we accept the new, honest spam numbers.
+Rules: do NOT commit, do NOT push, no Co-Authored-By. Never invent numbers, use only values from the real runs. If the project has a skill that covers tests/CampusMarket.ML.Tests, use it for the test changes; otherwise follow how earlier ML test changes were done and recorded in PROMPTS.md.
+
+1. Spam threshold in the app: set the spam threshold in src/CampusMarket.Api/appsettings.json to the value chosen on validation (0.35), the only change in src/.
+2. Update the 4 failing ML tests so they check realistic, meaningful bars (not just "whatever the model gives"), with a short comment saying why:
+   a. SpamModelQualityTests: F1 bar realistic for the honest test set (below 0.855 with a small margin), keep the AUC check.
+   b. ErrorAnalysisTests: instead of "zero missed spam", check something meaningful (e.g. no good listing flagged on test, and missed spam below a small bound), based on the real numbers.
+   c. FeatureWeightsTests: the contact words that are really in the top words now.
+   d. ThresholdSelectionTests: should pass after step 1.
+3. check_metrics.py: accept the new spam metrics as the baseline in the way the project/CI documents it (read check_metrics.py and ml.yml). Do not weaken the check for the other models. If there is no documented way, STOP and tell me.
+4. Run dotnet build (0 warnings), dotnet test for the whole solution and python check_metrics.py like the CI: everything must pass.
+5. Docs: docs/ml/spam.md (the 12 new patterns, the split fix and why the old 1.0 was inflated, the before/after table, threshold 0.35, the honest limit: 11 good listings flagged on the external set), ML.md (only the spam row and the spam explanation), README.md ("spam-generic" in the Dataset v2 part and the spam threshold if it is mentioned). Only those lines.
+6. PROMPTS.md: add the next Run in the dataset/ML section (and in the test skill section if a skill was used), same format as the previous Runs, with "- **Commits:** commit hashes: to be filled in".
+7. Delete TestResults, restore coverage-report.
+8. Show me: the test changes (old bar -> new bar), what you changed in check_metrics, the test and check_metrics results, the changed files and git status. Answer in Romanian, short.
+```
+
+- **Follow-up prompt** (answer to Claude's question that no contact word is in the top 10 any more): `Change test 2c to check that whatsapp, telegram, link and mesaj all have a positive weight towards spam and are in the top 50 spam words, with a comment explaining why not top 10. In docs/ml/spam.md add as an honest limit: the top 10 spam words are generic (e, pe, pret, lei, raspund, doar), so the model also learns the style of the generated data, not only contact signals. Also use the real number of good listings flagged on the external set at 0.35 (10, not 11) everywhere in the docs. Remove the temporary probe test. Then continue with the remaining steps.`
+- **Skill:** none. No skill covers `tests/CampusMarket.ML.Tests` (unit-testing is for the domain and the handlers); the ML tests were changed by hand, like the other `CampusMarket.ML.Tests` (see validation-thresholds and similar-listings).
+- **Decisions:**
+    - `SpamModelQualityTests`: the F1 bar is now checked **at the API threshold** read from `spam-detection.json` (0.35), not at ML.NET's built-in 0.5, because that is the threshold the app uses. F1 ≥ 0.9 → F1 at the threshold ≥ 0.84 (real 0.855; at 0.5 it is 0.824). AUC ≥ 0.95 kept (real 0.996).
+    - `ErrorAnalysisTests`: "no mistake at 0.40" → at 0.35 no good listing flagged on test (real 0) and at most 25 spam let through (real 22 of 87). The lists are read with `count: int.MaxValue`, because the default 10 would cap the count of missed spam at 10.
+    - `FeatureWeightsTests`: `telegram` and `link` in the top 10 → `whatsapp,`, `telegram`, `link` and `mesaj` among the 50 words towards spam (so all positive). The real ranks: mesaj 23, link (T) 29, `whatsapp,` 38, telegram 44; the top 10 are generic words. `whatsapp,` keeps its comma because `FeaturizeText` splits on spaces only; a plain `whatsapp` is not a word of the model.
+    - `ThresholdSelectionTests`: not changed; it passes once `appsettings.json` has 0.35.
+    - `check_metrics.py`: not changed. `ml.yml` takes the reference from the `ml/models/*.json` committed on the branch, and the new `spam-detection.json` is already committed (fe84163), so committing it is the documented way to accept the new baseline. The check for the other models is the same.
+    - The task said 11 good listings flagged on the external set; the real run flags **10** at 0.35 (11 is the count of all external mistakes at 0.5: 8 good flagged and 3 spam missed). The docs use 10.
+    - The dataset regenerates byte for byte and the retrained models give the same test metrics, so the committed models were kept. The `.json` files of the price, category and similar models still have the old `sha256` and row counts in `dataset` (only the spam model was retrained in fe84163); not changed here.
+- **Files changed:** `src/CampusMarket.Api/appsettings.json` (`Ml:Spam:Threshold` 0.4 → 0.35); `tests/CampusMarket.ML.Tests/SpamModelQualityTests.cs`, `ErrorAnalysisTests.cs`, `FeatureWeightsTests.cs`; `docs/ml/spam.md`; `ML.md` (spam rows, spam note, spam limit, the spam explanation); `README.md` (`spam-generic` in Dataset v2, the spam threshold); `PROMPTS.md`.
+- **Checks:** `dotnet build` 0 warnings, 0 errors; 10 architecture, 747 unit and 69 ML tests pass; integration: 441 of 444 pass, **3 fail** (not fixed here, the integration tests are generated by the integration-testing skill): `MlThresholdsTests.Given_DefaultHost_When_ResolvingThresholdOptions_Then_ReadsAppSettingsValues` expects the spam threshold 0.4 (fails because of the new 0.35), and two cases of `SpamRulesTests.Given_TextCaughtOnlyByARule_..._ReportWithRuleProbability` ("Plata in avans prin transfer": the model now gives 0.59; "Detalii pe www.manuale-ieftine.com": 0.95), which already fail with the threshold 0.4, because the new model catches these texts itself, so they are no longer caught only by a rule. The dataset regenerates byte for byte; after retraining `python ml/scripts/check_metrics.py` against the committed `.json` files (copied to `.ci/reference-models` like `ml.yml`): "All tracked metrics are within tolerance of the committed reference." Only `trainedAt` (and, for the 3 other models, `dataset`) changed, so the committed models were kept.
+- **Commits:** 2ac52bc (generator and split), fe84163 (dataset and spam model), d1accd2 (threshold), fe29a22 (skills), 0a6ce3e (tests)
 
 ---
 

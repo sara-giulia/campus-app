@@ -10,6 +10,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -22,6 +23,14 @@ public sealed class MlThresholdsTests : IntegrationTestBase
     private static readonly Guid SellerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
 
+    // The API's appsettings.json as it is copied to the test output, read on its own (not through the test host),
+    // so the test follows the value chosen on validation instead of a number written here.
+    private static IConfigurationRoot AppSettings() =>
+        new ConfigurationBuilder()
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+
     private WebApplicationFactory<Program> WithSetting(string key, string value) =>
         Factory.WithWebHostBuilder(builder => builder.UseSetting(key, value));
 
@@ -30,14 +39,15 @@ public sealed class MlThresholdsTests : IntegrationTestBase
     {
         // Arrange
         var services = Factory.Services;
+        var expected = AppSettings();
 
         // Act
         var category = services.GetRequiredService<IOptions<CategorySuggestionOptions>>().Value;
         var spam = services.GetRequiredService<IOptions<SpamDetectionOptions>>().Value;
 
         // Assert
-        category.MinConfidence.Should().Be(0.6);
-        spam.Threshold.Should().Be(0.4);
+        category.MinConfidence.Should().Be(expected.GetValue<double>("Ml:Category:MinConfidence"));
+        spam.Threshold.Should().Be(expected.GetValue<double>("Ml:Spam:Threshold"));
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);
