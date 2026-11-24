@@ -7643,6 +7643,67 @@
               }
             }
           ]
+        },
+        {
+          "name": "Metrics (Admin, 200)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "metrics"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has endpoints and mlPredictions arrays\", () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property(\"endpoints\");",
+                  "  pm.expect(body).to.have.property(\"mlPredictions\");",
+                  "  pm.expect(body.endpoints).to.be.an(\"array\");",
+                  "  pm.expect(body.mlPredictions).to.be.an(\"array\");",
+                  "});",
+                  "pm.test(\"Each endpoint has route, requests, errors and statusCodes\", () => {",
+                  "  const body = pm.response.json();",
+                  "  body.endpoints.forEach(e => {",
+                  "    pm.expect(e).to.have.property(\"route\");",
+                  "    pm.expect(e).to.have.property(\"requests\");",
+                  "    pm.expect(e).to.have.property(\"errors\");",
+                  "    pm.expect(e).to.have.property(\"statusCodes\");",
+                  "  });",
+                  "});",
+                  "pm.test(\"/health and the metrics endpoint are excluded\", () => {",
+                  "  const routes = pm.response.json().endpoints.map(e => e.route);",
+                  "  pm.expect(routes).to.not.include(\"GET /health\");",
+                  "  pm.expect(routes).to.not.include(\"GET /api/v1/admin/metrics\");",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

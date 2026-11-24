@@ -1008,3 +1008,28 @@ Rules for this feature:
 - The existing tests of `Photo.Create`, `PhotoFormat` and `UploadPhotoHandler` keep all their assertions; only add tests, and only change an existing test if it no longer compiles (for example `PhotoResponse` got a new field).
 - Then run the tests with coverage as this skill says: `Domain/Photos/Photo.cs`, `Domain/Photos/PhotoFormat.cs`, `GenerateListingImageHandler.cs` and `UploadPhotoHandler.cs` are at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Observability (Sara)
+Production code (read it first): `Infrastructure/Observability/MetricsRegistry.cs` (`MetricsRegistry`, `EndpointBucket`, `PredictionBucket`), `MetricsSnapshot.cs` and `CampusMarketMeters.cs`.
+- `MetricsRegistry(CampusMarketMeters meters, TimeProvider timeProvider, int reservoirCapacity = EndpointBucket.DefaultReservoirSize)` (1024). `RecordRequest(route, method, statusCode, durationMs)` counts per route and status; status >= 500 is an error. `MeasurePrediction(model, predict)` times the call with `timeProvider.GetTimestamp()` / `GetElapsedTime` (also when `predict` throws) and returns its value. `Snapshot()` orders routes and models by name (ordinal); `AverageMs` and `P95Ms` are rounded to 2 decimals; p95 is `samples[Math.Clamp(ceil(0.95 * n) - 1, 0, n - 1)]` over the reservoir.
+- `EndpointBucket` and `PredictionBucket` are `internal` (visible through `InternalsVisibleTo`): a bucket is only created on the first record, so the empty state (`Requests`/`Count` 0, `AverageMs` and `P95Ms` null) is tested on a new bucket directly.
+
+Why it is in the unit target although it is in `Infrastructure/`: it is pure in-memory logic with no database, HTTP or file access; every branch can be reached with a fake clock. This is the only exception to the `Infrastructure/` exclusion; `MetricsMiddleware`, `MetricsRouteExtensions` and `CampusMarketMeters` stay excluded.
+
+New fake `Fakes/ManualTimeProvider.cs` (hand-written): `TimestampFrequency` = `TimeSpan.TicksPerSecond`, `GetTimestamp()` returns a counter that moves only with `Advance(TimeSpan)`. The `predict` lambda of a test calls `Advance`, so the measured duration is exact. Never use `Microsoft.Extensions.TimeProvider.Testing`.
+
+File: `Infrastructure/Observability/MetricsRegistryTests.cs` (same folders as `src/`). Each test builds its own `using var meters = new CampusMarketMeters();`.
+
+Tests to add:
+- nothing recorded → `Endpoints` and `MlPredictions` empty; a new `EndpointBucket` → `Requests` 0, `Errors` 0, `AverageMs` and `P95Ms` null, no status codes; a new `PredictionBucket` → `Count` 0, `AverageMs` null.
+- requests on two routes → one item per route in name order, `Requests` and `StatusCodes` (keys `"200"`, `"404"`, ...) per route.
+- status 500 and 503 (`[Theory]`) → `Errors` 1; 200, 404 and 499 → `Errors` 0.
+- durations 10, 20, ..., 100 ms recorded in a shuffled order → `AverageMs` 55, `P95Ms` 100; one request of 12.345 ms → `AverageMs` and `P95Ms` 12.35 (rounded to 2 decimals).
+- capacity 3 and four requests (100, 10, 20, 30) → `Requests` 4 and `AverageMs` 40 over all four, `P95Ms` 30 over the kept values (the oldest, 100, was replaced).
+- predictions of two models with durations from `ManualTimeProvider` → per model `Count` and `AverageMs`, in model name order; `MeasurePrediction` returns the value of `predict`; a `predict` that throws → the exception goes through and the call is still recorded.
+
+Rules for this feature:
+- Durations come only from `ManualTimeProvider` or are passed as numbers to `RecordRequest`: no real time, no `Stopwatch`, no `Thread.Sleep`, no `Task.Delay`.
+- The "reservoir full" branch is tested with a small positive capacity (3); never pass 0 (the index is taken modulo the capacity).
+- The endpoint `GET /api/v1/admin/metrics` and `MetricsMiddleware` are tested by the integration-testing skill, not here.
+- `MetricsRegistry.cs` is in the coverage filter of this skill and must be at 100% lines and branches; `Domain/` and the handlers stay at 100%.

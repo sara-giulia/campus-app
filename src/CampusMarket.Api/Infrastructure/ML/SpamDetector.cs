@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.Moderation;
+using CampusMarket.Api.Infrastructure.Observability;
 using Microsoft.Extensions.ML;
 using Microsoft.Extensions.Options;
 
@@ -6,10 +7,14 @@ namespace CampusMarket.Api.Infrastructure.ML;
 
 // Spam when the probability reaches the configured threshold (Ml:Spam:Threshold, chosen on validation
 // data), not the model's built-in 0.5, or when one of the SpamRules matches.
-public sealed class SpamDetector(PredictionEnginePool<SpamInput, SpamPrediction> pool, IOptions<SpamDetectionOptions> options)
+public sealed class SpamDetector(
+    PredictionEnginePool<SpamInput, SpamPrediction> pool,
+    IOptions<SpamDetectionOptions> options,
+    MetricsRegistry metrics)
     : ISpamDetector
 {
     public const string ModelName = "SpamDetection";
+    private const string MetricModel = "spam";
 
     public SpamCheck Check(string title, string? description, decimal price)
     {
@@ -20,7 +25,7 @@ public sealed class SpamDetector(PredictionEnginePool<SpamInput, SpamPrediction>
             Price = (float)price
         };
 
-        var prediction = pool.Predict(ModelName, input);
+        var prediction = metrics.MeasurePrediction(MetricModel, () => pool.Predict(ModelName, input));
         var byModel = prediction.Probability >= options.Value.Threshold;
 
         // A clear rule (link, phone, contact outside the app, money bait) makes it spam even when the

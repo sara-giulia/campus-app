@@ -7,6 +7,7 @@ using CampusMarket.Api.Features.Listings;
 using CampusMarket.Api.Features.Members;
 using CampusMarket.Api.Infrastructure.Background;
 using CampusMarket.Api.Infrastructure.ML;
+using CampusMarket.Api.Infrastructure.Observability;
 using CampusMarket.Api.Infrastructure.Persistence;
 using CampusMarket.Api.Infrastructure.Persistence.Seed;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,12 @@ public static class CampusMarketSetup
     {
         // Application clock: tests can replace it with a fake clock
         services.AddSingleton(TimeProvider.System);
+
+        // Observability: a named Meter (OpenTelemetry can read it later) and
+        // an in-memory aggregator served at /api/v1/admin/metrics. Singletons
+        // so counters survive across requests.
+        services.AddSingleton<CampusMarketMeters>();
+        services.AddSingleton<MetricsRegistry>();
 
         services.AddCampusMarketMl(configuration);
 

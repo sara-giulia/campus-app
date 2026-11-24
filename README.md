@@ -284,6 +284,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
+| Admin | `GetAdminMetrics` | `GET /api/v1/admin/metrics` | Admins only | 200 `{ endpoints: [{ route, requests, errors, averageMs, p95Ms, statusCodes }], mlPredictions: [{ model, count, averageMs }] }`, 401, 403 |
 | Category | `GetCategories` | `GET /api/v1/categories` | everyone | 200 `{ items: [{ key, displayName, description, isActive }], count }` (all 5 base categories, active or not) |
 | Category | `UpdateCategory` | `PUT /api/v1/categories/{category}` (`{ displayName, description, isActive }`) | Admins only | 204, 400 `Category.IsActiveRequired` / `Category.DisplayNameEmpty` / `Category.DisplayNameTooLong` / `Category.DescriptionTooLong`, 401, 403, 404 `Category.NotFound`, 409 `Category.LastActive` |
 | Notification | `GetMyNotifications` | `GET /api/v1/members/me/notifications?unreadOnly=&page=&pageSize=` | anyone logged in; only their own notifications | 200 `{ items, count, totalCount, unreadCount, page, pageSize }`, 400, 401 |
@@ -846,7 +847,7 @@ However the work is split, every slice comes with its tests, its Postman request
   ```
 
   ```
-  reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"
+  reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs;+*Infrastructure*Observability*MetricsRegistry.cs"
   ```
 
 - **Open the report:** open `coverage-report/index.html` in a browser
@@ -872,12 +873,48 @@ The coverage report covers only `Domain/` and the handlers (`*Handler.cs`), and 
 - `CampusMarketSetup.cs`: only registers services and routes.
 - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
 - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
+  Exception: `Infrastructure/Observability/MetricsRegistry.cs` is part of the unit target (see *"Feature: Observability (Sara)"*): it holds real logic (counters, error rule, average, p95, ring reservoir) and no I/O, so it can be tested exactly with a fake `TimeProvider`.
 - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 - `ml/**`: dev tools for the AI module (synthetic dataset generator), not app code shipped by the API.
 - `load-tests/**`: k6 scripts, not application code, no unit tests.
 - `frontend/**`: the web frontend (TypeScript), outside the .NET coverage (also excluded in the CI).
 
 SonarCloud measures more than this report: the whole API, merged from all the test projects, is at 100%. It leaves out only `Program.cs`, `ml/**`, `load-tests/**`, `frontend/**` and the EF Core migrations (`**/Migrations/**`), which are generated and whose `Down()` methods never run, because the app only applies migrations.
+
+---
+
+## Observability
+
+The API ships with two in-memory, thread-safe aggregators that answer "is the API healthy and how fast is it?" without any external dependency. Both are also published on a named `Meter` (`CampusMarket`, `System.Diagnostics.Metrics`) so a later OpenTelemetry exporter can read the same counters without touching the call sites (`Infrastructure/Observability/CampusMarketMeters.cs`).
+
+**What is measured:**
+
+- **HTTP requests**, per **route template** (`GET /api/v1/listings/{id}` is one bucket, not one per id) and status code: the number of requests, the number of errors (status `>= 500`), and the response time (**average** and **p95**, since start). `/health`, `/health/live`, `/health/ready` and `/api/v1/admin/metrics` itself are excluded on purpose — they are polled constantly and would drown out the real traffic. Recorded by `MetricsMiddleware`, which times every request and reads the final status after `UseExceptionHandler`, so a thrown exception is still counted as a 500.
+- **ML predictions**, per model (`price`, `category`, `spam`): the number of predictions and the average duration. One line in each ML service (`PriceSuggester`, `CategorySuggester`, `SpamDetector`) wraps the `pool.Predict(...)` call in `MetricsRegistry.MeasurePrediction(...)`.
+
+**Endpoint:** `GET /api/v1/admin/metrics` (Admin policy, 401 without a token, 403 with a non-admin one). Returns a point-in-time snapshot of the two aggregators as JSON:
+
+```json
+{
+  "endpoints": [
+    {
+      "route": "GET /api/v1/listings",
+      "requests": 42,
+      "errors": 0,
+      "averageMs": 7.84,
+      "p95Ms": 18.12,
+      "statusCodes": { "200": 42 }
+    }
+  ],
+  "mlPredictions": [
+    { "model": "price",    "count": 5, "averageMs": 11.3 },
+    { "model": "category", "count": 5, "averageMs":  9.2 },
+    { "model": "spam",     "count": 5, "averageMs":  6.7 }
+  ]
+}
+```
+
+A Postman request `Metrics (Admin, 200)` under the **Admin** folder calls it with the `adminToken` variable.
 
 ---
 
