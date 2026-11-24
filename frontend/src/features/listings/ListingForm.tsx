@@ -1,4 +1,4 @@
-import { useId, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { ApiError } from '../../api/errors'
 import { api } from '../../api/client'
 import { Alert, Button, ButtonLink, TextField } from '../../app/ui'
@@ -43,10 +43,25 @@ interface ListingFormProps {
   cancelLabel?: string
 }
 
+// MAE (lei) of the price regression model, used for the ± margin around the
+// suggested price. No API endpoint exposes the model metadata, so the value
+// lives here as a single constant — refresh it when the model is retrained.
+// Source: ml/models/price-regression.json (testMetrics.mae), rounded to whole lei.
+const PRICE_MAE_LEI = 269
+
+const PRICE_SUGGESTION_DEBOUNCE_MS = 300
+
 function parsePrice(input: string): number | null {
   if (input.trim() === '') return null
   const value = Number(input.replace(',', '.'))
   return Number.isFinite(value) ? value : null
+}
+
+function priceRange(suggestion: number): { low: number; high: number } {
+  return {
+    low: Math.max(0, Math.round(suggestion - PRICE_MAE_LEI)),
+    high: Math.max(0, Math.round(suggestion + PRICE_MAE_LEI)),
+  }
 }
 
 export function ListingForm({
@@ -93,27 +108,68 @@ export function ListingForm({
   const categoryId = useId()
   const conditionId = useId()
 
-  async function handleSuggestPrice() {
+  // Latest title/description, read by the debounced auto-suggest without
+  // re-triggering it on every keystroke.
+  const titleRef = useRef(title)
+  titleRef.current = title
+  const descriptionRef = useRef(description)
+  descriptionRef.current = description
+  const priceRequestRef = useRef<AbortController | null>(null)
+
+  async function runPriceSuggestion(categoryKey: Category, conditionValue: Condition): Promise<void> {
+    const trimmedTitle = titleRef.current.trim()
+    if (trimmedTitle.length === 0) return
+    const trimmedDescription = descriptionRef.current.trim()
+
+    priceRequestRef.current?.abort()
+    const controller = new AbortController()
+    priceRequestRef.current = controller
+
     setPriceSuggestionError(null)
     setSuggestingPrice(true)
     try {
-      const data = await api.post<SuggestPriceResponse>('/listings/price-suggestion', {
-        title: title.trim(),
-        category: selectedCategory,
-        condition,
-        description: description.trim() === '' ? null : description.trim(),
-      })
+      const data = await api.post<SuggestPriceResponse>(
+        '/listings/price-suggestion',
+        {
+          title: trimmedTitle,
+          category: categoryKey,
+          condition: conditionValue,
+          description: trimmedDescription === '' ? null : trimmedDescription,
+        },
+        { signal: controller.signal },
+      )
+      if (controller.signal.aborted) return
       setSuggestedPrice(data.suggestedPrice)
     } catch (err) {
+      if (controller.signal.aborted) return
+      if (err instanceof DOMException && err.name === 'AbortError') return
       if (err instanceof ApiError) {
         setPriceSuggestionError(placeListingError(err).form ?? err.message)
       } else {
         setPriceSuggestionError('Sugestia de preț nu a putut fi calculată.')
       }
     } finally {
-      setSuggestingPrice(false)
+      if (priceRequestRef.current === controller) {
+        setSuggestingPrice(false)
+        priceRequestRef.current = null
+      }
     }
   }
+
+  // Auto-suggest when category or condition changes (after the user picked a
+  // category). Debounced so a run of changes only triggers the last one; the
+  // AbortController in runPriceSuggestion cancels any in-flight request.
+  useEffect(() => {
+    if (!showSuggestions || category === null) return
+    const timer = setTimeout(() => {
+      void runPriceSuggestion(category, condition)
+    }, PRICE_SUGGESTION_DEBOUNCE_MS)
+    return () => {
+      clearTimeout(timer)
+    }
+    // runPriceSuggestion reads title/description from refs, so it doesn't need to be a dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSuggestions, category, condition])
 
   async function handleSuggestCategory() {
     setCategorySuggestionError(null)
@@ -161,7 +217,11 @@ export function ListingForm({
     }
   }
 
-  const canSuggest = title.trim().length > 0
+  const titleReady = title.trim().length > 0
+  const canSuggestPrice = titleReady && category !== null
+  const canSuggestCategory = titleReady
+
+  const suggestionRange = suggestedPrice !== null ? priceRange(suggestedPrice) : null
 
   return (
     <form onSubmit={(e) => { void handleSubmit(e) }} className="listings-form" noValidate>
@@ -247,10 +307,9 @@ export function ListingForm({
       {showSuggestions && (
         <div className="listings-form__suggestions">
           <div className="listings-form__suggestion">
-            <span className="listings-form__suggestion-label">Sugestie preț:</span>
             <span>
-              {suggestedPrice !== null
-                ? `${suggestedPrice} RON`
+              {suggestionRange !== null && suggestedPrice !== null
+                ? `Preț orientativ: ${suggestionRange.low} – ${suggestionRange.high} RON`
                 : priceSuggestionError
                   ? priceSuggestionError
                   : 'Nicio sugestie încă.'}
@@ -272,16 +331,17 @@ export function ListingForm({
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={!canSuggest || suggestingPrice}
+                disabled={!canSuggestPrice || suggestingPrice}
                 loading={suggestingPrice}
                 onClick={() => {
-                  void handleSuggestPrice()
+                  if (category !== null) void runPriceSuggestion(category, condition)
                 }}
               >
                 Sugerează preț
               </Button>
             </div>
           </div>
+          <span className="field__hint">Estimare automată; prețul îl alegi tu.</span>
 
           <div className="listings-form__suggestion">
             <span className="listings-form__suggestion-label">Sugestie categorie:</span>
@@ -309,7 +369,7 @@ export function ListingForm({
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={!canSuggest || suggestingCategory}
+                disabled={!canSuggestCategory || suggestingCategory}
                 loading={suggestingCategory}
                 onClick={() => {
                   void handleSuggestCategory()
