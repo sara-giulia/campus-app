@@ -204,7 +204,7 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
         var svg = await file.Content.ReadAsStringAsync();
         svg.Should().StartWith("<svg").And.Contain("Manual POO").And.Contain("Manuale");
         file.Headers.GetValues("Content-Security-Policy").Should().ContainSingle()
-            .Which.Should().Be("default-src 'none'; style-src 'unsafe-inline'");
+            .Which.Should().Be("default-src 'none'");
         file.Headers.GetValues("X-Content-Type-Options").Should().ContainSingle().Which.Should().Be("nosniff");
     }
 
