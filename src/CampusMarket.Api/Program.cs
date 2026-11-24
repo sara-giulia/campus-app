@@ -1,6 +1,7 @@
 using CampusMarket.Api;
 using CampusMarket.Api.Infrastructure.ErrorHandling;
 using CampusMarket.Api.Infrastructure.Logging;
+using CampusMarket.Api.Infrastructure.Observability;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
@@ -21,6 +22,11 @@ builder.Services.AddCampusMarketErrorHandling();
 var app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Observability: times every request and records (route template, status,
+// duration). Placed after CorrelationId so the finally block sees the final
+// response status (even after UseExceptionHandler has rewritten a 500).
+app.UseMiddleware<MetricsMiddleware>();
 
 app.ValidateCampusMarketProductionConfiguration();
 
@@ -60,6 +66,10 @@ app.MapCampusMarket();
 const string spaFallbackPattern =
     "/{*path:nonfile:regex(^(?!api(/|$))(?!health(/|$))(?!openapi(/|$))(?!scalar(/|$)).*$)}";
 app.MapFallbackToFile(spaFallbackPattern, "index.html");
+
+// Admin-only observability endpoint; mapped here (not from MapCampusMarket)
+// because the architecture tests forbid Features from depending on Infrastructure.
+app.MapAdminMetrics();
 
 // API documentation, only in Development: the JSON at /openapi/v1.json, the web page at /scalar.
 if (app.Environment.IsDevelopment())

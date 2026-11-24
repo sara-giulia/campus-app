@@ -1362,3 +1362,44 @@ Rules for this feature:
 - Never call a real Ollama or any network address; the Ollama base URL in the tests is `http://ollama.test/`.
 - Then run all the tests with coverage as the CI does: `SvgImageGenerator.cs`, `OllamaImageGenerator.cs`, `ImageGenerationQueue.cs`, `ImageGenerationService.cs`, `GenerateListingImageHandler.cs`, `UploadPhotoHandler.cs`, `GetPhotoFileEndpoint.cs`, `PublishListingEndpoint.cs`, `Photo.cs` and the `AddImageGeneration` lines of `CampusMarketSetup.cs` are at 100% (the service's loop ends when the app stops: `ImageGenerationService` registers `queue.Complete` on the stopping token, so disposing a factory copy with generation on covers it) for lines and branches (all test projects merged).
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Observability (Sara)
+
+Production code (read it before generating): `Infrastructure/Observability/` (`MetricsMiddleware`, `MetricsRegistry`, `MetricsRouteExtensions`, `MetricsSnapshot`, `CampusMarketMeters`) and the two lines in `Program.cs` (`UseMiddleware<MetricsMiddleware>()` right after `CorrelationIdMiddleware`, before `UseExceptionHandler`; `MapAdminMetrics()`).
+
+Endpoint: `GET /api/v1/admin/metrics`, `RequireAuthorization("Admin")`. It reads only the in-memory `MetricsRegistry` (a singleton), never the database.
+
+| Who | Answer |
+|---|---|
+| Admin (`AuthenticateAs(AdminId, "Admin")`) | 200 `application/json`, `{ endpoints: [{ route, requests, errors, averageMs, p95Ms, statusCodes }], mlPredictions: [{ model, count, averageMs }] }` |
+| a member | 403 ProblemDetails `Auth.Forbidden` |
+| no token | 401 ProblemDetails `Auth.Unauthorized` |
+
+Facts:
+- A bucket is keyed `"<METHOD> <route template>"`, the template as routing has it (`RoutePattern.RawText`, with its constraints, for example `GET /api/v1/listings/{id:guid}`). A request that matches no endpoint goes to `"<METHOD> (unmatched)"`. Never guess a key: find it from the code (or one run) and put it in a `const` of the test class.
+- `statusCodes` keys are the status as text (`"200"`, `"404"`); `errors` counts only status `>= 500`. A 404 is counted in `requests` and `statusCodes`, never in `errors`.
+- `/health`, `/health/live`, `/health/ready` and `/api/v1/admin/metrics` are never recorded.
+- The middleware runs before `UseExceptionHandler`, so an exception is recorded as a 500, on the route of the request.
+- ML models are `price`, `category`, `spam` (the `MetricModel` constants in `Infrastructure/ML/`).
+- Every test has a fresh factory, so the registry starts empty. A copy made with `Factory.WithWebHostBuilder(...)` is another host with **its own** `MetricsRegistry`: send the requests and the metrics call through the same client.
+
+File: `Admin/MetricsTests.cs` (new), class `MetricsTests : IntegrationTestBase`, fixed `SellerId`, `OtherStudentId`, `AdminId`, `CreatedAt`. Read the 200 body into `MetricsSnapshot` from `Infrastructure/Observability/`.
+
+Arrange: the requests that must be counted are sent in the Arrange with `Client`, and their status is checked there (`StatusCode.Should().Be(...)`), so a wrong setup fails clearly. Log in as Admin after them (or keep the same token); the Act is the one `GET /api/v1/admin/metrics`.
+
+Tests to add (status, body, then the database):
+- no token → 401 ProblemDetails `Auth.Unauthorized`; a member → 403 ProblemDetails `Auth.Forbidden` (as in "Feature: Error handling (Anca)"). The database is unchanged (still the 5 seeded categories, 0 listings).
+- Admin, the shape: after one `GET /api/v1/categories` → 200, media type `application/json`; the raw body (`JsonDocument`) has the arrays `endpoints` and `mlPredictions`, and the item has `route`, `requests`, `errors`, `averageMs`, `p95Ms` (numbers) and `statusCodes` (an object). Only that the fields exist and have the right JSON kind, never their values.
+- Admin, counts: two `GET /api/v1/categories` (200) and one `GET /api/v1/listings/{unknown id}` (404 `Listing.NotFound`) → the categories bucket has `requests` 2, `errors` 0, `statusCodes` exactly `{ "200": 2 }`; the listing-by-id bucket `requests` 1, `errors` 0, `statusCodes` `{ "404": 1 }`; exactly these two buckets.
+- an unknown route (`GET /api/v1/does-not-exist`, 404) → one `GET (unmatched)` bucket with `{ "404": 1 }` and `errors` 0.
+- not counted: `GET /health`, `/health/live`, `/health/ready` (200) and a first `GET /api/v1/admin/metrics` as Admin → the second metrics call returns an empty `endpoints`.
+- a 500 is an error: a copy with `ThrowingUnitOfWork` (see "Feature: Error handling (Anca)"), a seeded draft of `SellerId`, the seller publishes it → 500; then, with the same copy's client logged in as Admin, the metrics call → exactly one bucket, on its own route `POST /api/v1/listings/{id:guid}/publish` (in a `const`), never `POST (unmatched)`, with `requests` 1, `errors` 1, `statusCodes` `{ "500": 1 }`; the listing is still `Draft` with `Version` 1. The middleware reads the route before `next`, because `UseExceptionHandler` clears the endpoint when it handles the exception.
+- ML: one `POST /api/v1/listings/price-suggestion` (real model, 200) → `mlPredictions` has exactly one item, `price` with `count` 1.
+
+Rules for this feature:
+- Never assert a real duration: `averageMs` and `p95Ms` come from the real clock. Check only that the fields are there (and are numbers); exact averages and p95 are tested by the unit-testing skill with a fake `TimeProvider`.
+- Never use `Task.Delay` or `Thread.Sleep` to make a duration measurable.
+- Never replace `MetricsRegistry`, `CampusMarketMeters` or `TimeProvider` in the test host for these tests.
+- Then run all the tests with coverage as the CI does (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`): every file in `Infrastructure/Observability/` is at 100% lines and branches (all test projects merged). If a line or branch is still not covered, stop and report which one and why.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
