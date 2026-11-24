@@ -15,14 +15,18 @@
       Email__UseSsl: "false"
       Email__From: noreply@campusmarket.local
     depends_on:
-      - db
-      - mailpit
+      # The API runs the migrations at startup, so it waits until PostgreSQL accepts connections.
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
     volumes:
       # Uploaded photos (/app/data/photos) survive "docker compose down"; "down -v" removes them
       - campusmarket-data:/app/data
 
   # Local PostgreSQL (the same engine as on Render). "docker compose up -d db" starts only the
-  # database, for "dotnet run" on the host. The data survives "docker compose down"; "down -v" removes it.
+  # database, for "dotnet run" on the host (port 5433, so it does not clash with a PostgreSQL
+  # installed on the machine). The data survives "docker compose down"; "down -v" removes it.
   db:
     image: postgres:17
     ports:
@@ -31,6 +35,11 @@
       POSTGRES_DB: campusmarket
       POSTGRES_USER: campusmarket
       POSTGRES_PASSWORD: campusmarket
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campusmarket -d campusmarket"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     volumes:
       - campusmarket-pg:/var/lib/postgresql/data
 
