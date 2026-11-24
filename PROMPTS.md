@@ -1967,6 +1967,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 31fbffd; skill section a286010; tests generated in 7e729c3
 
+### Run 50, skill v49 (Feature: Live events)
+
+- **Why a new version:** branch `feature/live-events`, week 8, task 3. New endpoint `GET /api/v1/members/me/events` (Server-Sent Events): a `message` event to the other member of a conversation and a `notification` event to the member of a new notification, published by `EfUnitOfWork` after the save, plus a `ping` right after connecting and every `LiveEvents:HeartbeatSeconds`. A response that stays open needs its own way of reading in the tests, and it had no integration test.
+
+#### Change to SKILL.md (v48 → v49) and why
+
+| # | v48 (before) | v49 (after) | Why |
+|---|---|---|---|
+| 1 | Nothing about a response that stays open. | New section *"Feature: Live events (Anca)"*: the event format, the first `ping` as the sign that the server is subscribed, two private helpers (open the stream with its own client and `ResponseHeadersRead`; read one event with a timeout through a `CancellationTokenSource`, never `Task.Delay`), and the tests to add: 401, first `ping`, reservation → `notification`, message → `message` to the other member, nothing to the sender or to someone outside the conversation, two connections of the same member, heartbeat of 1 second, invalid `HeartbeatSeconds` at start. | Without the first `ping` a test cannot know when to trigger the event (it would race the subscription), and without a timeout a test waiting for "no event" would hang forever. |
+| 2 | The section asked for fixed `SellerId` and `BuyerId` **and** for members made with `Member.Create(...)`, which makes its own id. | Only `OtherStudentId` is fixed (not seeded, a token is enough); the seller and the buyer are seeded and their `seller.Id` / `buyer.Id` used, as in `SendMessageTests`. | Reported by the run: the two rules contradict each other, and the listing, reservation and conversation need members that exist. Changed after the run; the generated tests already did it this way. |
+
+- **Prompt:** `Use the integration-testing skill (read the whole file first). Integration tests already exist: keep them all. Generate the tests for the section "Feature: Live events (Anca)": the new file Members/StreamMyEventsTests.cs with only the tests it lists. Build, run the integration tests three times and the whole solution once, and the SARIF check. You may only change files under tests/CampusMarket.IntegrationTests/.` (new session)
+- **Skill version:** v49
+- **Result:** new `Members/StreamMyEventsTests.cs`, 9 tests (10 cases): no token → 401 `Auth.Unauthorized`; logged in → 200 `text/event-stream`, first event `ping`; the buyer reserves → the seller's stream gets `notification` and the database has the reservation and the notification; the seller answers → the buyer gets `message` with the conversation id; the sender and a member outside the conversation get nothing within 1 second; two streams of the buyer both get it; with `HeartbeatSeconds` 1 a second `ping` comes; `HeartbeatSeconds` 0 and 301 → `OptionsValidationException` at start. Integration tests 423/423 three times; full run 10 architecture, 727 unit, 69 ML, 423 integration; SARIF of the test project empty.
+- **Problems seen:** (1) row 2 of the table. (2) The run reported that the end of the event loop in `InMemoryLiveEvents.SubscribeAsync` and in the endpoint (the `await foreach` ending normally) could not be covered: the stream only ever ends by cancellation. Fixed in `src/`, not in the tests: `SubscribeAsync` now returns `channel.Reader.ReadAllAsync(ct)` and cleans up in `ct.Register(...)`, and the endpoint maps the events with `Select` instead of its own loop. After that `StreamMyEventsEndpoint.cs`, `InMemoryLiveEvents.cs`, `LiveEvent.cs`, `LiveEventsOptions.cs`, `EfUnitOfWork.cs` and `CampusMarketSetup.cs` are at 100% lines and branches, with the same tests.
+- **Change to SKILL.md after the run:** row 2 of the table above.
+- **Commits:** code 0c6032f; skill section 6885bcc; tests generated in efac720
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -3013,4 +3031,23 @@ Week 8, task 2: the professor asked for the move to .NET 11 (released on 10 Nove
 - **Changes:** `net10.0` → `net11.0` in the 7 projects; the Microsoft packages (`JwtBearer`, `OpenApi`, `EntityFrameworkCore.Sqlite`, `EntityFrameworkCore.Design`, `HealthChecks.EntityFrameworkCore`, `Mvc.Testing`) from `10.0.*` to `11.0.*`; the local `dotnet-ef` tool 10.0.14 → 11.0.0; `Dockerfile` on `sdk:11.0` and `aspnet:11.0`; `setup-dotnet` on `11.0.x` in `build.yml`, `ml.yml` and `deploy.yml`, and `DOTNET_ROLL_FORWARD: Major` on the two SonarScanner steps (the scanner tool is built for an older .NET). ML.NET (5.0.1), xUnit, FluentAssertions, NetArchTest and Scalar stay on the same versions: they do not depend on the .NET version and work on 11. README and the skills say .NET 11.
 - **Problems seen:** EF Core 11 marks `ExecuteSqlInterpolatedAsync` obsolete (warning CS0618 in `ListingsCacheTests.cs`): replaced with `ExecuteSqlAsync`, same behaviour.
 - **Checks:** build 0 warnings, SARIF empty; 10 architecture, 727 unit, 69 ML and 413 integration tests pass on net11.0; `dotnet ef migrations has-pending-model-changes`: no changes, so no new migration; the dataset regenerates byte for byte and the retrained models give exactly the same metrics (`check_metrics.py` passes, only `trainedAt` changed, so the committed models were kept); the API starts, `/health/ready` is 200 (database and the 4 models), the OpenAPI document is now **3.2.0** (the ASP.NET Core 11 default) and Scalar shows it correctly; the Postman collection with newman: 188 requests, 367 assertions, 0 failures. The Docker image is checked by the `docker` job of `build.yml`.
-- **Commits:** to be filled in
+- **Commits:** b323948
+
+## live-events
+
+Week 8, task 3: new messages and notifications appear on the open pages without polling, with Server-Sent Events instead of WebSocket/SignalR. Done by Ancuța Ilenei with Claude Code; tests generated with the integration-testing skill (Run 50).
+
+### Run 1
+
+- **Prompt:** `Task 3 from the week 8 plan: live messages and notifications with Server-Sent Events (GET /api/v1/members/me/events), the notifications badge updated from the same stream, no polling.`
+- **Decisions:**
+    - `ILiveEvents` (`Common/Events/`) with `InMemoryLiveEvents` (`Infrastructure/Events/`): one bounded channel per open connection, grouped by member (two tabs both get the event). Enough for one instance on Render; several instances would need Redis or Postgres `LISTEN/NOTIFY` (written in the README).
+    - Events are published by `EfUnitOfWork.CommitAsync` **after** `SaveChangesAsync`, from the new `Notification` and `Message` rows in the change tracker (a message goes to the other member of its tracked conversation). So the three handlers that create notifications, the two conversation handlers and the reservation expiry service did not change, and nobody is told about something that was not saved.
+    - An event only says what changed (`type`, `conversationId`); the page loads the data through the normal endpoints, so no message text goes through the stream.
+    - Authentication: the frontend reads the stream with `fetch` and the usual `Authorization` header (`openStream` in `api/client.ts`, same refresh as the other requests), not with `EventSource`, which cannot send headers; a token in the query string would end up in logs.
+    - A `ping` right after connecting (the browser knows at once that it is connected, the headers are sent at once) and every `LiveEvents:HeartbeatSeconds` (25, checked 1–300 at start), so Render does not close an idle connection.
+    - Frontend: `features/live/` (`LiveEventsProvider` around the layout, `useLiveEvents` hook, reconnect after 2 s up to 30 s). The badge and the notifications page reload on `notification`, the messages list and the conversation on `message`; the conversation page keeps its 5 s poll only while the stream is not connected.
+    - Postman: no request added; newman waits for the end of a response and this one never ends.
+- **Checks:** build 0 warnings, SARIF of the API clean (only the old migration warnings); `npm run build` and `npm run lint` clean; all tests pass (10 architecture, 727 unit, 69 ML, 423 integration). By hand on a running API: 401 without a token; with two users, the seller's stream gets `notification` when the buyer reserves and `message` when the buyer writes, the buyer gets `message` when the seller answers, the sender gets nothing. In headless Chrome, the buyer's conversation page shows the seller's new message about 0.1 s after it was sent (before: up to 5 s).
+- **Result:** new `Common/Events/` (`LiveEvent`, `ILiveEvents`, `LiveEventsOptions`), `Infrastructure/Events/InMemoryLiveEvents.cs`, `Features/Members/StreamMyEvents/StreamMyEventsEndpoint.cs`, `frontend/src/features/live/`; changed `EfUnitOfWork.cs`, `CampusMarketSetup.cs`, `MembersEndpoints.cs`, `appsettings.json`, `api/client.ts`, `Layout.tsx`, `NotificationsProvider.tsx`, `NotificationsPage.tsx`, `MessagesPage.tsx`, `ConversationPage.tsx`; README (endpoint tables and the section "Live events (Server-Sent Events)", with why SSE and not WebSocket/SignalR) and `frontend/README.md`.
+- **Commits:** code 0c6032f; skill section 6885bcc; tests generated in efac720
