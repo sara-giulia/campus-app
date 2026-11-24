@@ -66,7 +66,7 @@ public static class CampusMarketSetup
         services.AddCampusMarketMl(configuration);
 
         services.AddDbContext<CampusMarketDbContext>((sp, options) =>
-            options.UseSqlite(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));
+            options.UseNpgsql(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));
 
         services.AddScoped<IListingRepository, EfListingRepository>();
         services.AddScoped<IMemberRepository, EfMemberRepository>();
@@ -315,8 +315,8 @@ public static class CampusMarketSetup
     // listings have been seeded yet. The member table may already hold rows (an
     // Admin created by SeedAdmin, or a real sign-up) — the demo listings still
     // seed next to them. Safe to leave wired across restarts: a redeploy on
-    // Render loses the SQLite file, so the first start after a redeploy seeds
-    // again, every later start is a no-op. Off by default; tests leave
+    // Render keeps the PostgreSQL data, so only the first start ever seeds,
+    // and every later start is a no-op. Off by default; tests leave
     // Seed:DemoData unset.
     private static void SeedDemoDataIfRequested(IServiceProvider services, CampusMarketDbContext db, IConfiguration config)
     {

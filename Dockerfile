@@ -27,9 +27,8 @@ WORKDIR /app
 COPY --from=build /app .
 # Static SPA files served by UseStaticFiles; deep links fall back to index.html
 COPY --from=frontend-build /frontend/dist ./wwwroot
-# The SQLite file lives in a folder the non-root user can write to
+# Uploaded photos live in a folder the non-root user can write to (the database is PostgreSQL)
 RUN mkdir /app/data && chown $APP_UID /app/data
-ENV ConnectionStrings__CampusMarket="Data Source=/app/data/campusmarket.db"
 # The photo files next to the database, in the same volume
 ENV Storage__PhotosPath=/app/data/photos
 # Run as the non-root user that the .NET images provide

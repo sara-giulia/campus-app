@@ -5,38 +5,43 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace CampusMarket.Api.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(CampusMarketDbContext))]
-[Migration("20261124075112_AddGeneratedPhotos")]
-partial class AddGeneratedPhotos
+[Migration("20261124163450_InitialPostgres")]
+partial class _20261124163450_InitialPostgres
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
-        modelBuilder.HasAnnotation("ProductVersion", "11.0.0");
+        modelBuilder
+            .HasAnnotation("ProductVersion", "11.0.0")
+            .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+        NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Categories.ListingCategory", b =>
             {
                 b.Property<string>("Key")
                     .HasMaxLength(20)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(20)");
 
                 b.Property<string>("Description")
                     .HasMaxLength(500)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(500)");
 
                 b.Property<string>("DisplayName")
                     .IsRequired()
                     .HasMaxLength(100)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(100)");
 
                 b.Property<bool>("IsActive")
-                    .HasColumnType("INTEGER");
+                    .HasColumnType("boolean");
 
                 b.HasKey("Key");
 
@@ -78,22 +83,22 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Conversations.Conversation", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<Guid>("BuyerId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<DateTimeOffset>("LastMessageAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<Guid>("SellerId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.HasKey("Id");
 
@@ -110,24 +115,24 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Conversations.Message", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<Guid>("ConversationId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<int>("Number")
-                    .HasColumnType("INTEGER");
+                    .HasColumnType("integer");
 
                 b.Property<Guid>("SenderId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("SentAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("Text")
                     .IsRequired()
                     .HasMaxLength(1000)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(1000)");
 
                 b.HasKey("Id");
 
@@ -139,16 +144,16 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Favorites.Favorite", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<Guid>("MemberId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.HasKey("Id");
 
@@ -163,41 +168,41 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Listings.Listing", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("Category")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.Property<string>("Condition")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("Description")
                     .HasMaxLength(1000)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(1000)");
 
                 b.Property<decimal>("Price")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("numeric");
 
                 b.Property<Guid>("SellerId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("Status")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.Property<string>("Title")
                     .IsRequired()
                     .HasMaxLength(100)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(100)");
 
                 b.Property<int>("Version")
                     .IsConcurrencyToken()
-                    .HasColumnType("INTEGER");
+                    .HasColumnType("integer");
 
                 b.HasKey("Id");
 
@@ -207,23 +212,23 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Listings.Reservation", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<DateTimeOffset>("ExpiresAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<Guid>("MemberId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("Status")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.HasKey("Id");
 
@@ -235,27 +240,27 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Listings.SaleRecord", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("Category")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.Property<string>("Condition")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.Property<Guid>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("SoldAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<decimal>("SoldPrice")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("numeric");
 
                 b.Property<decimal>("SuggestedPrice")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("numeric");
 
                 b.HasKey("Id");
 
@@ -267,28 +272,28 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Members.Member", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("Email")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.Property<string>("Name")
                     .IsRequired()
                     .HasMaxLength(100)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(100)");
 
                 b.Property<string>("PasswordHash")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.Property<string>("Role")
                     .IsRequired()
                     .ValueGeneratedOnAdd()
                     .HasMaxLength(20)
-                    .HasColumnType("TEXT")
+                    .HasColumnType("character varying(20)")
                     .HasDefaultValue("Student");
 
                 b.HasKey("Id");
@@ -302,24 +307,24 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Members.PasswordResetToken", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<DateTimeOffset>("ExpiresAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid>("MemberId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("TokenHash")
                     .IsRequired()
                     .HasMaxLength(64)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(64)");
 
                 b.Property<DateTimeOffset?>("UsedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.HasKey("Id");
 
@@ -334,24 +339,24 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Members.RefreshToken", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<DateTimeOffset>("ExpiresAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid>("MemberId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset?>("RevokedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("TokenHash")
                     .IsRequired()
                     .HasMaxLength(64)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(64)");
 
                 b.HasKey("Id");
 
@@ -366,28 +371,28 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Notifications.Notification", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid?>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<Guid>("MemberId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("Message")
                     .IsRequired()
                     .HasMaxLength(500)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(500)");
 
                 b.Property<DateTimeOffset?>("ReadAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("Type")
                     .IsRequired()
-                    .HasColumnType("TEXT");
+                    .HasColumnType("text");
 
                 b.HasKey("Id");
 
@@ -399,29 +404,29 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Photos.Photo", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("ContentType")
                     .IsRequired()
                     .HasMaxLength(32)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(32)");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<string>("FileName")
                     .IsRequired()
                     .HasMaxLength(64)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(64)");
 
                 b.Property<bool>("IsGenerated")
-                    .HasColumnType("INTEGER");
+                    .HasColumnType("boolean");
 
                 b.Property<Guid>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<long>("SizeBytes")
-                    .HasColumnType("INTEGER");
+                    .HasColumnType("bigint");
 
                 b.HasKey("Id");
 
@@ -433,24 +438,24 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Reports.Report", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("Reason")
                     .IsRequired()
                     .HasMaxLength(500)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(500)");
 
                 b.Property<Guid?>("ReporterId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<double?>("SpamProbability")
-                    .HasColumnType("REAL");
+                    .HasColumnType("double precision");
 
                 b.HasKey("Id");
 
@@ -465,26 +470,26 @@ partial class AddGeneratedPhotos
         modelBuilder.Entity("CampusMarket.Api.Domain.Reviews.Review", b =>
             {
                 b.Property<Guid>("Id")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<string>("Comment")
                     .HasMaxLength(500)
-                    .HasColumnType("TEXT");
+                    .HasColumnType("character varying(500)");
 
                 b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("timestamp with time zone");
 
                 b.Property<Guid>("ListingId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<int>("Rating")
-                    .HasColumnType("INTEGER");
+                    .HasColumnType("integer");
 
                 b.Property<Guid>("ReviewerId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.Property<Guid>("SellerId")
-                    .HasColumnType("TEXT");
+                    .HasColumnType("uuid");
 
                 b.HasKey("Id");
 

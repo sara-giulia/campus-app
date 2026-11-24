@@ -1,4 +1,4 @@
-services:
+﻿services:
   api:
     build: .
     ports:
@@ -6,6 +6,7 @@ services:
     environment:
       # Local demo only: dev JWT key and the seeded admin
       ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__CampusMarket: "Host=db;Port=5432;Database=campusmarket;Username=campusmarket;Password=campusmarket"
       # Point the API at the Mailpit container below. Mailpit's SMTP speaks
       # plain, so UseSsl is false. Credentials are left unset: Mailpit accepts
       # any sender; set Email__Username / Email__Password only for real SMTP.
@@ -14,10 +15,24 @@ services:
       Email__UseSsl: "false"
       Email__From: noreply@campusmarket.local
     depends_on:
+      - db
       - mailpit
     volumes:
-      # The SQLite database survives "docker compose down"; "down -v" removes it
+      # Uploaded photos (/app/data/photos) survive "docker compose down"; "down -v" removes them
       - campusmarket-data:/app/data
+
+  # Local PostgreSQL (the same engine as on Render). "docker compose up -d db" starts only the
+  # database, for "dotnet run" on the host. The data survives "docker compose down"; "down -v" removes it.
+  db:
+    image: postgres:17
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: campusmarket
+      POSTGRES_USER: campusmarket
+      POSTGRES_PASSWORD: campusmarket
+    volumes:
+      - campusmarket-pg:/var/lib/postgresql/data
 
   # Local-dev SMTP sink: accepts every email the API sends and shows it in a
   # web UI on http://localhost:8025. No credentials, no outbound traffic.
@@ -29,3 +44,4 @@ services:
 
 volumes:
   campusmarket-data:
+  campusmarket-pg:
