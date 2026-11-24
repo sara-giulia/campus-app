@@ -7,7 +7,7 @@ description: Turns CampusMarket slices into CQRS commands, queries and handlers 
 
 ## Project facts (do not change these)
 
-- .NET 10 minimal API in `src/CampusMarket.Api`, root namespace `CampusMarket.Api`.
+- .NET 11 minimal API in `src/CampusMarket.Api`, root namespace `CampusMarket.Api`.
 - `Result<T>` and `Error` (with `ErrorType`: `Validation`, `NotFound`, `Conflict`) already exist in `Domain/Common/`. Reuse them as they are.
 - Repository interfaces live next to the domain class (`IListingRepository`, `IMemberRepository`). `AddAsync` returns `Task<bool>` (false = duplicate Id), `GetByIdAsync` returns `null` when missing, `GetAllAsync` returns a snapshot, `Update` and `Delete` take the loaded entity.
 - Slices live in `Features/<Resource>/<UseCase>/`, routes are under `/api/v1`.

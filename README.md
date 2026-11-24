@@ -151,7 +151,7 @@ Architecture diagrams (Mermaid, in Romanian): [docs/architecture.md](docs/archit
 
 ### Tech stack
 
-- .NET 10, ASP.NET Core **minimal APIs**
+- .NET 11, ASP.NET Core **minimal APIs** (moved from .NET 10 in week 8; the OpenAPI document is now version 3.2, Scalar shows it as before)
 - **Vertical slices** with hand-written **CQRS** handlers (commands and queries)
 - **Repository + Unit of Work** over **EF Core** with **SQLite**
 - `Result<T>` for expected errors (no exceptions for business rule violations)
@@ -1058,7 +1058,7 @@ Everything in the pipeline is pinned so two runs produce the same bytes:
   are sorted alphabetically and metrics are written with six decimals, so a
   `git diff` of two runs only highlights real changes.
 - CI (`.github/workflows/ml.yml`, runs on `ml/**` or
-  `tests/CampusMarket.ML.Tests/**` changes): sets up .NET 10, restores, then
+  `tests/CampusMarket.ML.Tests/**` changes): sets up .NET 11, restores, then
   (1) regenerates `ml/data/listings.csv` with the generator and fails if
   `git diff --exit-code` reports a byte change; (2) trains the models;
   (3) runs `ml/scripts/check_metrics.py` on the new sidecars against the

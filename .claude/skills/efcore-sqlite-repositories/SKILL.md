@@ -9,7 +9,7 @@ We want the data to be saved in a real database (SQLite) instead of in memory. T
 
 ## What is already there
 
-- The API is in `src/CampusMarket.Api` (namespace `CampusMarket.Api`, .NET 10).
+- The API is in `src/CampusMarket.Api` (namespace `CampusMarket.Api`, .NET 11).
 - The `cqrs` skill already ran. Every slice has a handler, and the handlers only talk to `IListingRepository`, `IMemberRepository` and `IUnitOfWork` (`Domain/Common/IUnitOfWork.cs`).
 - The interfaces already promise this, and it must stay true:
   - `AddAsync` returns `false` if the Id already exists, and then adds nothing.
@@ -37,7 +37,7 @@ Two packages, in `src/CampusMarket.Api/CampusMarket.Api.csproj`:
 
 The database schema is created and changed with EF Core migrations, never with `EnsureCreated`.
 
-- The `dotnet ef` tool is a **local tool** of the repository, so everyone uses the same version: `.config/dotnet-tools.json`, created with `dotnet new tool-manifest` and `dotnet tool install dotnet-ef` (the latest 10.0.x).
+- The `dotnet ef` tool is a **local tool** of the repository, so everyone uses the same version: `.config/dotnet-tools.json`, created with `dotnet new tool-manifest` and `dotnet tool install dotnet-ef` (the latest 11.0.x).
 - The first migration is called `InitialCreate` and goes into `Infrastructure/Persistence/Migrations/`:
 
   ```
