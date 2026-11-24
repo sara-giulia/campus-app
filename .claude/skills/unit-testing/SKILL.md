@@ -980,3 +980,31 @@ Rules for this feature:
 - Never use real time: every `createdAt` is a fixed `DateTimeOffset`.
 - The handler has no failure branch: never invent an error test for it.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Generated images (Anca)
+
+Production code (read it before generating):
+- `Domain/Photos/Photo.cs`: new `IsGenerated`. New `CheckCanGenerate(listing, existingCount)` returns `null` when the listing can get a generated image, `Photo.ListingNotActive` (Validation) when its status is not `Active`, `Photo.ListingHasPhotos` (Conflict) when `existingCount > 0`. New `CreateGenerated(listing, existingCount, content, format, createdAt)`: the same two checks, then the size checks (`Photo.Empty` for 0 bytes, `Photo.TooLarge` above `MaxSizeBytes`), then a photo with `IsGenerated` true, `FileName` `{id}{format.Extension}`, `ContentType` from `format`, `SizeBytes`, `CreatedAt`. The size checks moved into a private `CheckSize` shared with `Create`; `Create` behaves exactly as before and its existing tests must still pass unchanged.
+- `Domain/Photos/PhotoFormat.cs`: new `PhotoFormat.Svg` (`.svg`, `image/svg+xml`). `Detect` still never returns it (an SVG upload stays refused).
+- `Features/Photos/GenerateListingImage/GenerateListingImageHandler.cs` (new command handler): listing not found → `Listing.NotFound`; `CheckCanGenerate` fails → that error, and the generator is **not** called; otherwise it reads the category (`ICategoryRepository.GetByKeyAsync`) and calls `IImageGenerator.GenerateAsync` with `ImagePrompt(Title, Description, Category, CategoryName)`, where `CategoryName` is the category's `DisplayName`, or `listing.Category.ToString()` when the repository has no row; `CreateGenerated` fails (empty or too large image) → that error, nothing saved; success → the file saved through `IPhotoStorage` (listing id, file name, the generator's bytes), the photo added, one commit, `PhotoResponse` with `IsGenerated` true.
+- `Features/Photos/UploadPhoto/UploadPhotoHandler.cs` (changed): it now reads `GetByListingAsync`; generated photos do not count towards the limit (`existingCount` = real photos only). On success the generated photos are deleted from the repository before the commit and their files deleted from the storage after it. On failure nothing is deleted.
+- `Features/Photos/PhotoResponse.cs`: new last field `IsGenerated`.
+
+Files: `Domain/Photos/PhotoTests.cs` and `Domain/Photos/PhotoFormatTests.cs` (add the new tests, keep the old ones), `Features/Photos/GenerateListingImage/GenerateListingImageHandlerTests.cs` (new), `Features/Photos/UploadPhoto/UploadPhotoHandlerTests.cs` (add the new tests, keep the old ones).
+
+Fakes: reuse `FakeListingRepository`, `FakePhotoRepository`, `FakePhotoStorage`, `FakeCategoryRepository`, `FakeUnitOfWork`, `FixedTimeProvider`. Add `Fakes/FakeImageGenerator.cs`: returns a fixed `GeneratedImage` set by the test (by default a small SVG byte array and `PhotoFormat.Svg`), records every `ImagePrompt` it got (`Prompts` list), so a test can check it was or was not called and with what.
+
+Arrange: an `Active` listing is `Listing.Create(...).Value` then `Publish()`; a generated photo to seed is `Photo.CreateGenerated(activeListing, 0, bytes, PhotoFormat.Svg, now).Value`.
+
+Tests to add:
+- `Photo.CheckCanGenerate`: Active and 0 photos → null; Draft → `Photo.ListingNotActive` (Validation); Active with 1 photo → `Photo.ListingHasPhotos` (Conflict).
+- `Photo.CreateGenerated`: success → every field (`IsGenerated` true, the format's content type and extension, size, time); Draft → `Photo.ListingNotActive`; existing photo → `Photo.ListingHasPhotos`; empty bytes → `Photo.Empty`; `MaxSizeBytes + 1` bytes → `Photo.TooLarge`; exactly `MaxSizeBytes` → success.
+- `PhotoFormat.Svg`: extension and content type; `Detect` of an SVG text (`"<svg ..."` bytes) → null.
+- `GenerateListingImageHandler`: unknown listing → `Listing.NotFound`, generator not called, nothing saved; Draft listing → `Photo.ListingNotActive`, generator not called; listing with a photo → `Photo.ListingHasPhotos`, generator not called; success → the prompt has the listing's title, description, category and the category's display name, the photo is saved with `IsGenerated` true, the storage has the generator's bytes under the photo's file name, one commit, the response matches; no category row in the repository → `CategoryName` is the enum name; the generator returns 0 bytes → `Photo.Empty`, nothing saved, no commit.
+- `UploadPhotoHandler`: a listing with one generated photo, the seller uploads a PNG → success, the repository has only the new photo, the generated photo's file is gone from the storage and the new file is there, one commit; a listing with 5 real photos and 1 generated → `Photo.LimitReached` and the generated photo and its file are still there; a listing with 4 real photos and 1 generated → success (the generated one does not count), 5 real photos left.
+
+Rules for this feature:
+- Never use real time; never touch the disk (only the fakes).
+- The existing tests of `Photo.Create`, `PhotoFormat` and `UploadPhotoHandler` keep all their assertions; only add tests, and only change an existing test if it no longer compiles (for example `PhotoResponse` got a new field).
+- Then run the tests with coverage as this skill says: `Domain/Photos/Photo.cs`, `Domain/Photos/PhotoFormat.cs`, `GenerateListingImageHandler.cs` and `UploadPhotoHandler.cs` are at 100% for lines and branches.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
