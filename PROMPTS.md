@@ -2132,6 +2132,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 023bc35; README and architecture 21bf11e; skill sections 1300cfa; tests on Testcontainers dc950d1
 
+### Run 55, skill v54 (Feature: Connection string check in Production)
+
+- **Why a new version:** branch `feature/postgres`. In Production a missing `ConnectionStrings__CampusMarket` only failed later, at the first database call, with a connection error. `ValidateCampusMarketProductionConfiguration` now fails at startup, like the `Jwt:Key` and the Email checks, and says which variable to set and in which form.
+
+#### Change to SKILL.md (v53 → v54) and why
+
+| # | v53 (before) | v54 (after) | Why |
+|---|---|---|---|
+| 1 | The production configuration section had rules for `Jwt:Key` (and the demo data) only. | New part "Connection string check in Production": the check, the factory setting `ConnectionStrings:CampusMarket`, and three tests (empty and whitespace in Production throw with `ConnectionStrings__CampusMarket`; Development without it answers `/health` 200). | The new check needs its own tests, and the other Production tests need a connection string to pass it. |
+
+- **Prompt:** `Branch feature/postgres. Add one production check and its tests. 1. API: in CampusMarketSetup.ValidateCampusMarketProductionConfiguration, after the Jwt:Key check, when ConnectionStrings:CampusMarket is missing or whitespace in Production, throw InvalidOperationException with a message that names ConnectionStrings__CampusMarket and says it must be a PostgreSQL connection string in key/value form (Host=...;Database=...;Username=...;Password=...;SSL Mode=Require), not a postgresql:// URL. Same style as the existing Jwt and Email checks. Update the comment above the method. 2. Test infrastructure: CampusMarketApiFactory must also set ConnectionStrings:CampusMarket (UseSetting) to its test database connection string, so the existing Production tests keep passing. 3. Integration-testing skill: add the rule for this check to the production configuration section (next free version after the latest one in PROMPTS.md on this branch), then generate the tests with it in ProductionConfigurationTests: Production with an empty connection string throws with "ConnectionStrings__CampusMarket" in the message; Production with a whitespace one throws the same; Development without it does not run this check. 4. Run the affected tests first, then the full suite once. No coverage report. 5. Add the PROMPTS.md entry (next free run number), same format, with "Commits:" empty for me. Tell me which numbers you used. All names in English. Do not commit. Do not push.` (new session)
+- **Skill version:** v54 (the last integration-testing version was v53, Run 54)
+- **Result:** `CampusMarketSetup.cs`: the new check after `Jwt:Key` (reads `GetConnectionString("CampusMarket")`), and the comment of the method rewritten and moved onto it (it sat above `AddImageGeneration`). `CampusMarketApiFactory`: `UseSetting("ConnectionStrings:CampusMarket", ...)` with its own database. `ProductionConfigurationTests`: 3 tests added (a `[Theory]` with `""` and `"   "`, and the Development test), 455 integration tests instead of 452. Full run: `dotnet build` 0 warnings, 0 errors; 10 architecture, 762 unit, 69 ML and 455 integration tests pass. No coverage run, as asked.
+- **Problems seen:** none. Section 7 of the skill says never edit `.claude/skills/` or `PROMPTS.md`, and never change `src/`; they were changed here because the task asked for it explicitly.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 87013cd; skill section d9c0ec0; tests generated in 1fa27a0
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
