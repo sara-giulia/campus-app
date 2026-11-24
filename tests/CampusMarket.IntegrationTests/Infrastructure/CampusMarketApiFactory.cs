@@ -24,6 +24,8 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Storage:PhotosPath", PhotosPath);
         builder.UseSetting("Seed:AdminEmail", "");
         builder.UseSetting("Jwt:Key", TestTokens.Key);
+        // The Production check needs a connection string; the DbContext itself is re-registered below on the same database.
+        builder.UseSetting("ConnectionStrings:CampusMarket", SharedPostgres.ConnectionStringFor(_database));
         // The reservation expiry background service must not run during tests.
         builder.UseSetting("ReservationExpiry:Enabled", "false");
         // The image generation background service must not run during tests either; GeneratedImagesTests turns it on.
