@@ -1291,3 +1291,38 @@ Rules for this feature:
 - Read the success body into `GetMyListingsResponse`; check the order of `items` by id, not only their count.
 - For 401 check the status code and the ProblemDetails code, as in the reservations tests.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Live events (Anca)
+
+Endpoint: `GET /api/v1/members/me/events` (`Features/Members/StreamMyEvents/StreamMyEventsEndpoint.cs`), Server-Sent Events. It needs a login (`RequireAuthorization()`); without a token → 401 ProblemDetails `Auth.Unauthorized`, as in "Feature: Reservations (Sara)". With a token → 200, `Content-Type: text/event-stream`, and the response stays open. Every event is two lines and an empty line: `event: <type>` and `data: {"type":"<type>","conversationId":<guid or null>}`. Types: `ping`, `notification`, `message`.
+
+How it works (read these files before generating): `Common/Events/LiveEvent.cs`, `ILiveEvents.cs`, `LiveEventsOptions.cs`; `Infrastructure/Events/InMemoryLiveEvents.cs`; `Infrastructure/Persistence/EfUnitOfWork.cs`.
+- The **first** event of every connection is a `ping`, written right after the connection is registered. Once a test has read it, the server is subscribed and the test can trigger an event.
+- After that a `ping` comes every `LiveEvents:HeartbeatSeconds` (default 25, valid 1–300, checked at start with the message `LiveEvents:HeartbeatSeconds must be between 1 and 300.`).
+- `EfUnitOfWork.CommitAsync` publishes **after** the save: a new `Notification` → `notification` to its `MemberId` (`conversationId` null); a new `Message` → `message` to the **other** member of its conversation (`conversationId` = the conversation). The sender gets nothing. A member who is not in the conversation gets nothing.
+
+File: `Members/StreamMyEventsTests.cs` (new), class `StreamMyEventsTests : IntegrationTestBase`, with a fixed `CreatedAt` and a fixed `OtherStudentId` (not seeded: a token is enough to open a stream). The seller and the buyer are seeded with `Member.Create(...)`, which makes their ids, so use `seller.Id` and `buyer.Id` (the listing, the reservation and the conversation need them to exist), as `SendMessageTests` does.
+
+How to read the stream (private helpers in the test class, no `if` or loop inside the tests themselves):
+- `OpenStreamAsync(Guid memberId)` (or with a factory argument for the heartbeat tests): a **separate** client `Factory.CreateClient()` with `Authorization: Bearer TestTokens.Create(memberId, "Student")`, `GetAsync("/api/v1/members/me/events", HttpCompletionOption.ResponseHeadersRead)`, then a `StreamReader` over `ReadAsStreamAsync()`. Keep the client and the response alive until the end of the test (`using`), so the stream is closed when the test ends.
+- `ReadEventAsync(StreamReader reader, TimeSpan timeout)`: reads lines until the empty line that ends an event and returns the event name and the parsed `data` (a small private record or `JsonElement`), or `null` when the timeout (a `CancellationTokenSource(timeout)` passed to `ReadLineAsync`) runs out first. Use 5 seconds when an event is expected and 1 second when **no** event is expected. Never `Task.Delay` or `Thread.Sleep`.
+- The action (reserve, send a message) is the one HTTP call of the Act, sent with the normal `Client` after `AuthenticateAs(...)`. Opening the stream and reading its first `ping` are part of the Arrange.
+
+Arrange data with `SeedAsync` and the domain, never through another endpoint: members with `Member.Create(...)` (the reservation and conversation handlers look them up), a published listing (`Listing.Create(seller.Id, ...)` then `Publish()`), a conversation with `Conversation.Start(buyer.Id, listing, "Buna, mai e valabil?", CreatedAt).Value`.
+
+Tests to add (status, the events, then the database):
+- no token → 401, ProblemDetails `Auth.Unauthorized`; the database is unchanged.
+- logged in → 200, `Content-Type` `text/event-stream`, the first event is `ping` with `conversationId` null.
+- reservation: the seller's stream is open; the buyer reserves the seller's listing (`POST /api/v1/listings/{id}/reservations`) → 201; the seller's next event is `notification` with `conversationId` null; the database has the reservation and one `Notification` for the seller.
+- message to the other member: the buyer's stream is open; the seller sends `POST /api/v1/conversations/{id}/messages` → 201; the buyer's next event is `message` with that conversation id; the database has 2 messages in the conversation.
+- the sender gets nothing: the seller's stream is open; the seller sends a message → 201; no event on the seller's stream within 1 second; the message is saved.
+- a member outside the conversation gets nothing: `OtherStudentId`'s stream is open; the seller sends a message → 201; no event within 1 second.
+- two connections of the same member both get it: two streams of the buyer, both past their first `ping`; the seller sends a message → both streams get `message` with the conversation id.
+- heartbeat: a factory copy with `LiveEvents:HeartbeatSeconds` = `1` (`Factory.WithWebHostBuilder(b => b.UseSetting("LiveEvents:HeartbeatSeconds", "1"))`, create its database as the base class does) → after the first `ping`, a second `ping` arrives within 5 seconds.
+- invalid setting: `HeartbeatSeconds` `0` and `301` (`[Theory]`) → creating a client of that factory copy throws `OptionsValidationException` whose message contains `LiveEvents:HeartbeatSeconds must be between 1 and 300.`.
+
+Rules for this feature:
+- Never assert on the number of `ping` events or on their timing beyond "within 5 seconds".
+- Never parse the stream with a regex; split the lines on `event:` / `data:` as above.
+- Then run all the tests with coverage as the CI does: `StreamMyEventsEndpoint.cs`, `InMemoryLiveEvents.cs`, `LiveEvent.cs`, `EfUnitOfWork.cs` and the `LiveEvents` lines of `CampusMarketSetup.cs` are at 100% for lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
