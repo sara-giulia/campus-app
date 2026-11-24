@@ -30,6 +30,10 @@ public sealed class MetricsMiddleware(RequestDelegate next, MetricsRegistry regi
             return;
         }
 
+        // Read the route before next: UseExceptionHandler clears the endpoint
+        // when it handles an exception, so reading it only in finally would
+        // record the 500 on "(unmatched)" instead of its real route.
+        var routeBefore = TryGetRouteTemplate(context);
         var start = Stopwatch.GetTimestamp();
         try
         {
@@ -38,7 +42,7 @@ public sealed class MetricsMiddleware(RequestDelegate next, MetricsRegistry regi
         finally
         {
             var elapsedMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-            var route = GetRouteTemplate(context);
+            var route = routeBefore ?? GetRouteTemplate(context);
             registry.RecordRequest(route, context.Request.Method, context.Response.StatusCode, elapsedMs);
         }
     }
@@ -57,14 +61,15 @@ public sealed class MetricsMiddleware(RequestDelegate next, MetricsRegistry regi
     // unmatched request (routing returned 404 with no endpoint) is grouped
     // into a single bucket so a scanner cannot blow up the dictionary with
     // one bucket per bad path.
-    private static string GetRouteTemplate(HttpContext context)
+    private static string GetRouteTemplate(HttpContext context) =>
+        TryGetRouteTemplate(context) ?? $"{context.Request.Method} (unmatched)";
+
+    // Null when there is no route endpoint or its template is missing or empty.
+    private static string? TryGetRouteTemplate(HttpContext context)
     {
-        if (context.GetEndpoint() is RouteEndpoint route)
-        {
-            var template = route.RoutePattern.RawText;
-            if (!string.IsNullOrEmpty(template))
-                return $"{context.Request.Method} /{template.TrimStart('/')}";
-        }
-        return $"{context.Request.Method} (unmatched)";
+        var template = (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText;
+        return string.IsNullOrEmpty(template)
+            ? null
+            : $"{context.Request.Method} /{template.TrimStart('/')}";
     }
 }

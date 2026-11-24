@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 
 namespace CampusMarket.Api.Infrastructure.Observability;
 
@@ -8,14 +7,17 @@ namespace CampusMarket.Api.Infrastructure.Observability;
 // the ML services, snapshotted by the admin endpoint. Every call also feeds
 // the CampusMarketMeters instruments so a future OpenTelemetry exporter picks
 // up the same data without touching call sites.
-public sealed class MetricsRegistry(CampusMarketMeters meters)
+public sealed class MetricsRegistry(
+    CampusMarketMeters meters,
+    TimeProvider timeProvider,
+    int reservoirCapacity = EndpointBucket.DefaultReservoirSize)
 {
     private readonly ConcurrentDictionary<string, EndpointBucket> _endpoints = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, PredictionBucket> _predictions = new(StringComparer.Ordinal);
 
     public void RecordRequest(string route, string method, int statusCode, double durationMs)
     {
-        var bucket = _endpoints.GetOrAdd(route, static _ => new EndpointBucket());
+        var bucket = _endpoints.GetOrAdd(route, static (_, capacity) => new EndpointBucket(capacity), reservoirCapacity);
         bucket.Record(statusCode, durationMs);
 
         var routeTag = new KeyValuePair<string, object?>("route", route);
@@ -29,14 +31,14 @@ public sealed class MetricsRegistry(CampusMarketMeters meters)
     // One call site per ML service; the Func captures the real predict() call.
     public T MeasurePrediction<T>(string model, Func<T> predict)
     {
-        var start = Stopwatch.GetTimestamp();
+        var start = timeProvider.GetTimestamp();
         try
         {
             return predict();
         }
         finally
         {
-            var elapsedMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            var elapsedMs = timeProvider.GetElapsedTime(start).TotalMilliseconds;
             var bucket = _predictions.GetOrAdd(model, static _ => new PredictionBucket());
             bucket.Record(elapsedMs);
 
@@ -62,12 +64,12 @@ public sealed class MetricsRegistry(CampusMarketMeters meters)
     }
 }
 
-internal sealed class EndpointBucket
+internal sealed class EndpointBucket(int reservoirSize)
 {
     // Bounded reservoir of recent durations. 1024 samples give a stable p95
     // without unbounded memory growth; once full, the oldest sample is
     // overwritten (FIFO ring).
-    private const int ReservoirSize = 1024;
+    public const int DefaultReservoirSize = 1024;
 
     private long _count;
     private long _errorCount;
@@ -76,7 +78,7 @@ internal sealed class EndpointBucket
     private long _totalMicros;
     private readonly ConcurrentDictionary<int, long> _statusCounts = new();
 
-    private readonly double[] _reservoir = new double[ReservoirSize];
+    private readonly double[] _reservoir = new double[reservoirSize];
     private readonly object _reservoirLock = new();
     private long _reservoirIndex;
     private int _reservoirCount;
@@ -94,10 +96,10 @@ internal sealed class EndpointBucket
 
         lock (_reservoirLock)
         {
-            var idx = (int)(_reservoirIndex % ReservoirSize);
+            var idx = (int)(_reservoirIndex % reservoirSize);
             _reservoir[idx] = durationMs;
             _reservoirIndex++;
-            if (_reservoirCount < ReservoirSize)
+            if (_reservoirCount < reservoirSize)
                 _reservoirCount++;
         }
     }
@@ -130,9 +132,7 @@ internal sealed class EndpointBucket
         }
 
         Array.Sort(samples);
-        var rank = (int)Math.Ceiling(0.95 * n) - 1;
-        if (rank < 0) rank = 0;
-        if (rank >= n) rank = n - 1;
+        var rank = Math.Clamp((int)Math.Ceiling(0.95 * n) - 1, 0, n - 1);
         return samples[rank];
     }
 
