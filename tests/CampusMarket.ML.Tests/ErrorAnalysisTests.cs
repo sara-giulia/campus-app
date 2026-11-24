@@ -100,16 +100,25 @@ public sealed class ErrorAnalysisTests
         mistakes.Select(m => m.Confidence).Should().BeInDescendingOrder();
     }
 
+    // Since spam is split by pattern, the test part has spam patterns the model never saw, so
+    // "zero missed spam" no longer holds. What must hold at the API threshold (0.35): no good
+    // listing is flagged on test (the real run flags 0), and at most 25 of the 87 spam rows are
+    // let through (the real run misses 22, recall 0.747). count: int.MaxValue so the lists are
+    // not cut at the 10 rows the report shows.
+    private const double ConfiguredSpamThreshold = 0.35;
+    private const int MaxMissedSpamOnTest = 25;
+
     [Fact]
-    public void Committed_spam_model_makes_no_mistake_on_the_test_split_at_the_configured_threshold()
+    public void Committed_spam_model_flags_no_good_listing_and_misses_little_spam_on_the_test_split()
     {
         var mlContext = new MLContext(seed: DatasetSplit.Seed);
         var model = mlContext.Model.Load(Path.Combine(TestPaths.MlDirectory, "models", "spam-detection.zip"), out _);
 
-        var errors = SpamMistakesOf(mlContext, model, TestRows(mlContext), threshold: 0.40);
+        var errors = SpamMistakesOf(mlContext, model, TestRows(mlContext), threshold: ConfiguredSpamThreshold, count: int.MaxValue);
 
-        errors.FlaggedNormal.Should().BeEmpty("the test part is saturated, see docs/ml/spam.md");
-        errors.MissedSpam.Should().BeEmpty();
+        errors.FlaggedNormal.Should().BeEmpty("a good listing flagged as spam hurts a real seller, see docs/ml/spam.md");
+        errors.MissedSpam.Count.Should().BeLessThanOrEqualTo(MaxMissedSpamOnTest,
+            "most spam on test, including the patterns never seen in training, must still be caught");
     }
 
     private static List<ListingRow> TestRows(MLContext mlContext)
