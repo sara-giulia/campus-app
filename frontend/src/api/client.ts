@@ -110,6 +110,22 @@ export async function request<T>(method: Method, path: string, options: RequestO
   return (text ? JSON.parse(text) : undefined) as T
 }
 
+// For an answer that is read as a stream (Server-Sent Events, see features/live): the same token
+// handling as request(), but the body is left to the caller, who reads it while it stays open.
+export async function openStream(path: string, signal: AbortSignal): Promise<Response> {
+  const tokens = getTokens()
+  if (tokens && expiresSoon(tokens)) await refreshTokens()
+
+  let response = await send('GET', path, { signal })
+
+  if (response.status === 401 && getTokens()) {
+    if (await refreshTokens()) response = await send('GET', path, { signal })
+  }
+
+  if (!response.ok) throw await toApiError(response)
+  return response
+}
+
 export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, { ...options, body }),

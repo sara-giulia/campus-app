@@ -4,6 +4,7 @@ import { api } from '../../api/client'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Badge, Button, EmptyState, Loading, PageHeader, Pagination } from '../../app/ui'
 import { useNotifications } from './NotificationsContext'
+import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatAbsoluteDateTime, formatRelativeTime } from './relativeTime'
 import type { GetMyNotificationsResponse, NotificationItem } from './types'
 import { messageText } from './messageText'
@@ -28,8 +29,12 @@ export function NotificationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [markingId, setMarkingId] = useState<string | null>(null)
   const [markingAll, setMarkingAll] = useState(false)
-  // Bumped after a change to re-load the current page.
+  // Bumped after a change, and when a new notification arrives on the live stream, to re-load the current page.
   const [version, setVersion] = useState(0)
+
+  useLiveEvents((event) => {
+    if (event.type === 'notification') setVersion((v) => v + 1)
+  })
 
   useEffect(() => {
     const controller = new AbortController()

@@ -4,11 +4,13 @@ import { api } from '../../api/client'
 import { useAuth } from '../../app/auth/AuthContext'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Button, Loading } from '../../app/ui'
+import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
 import type { ConversationDetail } from './types'
 import './messages.css'
 
-// New messages from the other member appear without a refresh: the page asks again every few seconds.
+// New messages from the other member arrive on the live stream (features/live) and the page loads
+// the conversation again at once. Only while the stream is not connected does it ask every few seconds.
 const REFRESH_MS = 5000
 
 export function ConversationPage() {
@@ -22,8 +24,12 @@ export function ConversationPage() {
   const endRef = useRef<HTMLDivElement>(null)
   const lastCount = useRef(0)
 
-  // Bumped after sending, to load the conversation again at once.
+  // Bumped after sending and on a live event for this conversation, to load it again at once.
   const [version, setVersion] = useState(0)
+
+  const live = useLiveEvents((event) => {
+    if (event.type === 'message' && event.conversationId === id) setVersion((v) => v + 1)
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -40,12 +46,12 @@ export function ConversationPage() {
         })
     }
     fetchConversation()
-    const timer = window.setInterval(fetchConversation, REFRESH_MS)
+    const timer = live ? undefined : window.setInterval(fetchConversation, REFRESH_MS)
     return () => {
       window.clearInterval(timer)
       controller.abort()
     }
-  }, [id, version])
+  }, [id, version, live])
 
   // Scroll to the newest message when one arrives.
   useEffect(() => {
