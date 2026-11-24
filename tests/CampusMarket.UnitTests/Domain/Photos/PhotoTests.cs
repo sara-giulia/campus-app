@@ -18,6 +18,15 @@ public class PhotoTests
     private static Listing BuildListing() =>
         Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
 
+    private static readonly byte[] SvgBytes = "<svg xmlns='http://www.w3.org/2000/svg'></svg>"u8.ToArray();
+
+    private static Listing BuildActiveListing()
+    {
+        var listing = BuildListing();
+        listing.Publish();
+        return listing;
+    }
+
     private static byte[] BuildPng(long length)
     {
         var bytes = new byte[length];
@@ -191,5 +200,124 @@ public class PhotoTests
         first.IsSuccess.Should().BeTrue();
         second.IsSuccess.Should().BeTrue();
         first.Value.Id.Should().NotBe(second.Value.Id);
+    }
+
+    [Fact]
+    public void Given_ActiveListingWithNoPhotos_When_CheckingCanGenerate_Then_ReturnsNull()
+    {
+        var listing = BuildActiveListing();
+
+        var error = Photo.CheckCanGenerate(listing, 0);
+
+        error.Should().BeNull();
+    }
+
+    [Fact]
+    public void Given_DraftListing_When_CheckingCanGenerate_Then_ReturnsListingNotActive()
+    {
+        var listing = BuildListing();
+
+        var error = Photo.CheckCanGenerate(listing, 0);
+
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Validation);
+        error.Code.Should().Be("Photo.ListingNotActive");
+        error.Message.Should().Be("Only an active listing gets a generated image.");
+    }
+
+    [Fact]
+    public void Given_ActiveListingWithOnePhoto_When_CheckingCanGenerate_Then_ReturnsListingHasPhotos()
+    {
+        var listing = BuildActiveListing();
+
+        var error = Photo.CheckCanGenerate(listing, 1);
+
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Conflict);
+        error.Code.Should().Be("Photo.ListingHasPhotos");
+        error.Message.Should().Be("The listing already has a photo.");
+    }
+
+    [Fact]
+    public void Given_ActiveListingWithNoPhotos_When_CreatingGenerated_Then_ReturnsGeneratedPhotoWithEveryField()
+    {
+        var listing = BuildActiveListing();
+
+        var result = Photo.CreateGenerated(listing, 0, SvgBytes, PhotoFormat.Svg, Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Id.Should().NotBeEmpty();
+        result.Value.ListingId.Should().Be(listing.Id);
+        result.Value.IsGenerated.Should().BeTrue();
+        result.Value.FileName.Should().Be($"{result.Value.Id}{PhotoFormat.Svg.Extension}");
+        result.Value.ContentType.Should().Be(PhotoFormat.Svg.ContentType);
+        result.Value.SizeBytes.Should().Be(SvgBytes.Length);
+        result.Value.CreatedAt.Should().Be(Now);
+    }
+
+    [Fact]
+    public void Given_DraftListing_When_CreatingGenerated_Then_ReturnsListingNotActive()
+    {
+        var listing = BuildListing();
+
+        var result = Photo.CreateGenerated(listing, 0, SvgBytes, PhotoFormat.Svg, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Photo.ListingNotActive");
+        result.Error.Message.Should().Be("Only an active listing gets a generated image.");
+    }
+
+    [Fact]
+    public void Given_ListingWithExistingPhoto_When_CreatingGenerated_Then_ReturnsListingHasPhotos()
+    {
+        var listing = BuildActiveListing();
+
+        var result = Photo.CreateGenerated(listing, 1, SvgBytes, PhotoFormat.Svg, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Conflict);
+        result.Error.Code.Should().Be("Photo.ListingHasPhotos");
+        result.Error.Message.Should().Be("The listing already has a photo.");
+    }
+
+    [Fact]
+    public void Given_EmptyContent_When_CreatingGenerated_Then_ReturnsEmpty()
+    {
+        var listing = BuildActiveListing();
+
+        var result = Photo.CreateGenerated(listing, 0, Array.Empty<byte>(), PhotoFormat.Svg, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Photo.Empty");
+        result.Error.Message.Should().Be("No file was sent.");
+    }
+
+    [Fact]
+    public void Given_ContentOneByteOverMaxSize_When_CreatingGenerated_Then_ReturnsTooLarge()
+    {
+        var listing = BuildActiveListing();
+        var content = new byte[Photo.MaxSizeBytes + 1];
+
+        var result = Photo.CreateGenerated(listing, 0, content, PhotoFormat.Svg, Now);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Photo.TooLarge");
+        result.Error.Message.Should().Be($"A photo must be at most {Photo.MaxSizeBytes / (1024 * 1024)} MB.");
+    }
+
+    [Fact]
+    public void Given_ContentOfExactlyMaxSize_When_CreatingGenerated_Then_Succeeds()
+    {
+        var listing = BuildActiveListing();
+        var content = new byte[Photo.MaxSizeBytes];
+
+        var result = Photo.CreateGenerated(listing, 0, content, PhotoFormat.Svg, Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.SizeBytes.Should().Be(Photo.MaxSizeBytes);
+        result.Value.IsGenerated.Should().BeTrue();
     }
 }

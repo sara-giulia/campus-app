@@ -18,6 +18,18 @@ public class UploadPhotoHandlerTests
     private static Listing BuildListing() =>
         Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
 
+    private static readonly byte[] SvgBytes = "<svg xmlns='http://www.w3.org/2000/svg'></svg>"u8.ToArray();
+
+    private static Listing BuildActiveListing()
+    {
+        var listing = BuildListing();
+        listing.Publish();
+        return listing;
+    }
+
+    private static Photo BuildGeneratedPhoto(Listing listing) =>
+        Photo.CreateGenerated(listing, 0, SvgBytes, PhotoFormat.Svg, Now).Value;
+
     private static UploadPhotoHandler BuildHandler(
         FakeListingRepository listings, FakePhotoRepository photos, FakePhotoStorage storage, FakeUnitOfWork unitOfWork) =>
         new(listings, photos, storage, unitOfWork, new FixedTimeProvider(Now));
@@ -145,5 +157,94 @@ public class UploadPhotoHandlerTests
         photos.Items.Should().BeEmpty();
         storage.Files.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ListingWithGeneratedPhoto_When_SellerUploadsPng_Then_ReplacesGeneratedPhotoAndItsFile()
+    {
+        var listing = BuildActiveListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var generated = BuildGeneratedPhoto(listing);
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(generated);
+        var storage = new FakePhotoStorage();
+        storage.Files[(listing.Id, generated.FileName)] = SvgBytes;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, photos, storage, unitOfWork);
+        var command = new UploadPhotoCommand(SellerId, listing.Id, PngBytes);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsGenerated.Should().BeFalse();
+        photos.Items.Should().ContainSingle();
+        photos.Items[0].Id.Should().Be(result.Value.Id);
+        storage.Files.Should().NotContainKey((listing.Id, generated.FileName));
+        storage.Files.Should().ContainSingle();
+        storage.Files[(listing.Id, photos.Items[0].FileName)].Should().Equal(PngBytes);
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_FiveRealPhotosAndOneGenerated_When_Handling_Then_ReturnsLimitReachedAndKeepsGeneratedPhoto()
+    {
+        var listing = BuildActiveListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var generated = BuildGeneratedPhoto(listing);
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(generated);
+        photos.Items.Add(Photo.Create(SellerId, listing, 0, PngBytes, Now).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 1, PngBytes, Now).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 2, PngBytes, Now).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 3, PngBytes, Now).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 4, PngBytes, Now).Value);
+        var existing = photos.Items.ToList();
+        var storage = new FakePhotoStorage();
+        storage.Files[(listing.Id, generated.FileName)] = SvgBytes;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, photos, storage, unitOfWork);
+        var command = new UploadPhotoCommand(SellerId, listing.Id, PngBytes);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Photo.LimitReached");
+        result.Error.Message.Should().Be($"A listing can have at most {Photo.MaxPerListing} photos.");
+        photos.Items.Should().Equal(existing);
+        storage.Files.Should().ContainSingle();
+        storage.Files[(listing.Id, generated.FileName)].Should().Equal(SvgBytes);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_FourRealPhotosAndOneGenerated_When_Handling_Then_SucceedsWithFiveRealPhotos()
+    {
+        var listing = BuildActiveListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var generated = BuildGeneratedPhoto(listing);
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(generated);
+        photos.Items.Add(Photo.Create(SellerId, listing, 0, PngBytes, Now).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 1, PngBytes, Now).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 2, PngBytes, Now).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 3, PngBytes, Now).Value);
+        var storage = new FakePhotoStorage();
+        storage.Files[(listing.Id, generated.FileName)] = SvgBytes;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, photos, storage, unitOfWork);
+        var command = new UploadPhotoCommand(SellerId, listing.Id, PngBytes);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        photos.Items.Should().HaveCount(Photo.MaxPerListing);
+        photos.Items.Should().NotContain(generated);
+        photos.Items.Should().OnlyContain(p => !p.IsGenerated);
+        storage.Files.Should().NotContainKey((listing.Id, generated.FileName));
+        unitOfWork.SaveCount.Should().Be(1);
     }
 }
