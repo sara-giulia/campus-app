@@ -134,6 +134,6 @@ public sealed class ListingsCacheTests : IntegrationTestBase
     {
         await using var scope = Factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
-        await db.Database.ExecuteSqlAsync($"UPDATE Listings SET Title = {title} WHERE Id = {id}");
+        await db.Database.ExecuteSqlAsync($"UPDATE \"Listings\" SET \"Title\" = {title} WHERE \"Id\" = {id}");
     }
 }

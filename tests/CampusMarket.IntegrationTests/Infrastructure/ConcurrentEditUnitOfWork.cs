@@ -10,7 +10,7 @@ public sealed class ConcurrentEditUnitOfWork(CampusMarketDbContext db) : IUnitOf
 {
     public async Task<int> CommitAsync(CancellationToken ct)
     {
-        await db.Database.ExecuteSqlRawAsync("UPDATE Listings SET Version = Version + 1", ct);
+        await db.Database.ExecuteSqlRawAsync("UPDATE \"Listings\" SET \"Version\" = \"Version\" + 1", ct);
         return await db.SaveChangesAsync(ct);
     }
 }

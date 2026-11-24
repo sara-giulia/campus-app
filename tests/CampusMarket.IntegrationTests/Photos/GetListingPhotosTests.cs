@@ -43,7 +43,11 @@ public sealed class GetListingPhotosTests : IntegrationTestBase
 
         var body = await response.Content.ReadFromJsonAsync<GetListingPhotosResponse>(Json);
         body!.Count.Should().Be(3);
-        body.Items.Should().BeEquivalentTo(new[] { first, second, third }, options => options.WithStrictOrdering());
+        // The upload responses carry the clock's 100 ns ticks; the listing returns what PostgreSQL saved (microseconds).
+        body.Items.Should().BeEquivalentTo(new[] { first, second, third }, options => options
+            .WithStrictOrdering()
+            .Using<DateTimeOffset>(ctx => ctx.Subject.Should().Be(ctx.Expectation.ToMicroseconds()))
+            .WhenTypeIs<DateTimeOffset>());
         body.Items.Select(p => p.ContentType).Should().Equal("image/png", "image/jpeg", "image/webp");
         body.Items.Should().OnlyContain(p => p.ListingId == listing.Id && p.Url == $"/api/v1/photos/{p.Id}");
 

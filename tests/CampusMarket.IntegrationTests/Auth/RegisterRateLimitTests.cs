@@ -19,7 +19,7 @@ public sealed class RegisterRateLimitTests : IntegrationTestBase
     private const string FirstIp = "10.0.0.1";
     private const string SecondIp = "10.0.0.2";
 
-    // A copy of the API on the same in-memory database, with the real register limit.
+    // A copy of the API on the same database, with the real register limit.
     private WebApplicationFactory<Program> WithRealRegisterLimit() =>
         Factory.WithWebHostBuilder(builder => builder.UseSetting("RateLimiting:RegisterPermitLimit", "5"));
 

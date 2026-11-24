@@ -6,7 +6,6 @@ using CampusMarket.Api.Features.Members.GetMyReservations;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampusMarket.IntegrationTests.Listings;
@@ -16,7 +15,7 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
     private static readonly Guid SellerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
 
-    // Starts a copy of the API on the same in-memory database with the expiry job turned on.
+    // Starts a copy of the API on the same database with the expiry job turned on.
     private WebApplicationFactory<Program> WithExpiryJob() =>
         Factory.WithWebHostBuilder(builder =>
         {
@@ -30,19 +29,12 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
-            try
-            {
-                if (await ReadReservationStatusAsync(reservationId) == expected)
-                    return expected;
-            }
-            catch (Exception ex) when (ex is SqliteException or InvalidOperationException)
-            {
-                // The read collided with the job's write on the shared connection: not yet.
-            }
+            if (await ReadReservationStatusAsync(reservationId) == expected)
+                return expected;
+
             await Task.Delay(100);
         }
 
-        // After the timeout: one more read without catching, so an error that never goes away fails with its own message.
         return await ReadReservationStatusAsync(reservationId);
     }
 
@@ -71,9 +63,7 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         await SeedAsync(expiredBuyer, validBuyer, expiredListing, validListing);
 
         // Act: start the job, wait until it has expired the stale reservation,
-        // then stop the host. The shared in-memory SQLite connection would
-        // otherwise be contended between further background ticks and the
-        // assertion-time reads below ("SQLite Error 5: database is locked").
+        // then stop the host, so no further background tick runs during the assertions.
         ReservationStatus finalStatus;
         await using (var seeded = WithExpiryJob())
         {
@@ -115,8 +105,7 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         await SeedAsync(firstBuyer, secondBuyer, listing);
 
         // Start the job and wait for the expiry. Leaving the block stops the job,
-        // so no background tick runs on the shared in-memory SQLite connection
-        // during the Act and the assertions ("database is locked").
+        // so no background tick runs during the Act and the assertions.
         ReservationStatus finalStatus;
         await using (var withJob = WithExpiryJob())
         {

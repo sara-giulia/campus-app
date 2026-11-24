@@ -22,7 +22,7 @@ namespace CampusMarket.IntegrationTests.Infrastructure;
 // must be true) and SeedDemoDataIfRequested (when Seed:DemoData is true and the database
 // is empty, seeds the DemoListings catalog; demo Student members are added only when
 // Seed:DemoPassword has at least 8 characters). Each test starts its own copy of the API
-// on the same in-memory database with WithWebHostBuilder, the same way SeedAdminTests do.
+// on the same database with WithWebHostBuilder, the same way SeedAdminTests do.
 public sealed class ProductionConfigurationTests : IntegrationTestBase
 {
     private const int LongEnoughJwtKeyLength = 40;
@@ -390,7 +390,7 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
     public async Task Given_DemoDataSeededOnce_When_RestartingTheApp_Then_DoesNotDoubleSeed()
     {
         // Arrange: start once to seed, then dispose and start again on the
-        // same in-memory SQLite database. A second seed would double-insert
+        // same database. A second seed would double-insert
         // listings and break the unique email index on the demo members.
         await using (var firstStart = Factory.WithWebHostBuilder(builder =>
         {
