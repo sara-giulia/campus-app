@@ -5,12 +5,13 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 
 ## How to run
 
-1. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
-2. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
-3. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
-4. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
+1. Start PostgreSQL: `docker compose up -d db` (port **5433** on your machine; `appsettings.Development.json` already points at it with `Host=localhost;Port=5433;Database=campusmarket;Username=campusmarket;Password=campusmarket`). Docker must be running. The API creates the tables itself at startup (EF Core migrations), and the data stays in the `campusmarket-pg` volume, so it is not lost when you restart the API or run `docker compose down` (`docker compose down -v` removes it).
+2. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
+3. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
+4. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
+5. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
 
-Unit tests: `dotnet test` from the repository root.
+Tests: `dotnet test` from the repository root. The integration tests start their own PostgreSQL in Docker (Testcontainers, `postgres:17`, one container for the whole run, one database per test), so **Docker must be running**; they never use the database on port 5433.
 
 ### Web frontend
 
@@ -34,7 +35,7 @@ Listings that are already `Active` in a deactivated category stay visible: they 
 3. In Postman, set the `baseUrl` collection variable to `http://localhost:5080` and run the collection.
 
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
-- The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container, on the named volume `campusmarket-data`, so the data is kept after `docker compose down`. `docker compose down -v` also removes the volume and starts from an empty database.
+- The container runs as the non-root user of the .NET image. The API talks to the `db` service (PostgreSQL 17, `ConnectionStrings__CampusMarket` in `docker-compose.yml`), whose data is in the named volume `campusmarket-pg`; the uploaded photos are in `/app/data/photos` on the volume `campusmarket-data`. Both are kept after `docker compose down`; `docker compose down -v` removes them and starts from an empty database. `docker compose up -d db` starts only the database (port 5433), for running the API on the host.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
 - The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
@@ -80,7 +81,7 @@ before Render is wired up and remains idempotent afterwards.
    | `Jwt__Key` | yes | Random string of **at least 32 characters** used to sign JWTs. The API refuses to start in Production if it is missing or shorter than 32 characters. |
    | `Seed__AdminEmail` | optional | Email of the first Admin created on startup. Leave unset to skip the admin seed. |
    | `Seed__AdminPassword` | optional | Password of the first Admin. Needed only when `Seed__AdminEmail` is set. |
-   | `ConnectionStrings__CampusMarket` | optional | SQLite connection string. The Docker image already defaults this to `Data Source=/app/data/campusmarket.db`, so it only needs to be overridden to point the API at a different path (for example, an attached disk). |
+   | `ConnectionStrings__CampusMarket` | yes | Npgsql connection string of the PostgreSQL database, for example `Host=<host>;Port=5432;Database=campusmarket;Username=<user>;Password=<password>` (on Render: the internal connection string of a Render PostgreSQL). The API runs the migrations on this database at startup. There is no default in Production. |
    | `Seed__DemoData` | optional | `true` seeds a demo member and a few published listings when the database is empty, so a fresh Render instance has something to browse. Off by default and never on in tests. |
    | `Seed__DemoPassword` | optional | Password for the demo student account created when `Seed__DemoData=true`. Must be at least 8 characters. If missing or shorter, the demo listings are still seeded but the demo member is skipped (a warning is written to the log). The demo member always has the `Student` role. |
 
@@ -96,12 +97,7 @@ before Render is wired up and remains idempotent afterwards.
   sleep wakes the instance; typical cold-start latency is tens of seconds.
   Render's uptime checks keep the service warmer than no traffic at all,
   but there is no hard guarantee it stays up.
-- **No persistent disk on the free tier.** SQLite lives inside the
-  container's filesystem, which is reset on every redeploy and every
-  cold start, so the database is wiped whenever a new image is pulled or
-  the instance is rebuilt. Set `Seed__DemoData=true` to repopulate a bit
-  of data after each redeploy; attach a disk (paid tier) if the data has
-  to survive. The uploaded photos (`/app/data/photos`) are wiped the same way.
+- **No persistent disk on the free tier.** The data is in PostgreSQL, a separate server, so it survives a redeploy or a cold start of the web service (it lasts as long as the PostgreSQL instance does; check the retention limit of the plan you use). The container's own filesystem is reset on every redeploy and every cold start, so the uploaded photos (`/app/data/photos`) are wiped whenever a new image is pulled or the instance is rebuilt; attach a disk (paid tier) if they have to survive. `Seed__DemoData=true` only adds the demo data when the database is empty.
 - **One instance, no scaling.** Fine for a student demo, not for traffic.
 
 ---
@@ -153,7 +149,7 @@ Architecture diagrams (Mermaid, in Romanian): [docs/architecture.md](docs/archit
 
 - .NET 11, ASP.NET Core **minimal APIs** (moved from .NET 10 in week 8; the OpenAPI document is now version 3.2, Scalar shows it as before)
 - **Vertical slices** with hand-written **CQRS** handlers (commands and queries)
-- **Repository + Unit of Work** over **EF Core** with **SQLite**
+- **Repository + Unit of Work** over **EF Core** with **PostgreSQL** (Npgsql; migrations run at startup)
 - `Result<T>` for expected errors (no exceptions for business rule violations)
 - A global exception handler that answers with **ProblemDetails** (see [Error format](#error-format))
 - `TimeProvider` for anything that depends on the clock
@@ -355,7 +351,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidSort` | `sort` is not `newest`, `price_asc` or `price_desc` |
 | 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
-Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
+Listings (with their reservations) and members are stored in PostgreSQL through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
 
 ### Authentication
 
@@ -721,7 +717,7 @@ sequenceDiagram
     actor A as Buyer A
     actor B as Buyer B
     participant API as ReserveListing handler
-    participant DB as SQLite
+    participant DB as PostgreSQL
 
     A->>API: POST /api/v1/listings/42/reservations
     B->>API: POST /api/v1/listings/42/reservations
@@ -839,7 +835,7 @@ However the work is split, every slice comes with its tests, its Postman request
 ## Testing
 
 - **Run the unit tests:** `dotnet test tests/CampusMarket.UnitTests`
-- **Run the integration tests:** `dotnet test tests/CampusMarket.IntegrationTests`
+- **Run the integration tests:** `dotnet test tests/CampusMarket.IntegrationTests` (Docker must be running: the tests start a PostgreSQL container with Testcontainers)
 - **Generate the coverage report** (run from the repository root, install the tool once with `dotnet tool install -g dotnet-reportgenerator-globaltool`):
 
   ```

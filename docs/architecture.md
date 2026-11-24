@@ -8,7 +8,7 @@ Detalii despre fiecare funcționalitate sunt în [README.md](../README.md).
 ```mermaid
 flowchart LR
     B["Browser<br/>React SPA"] -->|"HTTP + JWT<br/>aceeași origine"| API["ASP.NET Core API<br/>/api/v1 + wwwroot"]
-    API -->|"EF Core"| DB[("SQLite<br/>campusmarket.db")]
+    API -->|"EF Core"| DB[("PostgreSQL 17")]
     API -->|"PredictionEnginePool"| ML["Modele ML.NET<br/>ml-models/*.zip"]
     API -->|"LocalPhotoStorage"| PH["photos/<br/>pe disc"]
     API -->|"BrevoEmailSender"| BR["Brevo HTTP API"]
@@ -16,7 +16,7 @@ flowchart LR
 ```
 
 - Frontend-ul React (Vite) este construit în `Dockerfile` și copiat în `wwwroot/`; API-ul îl servește cu `UseStaticFiles` și `MapFallbackToFile("index.html")`, deci browserul vorbește cu API-ul pe aceeași origine. În dezvoltare, Vite rulează separat pe `:5173` și API-ul permite CORS doar pentru originile din `Cors:AllowedOrigins`.
-- Datele sunt într-un fișier SQLite, accesat prin `CampusMarketDbContext` (EF Core).
+- Datele sunt într-o bază PostgreSQL, accesată prin `CampusMarketDbContext` (EF Core, Npgsql); migrațiile (`InitialPostgres`) rulează la pornire. Connection string-ul vine din `ConnectionStrings__CampusMarket` (în Production, din variabila de mediu din Render). Local: `docker compose up -d db` pornește PostgreSQL pe portul 5433, iar datele rămân în volumul `campusmarket-pg` și nu se pierd la repornirea API-ului.
 - Cele 4 modele (`price-regression`, `category-classification`, `spam-detection`, `similar-listings`) sunt încărcate din `ml-models/` la pornire.
 - Email: `BrevoEmailSender` când există `Email__ApiKey` (Render), `SmtpEmailSender` când este setat `Email:Host` (Mailpit în `docker-compose.yml`), altfel `LoggingEmailSender` (doar scrie în log).
 
@@ -146,7 +146,7 @@ flowchart LR
 ```
 
 - **UnitTests**: domeniul și handler-ele, cu fake-uri scrise de mână (`Fakes/`).
-- **IntegrationTests**: cereri HTTP reale prin `WebApplicationFactory<Program>`, pe SQLite în memorie.
+- **IntegrationTests**: cereri HTTP reale prin `WebApplicationFactory<Program>`, pe un PostgreSQL real din Docker (Testcontainers, `postgres:17`): un singur container pentru toată rularea, o bază de date nouă pentru fiecare test. Docker trebuie să ruleze.
 - **ArchitectureTests**: regulile de dependență dintre `Domain`, `Features`, `Infrastructure` și handlere.
 - **ML.Tests**: pragurile de calitate ale modelelor, pe aceeași împărțire 70/15/15.
 - **Stryker**: rulat local pe `UnitTests` (`stryker-config.json`), rezultate în [MUTATION.md](../MUTATION.md); nu este în CI.
