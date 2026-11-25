@@ -1213,6 +1213,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code fa16910; skill section 7bafdcc; tests generated in f3913a2
 
+### Run 47, skill v50 (Feature: Review notification and reviewed flag)
+
+- **Why a new version:** branch `feature/listing-reviews`. Reviews themselves already existed (452f178, A2); this feature only fills the gaps. New handler rules the skill did not cover: `AddReviewHandler` now takes an `INotificationRepository` and adds one `ReviewReceived` notification (new `NotificationType`) for the seller in the same commit as the review; `IReviewRepository.GetReviewedListingIdsAsync(reviewerId)` is new; `GetMyReservationsHandler` takes an `IReviewRepository` and `MyReservationItem` has a new last field `Reviewed`. The handlers must stay at 100%, and "no notification, no review and no commit on any failure" and "reviewed only for the member's own review of a sold listing" are the parts a model would get wrong.
+
+#### Change to SKILL.md (v49 → v50) and why
+
+| # | v49 (before) | v50 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the review notification and the reviewed flag. | New section *"Feature: Review notification and reviewed flag (Diana)"*: the production code to read first, the fakes (`FakeReviewRepository` with `GetReviewedListingIdsAsync`, `FakeNotificationRepository`), the tests to add (exactly one notification with type, recipient = the seller, listing id, `CreatedAt` of the review, unread and the exact text, one commit; every failure adds no notification, no review and no commit; `Reviewed` false / true / false for a reserved, expired or cancelled reservation / not set by another member's review / per item) and the rules (fixed ids and date, `ErrorType`, `Error.Code` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model sends the notification to the reviewer, forgets the failure cases or sets `Reviewed` from any review of the listing. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Review notification and reviewed flag (Diana)": the tests to add in AddReviewHandlerTests and GetMyReservationsHandlerTests. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v50 (section written by Diana with Claude Code; the last unit-testing version was v49, Run 46)
+- **Result:** 947 unit tests in total. All pass, no production fix needed. The integration tests of the same task are in integration-testing Run 59 (530 in total).
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code c0a5be3; skill section 895354a; tests generated in 111fcc2
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2303,6 +2320,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the moderation list (row 4); fixed in the skill and in the test.
 - **Change to SKILL.md after the run:** the correction of row 4 (commit 5065707).
 - **Commits:** code fa16910; skill section 7bafdcc, fix 5065707; tests generated in f3913a2
+
+### Run 59, skill v58 (Feature: Review notification and reviewed flag)
+
+- **Why a new version:** branch `feature/listing-reviews`. Reviews themselves already existed (452f178, A2: `POST /api/v1/listings/{listingId}/reviews`); this feature only fills the gaps: a `ReviewReceived` notification for the seller when a review is added (same save as the review, text `"{buyer name} rated {listing title} {rating}/5"`, visible in `GET /api/v1/members/me/notifications`) and a new last field `reviewed` (boolean) on the items of `GET /api/v1/members/me/reservations`, used by the "Lasă o recenzie" form. Without a section a model would not know the notification text, that a failed review saves no notification, or that `reviewed` is true only for the buyer's own review of a sold listing.
+
+#### Change to SKILL.md (v57 → v58) and why
+
+| # | v57 (before) | v58 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the review notification and the reviewed flag. | New section *"Feature: Review notification and reviewed flag (Diana)"*: the three endpoints, the files to read (`AddReviewHandler.cs`, `Features/Members/GetMyReservations/`), no migration (the notification type is stored as text), where to add the tests (`Reviews/AddReviewTests.cs`, the existing my-reservations test class), the tests to add (the 201 with the database check of the `ReviewReceived` notification and of the review, the seller reads it through the notifications endpoint with `unreadCount` 1, every failure saves nothing new, `reviewed` false / true / per item / not set by another member's review, database unchanged after every GET) and the rules (`Code` and `Type` of every failure, stop and report instead of changing `src/`). | The text, the recipient and the "nothing saved on a failure" rule are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Review notification and reviewed flag (Diana)": the tests to add in AddReviewTests and in the my-reservations tests. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v58 (section written by Diana with Claude Code; the last integration-testing version was v57, Run 58)
+- **Result:** 530 integration tests in total. All pass, no production fix needed. 3 new integration tests first failed because they seeded no seller (the sold listing had no seller member, so the notification could not be created); fixed in the tests. The unit tests of the same task are in unit-testing Run 47 (947 in total).
+- **Problems seen:** the missing seller in 3 tests (see Result); fixed in the tests.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code c0a5be3; skill section 895354a; tests generated in 111fcc2
 
 ## code-review
 
