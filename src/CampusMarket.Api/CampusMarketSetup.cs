@@ -43,6 +43,7 @@ using CampusMarket.Api.Common.Events;
 using CampusMarket.Api.Infrastructure.Events;
 using CampusMarket.Api.Common.Images;
 using CampusMarket.Api.Infrastructure.Images;
+using CampusMarket.Api.Common.Listings;
 
 namespace CampusMarket.Api;
 
@@ -154,6 +155,21 @@ public static class CampusMarketSetup
             new ReservationExpiryOptions().Enabled);
         if (expiryEnabled)
             services.AddHostedService<ReservationExpiryService>();
+
+        // Listing expiry: how long a listing stays published (Listings:ExpiryDays, used by publish and
+        // renew) and the background service that expires them (ListingExpiry, off in the tests).
+        services.AddOptions<ListingOptions>()
+            .Bind(configuration.GetSection(ListingOptions.SectionName))
+            .Validate(o => o.ExpiryDays >= 1, "Listings:ExpiryDays must be at least 1.")
+            .ValidateOnStart();
+        services.AddOptions<ListingExpiryOptions>()
+            .Bind(configuration.GetSection(ListingExpiryOptions.SectionName));
+
+        var listingExpiryEnabled = configuration.GetValue(
+            $"{ListingExpiryOptions.SectionName}:{nameof(ListingExpiryOptions.Enabled)}",
+            new ListingExpiryOptions().Enabled);
+        if (listingExpiryEnabled)
+            services.AddHostedService<ListingExpiryService>();
 
         AddImageGeneration(services, configuration);
 

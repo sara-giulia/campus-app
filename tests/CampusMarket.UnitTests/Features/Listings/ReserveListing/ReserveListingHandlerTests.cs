@@ -16,7 +16,7 @@ public class ReserveListingHandlerTests
     private static Listing BuildActiveListing(Guid sellerId)
     {
         var listing = Listing.Create(sellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

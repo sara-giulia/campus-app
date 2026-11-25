@@ -116,7 +116,7 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, title, category, Condition.Good, 50m, CreatedAt, description).Value;
         if (published)
-            listing.Publish();
+            listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
 
         await SeedAsync(seller, listing);
         return (seller, listing);

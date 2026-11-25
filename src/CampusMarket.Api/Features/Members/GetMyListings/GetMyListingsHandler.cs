@@ -4,7 +4,7 @@ using CampusMarket.Api.Domain.Listings;
 
 namespace CampusMarket.Api.Features.Members.GetMyListings;
 
-// All listings of the logged-in member, in every status (Draft, Active, Reserved, Sold, Hidden),
+// All listings of the logged-in member, in every status (Draft, Active, Reserved, Sold, Hidden, Expired),
 // newest first. The public search shows only Active listings, so it cannot be used for this page.
 public sealed class GetMyListingsHandler(IListingRepository repository)
     : IQueryHandler<GetMyListingsQuery, GetMyListingsResponse>

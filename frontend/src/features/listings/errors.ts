@@ -41,6 +41,8 @@ export function placeListingError(error: ApiError): PlacedError {
     case 'Money.OutOfRange':
     case 'Money.Invalid':
       return { fields: { price: 'Introdu un preț valid (număr pozitiv, maxim 2 zecimale).' }, form: null }
+    case 'Listing.NotExpired':
+      return { fields: {}, form: 'Doar un anunț expirat poate fi reînnoit.' }
     case 'Listing.Sold':
       return { fields: {}, form: 'Un anunț vândut nu mai poate fi modificat.' }
     case 'Listing.NotFound':

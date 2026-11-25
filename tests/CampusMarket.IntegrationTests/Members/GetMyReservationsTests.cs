@@ -42,11 +42,11 @@ public sealed class GetMyReservationsTests : IntegrationTestBase
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
 
         var olderListing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        olderListing.Publish();
+        olderListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var olderReservation = olderListing.Reserve(buyer.Id, CreatedAt).Value;
 
         var newerListing = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt.AddHours(1)).Value;
-        newerListing.Publish();
+        newerListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var newerReservation = newerListing.Reserve(buyer.Id, CreatedAt.AddHours(1)).Value;
 
         await SeedAsync(buyer, olderListing, newerListing);
@@ -73,7 +73,7 @@ public sealed class GetMyReservationsTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         listing.Reserve(buyer.Id, CreatedAt);
         await SeedAsync(buyer, listing);
         AuthenticateAs(OtherStudentId);
@@ -95,7 +95,7 @@ public sealed class GetMyReservationsTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, DateTimeOffset.UtcNow.AddHours(-49)).Value;
         await SeedAsync(buyer, listing);
         AuthenticateAs(buyer.Id);

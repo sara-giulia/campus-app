@@ -93,7 +93,7 @@ public sealed class GetPhotoFileTests : IntegrationTestBase
     {
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(seller, listing);
         return listing;
     }

@@ -121,11 +121,11 @@ public sealed class GetMyListingsTests : IntegrationTestBase
     {
         // Arrange
         var hidden = BuildDraft(SellerId, "Manual POO", CreatedAt);
-        hidden.Publish();
+        hidden.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         hidden.Hide();
 
         var reserved = BuildDraft(SellerId, "Calculator stiintific", CreatedAt.AddHours(1));
-        reserved.Publish();
+        reserved.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         reserved.Reserve(BuyerId, CreatedAt.AddHours(1));
 
         await SeedAsync(hidden, reserved);

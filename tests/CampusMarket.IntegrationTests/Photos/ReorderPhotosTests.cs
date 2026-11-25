@@ -202,7 +202,7 @@ public sealed class ReorderPhotosTests : IntegrationTestBase
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         if (published)
-            listing.Publish();
+            listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var photos = Enumerable.Range(0, 3)
             .Select(i => Photo.Create(seller.Id, listing, i, PngImage, CreatedAt.AddMinutes(i), i).Value)
             .ToList();

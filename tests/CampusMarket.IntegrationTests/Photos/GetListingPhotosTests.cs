@@ -130,7 +130,7 @@ public sealed class GetListingPhotosTests : IntegrationTestBase
     private static Listing PublishedListing(Member seller, string title)
     {
         var listing = Listing.Create(seller.Id, title, Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         return listing;
     }
 

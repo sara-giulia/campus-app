@@ -15,7 +15,7 @@ public class ListingTests
     private static Listing ActiveListing()
     {
         var listing = DraftListing();
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 
@@ -346,7 +346,7 @@ public class ListingTests
     {
         var listing = DraftListing();
 
-        var result = listing.Publish();
+        var result = listing.Publish(Now.AddDays(30));
 
         result.IsSuccess.Should().BeTrue();
         listing.Status.Should().Be(ListingStatus.Active);
@@ -358,7 +358,7 @@ public class ListingTests
     {
         var listing = ActiveListing();
 
-        var result = listing.Publish();
+        var result = listing.Publish(Now.AddDays(30));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
@@ -613,7 +613,7 @@ public class ListingTests
         var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
         listing.ConfirmSale(reservation.Id, Now.AddHours(1));
 
-        var result = listing.Publish();
+        var result = listing.Publish(Now.AddDays(30));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
@@ -900,7 +900,7 @@ public class ListingTests
     public void Given_ActiveListing_When_AnonymousAsks_Then_IsVisible()
     {
         var listing = DraftOf(VisibilitySellerId);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
 
         listing.IsVisibleTo(null, false).Should().BeTrue();
     }

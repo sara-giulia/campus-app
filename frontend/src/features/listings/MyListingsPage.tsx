@@ -15,7 +15,19 @@ import './listings.css'
 
 const PAGE_SIZE = 10
 
-type MyListingsResponse = { items: ListingSummary[]; count: number }
+// GET /members/me/listings also sends expiresAt (null for a draft that was never published).
+type MyListingItem = ListingSummary & { expiresAt: string | null }
+type MyListingsResponse = { items: MyListingItem[]; count: number }
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// "Expiră în X zile" for an active listing; the last day reads "Expiră azi".
+function expiryText(expiresAt: string): string {
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / DAY_MS)
+  if (days <= 0) return 'Expiră azi'
+  if (days === 1) return 'Expiră mâine'
+  return `Expiră în ${days} ${days < 20 ? 'zile' : 'de zile'}`
+}
 
 function statusTone(status: ListingStatus): 'neutral' | 'success' | 'warning' | 'danger' | 'accent' {
   switch (status) {
@@ -26,6 +38,7 @@ function statusTone(status: ListingStatus): 'neutral' | 'success' | 'warning' | 
     case 'Sold':
       return 'accent'
     case 'Hidden':
+    case 'Expired':
       return 'danger'
     default:
       return 'neutral'
@@ -35,11 +48,12 @@ function statusTone(status: ListingStatus): 'neutral' | 'success' | 'warning' | 
 export function MyListingsPage() {
   const { labelOf } = useCategories()
   const { user } = useAuth()
-  const [items, setItems] = useState<ListingSummary[] | null>(null)
+  const [items, setItems] = useState<MyListingItem[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [renewingId, setRenewingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState<Record<string, string | null>>({})
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -118,6 +132,28 @@ export function MyListingsPage() {
     }
   }
 
+  async function handleRenew(listing: ListingSummary) {
+    setRenewingId(listing.id)
+    setRowError((prev) => ({ ...prev, [listing.id]: null }))
+    setFormError(null)
+    try {
+      await api.post<void>(`/listings/${listing.id}/renew`)
+      await reloadMine()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const message =
+          err.code === 'Listing.CategoryInactive'
+            ? 'Categoria acestui anunț nu mai este activă, așa că nu poate fi reînnoit. Apasă „Editează” și alege altă categorie.'
+            : (placeListingError(err).form ?? err.message)
+        setRowError((prev) => ({ ...prev, [listing.id]: message }))
+      } else {
+        setFormError('A apărut o eroare neașteptată.')
+      }
+    } finally {
+      setRenewingId(null)
+    }
+  }
+
   if (items === null && loadError === null) return <Loading text="Se încarcă anunțurile tale…" />
 
   if (loadError) {
@@ -139,7 +175,7 @@ export function MyListingsPage() {
       <PageHeader
         eyebrow="Contul meu"
         title="Anunțurile mele"
-        lead="Toate anunțurile tale, inclusiv ciornele, cele rezervate și cele vândute."
+        lead="Toate anunțurile tale, inclusiv ciornele, cele rezervate, cele vândute și cele expirate."
         actions={<ButtonLink to="/listings/new">Publică anunț</ButtonLink>}
       />
 
@@ -165,6 +201,12 @@ export function MyListingsPage() {
                   <span>{CONDITION_LABELS[listing.condition]}</span>
                   <span>·</span>
                   <span className="listing-row__price">{listing.price} RON</span>
+                  {listing.status === 'Active' && listing.expiresAt && (
+                    <>
+                      <span>·</span>
+                      <span>{expiryText(listing.expiresAt)}</span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="listing-row__actions">
@@ -178,6 +220,18 @@ export function MyListingsPage() {
                     }}
                   >
                     {publishingId === listing.id ? 'Se publică…' : 'Publică'}
+                  </Button>
+                )}
+                {listing.status === 'Expired' && (
+                  <Button
+                    size="sm"
+                    disabled={renewingId === listing.id || deletingId === listing.id}
+                    loading={renewingId === listing.id}
+                    onClick={() => {
+                      void handleRenew(listing)
+                    }}
+                  >
+                    {renewingId === listing.id ? 'Se reînnoiește…' : 'Reînnoiește'}
                   </Button>
                 )}
                 <ButtonLink to={`/my/listings/${listing.id}/edit`} variant="secondary" size="sm">

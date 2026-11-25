@@ -25,7 +25,7 @@ public sealed class GetMyConversationsTests : IntegrationTestBase
     public GetMyConversationsTests()
     {
         _listing = Listing.Create(_seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        _listing.Publish();
+        _listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
 
         // The first buyer writes first, but the seller's answer at +10 min makes it the latest conversation.
         _firstConversation = Conversation.Start(_firstBuyer.Id, _listing, "Mai e disponibil?", CreatedAt).Value;

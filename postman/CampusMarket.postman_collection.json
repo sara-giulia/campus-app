@@ -2008,6 +2008,172 @@
           ]
         },
         {
+          "name": "RenewListing",
+          "description": "POST /api/v1/listings/{id}/renew: the seller puts an Expired listing back to Active with a new expiresAt (now + Listings:ExpiryDays). A listing only expires after 30 days (ListingExpiryService), so a fresh run can only check the refusals; the success case (204) needs an expired listing.",
+          "item": [
+            {
+              "name": "Renew an active listing (400 Listing.NotExpired)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/renew",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "{{listingId}}",
+                    "renew"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                      "pm.test(\"Error code is Listing.NotExpired\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.NotExpired\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Renew someone else's listing (403 Listing.NotOwner)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{otherToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/renew",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "{{listingId}}",
+                    "renew"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                      "pm.test(\"Error code is Listing.NotOwner\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.NotOwner\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Renew a random id (404 Listing.NotFound)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/00000000-0000-0000-0000-000000000001/renew",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "00000000-0000-0000-0000-000000000001",
+                    "renew"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                      "pm.test(\"Error code is Listing.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Listing.NotFound\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Renew without a token (401)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings/{{listingId}}/renew",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings",
+                    "{{listingId}}",
+                    "renew"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
           "name": "Reservations",
           "item": [
             {
@@ -2259,7 +2425,9 @@
                       "  const body = pm.response.json();",
                       "  pm.expect(body.count).to.eql(body.items.length);",
                       "});",
-                      "pm.test(\"Every item has a status\", () => pm.response.json().items.forEach(i => pm.expect(i.status).to.be.a(\"string\").and.not.empty));"
+                      "pm.test(\"Every item has a status\", () => pm.response.json().items.forEach(i => pm.expect(i.status).to.be.a(\"string\").and.not.empty));",
+                      "pm.test(\"Every item has expiresAt\", () => pm.response.json().items.forEach(i => pm.expect(i).to.have.property(\"expiresAt\")));",
+                      "pm.test(\"An active listing expires in the future\", () => pm.response.json().items.filter(i => i.status === \"Active\").forEach(i => pm.expect(new Date(i.expiresAt).getTime()).to.be.above(Date.now())));"
                     ]
                   }
                 }

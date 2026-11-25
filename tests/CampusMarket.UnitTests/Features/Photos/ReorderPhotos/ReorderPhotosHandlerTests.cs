@@ -27,7 +27,7 @@ public class ReorderPhotosHandlerTests
     {
         var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
         if (publish)
-            listing.Publish();
+            listing.Publish(Now.AddDays(30));
         var listings = new FakeListingRepository();
         listings.Items[listing.Id] = listing;
         var photos = new FakePhotoRepository();

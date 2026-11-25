@@ -52,12 +52,12 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         var validBuyer = Member.Create("Mihai Ionescu", "mihai@student.ro", CreatedAt).Value;
 
         var expiredListing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        expiredListing.Publish();
+        expiredListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var expiredReservation = expiredListing.Reserve(expiredBuyer.Id, DateTimeOffset.UtcNow.AddHours(-49)).Value;
         var expiredVersionBefore = expiredListing.Version;
 
         var validListing = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt.AddHours(1)).Value;
-        validListing.Publish();
+        validListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var validReservation = validListing.Reserve(validBuyer.Id, DateTimeOffset.UtcNow.AddHours(-1)).Value;
 
         await SeedAsync(expiredBuyer, validBuyer, expiredListing, validListing);
@@ -99,7 +99,7 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         var secondBuyer = Member.Create("Mihai Ionescu", "mihai@student.ro", CreatedAt).Value;
 
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var staleReservation = listing.Reserve(firstBuyer.Id, DateTimeOffset.UtcNow.AddHours(-49)).Value;
 
         await SeedAsync(firstBuyer, secondBuyer, listing);
@@ -140,7 +140,7 @@ public sealed class ReservationExpiryTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, DateTimeOffset.UtcNow.AddHours(-49)).Value;
         await SeedAsync(buyer, listing);
         AuthenticateAs(buyer.Id);

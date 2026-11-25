@@ -135,7 +135,7 @@ public class GetListingPhotosHandlerTests
     {
         var listing = BuildListing("Algebra book");
         if (publish)
-            listing.Publish();
+            listing.Publish(Now.AddDays(30));
         var listings = new FakeListingRepository();
         listings.Items[listing.Id] = listing;
         var photo = BuildPhoto(listing, PngBytes, Now);

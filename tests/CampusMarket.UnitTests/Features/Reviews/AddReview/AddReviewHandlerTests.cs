@@ -23,7 +23,7 @@ public class AddReviewHandlerTests
     private static Listing BuildPublishedListing()
     {
         var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

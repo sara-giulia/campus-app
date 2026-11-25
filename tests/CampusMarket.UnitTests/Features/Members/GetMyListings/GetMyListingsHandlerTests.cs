@@ -17,7 +17,7 @@ public class GetMyListingsHandlerTests
     private static Listing BuildActive(Guid sellerId, string title, DateTimeOffset createdAt)
     {
         var listing = BuildDraft(sellerId, title, createdAt);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

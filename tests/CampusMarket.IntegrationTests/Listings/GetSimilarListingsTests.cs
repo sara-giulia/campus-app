@@ -163,7 +163,7 @@ public sealed class GetSimilarListingsTests : IntegrationTestBase
         string title, Category category, decimal price, DateTimeOffset createdAt, string? description = null)
     {
         var listing = Listing.Create(SellerId, title, category, Condition.Good, price, createdAt, description).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         return listing;
     }
 

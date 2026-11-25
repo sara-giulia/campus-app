@@ -16,7 +16,7 @@ public class GetMyFavoritesHandlerTests
     private static Listing BuildPublishedListing(string title = "Algebra book")
     {
         var listing = Listing.Create(SellerId, title, Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 
@@ -43,7 +43,7 @@ public class GetMyFavoritesHandlerTests
     {
         var book = BuildPublishedListing();
         var coat = Listing.Create(SellerId, "Lab coat", Category.LabEquipment, Condition.New, 60m, Now).Value;
-        coat.Publish();
+        coat.Publish(Now.AddDays(30));
         coat.Reserve(OtherMemberId, Now);
         var listings = new FakeListingRepository();
         listings.Items[book.Id] = book;

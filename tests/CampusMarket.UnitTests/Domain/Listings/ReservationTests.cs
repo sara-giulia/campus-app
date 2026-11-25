@@ -12,7 +12,7 @@ public class ReservationTests
         var sellerId = Guid.NewGuid();
         var listingResult = Listing.Create(sellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now);
         var listing = listingResult.Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
 
         var reservationResult = listing.Reserve(Guid.NewGuid(), Now);
         return reservationResult.Value;

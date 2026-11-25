@@ -14,7 +14,7 @@ public class GetMyReservationsHandlerTests
     private static Listing BuildActiveListing(string title, decimal price, DateTimeOffset createdAt)
     {
         var listing = Listing.Create(SellerId, title, Category.Textbook, Condition.Good, price, createdAt).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

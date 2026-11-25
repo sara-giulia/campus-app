@@ -20,7 +20,7 @@ public sealed class RepositoryTests : IntegrationTestBase
     private static Listing PublishedListing(Guid sellerId)
     {
         var listing = Listing.Create(sellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         return listing;
     }
 

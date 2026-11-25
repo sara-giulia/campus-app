@@ -5,7 +5,7 @@
 
 export type Category = 'Textbook' | 'Notes' | 'Electronics' | 'LabEquipment' | 'Other'
 export type Condition = 'New' | 'Good' | 'Worn'
-export type ListingStatus = 'Draft' | 'Active' | 'Reserved' | 'Sold' | 'Hidden'
+export type ListingStatus = 'Draft' | 'Active' | 'Reserved' | 'Sold' | 'Hidden' | 'Expired'
 export type ReservationStatus = 'Active' | 'Cancelled' | 'Expired' | 'Completed'
 
 export interface ListingDetail {
@@ -110,6 +110,7 @@ export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
   Reserved: 'Rezervat',
   Sold: 'Vândut',
   Hidden: 'Ascuns',
+  Expired: 'Expirat',
 }
 
 export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {

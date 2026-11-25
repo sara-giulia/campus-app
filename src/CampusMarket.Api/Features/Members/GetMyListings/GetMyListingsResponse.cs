@@ -12,7 +12,8 @@ public sealed record MyListingItem(
     Condition Condition,
     decimal Price,
     ListingStatus Status,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? ExpiresAt)
 {
     public static MyListingItem From(Listing listing) => new(
         listing.Id,
@@ -22,5 +23,6 @@ public sealed record MyListingItem(
         listing.Condition,
         listing.Price.Amount,
         listing.Status,
-        listing.CreatedAt);
+        listing.CreatedAt,
+        listing.ExpiresAt);
 }

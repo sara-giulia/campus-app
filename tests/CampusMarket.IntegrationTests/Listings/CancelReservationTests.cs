@@ -22,7 +22,7 @@ public sealed class CancelReservationTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         await SeedAsync(buyer, listing);
         AuthenticateAs(buyer.Id);
@@ -45,7 +45,7 @@ public sealed class CancelReservationTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         await SeedAsync(buyer, listing);
         AuthenticateAs(SellerId);
@@ -68,7 +68,7 @@ public sealed class CancelReservationTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         await SeedAsync(buyer, listing);
         AuthenticateAs(AdminId, "Admin");
@@ -91,7 +91,7 @@ public sealed class CancelReservationTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         await SeedAsync(buyer, listing);
         AuthenticateAs(OtherStudentId);
@@ -117,7 +117,7 @@ public sealed class CancelReservationTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         listing.Reserve(buyer.Id, CreatedAt);
         await SeedAsync(buyer, listing);
         AuthenticateAs(buyer.Id);
@@ -143,7 +143,7 @@ public sealed class CancelReservationTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         listing.CancelReservation(reservation.Id);
         await SeedAsync(buyer, listing);
@@ -169,7 +169,7 @@ public sealed class CancelReservationTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         await SeedAsync(buyer, listing);
 

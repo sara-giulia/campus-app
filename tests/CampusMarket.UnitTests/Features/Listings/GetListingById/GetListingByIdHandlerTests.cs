@@ -57,7 +57,7 @@ public class GetListingByIdHandlerTests
     {
         var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
         if (publish)
-            listing.Publish();
+            listing.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         return (repository, listing);

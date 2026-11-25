@@ -25,7 +25,7 @@ public class ExpireReservationsHandlerTests
     private static Listing ReservedListing(Guid buyerId, DateTimeOffset reservedAt, string title = "Algebra book")
     {
         var listing = DraftListing(title);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         listing.Reserve(buyerId, reservedAt);
         return listing;
     }
@@ -33,7 +33,7 @@ public class ExpireReservationsHandlerTests
     private static Listing ActiveListing(string title = "Algebra book")
     {
         var listing = DraftListing(title);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

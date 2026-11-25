@@ -105,7 +105,7 @@ public sealed class PublishListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(SellerId);
 

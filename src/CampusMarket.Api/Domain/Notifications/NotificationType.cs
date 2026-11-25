@@ -4,5 +4,6 @@ public enum NotificationType
 {
     ReservationCreated,
     ListingSold,
-    ReservationExpired
+    ReservationExpired,
+    ListingExpired
 }

@@ -1,9 +1,11 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Listings;
 using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Reports;
+using Microsoft.Extensions.Options;
 
 namespace CampusMarket.Api.Features.Listings.PublishListing;
 
@@ -13,7 +15,8 @@ public sealed class PublishListingHandler(
     ISpamDetector spamDetector,
     IReportRepository reports,
     TimeProvider timeProvider,
-    ICategoryRepository categories)
+    ICategoryRepository categories,
+    IOptions<ListingOptions> listingOptions)
     : ICommandHandler<PublishListingCommand, Guid>
 {
     public async Task<Result<Guid>> HandleAsync(
@@ -39,7 +42,7 @@ public sealed class PublishListingHandler(
                 return Result<Guid>.Failure(categoryError);
         }
 
-        var published = listing.Publish();
+        var published = listing.Publish(timeProvider.GetUtcNow().AddDays(listingOptions.Value.ExpiryDays));
 
         if (published.IsFailure)
             return Result<Guid>.Failure(published.Error);

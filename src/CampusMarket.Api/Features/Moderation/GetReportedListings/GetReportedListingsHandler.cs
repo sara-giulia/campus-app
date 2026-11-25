@@ -25,11 +25,12 @@ public sealed class GetReportedListingsHandler(
         var allListings = await listings.GetAllAsync(ct);
         var listingsById = allListings.ToDictionary(l => l.Id);
 
-        // A hidden listing has already been handled, so it leaves the list.
+        // A hidden listing has already been handled and an expired one is not public, so both leave the list.
         // Deleting a listing deletes its reports (cascade), so every report has its listing.
         var ordered = allReports
             .GroupBy(r => r.ListingId)
-            .Where(g => listingsById.TryGetValue(g.Key, out var listing) && listing.Status != ListingStatus.Hidden)
+            .Where(g => listingsById.TryGetValue(g.Key, out var listing)
+                        && listing.Status is not (ListingStatus.Hidden or ListingStatus.Expired))
             .Select(g => ReportedListingItem.From(listingsById[g.Key], g.ToList()))
             .OrderByDescending(i => i.ReportCount)
             .ThenByDescending(i => i.LastReportedAt)

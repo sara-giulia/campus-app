@@ -26,9 +26,11 @@ public sealed class GetMyFavoritesHandler(
         var listingsById = allListings.ToDictionary(l => l.Id);
 
         // Deleting a listing deletes its favorites (cascade), so every favorite has its listing.
-        // A listing hidden by an Admin stays saved but is not shown (and not counted) while it is hidden.
+        // A listing hidden by an Admin or expired stays saved but is not shown (and not counted) while it
+        // is in that status; a renewed listing comes back.
         var ordered = memberFavorites
-            .Where(f => listingsById.TryGetValue(f.ListingId, out var listing) && listing.Status != ListingStatus.Hidden)
+            .Where(f => listingsById.TryGetValue(f.ListingId, out var listing)
+                        && listing.Status is not (ListingStatus.Hidden or ListingStatus.Expired))
             .OrderByDescending(f => f.CreatedAt)
             .ThenBy(f => f.ListingId)
             .ToList();
