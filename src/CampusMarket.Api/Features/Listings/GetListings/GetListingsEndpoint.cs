@@ -13,7 +13,7 @@ public static class GetListingsEndpoint
     {
         group.MapGet("/", Handle)
             .WithName("GetListings")
-            .CacheOutput(p => p.Expire(TimeSpan.FromSeconds(30)).SetVaryByQuery("*").SetVaryByHeader("Authorization").Tag(ListingsCache.Tag));
+            .CacheOutput(p => p.Expire(TimeSpan.FromSeconds(30)).SetVaryByQuery("*").Tag(ListingsCache.Tag));
     }
 
     private static async Task<Results<Ok<GetListingsResponse>, BadRequest<Error>>> Handle(
