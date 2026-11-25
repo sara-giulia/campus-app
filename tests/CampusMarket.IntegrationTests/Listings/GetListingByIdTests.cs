@@ -20,6 +20,7 @@ public sealed class GetListingByIdTests : IntegrationTestBase
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         await SeedAsync(listing);
+        AuthenticateAs(SellerId);   // the listing is a draft: only its seller (or an Admin) can open it
 
         // Act
         var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}");
@@ -52,6 +53,96 @@ public sealed class GetListingByIdTests : IntegrationTestBase
         var error = await response.Content.ReadFromJsonAsync<Error>(Json);
         error!.Code.Should().Be("Listing.NotFound");
         error.Type.Should().Be(ErrorType.NotFound);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(listing);
+    }
+
+    private static readonly Guid OtherMemberId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid AdminId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+    [Fact]
+    public async Task Given_Draft_When_AdminGetsListing_Then_Returns200()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(AdminId, "Admin");
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingByIdResponse>(Json);
+        body!.Id.Should().Be(listing.Id);
+        body.Status.Should().Be(ListingStatus.Draft);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(listing);
+    }
+
+    [Fact]
+    public async Task Given_Draft_When_OtherMemberGetsListing_Then_Returns404()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(OtherMemberId);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.NotFound");
+        error.Type.Should().Be(ErrorType.NotFound);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(listing);
+    }
+
+    [Fact]
+    public async Task Given_Draft_When_AnonymousGetsListing_Then_Returns404NotFoundNotUnauthorized()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.NotFound");
+        error.Type.Should().Be(ErrorType.NotFound);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(listing);
+    }
+
+    [Fact]
+    public async Task Given_ActiveListing_When_AnonymousGetsListing_Then_Returns200()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish();
+        await SeedAsync(listing);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingByIdResponse>(Json);
+        body!.Id.Should().Be(listing.Id);
+        body.Status.Should().Be(ListingStatus.Active);
 
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(listing);

@@ -21,12 +21,15 @@ public sealed class Photo
     public long SizeBytes { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public bool IsGenerated { get; private set; }
+    // Order in the listing (0 = first = the cover). New photos go at the end; PUT .../photos/order changes it.
+    public int Position { get; private set; }
 
     private Photo() { }
 
     // existingCount: how many photos the listing already has. The format is read from the first bytes of
     // the file (PhotoFormat), never from the name or the type the browser sent, which anyone can change.
-    public static Result<Photo> Create(Guid uploaderId, Listing listing, int existingCount, byte[] content, DateTimeOffset createdAt)
+    public static Result<Photo> Create(
+        Guid uploaderId, Listing listing, int existingCount, byte[] content, DateTimeOffset createdAt, int position = 0)
     {
         if (uploaderId != listing.SellerId)
             return Result<Photo>.Failure(
@@ -53,7 +56,8 @@ public sealed class Photo
             FileName = $"{id}{format.Extension}",
             ContentType = format.ContentType,
             SizeBytes = content.Length,
-            CreatedAt = createdAt
+            CreatedAt = createdAt,
+            Position = position
         };
     }
 
@@ -95,6 +99,8 @@ public sealed class Photo
             IsGenerated = true
         };
     }
+
+    public void MoveTo(int position) => Position = position;
 
     // The same size rules for an upload and for a generated image.
     private static Error? CheckSize(byte[] content)

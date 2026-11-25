@@ -5,7 +5,6 @@ import { useAuth } from '../../app/auth/AuthContext'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Badge, Button, ButtonLink, Card, Loading } from '../../app/ui'
 import { ListingGrid } from './ListingCard'
-import { PhotoManager } from './PhotoManager'
 import {
   formatDate,
   formatDateTime,
@@ -56,9 +55,6 @@ function ListingView({ id }: { id: string }) {
 
   const isSeller = user !== null && listing !== null && user.id === listing.sellerId
 
-  // Bumped by the seller's photo controls, to load the photos again.
-  const [photosVersion, setPhotosVersion] = useState(0)
-
   useEffect(() => {
     const controller = new AbortController()
     api
@@ -66,7 +62,7 @@ function ListingView({ id }: { id: string }) {
       .then((data) => setPhotos(data.items))
       .catch(() => setPhotos([]))
     return () => controller.abort()
-  }, [id, photosVersion])
+  }, [id])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -292,12 +288,6 @@ function ListingView({ id }: { id: string }) {
         <section className="listing-page__section">
           <h2 className="listing-page__section-title">Descriere</h2>
           <p className="listing-page__description">{listing.description}</p>
-        </section>
-      )}
-
-      {isSeller && (
-        <section className="listing-page__section">
-          <PhotoManager listingId={listing.id} photos={photos} onChange={() => setPhotosVersion((v) => v + 1)} />
         </section>
       )}
 

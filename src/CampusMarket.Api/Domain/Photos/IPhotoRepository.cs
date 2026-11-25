@@ -23,6 +23,11 @@ public interface IPhotoRepository
     Task<int> CountForListingAsync(Guid listingId, CancellationToken ct = default);
 
     /// <summary>
+    /// Saves the changes of a photo (its Position). Saved by IUnitOfWork.CommitAsync.
+    /// </summary>
+    void Update(Photo photo);
+
+    /// <summary>
     /// Removes the photo. Saved by IUnitOfWork.CommitAsync.
     /// </summary>
     void Delete(Photo photo);

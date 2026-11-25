@@ -8,7 +8,7 @@ public sealed record UpdateListingCommand(
     Guid RequesterId,
     bool IsAdmin,
     string Title,
-    Category Category,
-    Condition Condition,
+    Category? Category,
+    Condition? Condition,
     decimal Price,
     string? Description = null) : ICommand<Guid>;

@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,10 +16,11 @@ public static class GetListingByIdEndpoint
 
     private static async Task<Results<Ok<GetListingByIdResponse>, NotFound<Error>>> Handle(
         [AsParameters] GetListingByIdRequest request,
+        ClaimsPrincipal user,
         IQueryHandler<GetListingByIdQuery, GetListingByIdResponse> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new GetListingByIdQuery(request.Id), ct);
+        var result = await handler.HandleAsync(new GetListingByIdQuery(request.Id, user.GetMemberIdOrNull(), user.IsAdmin()), ct);
 
         if (result.IsFailure)
             return TypedResults.NotFound(result.Error);

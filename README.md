@@ -202,10 +202,10 @@ flowchart LR
 | Use case | Slice | Endpoint (planned) | Rules checked |
 |---|---|---|---|
 | Register as member | `CreateMember` | `POST /api/v1/members` | unique email |
-| Create listing draft | `CreateListing` | `POST /api/v1/listings` | price > 0, valid category and condition |
+| Create listing draft | `CreateListing` | `POST /api/v1/listings` | title, category and condition are required (a draft needs the same fields as a published listing); price > 0 |
 | Publish listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | only the owner or an Admin; only from `Draft` |
 | Browse and filter listings | `GetListings` | `GET /api/v1/listings?category=&minPrice=&maxPrice=&page=&pageSize=` | only `Active` listings; paging |
-| View listing details | `GetListingById` | `GET /api/v1/listings/{id}` | 404 if missing |
+| View listing details | `GetListingById` | `GET /api/v1/listings/{id}` | 404 if missing; a `Draft` is seen only by its seller or an Admin (404 for everyone else) |
 | Reserve listing | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | not own listing; only `Active` (so not sold); max 3 active; **409 on concurrent reservation** (`Concurrency.Conflict`, see [Error format](#error-format)) |
 | Cancel reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin; only if active |
 | Confirm sale | `ConfirmSale` | `POST /api/v1/listings/{id}/confirm-sale` | only the seller; only if `Reserved` |
@@ -228,7 +228,8 @@ flowchart LR
 | See my conversations | `GetMyConversations` | `GET /api/v1/members/me/conversations` | as buyer and as seller; the latest message first |
 | Add a photo | `UploadPhoto` | `POST /api/v1/listings/{id}/photos` | only the seller; JPEG, PNG or WebP; at most 2 MB; at most 5 per listing |
 | Remove a photo | `DeletePhoto` | `DELETE /api/v1/listings/{id}/photos/{photoId}` | only the seller |
-| See the photos | `GetListingPhotos`, `GetPhotoFile` | `GET /api/v1/listings/{id}/photos`, `GET /api/v1/photos/{id}` | public |
+| Reorder the photos | `ReorderPhotos` | `PUT /api/v1/listings/{id}/photos/order` | only the seller; the ids must be exactly the photos of the listing |
+| See the photos | `GetListingPhotos`, `GetPhotoFile` | `GET /api/v1/listings/{id}/photos`, `GET /api/v1/photos/{id}` | the photo list follows the listing's visibility (a draft: seller or Admin only); the image itself is public |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -237,9 +238,9 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Resource | Slice | Endpoint | Who may call it | Responses |
 |---|---|---|---|---|
 | Listing | `CreateListing` | `POST /api/v1/listings` | anyone logged in; the seller is the user in the token | 201 + `Location`, 400, 401, 409 |
-| Listing | `GetListingById` | `GET /api/v1/listings/{id}` | everyone | 200, 404 |
+| Listing | `GetListingById` | `GET /api/v1/listings/{id}` | everyone; a `Draft` only for its seller or an Admin | 200, 404 (also a draft that is not yours) |
 | Listing | `GetListings` | `GET /api/v1/listings` | everyone | 200, 400 (see [Searching listings](#searching-listings)) |
-| Listing | `UpdateListing` | `PUT /api/v1/listings/{id}` | the seller or an Admin | 204, 400, 401, 403 `Listing.NotOwner`, 404 |
+| Listing | `UpdateListing` | `PUT /api/v1/listings/{id}` | the seller or an Admin | 204, 400 (also `Listing.CategoryRequired`, `Listing.ConditionRequired`), 401, 403 `Listing.NotOwner`, 404 |
 | Listing | `DeleteListing` | `DELETE /api/v1/listings/{id}` | the seller or an Admin | 204, 401, 403 `Listing.NotOwner`, 404 |
 | Member | `CreateMember` | `POST /api/v1/members` | Admins only (students use `Register`) | 201 + `Location`, 400, 401, 403, 409 |
 | Member | `GetMemberById` | `GET /api/v1/members/{id}` | everyone | 200, 404 |
@@ -247,7 +248,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `UpdateMember` | `PUT /api/v1/members/{id}` | the member or an Admin | 204, 400, 401, 403 `Member.NotOwner`, 404, 409 |
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
-| Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400, 401 |
+| Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400 (also `Listing.CategoryRequired`, `Listing.ConditionRequired`), 401 |
 | Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below `Ml:Category:MinConfidence`, 0.6, chosen on validation data), 400, 401 |
 | Listing | `GetSimilarListings` | `GET /api/v1/listings/{id}/similar` | everyone | 200 `{ items: [{ id, title, category, condition, price, similarity }] }` (at most 5 Active listings, never the listing itself, most similar first, similarity 0–1), 404 `Listing.NotFound` |
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
@@ -259,10 +260,11 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Conversation | `GetMyConversations` | `GET /api/v1/members/me/conversations` | anyone logged in; only their own conversations | 200, 401 |
-| Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form) |
-| Photo | `GetListingPhotos` | `GET /api/v1/listings/{listingId}/photos` | everyone | 200, 404 |
+| Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form), 503 `Photo.StorageFailed` |
+| Photo | `GetListingPhotos` | `GET /api/v1/listings/{listingId}/photos` | everyone; the photos of a `Draft` only for its seller or an Admin | 200 (sorted by `position`), 404 (also a draft that is not yours) |
 | Photo | `GetPhotoFile` | `GET /api/v1/photos/{id}` | everyone | 200 (the image), 404 `Photo.NotFound` |
 | Photo | `DeletePhoto` | `DELETE /api/v1/listings/{listingId}/photos/{photoId}` | the seller | 204, 401, 403 `Photo.NotSeller`, 404 |
+| Photo | `ReorderPhotos` | `PUT /api/v1/listings/{listingId}/photos/order` (body `{ "photoIds": [...] }`) | the seller | 200 (the photos in the new order), 400 `Photo.OrderMismatch`, 401, 403 `Photo.NotSeller`, 404 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
@@ -439,6 +441,9 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Category.DisplayNameTooLong` | 400 | the display name of a category is longer than 100 characters |
 | `Category.DescriptionTooLong` | 400 | the description of a category is longer than 500 characters |
 | `Category.LastActive` | 409 | an Admin deactivates the last active category (at least one must stay active) |
+| `Listing.CategoryRequired`, `Listing.ConditionRequired` | 400 | `category` or `condition` is missing (null) on create, update or price suggestion; a draft needs them like a published listing |
+| `Photo.StorageFailed` | 503 | the photo file could not be written to the storage; nothing was saved, try again |
+| `Photo.OrderMismatch` | 400 | the list of `PUT .../photos/order` is not exactly the photos of the listing (missing, unknown or repeated id) |
 | `Listing.CategoryInactive` | 400 | you create a listing in a deactivated category, move a listing into one, or publish a draft that is in one |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
@@ -575,14 +580,16 @@ A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.
 
 ### Listing photos
 
-The seller adds up to 5 photos to a listing (any status), each a JPEG, PNG or WebP of at most 2 MB.
+The seller adds up to 5 photos to a listing (any status, a draft too), each a JPEG, PNG or WebP of at most 2 MB.
 
 - `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, contentType, sizeBytes, createdAt, isGenerated }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 2 MB is ever read into memory.
-- `GET /api/v1/listings/{id}/photos` (public): the photos in the order they were added. `url` is what an `<img src>` uses.
-- `GET /api/v1/photos/{id}` (public): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id), `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff` (a generated image is an SVG, which must not run anything when opened directly).
+- `GET /api/v1/listings/{id}/photos`: the photos sorted by `position`; the first one (`position` 0) is the cover. `url` is what an `<img src>` uses. The photos of a `Draft` are returned only to its seller or an Admin; for anyone else the answer is 404, like `GET /api/v1/listings/{id}`.
+- A new photo goes at the end (`position` = last + 1). `PUT /api/v1/listings/{id}/photos/order` (the seller only) takes `{ "photoIds": [...] }` with every photo id of the listing exactly once, in the new order, and returns the photos in that order (400 `Photo.OrderMismatch` otherwise). Deleting a photo leaves a gap in the positions; the order stays correct.
+- If the file cannot be written to the storage, the upload answers 503 `Photo.StorageFailed` and saves nothing.
+- `GET /api/v1/photos/{id}` (public, also for the photos of a draft: the ids are random GUIDs that cannot be guessed, so the link is the secret; it is not checked against the listing's status): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id), `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff` (a generated image is an SVG, which must not run anything when opened directly).
 - `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
 
-The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, on the `campusmarket-data` volume, so the photos survive a restart. The database (`Photos` table, migration `InitialPostgres`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
+The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, on the `campusmarket-data` volume, so the photos survive a restart. The database (`Photos` table, migrations `InitialPostgres` and `AddPhotoPosition`) keeps only the file name, type, size and position. Deleting a listing removes its photo rows (cascade) and its folder.
 
 ### Generated images for listings without photos
 

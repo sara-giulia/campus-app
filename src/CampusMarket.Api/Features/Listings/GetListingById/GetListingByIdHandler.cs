@@ -12,7 +12,7 @@ public sealed class GetListingByIdHandler(IListingRepository repository)
     {
         var listing = await repository.GetByIdAsync(query.Id, ct);
 
-        if (listing is null)
+        if (listing is null || !listing.IsVisibleTo(query.RequesterId, query.IsAdmin))
             return Result<GetListingByIdResponse>.Failure(
                 Error.NotFound("Listing.NotFound", $"Listing '{query.Id}' was not found."));
 

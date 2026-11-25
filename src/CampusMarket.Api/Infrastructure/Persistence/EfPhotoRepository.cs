@@ -20,5 +20,7 @@ public sealed class EfPhotoRepository(CampusMarketDbContext db) : IPhotoReposito
     public Task<int> CountForListingAsync(Guid listingId, CancellationToken ct = default) =>
         db.Photos.CountAsync(p => p.ListingId == listingId, ct);
 
+    public void Update(Photo photo) => db.Photos.Update(photo);
+
     public void Delete(Photo photo) => db.Photos.Remove(photo);
 }

@@ -14,19 +14,24 @@ public sealed class SuggestPriceHandler(IPriceSuggester suggester)
 {
     public Task<Result<SuggestPriceResponse>> HandleAsync(SuggestPriceQuery query, CancellationToken ct)
     {
-        var validation = Validate(query);
+        var required = Listing.RequireClassification(query.Category, query.Condition);
+        if (required.IsFailure)
+            return Task.FromResult(Result<SuggestPriceResponse>.Failure(required.Error));
+        var (category, condition) = required.Value;
+
+        var validation = Validate(query, category, condition);
         if (validation is not null)
             return Task.FromResult(Result<SuggestPriceResponse>.Failure(validation));
 
-        var suggested = suggester.Suggest(query.Title.Trim(), query.Description, query.Category, query.Condition);
+        var suggested = suggester.Suggest(query.Title.Trim(), query.Description, category, condition);
         return Task.FromResult<Result<SuggestPriceResponse>>(new SuggestPriceResponse(suggested));
     }
 
-    private static Error? Validate(SuggestPriceQuery query)
+    private static Error? Validate(SuggestPriceQuery query, Category category, Condition condition)
     {
-        if (!Enum.IsDefined(query.Category))
+        if (!Enum.IsDefined(category))
             return Error.Validation("Listing.CategoryInvalid", "Unknown category.");
-        if (!Enum.IsDefined(query.Condition))
+        if (!Enum.IsDefined(condition))
             return Error.Validation("Listing.ConditionInvalid", "Unknown condition.");
 
         return Listing.ValidateText(query.Title, query.Description);

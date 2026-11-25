@@ -3,6 +3,8 @@ import { ApiError } from '../../api/errors'
 import { api } from '../../api/client'
 import { Alert, Button, ButtonLink, TextField } from '../../app/ui'
 import { useCategories } from './categories'
+import type { PhotoEntry } from './photoEntries'
+import { PhotoPicker } from './PhotoPicker'
 import { placeListingError, type FieldErrors } from './errors'
 import {
   CONDITIONS,
@@ -21,6 +23,15 @@ export interface ListingFormValues {
   price: number
 }
 
+// What a submit button asks for: "save" keeps (or makes) the listing as it is, "publish" also publishes it.
+export type ListingFormIntent = 'save' | 'publish'
+
+export interface ListingFormAction {
+  intent: ListingFormIntent
+  label: string
+  submittingLabel: string
+}
+
 export type ListingFormSubmitResult =
   | { ok: true }
   | { ok: false; fieldErrors?: FieldErrors; formError?: string | null }
@@ -35,9 +46,11 @@ export interface ListingFormInitialValues {
 
 interface ListingFormProps {
   initialValues?: ListingFormInitialValues
-  onSubmit: (values: ListingFormValues) => Promise<ListingFormSubmitResult>
-  submitLabel: string
-  submittingLabel: string
+  onSubmit: (values: ListingFormValues, intent: ListingFormIntent) => Promise<ListingFormSubmitResult>
+  // The buttons, the last one is the main one.
+  actions: ListingFormAction[]
+  photos: PhotoEntry[]
+  onPhotosChange: (photos: PhotoEntry[]) => void
   showSuggestions?: boolean
   cancelTo?: string
   cancelLabel?: string
@@ -67,22 +80,23 @@ function priceRange(suggestion: number): { low: number; high: number } {
 export function ListingForm({
   initialValues,
   onSubmit,
-  submitLabel,
-  submittingLabel,
+  actions,
+  photos,
+  onPhotosChange,
   showSuggestions = false,
   cancelTo,
   cancelLabel,
 }: ListingFormProps): ReactNode {
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [description, setDescription] = useState(initialValues?.description ?? '')
-  // null until the user picks one: then the first category that can be chosen is used (see selectedCategory).
+  // null until the user picks one: both are required.
   const [category, setCategory] = useState<Category | null>(initialValues?.category ?? null)
-  const [condition, setCondition] = useState<Condition>(initialValues?.condition ?? 'Good')
+  const [condition, setCondition] = useState<Condition | null>(initialValues?.condition ?? null)
   const [price, setPrice] = useState(initialValues?.price ?? '')
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting] = useState<ListingFormIntent | null>(null)
 
   const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null)
   const [suggestingPrice, setSuggestingPrice] = useState(false)
@@ -98,10 +112,6 @@ export function ListingForm({
   const { categories, labelOf } = useCategories()
   const currentCategory = initialValues?.category
   const categoryOptions = categories.filter((c) => c.isActive || c.key === currentCategory)
-  const selectedCategory: Category =
-    category !== null && categoryOptions.some((c) => c.key === category)
-      ? category
-      : (categoryOptions[0]?.key ?? currentCategory ?? 'Other')
   const canUseCategory = (key: Category) => categoryOptions.some((c) => c.key === key)
 
   const descriptionId = useId()
@@ -156,11 +166,10 @@ export function ListingForm({
     }
   }
 
-  // Auto-suggest when category or condition changes (after the user picked a
-  // category). Debounced so a run of changes only triggers the last one; the
+  // Auto-suggest when category or condition changes (once both are chosen). Debounced so a run of changes only triggers the last one; the
   // AbortController in runPriceSuggestion cancels any in-flight request.
   useEffect(() => {
-    if (!showSuggestions || category === null) return
+    if (!showSuggestions || category === null || condition === null) return
     const timer = setTimeout(() => {
       void runPriceSuggestion(category, condition)
     }, PRICE_SUGGESTION_DEBOUNCE_MS)
@@ -191,40 +200,47 @@ export function ListingForm({
     }
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function submit(intent: ListingFormIntent) {
     setFieldErrors({})
     setFormError(null)
 
+    const errors: FieldErrors = {}
+    if (category === null) errors.category = 'Alege categoria.'
+    if (condition === null) errors.condition = 'Alege starea.'
     const priceValue = parsePrice(price)
-    if (priceValue === null) {
-      setFieldErrors({ price: 'Introdu un preț valid (număr pozitiv, maxim 2 zecimale).' })
+    if (priceValue === null) errors.price = 'Introdu un preț valid (număr pozitiv, maxim 2 zecimale).'
+    if (category === null || condition === null || priceValue === null) {
+      setFieldErrors(errors)
       return
     }
 
-    setSubmitting(true)
-    const result = await onSubmit({
-      title: title.trim(),
-      description: description.trim() === '' ? null : description.trim(),
-      category: selectedCategory,
-      condition,
-      price: priceValue,
-    })
+    setSubmitting(intent)
+    const result = await onSubmit(
+      {
+        title: title.trim(),
+        description: description.trim() === '' ? null : description.trim(),
+        category,
+        condition,
+        price: priceValue,
+      },
+      intent,
+    )
+    // On success the page navigates away; on failure the form stays, with the photos it has.
     if (!result.ok) {
       setFieldErrors(result.fieldErrors ?? {})
       setFormError(result.formError ?? null)
-      setSubmitting(false)
     }
+    setSubmitting(null)
   }
 
   const titleReady = title.trim().length > 0
-  const canSuggestPrice = titleReady && category !== null
+  const canSuggestPrice = titleReady && category !== null && condition !== null
   const canSuggestCategory = titleReady
 
   const suggestionRange = suggestedPrice !== null ? priceRange(suggestedPrice) : null
 
   return (
-    <form onSubmit={(e) => { void handleSubmit(e) }} className="listings-form" noValidate>
+    <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault() }} className="listings-form" noValidate>
       <TextField
         label="Titlu"
         value={title}
@@ -260,10 +276,17 @@ export function ListingForm({
           <select
             id={categoryId}
             className="listings-form__select"
-            value={selectedCategory}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => setCategory(e.target.value as Category)}
+            value={category ?? ''}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+              setCategory(e.target.value as Category)
+              setFieldErrors((prev) => ({ ...prev, category: undefined }))
+            }}
             aria-invalid={fieldErrors.category ? true : undefined}
+            required
           >
+            <option value="" disabled>
+              Alege categoria
+            </option>
             {categoryOptions.map((c) => (
               <option key={c.key} value={c.key}>
                 {c.isActive ? c.displayName : `${c.displayName} (inactivă)`}
@@ -278,10 +301,17 @@ export function ListingForm({
           <select
             id={conditionId}
             className="listings-form__select"
-            value={condition}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => setCondition(e.target.value as Condition)}
+            value={condition ?? ''}
+            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+              setCondition(e.target.value as Condition)
+              setFieldErrors((prev) => ({ ...prev, condition: undefined }))
+            }}
             aria-invalid={fieldErrors.condition ? true : undefined}
+            required
           >
+            <option value="" disabled>
+              Alege starea
+            </option>
             {CONDITIONS.map((c) => (
               <option key={c} value={c}>
                 {CONDITION_LABELS[c]}
@@ -303,6 +333,8 @@ export function ListingForm({
         error={fieldErrors.price}
         required
       />
+
+      <PhotoPicker photos={photos} onChange={onPhotosChange} disabled={submitting !== null} />
 
       {showSuggestions && (
         <div className="listings-form__suggestions">
@@ -334,7 +366,7 @@ export function ListingForm({
                 disabled={!canSuggestPrice || suggestingPrice}
                 loading={suggestingPrice}
                 onClick={() => {
-                  if (category !== null) void runPriceSuggestion(category, condition)
+                  if (category !== null && condition !== null) void runPriceSuggestion(category, condition)
                 }}
               >
                 Sugerează preț
@@ -359,7 +391,10 @@ export function ListingForm({
                   variant="secondary"
                   size="sm"
                   onClick={() => {
-                    if (suggestedCategory.category) setCategory(suggestedCategory.category)
+                    if (suggestedCategory.category) {
+                      setCategory(suggestedCategory.category)
+                      setFieldErrors((prev) => ({ ...prev, category: undefined }))
+                    }
                   }}
                 >
                   Folosește „{labelOf(suggestedCategory.category)}"
@@ -390,9 +425,19 @@ export function ListingForm({
             {cancelLabel ?? 'Anulează'}
           </ButtonLink>
         )}
-        <Button type="submit" loading={submitting}>
-          {submitting ? submittingLabel : submitLabel}
-        </Button>
+        {actions.map((action, index) => (
+          <Button
+            key={action.intent}
+            variant={index === actions.length - 1 ? 'primary' : 'secondary'}
+            loading={submitting === action.intent}
+            disabled={submitting !== null}
+            onClick={() => {
+              void submit(action.intent)
+            }}
+          >
+            {submitting === action.intent ? action.submittingLabel : action.label}
+          </Button>
+        ))}
       </div>
     </form>
   )

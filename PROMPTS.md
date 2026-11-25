@@ -1178,6 +1178,24 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 7ff07f7 (code), 51db7e9 (skills), f19f7f7 (tests)
 
+### Run 45, skill v48 (Feature: Publish with photos and draft)
+
+- **Why a new version:** branch `feature/publish-with-photos` (code 9371271 backend, dcd7fc3 frontend). New domain and handler rules the skill did not cover: `Listing.RequireClassification` and `Listing.IsVisibleTo`; `category` and `condition` required in `CreateListingHandler`, `UpdateListingHandler` and `SuggestPriceHandler`; draft visibility in `GetListingByIdHandler` and `GetListingPhotosHandler` (photos ordered by `Position`, then `CreatedAt`); the new `ReorderPhotosHandler`; the photo `Position` and `Photo.StorageFailed` in `UploadPhotoHandler`. The handlers must stay at 100%, and the order of the checks is the part a model would get wrong.
+
+#### Change to SKILL.md (v47 → v48) and why
+
+| # | v47 (before) | v48 (after) | Why |
+|---|---|---|---|
+| 1 | No section for publish with photos and draft. | New section *"Feature: Publish with photos and draft (Diana)"*: the production code to read first, the files (existing test classes, new `ReorderPhotosHandlerTests.cs`; `FakePhotoRepository` counts `Update` in `UpdateCount`, the storage fake can throw), the tests to add (`RequireClassification`, `IsVisibleTo`, the three handlers with the required fields, draft visibility, `ReorderPhotos` with all its failures, `UploadPhoto` positions and storage failure with `IOException` and `OperationCanceledException`) and the rules (fixed ids and date, error code and `ErrorType` on every failure, queries never commit, stop and report instead of changing `src/`). | Without it a model guesses the order of the checks, the position with a gap or generated photos, and what happens when the storage is cancelled. |
+| 2 | Section as first written (b177ca5): the three handlers run `RequireClassification` "before anything else". | Correction (171c6c5): `RequireClassification` runs before the category lookup, the validation and the price rules; in `UpdateListingHandler` it comes after the not found (`Listing.NotFound`) and not owner (`Listing.NotOwner`) checks, which run first. | "Before anything else" was wrong for `UpdateListingHandler`: a test written from it would expect `Listing.CategoryRequired` for a missing or foreign listing and fail. Found when the tests were generated; the production code was right. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Publish with photos and draft (Diana)": ListingTests, CreateListingHandlerTests, UpdateListingHandlerTests, SuggestPriceHandlerTests, GetListingByIdHandlerTests, GetListingPhotosHandlerTests, UploadPhotoHandlerTests and the new ReorderPhotosHandlerTests. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v48 (section written by Diana with Claude Code; the last unit-testing version was v47, Run 44)
+- **Result:** 44 new unit tests, 886 in total. All pass, no production fix needed. The only change after the first run was in the skill (row 2 above), not in `src/`.
+- **Problems seen:** the order of the checks in `UpdateListingHandler` (see row 2); fixed in the skill.
+- **Change to SKILL.md after the run:** the correction of row 2 (commit 171c6c5).
+- **Commits:** code 9371271 (backend), dcd7fc3 (frontend); skill section b177ca5, fix 171c6c5; tests generated in 36c7945
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2229,6 +2247,25 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none in the run. Section 7 of the skill says never edit `.claude/skills/` or `PROMPTS.md`; both were changed here because the task asked for it explicitly.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 7ff07f7 (code), 51db7e9 (skills), f19f7f7 (tests)
+
+### Run 57, skill v56 (Feature: Publish with photos and draft)
+
+- **Why a new version:** branch `feature/publish-with-photos` (code 9371271 backend, dcd7fc3 frontend). The API changed in five places the skill did not cover: `category` and `condition` are required on create, update and price suggestion; a `Draft` listing is visible only to its seller and to an Admin (404 for everyone else, anonymous too); the new endpoint `PUT /api/v1/listings/{id}/photos/order`; photos have a `position` (new photo = last + 1, `503 Photo.StorageFailed` when the file storage fails); the migration `AddPhotoPosition` numbers the existing photos. Without a section a model would not know the status and ProblemDetails codes, that a draft must give 404 and not 401 or 403, or that the migration needs its own PostgreSQL database.
+
+#### Change to SKILL.md (v55 → v56) and why
+
+| # | v55 (before) | v56 (after) | Why |
+|---|---|---|---|
+| 1 | No section for publish with photos and draft. | New section *"Feature: Publish with photos and draft (Diana)"*: the endpoints and their codes (`Listing.CategoryRequired` and `Listing.ConditionRequired`, category first; draft visibility; `ReorderPhotosEndpoint` with 200, 401, 404, 403 `Photo.NotSeller` and 400 `Photo.OrderMismatch`; photo `position`; 503 `Photo.StorageFailed`; migration `AddPhotoPosition`), the files (five existing test classes, new `ReorderPhotosTests` and `AddPhotoPositionMigrationTests`), the tests to add and the rules (status code and ProblemDetails code of every failure, database unchanged, order checked by id, never replace the `DbContext`, stop and report instead of changing `src/`). | The codes and the draft rule (404, not 401) are decisions of the API, not guessable. |
+| 2 | — | The migration test: a separate PostgreSQL database (never the shared one), `IMigrator.MigrateAsync("<previous migration name>")`, raw SQL inserts (two listings, equal `CreatedAt` in one of them), migrate to `AddPhotoPosition`, check the numbering by `CreatedAt` then `Id` and that `CreatedAt` is unchanged. | The shared database is already at the last migration, so the data migration can only be tested on its own database. |
+| 3 | — | The storage failure: replace only the photo storage service of the test host with one that throws. | The real storage cannot fail on demand; replacing the `DbContext` is still forbidden. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Publish with photos and draft (Diana)": CreateListingTests, UpdateListingTests, GetListingByIdTests, UploadPhotoTests, GetListingPhotosTests, the new ReorderPhotosTests and the new AddPhotoPositionMigrationTests. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v56 (section written by Diana with Claude Code; the last integration-testing version was v55, Run 56)
+- **Result:** 27 new integration tests, 482 in total (455 before). All pass, no production fix needed. The unit tests of the same task are in unit-testing Run 45 (886 in total, 44 new).
+- **Problems seen:** none. Section 7 of the skill says never edit `.claude/skills/` or `PROMPTS.md`, and never change `src/`; the skill was changed here because the task asked for it explicitly.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 9371271 (backend), dcd7fc3 (frontend); skill section b177ca5; tests generated in 36c7945
 
 ## code-review
 

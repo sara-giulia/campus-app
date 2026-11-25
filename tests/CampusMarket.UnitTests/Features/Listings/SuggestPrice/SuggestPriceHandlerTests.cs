@@ -211,4 +211,34 @@ public class SuggestPriceHandlerTests
         result.Error.Message.Should().Be($"Description must have at most {Listing.MaxDescriptionLength} characters.");
         suggester.CallCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_NullCategory_When_Handling_Then_ReturnsCategoryRequiredAndSuggesterNotCalled()
+    {
+        var suggester = new FakePriceSuggester();
+        var handler = new SuggestPriceHandler(suggester);
+        var query = new SuggestPriceQuery("Algebra book", null, Condition.Good);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryRequired");
+        suggester.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NullCondition_When_Handling_Then_ReturnsConditionRequiredAndSuggesterNotCalled()
+    {
+        var suggester = new FakePriceSuggester();
+        var handler = new SuggestPriceHandler(suggester);
+        var query = new SuggestPriceQuery("Algebra book", Category.Textbook, null);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.ConditionRequired");
+        suggester.CallCount.Should().Be(0);
+    }
 }

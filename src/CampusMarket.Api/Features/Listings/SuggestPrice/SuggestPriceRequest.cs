@@ -7,6 +7,6 @@ namespace CampusMarket.Api.Features.Listings.SuggestPrice;
 // one that computes a price.
 public sealed record SuggestPriceRequest(
     string Title,
-    Category Category,
-    Condition Condition,
+    Category? Category,
+    Condition? Condition,
     string? Description = null);

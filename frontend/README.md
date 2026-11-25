@@ -79,7 +79,7 @@ The top bar has Acasă, Anunțuri, Publică anunț, Mesaje and Notificări; the 
 |---|---|---|
 | `/` | landing + the newest listings | everyone |
 | `/listings?search=&category=&condition=&minPrice=&maxPrice=&sort=&page=` | search with filters, sorting and pages (the filters are in the address) | everyone |
-| `/listings/:id` | photos, details, seller, similar listings; reserve, save, write to the seller, report; the seller adds and removes photos | everyone (actions need login) |
+| `/listings/:id` | photos, details, seller, similar listings; reserve, save, write to the seller, report | everyone (actions need login) |
 | `/members/:id` | a seller's active listings and reviews | everyone |
 | `/messages`, `/messages/:id` | my conversations and one conversation (refreshed every 5 seconds) | logged in |
 | `/my/favorites` | the listings I saved | logged in |
@@ -87,6 +87,14 @@ The top bar has Acasă, Anunțuri, Publică anunț, Mesaje and Notificări; the 
 | `/admin/categories` | the 5 base categories: change the display name, the description and the active flag | Admin |
 | `/admin/price-accuracy` | how close the suggested prices were to the sold prices: number of sales, MAE, MAPE, per category, the last 10 sales | Admin |
 | `/listings/new`, `/my/listings`, `/my/listings/:id/edit`, `/my/reservations`, `/profile`, `/register`, `/forgot-password`, `/reset-password` | publish and edit, my listings, my reservations, my profile, account pages (Sara) | see the routes |
+
+### Publish with photos
+
+`/listings/new` (`CreateListingPage`) and the edit page use `ListingForm` with the `PhotoPicker` (`features/listings/`): up to 5 photos (JPEG, PNG, WebP, 2 MB each; checked in the browser and again by the API), local previews, remove and move left/right, the first one is the cover. Category and condition start on "Alege categoria" / "Alege starea" and are required; the price suggestion runs only when both are chosen.
+
+- **Create:** "Salvează ca ciornă" and "Publică" both create the draft (`POST /listings`), upload the photos one by one in order, and only then "Publică" calls `POST /listings/{id}/publish`. If an upload fails, the page keeps the draft id, marks the photo that failed and the next try updates that same draft and uploads only what is missing: a second listing is never created.
+- **Edit:** shows the server photos plus the new ones. Saving deletes the removed photos, uploads the new ones, then sends the order with `PUT /listings/{id}/photos/order`. A draft also has "Publică". Photos are no longer managed on the listing page.
+- **My listings:** a draft row has "Publică" next to "Editează"; `Listing.CategoryInactive` shows a message to pick another category.
 
 ## Login state
 

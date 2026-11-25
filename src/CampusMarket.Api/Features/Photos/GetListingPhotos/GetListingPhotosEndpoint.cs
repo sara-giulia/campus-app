@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,10 +16,11 @@ public static class GetListingPhotosEndpoint
 
     private static async Task<Results<Ok<GetListingPhotosResponse>, NotFound<Error>>> Handle(
         Guid listingId,
+        ClaimsPrincipal user,
         IQueryHandler<GetListingPhotosQuery, GetListingPhotosResponse> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new GetListingPhotosQuery(listingId), ct);
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listingId, user.GetMemberIdOrNull(), user.IsAdmin()), ct);
 
         return result.IsSuccess
             ? TypedResults.Ok(result.Value)

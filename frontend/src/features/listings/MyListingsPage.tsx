@@ -39,6 +39,7 @@ export function MyListingsPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [publishingId, setPublishingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState<Record<string, string | null>>({})
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -95,6 +96,28 @@ export function MyListingsPage() {
     }
   }
 
+  async function handlePublish(listing: ListingSummary) {
+    setPublishingId(listing.id)
+    setRowError((prev) => ({ ...prev, [listing.id]: null }))
+    setFormError(null)
+    try {
+      await api.post<void>(`/listings/${listing.id}/publish`)
+      await reloadMine()
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const message =
+          err.code === 'Listing.CategoryInactive'
+            ? 'Categoria acestui anunț nu mai este activă, așa că nu poate fi publicat. Apasă „Editează” și alege altă categorie.'
+            : (placeListingError(err).form ?? err.message)
+        setRowError((prev) => ({ ...prev, [listing.id]: message }))
+      } else {
+        setFormError('A apărut o eroare neașteptată.')
+      }
+    } finally {
+      setPublishingId(null)
+    }
+  }
+
   if (items === null && loadError === null) return <Loading text="Se încarcă anunțurile tale…" />
 
   if (loadError) {
@@ -145,6 +168,18 @@ export function MyListingsPage() {
                 </div>
               </div>
               <div className="listing-row__actions">
+                {listing.status === 'Draft' && (
+                  <Button
+                    size="sm"
+                    disabled={publishingId === listing.id || deletingId === listing.id}
+                    loading={publishingId === listing.id}
+                    onClick={() => {
+                      void handlePublish(listing)
+                    }}
+                  >
+                    {publishingId === listing.id ? 'Se publică…' : 'Publică'}
+                  </Button>
+                )}
                 <ButtonLink to={`/my/listings/${listing.id}/edit`} variant="secondary" size="sm">
                   Editează
                 </ButtonLink>

@@ -26,14 +26,24 @@ public sealed class UploadPhotoHandler(
         var current = await photos.GetByListingAsync(command.ListingId, ct);
         var generated = current.Where(p => p.IsGenerated).ToList();
         var created = Photo.Create(
-            command.UploaderId, listing, current.Count - generated.Count, command.Content, timeProvider.GetUtcNow());
+            command.UploaderId, listing, current.Count - generated.Count, command.Content, timeProvider.GetUtcNow(),
+            current.Where(p => !p.IsGenerated).Select(p => p.Position).DefaultIfEmpty(-1).Max() + 1);
         if (created.IsFailure)
             return Result<PhotoResponse>.Failure(created.Error);
 
         var photo = created.Value;
 
         // The file first: if saving the row fails, an unused file is left, never a row without its file.
-        await storage.SaveAsync(listing.Id, photo.FileName, command.Content, ct);
+        try
+        {
+            await storage.SaveAsync(listing.Id, photo.FileName, command.Content, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return Result<PhotoResponse>.Failure(
+                Error.Validation("Photo.StorageFailed", "The photo could not be saved. Try again later."));
+        }
+
         generated.ForEach(photos.Delete);
         await photos.AddAsync(photo, ct);
         await unitOfWork.CommitAsync(ct);

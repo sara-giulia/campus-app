@@ -6,6 +6,8 @@ public sealed class FakePhotoRepository : IPhotoRepository
 {
     public List<Photo> Items { get; } = new();
 
+    public int UpdateCount { get; private set; }
+
     public Task AddAsync(Photo photo, CancellationToken ct = default)
     {
         Items.Add(photo);
@@ -27,6 +29,12 @@ public sealed class FakePhotoRepository : IPhotoRepository
     public Task<int> CountForListingAsync(Guid listingId, CancellationToken ct = default)
     {
         return Task.FromResult(Items.Count(p => p.ListingId == listingId));
+    }
+
+    public void Update(Photo photo)
+    {
+        // The photo object is shared with Items, so its new Position is already stored.
+        UpdateCount++;
     }
 
     public void Delete(Photo photo)

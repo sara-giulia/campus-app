@@ -146,4 +146,119 @@ public sealed class GetListingPhotosTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         return (await response.Content.ReadFromJsonAsync<PhotoResponse>(Json))!;
     }
+
+    private static readonly Guid OtherMemberId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid AdminId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+    // A draft listing with one photo, saved straight into the database.
+    private async Task<(Listing Listing, Photo Photo)> SeedDraftWithPhotoAsync()
+    {
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        var photo = Photo.Create(seller.Id, listing, 0, PngImage, CreatedAt).Value;
+        await SeedAsync(seller, listing, photo);
+        return (listing, photo);
+    }
+
+    [Fact]
+    public async Task Given_PhotosSeededOutOfOrder_When_GettingListingPhotos_Then_ReturnsThemByPositionThenCreatedAt()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var listing = PublishedListing(seller, "Manual POO");
+        var last = Photo.Create(seller.Id, listing, 0, PngImage, CreatedAt, position: 2).Value;
+        var tieNewer = Photo.Create(seller.Id, listing, 1, PngImage, CreatedAt.AddHours(2), position: 1).Value;
+        var tieOlder = Photo.Create(seller.Id, listing, 2, PngImage, CreatedAt.AddHours(1), position: 1).Value;
+        var cover = Photo.Create(seller.Id, listing, 3, PngImage, CreatedAt.AddHours(3), position: 0).Value;
+        await SeedAsync(seller, listing, last, tieNewer, tieOlder, cover);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}/photos");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingPhotosResponse>(Json);
+        body!.Count.Should().Be(4);
+        body.Items.Select(p => p.Id).Should().Equal(cover.Id, tieOlder.Id, tieNewer.Id, last.Id);
+        body.Items.Select(p => p.Position).Should().Equal(0, 1, 1, 2);
+
+        var count = await QueryDbAsync(db => db.Set<Photo>().CountAsync());
+        count.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task Given_DraftListing_When_SellerGetsPhotos_Then_Returns200()
+    {
+        // Arrange
+        var (listing, photo) = await SeedDraftWithPhotoAsync();
+        AuthenticateAs(listing.SellerId);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}/photos");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingPhotosResponse>(Json);
+        body!.Items.Select(p => p.Id).Should().Equal(photo.Id);
+    }
+
+    [Fact]
+    public async Task Given_DraftListing_When_AdminGetsPhotos_Then_Returns200()
+    {
+        // Arrange
+        var (listing, photo) = await SeedDraftWithPhotoAsync();
+        AuthenticateAs(AdminId, "Admin");
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}/photos");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingPhotosResponse>(Json);
+        body!.Items.Select(p => p.Id).Should().Equal(photo.Id);
+    }
+
+    [Fact]
+    public async Task Given_DraftListing_When_OtherMemberGetsPhotos_Then_Returns404()
+    {
+        // Arrange
+        var (listing, _) = await SeedDraftWithPhotoAsync();
+        AuthenticateAs(OtherMemberId);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}/photos");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.NotFound");
+        error.Type.Should().Be(ErrorType.NotFound);
+
+        var count = await QueryDbAsync(db => db.Set<Photo>().CountAsync());
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_DraftListing_When_AnonymousGetsPhotos_Then_Returns404NotFoundNotUnauthorized()
+    {
+        // Arrange
+        var (listing, _) = await SeedDraftWithPhotoAsync();
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}/photos");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.NotFound");
+        error.Type.Should().Be(ErrorType.NotFound);
+
+        var count = await QueryDbAsync(db => db.Set<Photo>().CountAsync());
+        count.Should().Be(1);
+    }
 }
