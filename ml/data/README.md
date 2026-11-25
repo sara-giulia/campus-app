@@ -19,6 +19,7 @@ evaluated reproducibly without touching real accounts.
   - `priceMin` / `priceMax` — realistic price range in lei.
 - `listings.csv` — UTF-8 (no BOM), LF line endings, standard CSV quoting:
   text fields are wrapped in `"…"` and an embedded `"` is escaped as `""`.
+- `feedback.csv` — optional, not committed: real sales exported from `GET /api/v1/admin/ml/price-feedback` (same columns, `TemplateId = feedback`), used only to evaluate the price model; see `docs/ml/price.md`, "Feedback loop data".
 
 ## CSV columns
 

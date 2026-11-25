@@ -91,7 +91,7 @@ public static class ExternalEvaluation
 
     // --- Prediction helpers -----------------------------------------------
 
-    private static List<(ListingRow Row, double Score)> PricePredictions(MLContext mlContext, ITransformer model, List<ListingRow> rows)
+    internal static List<(ListingRow Row, double Score)> PricePredictions(MLContext mlContext, ITransformer model, List<ListingRow> rows)
     {
         if (rows.Count == 0) return new List<(ListingRow, double)>();
 
@@ -198,7 +198,7 @@ public static class ExternalEvaluation
     public sealed record MultiMetrics(double MicroAccuracy, double MacroAccuracy);
     public sealed record BinMetrics(double Accuracy, double Precision, double Recall, double F1);
 
-    private static PriceMetrics RegressionMetrics(List<(ListingRow Row, double Score)> preds)
+    internal static PriceMetrics RegressionMetrics(List<(ListingRow Row, double Score)> preds)
     {
         if (preds.Count == 0) return new PriceMetrics(0, 0, 0);
         var actual = preds.Select(p => (double)p.Row.Price).ToArray();

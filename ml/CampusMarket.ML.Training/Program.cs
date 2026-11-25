@@ -129,6 +129,9 @@ Console.WriteLine($"| F1 score  | {F3(spamModelMetrics.F1)} | {F3(spamBaseline.F
 var externalCsvPath = Path.Combine(mlDir, "data", "external.csv");
 ExternalEvaluation.Run(mlContext, externalCsvPath, modelsDir, trainSet, testSet, priceTrainer.Comparison);
 
+var feedbackCsvPath = Path.Combine(mlDir, "data", "feedback.csv");
+FeedbackEvaluation.Run(mlContext, feedbackCsvPath, modelsDir);
+
 // Error analysis for the model cards: the mistakes worth reading, on test and on the external set,
 // with the thresholds chosen on validation.
 var minConfidence = trainedSettings["category-classification.zip"]!["minConfidence"];
