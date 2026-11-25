@@ -432,4 +432,43 @@ public class ConfirmSaleHandlerTests
         notifications.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_ReservationWithAgreedPrice_When_SellerConfirms_Then_SaleRecordHasAgreedPrice()
+    {
+        var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 100m, Now).Value;
+        listing.Publish(Now.AddDays(30));
+        var reservation = listing.Reserve(BuyerId, Now, Money.Create(80m).Value).Value;
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var saleRecords = new FakeSaleRecordRepository();
+        var handler = new ConfirmSaleHandler(repository, saleRecords, new FakeNotificationRepository(), new FakePriceSuggester(), new FakeUnitOfWork(), new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Sold);
+        saleRecords.Items.Should().ContainSingle();
+        saleRecords.Items[0].SoldPrice.Should().Be(80m);
+    }
+
+    [Fact]
+    public async Task Given_ReservationWithoutAgreedPrice_When_SellerConfirms_Then_SaleRecordHasListingPrice()
+    {
+        var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 100m, Now).Value;
+        listing.Publish(Now.AddDays(30));
+        var reservation = listing.Reserve(BuyerId, Now).Value;
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var saleRecords = new FakeSaleRecordRepository();
+        var handler = new ConfirmSaleHandler(repository, saleRecords, new FakeNotificationRepository(), new FakePriceSuggester(), new FakeUnitOfWork(), new FixedTimeProvider(Now.AddHours(1)), NullLogger<ConfirmSaleHandler>.Instance);
+        var command = new ConfirmSaleCommand(listing.Id, reservation.Id, SellerId, false);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        saleRecords.Items.Should().ContainSingle();
+        saleRecords.Items[0].SoldPrice.Should().Be(100m);
+    }
 }

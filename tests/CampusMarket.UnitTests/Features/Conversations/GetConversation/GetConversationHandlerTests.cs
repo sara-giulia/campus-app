@@ -1,3 +1,4 @@
+using CampusMarket.Api.Domain.Offers;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Listings;
@@ -168,5 +169,70 @@ public class GetConversationHandlerTests
         conversations.Items.Should().BeEmpty();
         listings.Items.Should().BeEmpty();
         members.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Given_OffersOnTwoBuyersAndTwoListings_When_Handling_Then_ReturnsOnlyOffersOfThisListingAndBuyerOldestFirst()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var otherBuyer = BuildOtherMember();
+        var listing = BuildActiveListing(seller.Id);
+        var otherListing = BuildActiveListing(seller.Id);
+        var conversation = BuildConversationWithThreeMessages(buyer.Id, seller.Id, listing);
+        var first = Offer.Make(listing, buyer.Id, 20m, Now.AddMinutes(1)).Value;
+        var second = first.Counter(seller.Id, listing, 24m, Now.AddMinutes(2)).Value;
+        var third = second.Counter(buyer.Id, listing, 22m, Now.AddMinutes(3)).Value;
+        third.Reject(seller.Id, Now.AddMinutes(4));
+        var offers = new FakeOfferRepository();
+        // Added out of order on purpose: the handler returns them oldest first.
+        offers.Add(third);
+        offers.Add(Offer.Make(listing, otherBuyer.Id, 10m, Now.AddMinutes(1)).Value);
+        offers.Add(Offer.Make(otherListing, buyer.Id, 5m, Now.AddMinutes(1)).Value);
+        offers.Add(first);
+        offers.Add(second);
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(conversation);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        var handler = new GetConversationHandler(conversations, listings, members, offers);
+
+        var result = await handler.HandleAsync(new GetConversationQuery(seller.Id, conversation.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Offers.Select(o => o.Id).Should().Equal(first.Id, second.Id, third.Id);
+        result.Value.Offers.Select(o => o.Amount).Should().Equal(20m, 24m, 22m);
+        result.Value.Offers.Select(o => o.Status).Should().Equal(OfferStatus.Countered, OfferStatus.Countered, OfferStatus.Rejected);
+        result.Value.Offers.Select(o => o.ProposedById).Should().Equal(buyer.Id, seller.Id, buyer.Id);
+        result.Value.Offers.Select(o => o.ParentOfferId).Should().Equal(null, first.Id, second.Id);
+        result.Value.Offers.Select(o => o.CreatedAt).Should().Equal(Now.AddMinutes(1), Now.AddMinutes(2), Now.AddMinutes(3));
+        result.Value.Offers.Select(o => o.RespondedAt).Should().Equal(Now.AddMinutes(2), Now.AddMinutes(3), Now.AddMinutes(4));
+        result.Value.Offers.Should().OnlyContain(o => o.ListingId == listing.Id && o.BuyerId == buyer.Id && o.SellerId == seller.Id);
+        result.Value.Messages.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_NoOffers_When_Handling_Then_ReturnsEmptyOffers()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var listing = BuildActiveListing(seller.Id);
+        var conversation = BuildConversationWithThreeMessages(buyer.Id, seller.Id, listing);
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(conversation);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        var handler = BuildHandler(conversations, listings, members);
+
+        var result = await handler.HandleAsync(new GetConversationQuery(buyer.Id, conversation.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Offers.Should().BeEmpty();
     }
 }

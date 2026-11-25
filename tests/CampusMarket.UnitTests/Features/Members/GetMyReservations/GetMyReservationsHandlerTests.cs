@@ -284,4 +284,28 @@ public class GetMyReservationsHandlerTests
         result.Value.Items.Single(i => i.ListingId == reviewedListing.Id).Reviewed.Should().BeTrue();
         result.Value.Items.Single(i => i.ListingId == plainListing.Id).Reviewed.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Given_ReservationWithAndWithoutAgreedPrice_When_Handling_Then_ShowsAgreedPriceOrNull()
+    {
+        var agreedListing = BuildActiveListing("Linear algebra", 30m, Now.AddHours(-1));
+        agreedListing.Reserve(BuyerId, Now.AddHours(-1), Money.Create(24m).Value);
+        var plainListing = BuildActiveListing("Calculus", 20m, Now.AddHours(-2));
+        plainListing.Reserve(BuyerId, Now.AddHours(-2));
+        var repository = new FakeListingRepository();
+        repository.Items[agreedListing.Id] = agreedListing;
+        repository.Items[plainListing.Id] = plainListing;
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().HaveCount(2);
+        result.Value.Items[0].ListingTitle.Should().Be("Linear algebra");
+        result.Value.Items[0].Price.Should().Be(30m);
+        result.Value.Items[0].AgreedPrice.Should().Be(24m);
+        result.Value.Items[1].ListingTitle.Should().Be("Calculus");
+        result.Value.Items[1].Price.Should().Be(20m);
+        result.Value.Items[1].AgreedPrice.Should().BeNull();
+    }
 }
