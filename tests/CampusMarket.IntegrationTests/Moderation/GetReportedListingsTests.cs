@@ -178,4 +178,32 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<Report>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(report);
     }
+
+    [Fact]
+    public async Task Given_ExpiredReportedListing_When_AdminGetsReportedListings_Then_ItIsNotReturned()
+    {
+        // Arrange
+        var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var expired = ExpiryListings.ActivePastExpiry(SellerId, "Manual POO");
+        var report = Report.Create(ana.Id, expired, "Fake listing", CreatedAt.AddHours(1)).Value;
+        expired.Expire(DateTimeOffset.UtcNow).Should().BeTrue();
+        await SeedAsync(ana, expired, report);
+        AuthenticateAs(AdminId, "Admin");
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/moderation/listings");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetReportedListingsResponse>(Json);
+        body!.Items.Should().BeEmpty();
+        body.Count.Should().Be(0);
+        body.TotalCount.Should().Be(0);
+
+        var count = await QueryDbAsync(db => db.Set<Report>().CountAsync());
+        count.Should().Be(1);
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Status.Should().Be(ListingStatus.Expired);
+    }
 }

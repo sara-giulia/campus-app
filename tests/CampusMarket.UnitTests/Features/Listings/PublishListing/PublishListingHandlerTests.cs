@@ -39,6 +39,7 @@ public class PublishListingHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(listing.Id);
         listing.Status.Should().Be(ListingStatus.Active);
+        listing.ExpiresAt.Should().Be(Now.AddDays(30));
         listing.Version.Should().Be(2);
         unitOfWork.SaveCount.Should().Be(1);
         repository.UpdateCount.Should().Be(1);

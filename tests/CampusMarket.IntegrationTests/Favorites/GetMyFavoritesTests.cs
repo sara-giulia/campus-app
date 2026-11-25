@@ -218,4 +218,60 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<Favorite>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(favorite);
     }
+
+    [Fact]
+    public async Task Given_FavoriteOfExpiredListing_When_GettingMyFavorites_Then_ItIsNotReturnedAndNotCounted()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var expired = ExpiryListings.ActivePastExpiry(SellerId, "Manual POO");
+        var favorite = Favorite.Create(member.Id, expired, CreatedAt.AddHours(1)).Value;
+        expired.Expire(DateTimeOffset.UtcNow).Should().BeTrue();
+        await SeedAsync(member, expired, favorite);
+        AuthenticateAs(member.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/favorites");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyFavoritesResponse>(Json);
+        body!.Items.Should().BeEmpty();
+        body.Count.Should().Be(0);
+        body.TotalCount.Should().Be(0);
+
+        var saved = await QueryDbAsync(db => db.Set<Favorite>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(favorite);
+    }
+
+    [Fact]
+    public async Task Given_FavoriteOfExpiredListing_When_SellerRenewsIt_Then_FavoriteIsBackInMyFavorites()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var expired = ExpiryListings.ActivePastExpiry(SellerId, "Manual POO");
+        var favorite = Favorite.Create(member.Id, expired, CreatedAt.AddHours(1)).Value;
+        expired.Expire(DateTimeOffset.UtcNow).Should().BeTrue();
+        await SeedAsync(member, expired, favorite);
+        AuthenticateAs(SellerId);
+        var renewed = await Client.PostAsync($"/api/v1/listings/{expired.Id}/renew", content: null);
+        renewed.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        AuthenticateAs(member.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/favorites");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyFavoritesResponse>(Json);
+        body!.Items.Select(i => i.ListingId).Should().Equal(expired.Id);
+        body.Items.Single().Status.Should().Be(ListingStatus.Active);
+        body.Count.Should().Be(1);
+        body.TotalCount.Should().Be(1);
+
+        var count = await QueryDbAsync(db => db.Set<Favorite>().CountAsync());
+        count.Should().Be(1);
+    }
 }

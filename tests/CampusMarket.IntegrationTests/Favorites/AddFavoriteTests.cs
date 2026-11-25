@@ -214,4 +214,27 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         var count = await QueryDbAsync(db => db.Set<Favorite>().CountAsync());
         count.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_ExpiredListing_When_AddingFavorite_Then_Returns400AndSavesNothing()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = ExpiryListings.Expired(SellerId, "Manual POO");
+        await SeedAsync(member, listing);
+        AuthenticateAs(member.Id);
+
+        // Act
+        var response = await Client.PostAsync($"/api/v1/members/me/favorites/{listing.Id}", null);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Favorite.ListingNotAvailable");
+        error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Favorite>().CountAsync());
+        count.Should().Be(0);
+    }
 }

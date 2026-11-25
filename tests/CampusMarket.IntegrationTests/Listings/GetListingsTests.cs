@@ -371,4 +371,53 @@ public sealed class GetListingsTests : IntegrationTestBase
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(1);
     }
+
+    [Theory]
+    [InlineData("/api/v1/listings")]
+    [InlineData("/api/v1/listings?category=Textbook")]
+    [InlineData("/api/v1/listings?search=Manual")]
+    [InlineData("/api/v1/listings?category=Textbook&search=Manual")]
+    public async Task Given_ExpiredAndActiveListing_When_GettingListings_Then_Returns200WithOnlyTheActiveOne(string url)
+    {
+        // Arrange
+        var expired = ExpiryListings.Expired(SellerId, "Manual POO");
+        var active = ExpiryListings.Active(SellerId, "Manual Algebra", createdAt: CreatedAt.AddHours(1));
+        await SeedAsync(expired, active);
+
+        // Act
+        var response = await Client.GetAsync(url);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+        body!.Items.Select(i => i.Id).Should().Equal(active.Id);
+        body.Count.Should().Be(1);
+        body.TotalCount.Should().Be(1);
+
+        var statuses = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().Select(l => l.Status).ToListAsync());
+        statuses.Should().BeEquivalentTo(new[] { ListingStatus.Expired, ListingStatus.Active });
+    }
+
+    [Fact]
+    public async Task Given_ExpiredListing_When_GettingItById_Then_Returns200WithStatusExpired()
+    {
+        // Arrange
+        var expired = ExpiryListings.Expired(SellerId, "Manual POO");
+        await SeedAsync(expired);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{expired.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<CampusMarket.Api.Features.Listings.GetListingById.GetListingByIdResponse>(Json);
+        body!.Id.Should().Be(expired.Id);
+        body.Status.Should().Be(ListingStatus.Expired);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Status.Should().Be(ListingStatus.Expired);
+        saved.Version.Should().Be(expired.Version);
+    }
 }
