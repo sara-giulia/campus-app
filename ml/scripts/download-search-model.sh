@@ -21,12 +21,12 @@ mkdir -p "$TARGET"
 for entry in "${FILES[@]}"; do
   read -r source name sha <<< "$entry"
   file="$TARGET/$name"
-  if [ -f "$file" ] && echo "$sha  $file" | sha256sum --check --status; then
+  if [[ -f "$file" ]] && echo "$sha  $file" | sha256sum --check --status; then
     echo "ok        $name"
     continue
   fi
   echo "download  $name"
-  curl -fsSL --retry 3 -o "$file.part" "$BASE/$source"
+  curl --proto "=https" --proto-redir "=https" -fsSL --retry 3 -o "$file.part" "$BASE/$source"
   if ! echo "$sha  $file.part" | sha256sum --check --status; then
     rm -f "$file.part"
     echo "SHA-256 of $name does not match, nothing was kept" >&2
