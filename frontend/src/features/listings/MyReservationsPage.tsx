@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import { Alert, Badge, Button, EmptyState, Loading, PageHeader } from '../../app/ui'
+import { ReviewForm } from '../reviews/ReviewForm'
 import { placeReservationError } from './errors'
 import {
   RESERVATION_STATUS_LABELS,
@@ -50,6 +51,13 @@ export function MyReservationsPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState<Record<string, string | null>>({})
+  // The completed purchase whose review form is open, if any.
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
+
+  function markReviewed(reservationId: string) {
+    setReviewingId(null)
+    setItems((prev) => prev?.map((r) => (r.reservationId === reservationId ? { ...r, reviewed: true } : r)) ?? null)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -152,7 +160,23 @@ export function MyReservationsPage() {
                     {cancellingId === reservation.reservationId ? 'Se anulează…' : 'Anulează'}
                   </Button>
                 )}
+                {reservation.status === 'Completed' && !reservation.reviewed && reviewingId !== reservation.reservationId && (
+                  <Button variant="secondary" size="sm" onClick={() => setReviewingId(reservation.reservationId)}>
+                    Lasă o recenzie
+                  </Button>
+                )}
+                {reservation.status === 'Completed' && reservation.reviewed && <Badge tone="neutral">Recenzie trimisă</Badge>}
               </div>
+              {reviewingId === reservation.reservationId && (
+                <div className="listing-row__inline-error">
+                  <ReviewForm
+                    listingId={reservation.listingId}
+                    listingTitle={reservation.listingTitle}
+                    onCancel={() => setReviewingId(null)}
+                    onReviewed={() => markReviewed(reservation.reservationId)}
+                  />
+                </div>
+              )}
               {rowError[reservation.reservationId] && (
                 <div className="listing-row__inline-error">
                   <Alert tone="error">{rowError[reservation.reservationId]}</Alert>

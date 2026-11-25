@@ -17,4 +17,9 @@ public interface IReviewRepository
     /// Returns a snapshot of all reviews of this seller, in no particular order.
     /// </summary>
     Task<IReadOnlyList<Review>> GetBySellerAsync(Guid sellerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the ids of the listings this member has already reviewed, in no particular order.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetReviewedListingIdsAsync(Guid reviewerId, CancellationToken ct = default);
 }

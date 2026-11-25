@@ -22,7 +22,7 @@ public class GetMyReservationsHandlerTests
     public async Task Given_MemberWithNoReservations_When_Handling_Then_ReturnsEmptyList()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -45,7 +45,7 @@ public class GetMyReservationsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[newerListing.Id] = newerListing;
         repository.Items[olderListing.Id] = olderListing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -73,7 +73,7 @@ public class GetMyReservationsHandlerTests
         listing.Reserve(OtherMemberId, Now);
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -92,7 +92,7 @@ public class GetMyReservationsHandlerTests
         listing.CancelReservation(reservation.Id);
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -112,7 +112,7 @@ public class GetMyReservationsHandlerTests
         var reservation = listing.Reserve(BuyerId, createdAt).Value;
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -134,7 +134,7 @@ public class GetMyReservationsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[firstListing.Id] = firstListing;
         repository.Items[secondListing.Id] = secondListing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);

@@ -6658,6 +6658,99 @@
           ]
         },
         {
+          "name": "My reservations - buyer sees the sale as reviewed (200)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/members/me/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "members",
+                "me",
+                "reservations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The completed purchase is marked as reviewed\", () => {",
+                  "  const item = pm.response.json().items.find(i => i.listingId === pm.collectionVariables.get(\"reviewListingId\"));",
+                  "  pm.expect(item).to.be.an(\"object\");",
+                  "  pm.expect(item.status).to.eql(\"Completed\");",
+                  "  pm.expect(item.reviewed).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seller notifications - ReviewReceived (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/members/me/notifications?page=1&pageSize=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "members",
+                "me",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The seller got a ReviewReceived notification for the reviewed listing\", () => {",
+                  "  const item = pm.response.json().items.find(n => n.type === \"ReviewReceived\" && n.listingId === pm.collectionVariables.get(\"reviewListingId\"));",
+                  "  pm.expect(item).to.be.an(\"object\");",
+                  "  pm.expect(item.message).to.match(/ rated .+ 5\\/5$/);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Add review - no token (401)",
           "request": {
             "auth": {

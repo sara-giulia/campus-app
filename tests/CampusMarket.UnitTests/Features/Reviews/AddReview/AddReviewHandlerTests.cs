@@ -47,7 +47,7 @@ public class AddReviewHandlerTests
         FakeMemberRepository members,
         FakeReviewRepository reviews,
         FakeUnitOfWork unitOfWork) =>
-        new(listings, members, reviews, unitOfWork, new FixedTimeProvider(Now));
+        new(listings, members, reviews, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
 
     [Fact]
     public async Task Given_BuyerOfSoldListing_When_Handling_Then_StoresReviewAndSavesOnce()

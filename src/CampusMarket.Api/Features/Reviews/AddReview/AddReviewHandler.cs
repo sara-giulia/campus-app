@@ -2,6 +2,7 @@ using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Domain.Reviews;
 
 namespace CampusMarket.Api.Features.Reviews.AddReview;
@@ -10,6 +11,7 @@ public sealed class AddReviewHandler(
     IListingRepository listings,
     IMemberRepository members,
     IReviewRepository reviews,
+    INotificationRepository notifications,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<AddReviewCommand, AddReviewResponse>
@@ -44,6 +46,16 @@ public sealed class AddReviewHandler(
         if (!added)
             return Result<AddReviewResponse>.Failure(
                 Error.Conflict("Review.Duplicate", $"A review with id '{review.Id}' already exists."));
+
+        // Notify the seller, in the same unit of work.
+        var notification = Notification.Create(
+            listing.SellerId,
+            NotificationType.ReviewReceived,
+            $"{member.Name} rated {listing.Title} {review.Rating}/5",
+            listing.Id,
+            review.CreatedAt);
+        if (notification.IsSuccess)
+            notifications.Add(notification.Value);
 
         await unitOfWork.CommitAsync(ct);
 

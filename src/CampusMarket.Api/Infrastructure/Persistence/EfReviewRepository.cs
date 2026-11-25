@@ -22,4 +22,11 @@ public sealed class EfReviewRepository(CampusMarketDbContext db) : IReviewReposi
             .AsNoTracking()
             .Where(r => r.SellerId == sellerId)
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Guid>> GetReviewedListingIdsAsync(Guid reviewerId, CancellationToken ct = default) =>
+        await db.Reviews
+            .AsNoTracking()
+            .Where(r => r.ReviewerId == reviewerId)
+            .Select(r => r.ListingId)
+            .ToListAsync(ct);
 }

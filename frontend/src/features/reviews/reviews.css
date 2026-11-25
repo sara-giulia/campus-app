@@ -93,3 +93,79 @@
   color: var(--muted);
   letter-spacing: 0;
 }
+
+/* "Lasă o recenzie" form on the buyer's reservations page. */
+
+.review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.review-form__title {
+  margin: 0;
+  font-weight: 650;
+}
+
+.review-form__stars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.review-form__star {
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--line);
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.review-form__star--on {
+  color: #e2a400;
+}
+
+.review-form__star:focus-visible {
+  outline: 2px solid var(--accent);
+  border-radius: 4px;
+}
+
+.review-form__rating-label {
+  margin-left: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.review-form__label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.review-form__textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.review-form__counter {
+  align-self: flex-end;
+  color: var(--muted);
+}
+
+.review-form__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

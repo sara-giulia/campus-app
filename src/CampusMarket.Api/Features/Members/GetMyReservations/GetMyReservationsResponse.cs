@@ -11,4 +11,6 @@ public sealed record MyReservationItem(
     decimal Price,
     ReservationStatus Status,
     DateTimeOffset CreatedAt,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    // True when the member has already reviewed this listing (only possible after a completed sale).
+    bool Reviewed);
