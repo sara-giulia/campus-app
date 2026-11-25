@@ -66,7 +66,7 @@ public static class CampusMarketSetup
         services.AddCampusMarketMl(configuration);
 
         services.AddDbContext<CampusMarketDbContext>((sp, options) =>
-            options.UseSqlite(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));
+            options.UseNpgsql(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));
 
         services.AddScoped<IListingRepository, EfListingRepository>();
         services.AddScoped<IMemberRepository, EfMemberRepository>();
@@ -203,10 +203,6 @@ public static class CampusMarketSetup
         return services;
     }
 
-    // Fails fast in Production when the JWT signing key is missing or too short,
-    // or when the SMTP sender is used without TLS. Dev and Test keep their own
-    // keys (appsettings.Development.json / the integration-test factory) and
-    // talk to Mailpit without TLS, so these checks are production-only.
     // Generated images for listings without photos: the SVG by default, Ollama when
     // ImageGeneration:Provider is "Ollama" (it falls back to the SVG). The background service only
     // runs when ImageGeneration:Enabled is true (the tests turn it off to keep the host quiet).
@@ -237,6 +233,11 @@ public static class CampusMarketSetup
             services.AddHostedService<ImageGenerationService>();
     }
 
+    // Fails fast in Production when the JWT signing key is missing or too short,
+    // when the PostgreSQL connection string (ConnectionStrings__CampusMarket) is missing,
+    // or when the SMTP sender is used without TLS. Dev and Test keep their own
+    // keys and connection strings (appsettings.Development.json / the integration-test
+    // factory) and talk to Mailpit without TLS, so these checks are production-only.
     public static WebApplication ValidateCampusMarketProductionConfiguration(this WebApplication app)
     {
         if (!app.Environment.IsProduction())
@@ -249,6 +250,16 @@ public static class CampusMarketSetup
                 $"Jwt:Key is missing or shorter than {MinJwtKeyLength} characters. " +
                 "Set the Jwt__Key environment variable to a random value of at least " +
                 $"{MinJwtKeyLength} characters before starting the API in Production.");
+        }
+
+        var connectionString = app.Configuration.GetConnectionString("CampusMarket");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:CampusMarket is missing. " +
+                "Set the ConnectionStrings__CampusMarket environment variable to a PostgreSQL connection string " +
+                "in key/value form (Host=...;Database=...;Username=...;Password=...;SSL Mode=Require), " +
+                "not a postgresql:// URL, before starting the API in Production.");
         }
 
         var emailHost = app.Configuration[$"{EmailOptions.SectionName}:{nameof(EmailOptions.Host)}"];
@@ -315,8 +326,8 @@ public static class CampusMarketSetup
     // listings have been seeded yet. The member table may already hold rows (an
     // Admin created by SeedAdmin, or a real sign-up) — the demo listings still
     // seed next to them. Safe to leave wired across restarts: a redeploy on
-    // Render loses the SQLite file, so the first start after a redeploy seeds
-    // again, every later start is a no-op. Off by default; tests leave
+    // Render keeps the PostgreSQL data, so only the first start ever seeds,
+    // and every later start is a no-op. Off by default; tests leave
     // Seed:DemoData unset.
     private static void SeedDemoDataIfRequested(IServiceProvider services, CampusMarketDbContext db, IConfiguration config)
     {

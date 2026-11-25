@@ -17,7 +17,7 @@ using Microsoft.Extensions.Options;
 namespace CampusMarket.IntegrationTests.Infrastructure;
 
 // The ML decision thresholds are settings (Ml:Category:MinConfidence, Ml:Spam:Threshold), validated at startup.
-// A different value goes through a copy of the API on the same in-memory database, like SeedAdminTests.
+// A different value goes through a copy of the API on the same database, like SeedAdminTests.
 public sealed class MlThresholdsTests : IntegrationTestBase
 {
     private static readonly Guid SellerId = Guid.Parse("11111111-1111-1111-1111-111111111111");

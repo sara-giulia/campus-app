@@ -18,11 +18,11 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace CampusMarket.IntegrationTests.Infrastructure;
 
 // Covers CampusMarketSetup.ValidateCampusMarketProductionConfiguration (in Production,
-// Jwt:Key must be at least 32 characters, and when an SMTP host is configured Email:UseSsl
-// must be true) and SeedDemoDataIfRequested (when Seed:DemoData is true and the database
+// Jwt:Key must be at least 32 characters, ConnectionStrings:CampusMarket must not be empty,
+// and when an SMTP host is configured Email:UseSsl must be true) and SeedDemoDataIfRequested (when Seed:DemoData is true and the database
 // is empty, seeds the DemoListings catalog; demo Student members are added only when
 // Seed:DemoPassword has at least 8 characters). Each test starts its own copy of the API
-// on the same in-memory database with WithWebHostBuilder, the same way SeedAdminTests do.
+// on the same database with WithWebHostBuilder, the same way SeedAdminTests do.
 public sealed class ProductionConfigurationTests : IntegrationTestBase
 {
     private const int LongEnoughJwtKeyLength = 40;
@@ -290,6 +290,45 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
         memberCount.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Given_ProductionAndEmptyOrWhitespaceConnectionString_When_StartingTheApp_Then_ThrowsWithConnectionStringMessage(string connectionString)
+    {
+        // Arrange
+        using var production = Factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Production");
+            builder.UseSetting("Jwt:Key", MakeTestJwtKey(LongEnoughJwtKeyLength));
+            builder.UseSetting("ConnectionStrings:CampusMarket", connectionString);
+        });
+
+        // Act
+        Action act = () => production.CreateClient();
+
+        // Assert
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*ConnectionStrings__CampusMarket*");
+    }
+
+    [Fact]
+    public async Task Given_DevelopmentAndNoConnectionString_When_CallingHealth_Then_Returns200()
+    {
+        // Arrange: the connection string check is production-only.
+        await using var development = Factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Development");
+            builder.UseSetting("ConnectionStrings:CampusMarket", "");
+        });
+        var client = development.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/health");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     [Fact]
     public async Task Given_DemoDataAndAMemberAlreadyInTheDatabase_When_StartingTheApp_Then_StillSeedsTheDemoCatalog()
     {
@@ -390,7 +429,7 @@ public sealed class ProductionConfigurationTests : IntegrationTestBase
     public async Task Given_DemoDataSeededOnce_When_RestartingTheApp_Then_DoesNotDoubleSeed()
     {
         // Arrange: start once to seed, then dispose and start again on the
-        // same in-memory SQLite database. A second seed would double-insert
+        // same database. A second seed would double-insert
         // listings and break the unique email index on the demo members.
         await using (var firstStart = Factory.WithWebHostBuilder(builder =>
         {

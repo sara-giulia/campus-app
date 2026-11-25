@@ -208,7 +208,6 @@ public sealed class StreamMyEventsTests : IntegrationTestBase
     {
         // Arrange
         await using var fastHeartbeat = WithHeartbeat("1");
-        await EnsureDatabaseAsync(fastHeartbeat);
         using var stream = await OpenStreamAsync(fastHeartbeat, OtherStudentId);
         await ReadEventAsync(stream.Reader, EventExpected);
 
@@ -245,13 +244,6 @@ public sealed class StreamMyEventsTests : IntegrationTestBase
 
     private WebApplicationFactory<Program> WithHeartbeat(string seconds) =>
         Factory.WithWebHostBuilder(builder => builder.UseSetting("LiveEvents:HeartbeatSeconds", seconds));
-
-    private static async Task EnsureDatabaseAsync(WebApplicationFactory<Program> factory)
-    {
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
-        await db.Database.EnsureCreatedAsync();
-    }
 
     private static Listing PublishedListing(Member seller)
     {

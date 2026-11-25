@@ -18,7 +18,7 @@ public sealed class SeedAdminTests : IntegrationTestBase
     private const string AdminPassword = "admin-secret12";
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
 
-    // Starts a copy of the API on the same in-memory database with the Seed:Admin* settings.
+    // Starts a copy of the API on the same database with the Seed:Admin* settings.
     // The seed runs at the first CreateClient() call on the returned factory.
     private WebApplicationFactory<Program> WithAdminSeed(string adminEmail, string adminPassword = AdminPassword) =>
         Factory.WithWebHostBuilder(builder =>

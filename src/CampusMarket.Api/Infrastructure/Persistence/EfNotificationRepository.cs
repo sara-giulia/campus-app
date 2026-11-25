@@ -12,16 +12,15 @@ public sealed class EfNotificationRepository(CampusMarketDbContext db) : INotifi
 
     public async Task<List<Notification>> GetByMemberAsync(Guid memberId, CancellationToken ct = default)
     {
-        // SQLite cannot ORDER BY a DateTimeOffset column, so sort in memory.
+        // Sorted in the database (PostgreSQL orders timestamptz columns).
         var notifications = await db.Notifications
             .AsNoTracking()
             .Where(n => n.MemberId == memberId)
-            .ToListAsync(ct);
-
-        return notifications
             .OrderByDescending(n => n.CreatedAt)
             .ThenBy(n => n.Id)
-            .ToList();
+            .ToListAsync(ct);
+
+        return notifications;
     }
 
     public async Task<List<Notification>> GetUnreadForMemberAsync(Guid memberId, CancellationToken ct = default) =>
