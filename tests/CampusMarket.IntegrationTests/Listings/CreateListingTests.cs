@@ -223,4 +223,46 @@ public sealed class CreateListingTests : IntegrationTestBase
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_NoCategory_When_CreatingListing_Then_Returns400CategoryRequiredAndSavesNothing()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var body = new { title = "Manual POO", condition = Condition.Good, price = 50m };
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings", body, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.CategoryRequired");
+        error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NoCondition_When_CreatingListing_Then_Returns400ConditionRequiredAndSavesNothing()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var body = new { title = "Manual POO", category = Category.Textbook, price = 50m };
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings", body, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.ConditionRequired");
+        error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
 }

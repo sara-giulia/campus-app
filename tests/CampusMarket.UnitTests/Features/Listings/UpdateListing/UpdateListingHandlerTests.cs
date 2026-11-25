@@ -298,4 +298,48 @@ public class UpdateListingHandlerTests
         repository.UpdateCount.Should().Be(0);
         unitOfWork.SaveCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_NullCategory_When_Handling_Then_ReturnsCategoryRequiredAndDoesNotSave()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", null, Condition.New, 30m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryRequired");
+        listing.Title.Should().Be("Algebra book");
+        listing.Version.Should().Be(1);
+        repository.AddCount.Should().Be(0);
+        repository.UpdateCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NullCondition_When_Handling_Then_ReturnsConditionRequiredAndDoesNotSave()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", Category.Textbook, null, 30m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.ConditionRequired");
+        listing.Title.Should().Be("Algebra book");
+        listing.Version.Should().Be(1);
+        repository.AddCount.Should().Be(0);
+        repository.UpdateCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
 }

@@ -8,6 +8,8 @@ public sealed class FakeListingRepository : IListingRepository
 
     public bool RejectAdd { get; set; }
 
+    public int AddCount { get; private set; }
+
     public int UpdateCount { get; private set; }
 
     public Task<bool> AddAsync(Listing listing, CancellationToken ct = default)
@@ -19,6 +21,7 @@ public sealed class FakeListingRepository : IListingRepository
             return Task.FromResult(false);
 
         Items[listing.Id] = listing;
+        AddCount++;
         return Task.FromResult(true);
     }
 

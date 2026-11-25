@@ -172,4 +172,46 @@ public sealed class SuggestPriceTests : IntegrationTestBase
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_NoCategory_When_SuggestingPrice_Then_Returns400CategoryRequired()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var body = new { title = "Laptop Lenovo ThinkPad T480", condition = Condition.Good };
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings/price-suggestion", body, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.CategoryRequired");
+        error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NoCondition_When_SuggestingPrice_Then_Returns400ConditionRequired()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var body = new { title = "Laptop Lenovo ThinkPad T480", category = Category.Electronics };
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings/price-suggestion", body, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.ConditionRequired");
+        error.Type.Should().Be(ErrorType.Validation);
+
+        var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
+        count.Should().Be(0);
+    }
 }

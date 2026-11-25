@@ -1,3 +1,7 @@
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using CampusMarket.Api.Common.Storage;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -358,5 +362,63 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         var count = await QueryDbAsync(db => db.Set<Photo>().CountAsync());
         count.Should().Be(0);
         FilesOnDisk().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_Seller_When_UploadingTwoPhotosInARow_Then_PositionsAreZeroThenOne()
+    {
+        // Arrange
+        var (seller, listing) = await SeedSellerAndListingAsync(published: true);
+        AuthenticateAs(seller.Id);
+
+        // Act
+        using var firstForm = Form(PngImage, "first.png", "image/png");
+        var firstResponse = await Client.PostAsync($"/api/v1/listings/{listing.Id}/photos", firstForm);
+        using var secondForm = Form(JpegImage, "second.jpg", "image/jpeg");
+        var secondResponse = await Client.PostAsync($"/api/v1/listings/{listing.Id}/photos", secondForm);
+
+        // Assert
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var first = await firstResponse.Content.ReadFromJsonAsync<PhotoResponse>(Json);
+        var second = await secondResponse.Content.ReadFromJsonAsync<PhotoResponse>(Json);
+        first!.Position.Should().Be(0);
+        second!.Position.Should().Be(1);
+
+        var saved = await QueryDbAsync(db => db.Set<Photo>().AsNoTracking().ToListAsync());
+        saved.Should().HaveCount(2);
+        saved.Single(p => p.Id == first.Id).Position.Should().Be(0);
+        saved.Single(p => p.Id == second.Id).Position.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_PhotoStorageFails_When_UploadingPhoto_Then_Returns503StorageFailedAndSavesNothing()
+    {
+        // Arrange
+        var (seller, listing) = await SeedSellerAndListingAsync(published: true);
+        await using var app = Factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IPhotoStorage>();
+                services.AddSingleton<IPhotoStorage, ThrowingPhotoStorage>();
+            }));
+        var client = app.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", TestTokens.Create(seller.Id));
+        using var form = Form(PngImage, "photo.png", "image/png");
+
+        // Act
+        var response = await client.PostAsync($"/api/v1/listings/{listing.Id}/photos", form);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Photo.StorageFailed");
+        error.Type.Should().Be(ErrorType.Validation);
+        (await response.Content.ReadAsStringAsync()).Should().NotContain("secret");
+
+        await AssertNothingSavedAsync();
     }
 }

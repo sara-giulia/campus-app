@@ -824,4 +824,84 @@ public class ListingTests
         listing.Status.Should().Be(ListingStatus.Hidden);
         listing.Version.Should().Be(versionBefore);
     }
+
+    [Fact]
+    public void Given_CategoryAndCondition_When_RequiringClassification_Then_ReturnsBothValues()
+    {
+        var result = Listing.RequireClassification(Category.Electronics, Condition.Worn);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Category.Should().Be(Category.Electronics);
+        result.Value.Condition.Should().Be(Condition.Worn);
+    }
+
+    [Fact]
+    public void Given_NullCategory_When_RequiringClassification_Then_ReturnsCategoryRequired()
+    {
+        var result = Listing.RequireClassification(null, Condition.Good);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryRequired");
+    }
+
+    [Fact]
+    public void Given_NullCondition_When_RequiringClassification_Then_ReturnsConditionRequired()
+    {
+        var result = Listing.RequireClassification(Category.Textbook, null);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.ConditionRequired");
+    }
+
+    [Fact]
+    public void Given_BothNull_When_RequiringClassification_Then_ReturnsCategoryRequiredFirst()
+    {
+        var result = Listing.RequireClassification(null, null);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryRequired");
+    }
+
+    private static readonly Guid VisibilitySellerId = new("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid VisibilityOtherMemberId = new("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid VisibilityAdminId = new("33333333-3333-3333-3333-333333333333");
+
+    private static Listing DraftOf(Guid sellerId) =>
+        Listing.Create(sellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
+
+    [Fact]
+    public void Given_Draft_When_SellerAsks_Then_IsVisible()
+    {
+        DraftOf(VisibilitySellerId).IsVisibleTo(VisibilitySellerId, false).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Given_Draft_When_OtherMemberAsks_Then_IsNotVisible()
+    {
+        DraftOf(VisibilitySellerId).IsVisibleTo(VisibilityOtherMemberId, false).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Given_Draft_When_AnonymousAsks_Then_IsNotVisible()
+    {
+        DraftOf(VisibilitySellerId).IsVisibleTo(null, false).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Given_Draft_When_AdminAsks_Then_IsVisible()
+    {
+        DraftOf(VisibilitySellerId).IsVisibleTo(VisibilityAdminId, true).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Given_ActiveListing_When_AnonymousAsks_Then_IsVisible()
+    {
+        var listing = DraftOf(VisibilitySellerId);
+        listing.Publish();
+
+        listing.IsVisibleTo(null, false).Should().BeTrue();
+    }
 }

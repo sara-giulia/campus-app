@@ -179,4 +179,50 @@ public sealed class UpdateListingTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(listing);
     }
+
+    [Fact]
+    public async Task Given_NoCategory_When_UpdatingListing_Then_Returns400CategoryRequiredAndKeepsListing()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(SellerId);
+        var body = new { title = "Notite POO", condition = Condition.Worn, price = 30m };
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/listings/{listing.Id}", body, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.CategoryRequired");
+        error.Type.Should().Be(ErrorType.Validation);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(listing);
+    }
+
+    [Fact]
+    public async Task Given_NoCondition_When_UpdatingListing_Then_Returns400ConditionRequiredAndKeepsListing()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(SellerId);
+        var body = new { title = "Notite POO", category = Category.Notes, price = 30m };
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/listings/{listing.Id}", body, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.ConditionRequired");
+        error.Type.Should().Be(ErrorType.Validation);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(listing);
+    }
 }

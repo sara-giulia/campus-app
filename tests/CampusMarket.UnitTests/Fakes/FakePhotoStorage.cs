@@ -8,8 +8,14 @@ public sealed class FakePhotoStorage : IPhotoStorage
 
     public List<Guid> DeletedListings { get; } = new();
 
+    // When set, SaveAsync throws it instead of saving.
+    public Exception? ThrowOnSave { get; set; }
+
     public Task SaveAsync(Guid listingId, string fileName, byte[] content, CancellationToken ct = default)
     {
+        if (ThrowOnSave is not null)
+            throw ThrowOnSave;
+
         Files[(listingId, fileName)] = content;
         return Task.CompletedTask;
     }

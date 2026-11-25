@@ -127,4 +127,108 @@ public class GetListingPhotosHandlerTests
         listings.Items.Should().BeEmpty();
         photos.Items.Should().BeEmpty();
     }
+
+    private static readonly Guid OtherMemberId = new("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid AdminId = new("33333333-3333-3333-3333-333333333333");
+
+    private static (FakeListingRepository Listings, FakePhotoRepository Photos, Listing Listing, Photo Photo) SeedWithPhoto(bool publish)
+    {
+        var listing = BuildListing("Algebra book");
+        if (publish)
+            listing.Publish();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var photo = BuildPhoto(listing, PngBytes, Now);
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(photo);
+        return (listings, photos, listing, photo);
+    }
+
+    [Fact]
+    public async Task Given_PhotosWithDifferentPositions_When_Handling_Then_OrdersByPositionThenCreatedAt()
+    {
+        var listing = BuildListing("Algebra book");
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var last = Photo.Create(SellerId, listing, 0, PngBytes, Now, position: 2).Value;
+        var tieNewer = Photo.Create(SellerId, listing, 0, PngBytes, Now.AddHours(2), position: 1).Value;
+        var tieOlder = Photo.Create(SellerId, listing, 0, PngBytes, Now.AddHours(1), position: 1).Value;
+        var cover = Photo.Create(SellerId, listing, 0, PngBytes, Now.AddHours(3), position: 0).Value;
+        var photos = new FakePhotoRepository();
+        photos.Items.AddRange([last, tieNewer, cover, tieOlder]);
+        var handler = new GetListingPhotosHandler(listings, photos);
+
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(cover.Id, tieOlder.Id, tieNewer.Id, last.Id);
+        result.Value.Items.Select(i => i.Position).Should().Equal(0, 1, 1, 2);
+    }
+
+    [Fact]
+    public async Task Given_Draft_When_SellerAsks_Then_ReturnsItsPhotos()
+    {
+        var (listings, photos, listing, photo) = SeedWithPhoto(publish: false);
+        var handler = new GetListingPhotosHandler(listings, photos);
+
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(photo.Id);
+    }
+
+    [Fact]
+    public async Task Given_Draft_When_AdminAsks_Then_ReturnsItsPhotos()
+    {
+        var (listings, photos, listing, photo) = SeedWithPhoto(publish: false);
+        var handler = new GetListingPhotosHandler(listings, photos);
+
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, AdminId, true), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(photo.Id);
+    }
+
+    [Fact]
+    public async Task Given_Draft_When_OtherMemberAsks_Then_ReturnsNotFound()
+    {
+        var (listings, photos, listing, _) = SeedWithPhoto(publish: false);
+        var handler = new GetListingPhotosHandler(listings, photos);
+
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, OtherMemberId), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.NotFound);
+        result.Error.Code.Should().Be("Listing.NotFound");
+        photos.Items.Should().ContainSingle();
+        photos.UpdateCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_Draft_When_AnonymousAsks_Then_ReturnsNotFound()
+    {
+        var (listings, photos, listing, _) = SeedWithPhoto(publish: false);
+        var handler = new GetListingPhotosHandler(listings, photos);
+
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.NotFound);
+        result.Error.Code.Should().Be("Listing.NotFound");
+        photos.Items.Should().ContainSingle();
+        photos.UpdateCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ActiveListing_When_AnonymousAsks_Then_ReturnsItsPhotos()
+    {
+        var (listings, photos, listing, photo) = SeedWithPhoto(publish: true);
+        var handler = new GetListingPhotosHandler(listings, photos);
+
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(photo.Id);
+        photos.UpdateCount.Should().Be(0);
+    }
 }

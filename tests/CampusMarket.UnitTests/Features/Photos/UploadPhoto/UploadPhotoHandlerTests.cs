@@ -247,4 +247,125 @@ public class UploadPhotoHandlerTests
         storage.Files.Should().NotContainKey((listing.Id, generated.FileName));
         unitOfWork.SaveCount.Should().Be(1);
     }
+
+    private static (FakeListingRepository Listings, Listing Listing) SeedListing()
+    {
+        var listing = BuildListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        return (listings, listing);
+    }
+
+    [Fact]
+    public async Task Given_ListingWithoutPhotos_When_Handling_Then_NewPhotoGetsPositionZero()
+    {
+        var (listings, listing) = SeedListing();
+        var photos = new FakePhotoRepository();
+        var handler = BuildHandler(listings, photos, new FakePhotoStorage(), new FakeUnitOfWork());
+
+        var result = await handler.HandleAsync(new UploadPhotoCommand(SellerId, listing.Id, PngBytes), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Position.Should().Be(0);
+        photos.Items.Single().Position.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_PhotosAtZeroAndOne_When_Handling_Then_NewPhotoGetsPositionTwo()
+    {
+        var (listings, listing) = SeedListing();
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(Photo.Create(SellerId, listing, 0, PngBytes, Now, 0).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 1, PngBytes, Now, 1).Value);
+        var handler = BuildHandler(listings, photos, new FakePhotoStorage(), new FakeUnitOfWork());
+
+        var result = await handler.HandleAsync(new UploadPhotoCommand(SellerId, listing.Id, PngBytes), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Position.Should().Be(2);
+        photos.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_PhotosAtZeroAndFive_When_Handling_Then_NewPhotoGetsPositionSix()
+    {
+        var (listings, listing) = SeedListing();
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(Photo.Create(SellerId, listing, 0, PngBytes, Now, 0).Value);
+        photos.Items.Add(Photo.Create(SellerId, listing, 1, PngBytes, Now, 5).Value);
+        var handler = BuildHandler(listings, photos, new FakePhotoStorage(), new FakeUnitOfWork());
+
+        var result = await handler.HandleAsync(new UploadPhotoCommand(SellerId, listing.Id, PngBytes), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Position.Should().Be(6);
+    }
+
+    [Fact]
+    public async Task Given_OnlyAGeneratedPhoto_When_Handling_Then_NewPhotoGetsPositionZero()
+    {
+        var listing = BuildActiveListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(BuildGeneratedPhoto(listing));
+        var handler = BuildHandler(listings, photos, new FakePhotoStorage(), new FakeUnitOfWork());
+
+        var result = await handler.HandleAsync(new UploadPhotoCommand(SellerId, listing.Id, PngBytes), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Position.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_RealPhotoAtOneAndAGeneratedPhoto_When_Handling_Then_GeneratedPhotoIsIgnoredInPosition()
+    {
+        var listing = BuildActiveListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var photos = new FakePhotoRepository();
+        photos.Items.Add(BuildGeneratedPhoto(listing));
+        photos.Items.Add(Photo.Create(SellerId, listing, 0, PngBytes, Now, 1).Value);
+        var handler = BuildHandler(listings, photos, new FakePhotoStorage(), new FakeUnitOfWork());
+
+        var result = await handler.HandleAsync(new UploadPhotoCommand(SellerId, listing.Id, PngBytes), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Position.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_StorageThrowsIOException_When_Handling_Then_ReturnsStorageFailedAndAddsNothing()
+    {
+        var (listings, listing) = SeedListing();
+        var photos = new FakePhotoRepository();
+        var storage = new FakePhotoStorage { ThrowOnSave = new IOException("disk full") };
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, photos, storage, unitOfWork);
+
+        var result = await handler.HandleAsync(new UploadPhotoCommand(SellerId, listing.Id, PngBytes), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Photo.StorageFailed");
+        photos.Items.Should().BeEmpty();
+        storage.Files.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_StorageThrowsOperationCanceled_When_Handling_Then_ExceptionPropagatesAndNothingIsSaved()
+    {
+        var (listings, listing) = SeedListing();
+        var photos = new FakePhotoRepository();
+        var storage = new FakePhotoStorage { ThrowOnSave = new OperationCanceledException() };
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, photos, storage, unitOfWork);
+
+        var act = () => handler.HandleAsync(new UploadPhotoCommand(SellerId, listing.Id, PngBytes), CancellationToken.None);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        photos.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
 }

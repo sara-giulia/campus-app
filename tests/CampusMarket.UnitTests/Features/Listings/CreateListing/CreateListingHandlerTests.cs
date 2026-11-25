@@ -193,4 +193,42 @@ public class CreateListingHandlerTests
         repository.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_NullCategory_When_Handling_Then_ReturnsCategoryRequiredAndDoesNotStoreOrSave()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
+        var command = new CreateListingCommand(Guid.NewGuid(), "Algebra book", null, Condition.Good, 25m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.CategoryRequired");
+        repository.Items.Should().BeEmpty();
+        repository.AddCount.Should().Be(0);
+        repository.UpdateCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NullCondition_When_Handling_Then_ReturnsConditionRequiredAndDoesNotStoreOrSave()
+    {
+        var repository = new FakeListingRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new CreateListingHandler(repository, unitOfWork, new FixedTimeProvider(Now), new FakeCategoryRepository());
+        var command = new CreateListingCommand(Guid.NewGuid(), "Algebra book", Category.Textbook, null, 25m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.ConditionRequired");
+        repository.Items.Should().BeEmpty();
+        repository.AddCount.Should().Be(0);
+        repository.UpdateCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
 }
