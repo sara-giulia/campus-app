@@ -1476,3 +1476,32 @@ Rules for this feature:
 - Then run all the tests with coverage as the CI does (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`): every file in `Infrastructure/Observability/` is at 100% lines and branches (all test projects merged). If a line or branch is still not covered, stop and report which one and why.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Price feedback export (Carina)
+
+Endpoint: `GET /api/v1/admin/ml/price-feedback` (`Features/Admin/PriceFeedback/`), `RequireAuthorization("Admin")`. It exports every `SaleRecord` as one CSV row in the ML dataset format, for the evaluation of the price model on real sales (`ml/data/feedback.csv`). Read `PriceFeedbackEndpoint.cs`, `PriceFeedbackHandler.cs` and `PriceFeedbackQuery.cs` before generating. It is a query: nothing is saved.
+
+| Who | Answer |
+|---|---|
+| Admin (`AuthenticateAs(AdminId, "Admin")`) | 200, `Content-Type` media type `text/csv`, `Content-Disposition` `attachment` with file name `feedback.csv` (`PriceFeedbackQuery.FileName`), UTF-8 without BOM |
+| a member | 403 ProblemDetails `Auth.Forbidden` |
+| no token | 401 ProblemDetails `Auth.Unauthorized` |
+
+Facts:
+- The first line is always `PriceFeedbackQuery.Header` (`Title,Description,Category,Condition,Price,IsSpam,TemplateId`); lines end with `\n` (LF), never `\r\n`. No sales → the body is exactly the header and `\n`.
+- One row per `SaleRecord` whose listing still exists, ordered by `SoldAt`, then `Id`: `Title` and `Description` from the **listing** (in `"…"`, an embedded `"` doubled; no description → `""`), `Category` and `Condition` from the **record**, `Price` = `SoldPrice` (invariant culture, `0.##`: `45`, `99.5`), `IsSpam` `false`, `TemplateId` `"feedback"`.
+- A `SaleRecord` whose listing no longer exists is skipped. `SaleRecords` has no foreign key to `Listings`, so a record can be seeded alone (it stands for a listing that was deleted).
+
+File: `Admin/PriceFeedbackTests.cs` (new), class `PriceFeedbackTests : IntegrationTestBase`, fixed `SellerId`, `OtherStudentId`, `AdminId`, `CreatedAt`, and `private const string Url = "/api/v1/admin/ml/price-feedback";`.
+
+Tests to add (status, body, then the database):
+- no token → 401 ProblemDetails `Auth.Unauthorized`; a member → 403 ProblemDetails `Auth.Forbidden` (as in "Feature: Error handling (Anca)"). A seeded record is unchanged.
+- Admin, no sales → 200, `text/csv`, file name `feedback.csv`, the body is exactly the header and `\n`; the database has 0 `SaleRecord`s.
+- Admin after a real confirmed sale: seed the buyer and a published listing of `SellerId` with a description, reserved by the buyer at `DateTimeOffset.UtcNow`; in the Arrange, the seller confirms the sale through `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` (check the 204 there), then log in as Admin; the Act is the one `GET` → exactly the header and one row with the listing's title and description, its category and condition, the listing price as the sold price, `false` and `"feedback"`; the database has exactly one `SaleRecord` for that listing.
+- Admin, a record seeded with `SaleRecord.Create(...)` next to its listing, with a category and condition different from the listing's and a sold price different from the listing's price, and a description with a comma and a `"` → the row has the record's category, condition and sold price and the escaped listing text (the expected row is a literal string in the test).
+- Admin, a record of a deleted listing (seeded alone) next to a record with its listing → only the row of the existing listing; both records are still in the database.
+
+Rules for this feature:
+- Read the body with `ReadAsStringAsync()` and compare it with a whole expected string built from `PriceFeedbackQuery.Header` and literal rows with `\n`; never `Environment.NewLine`, never a culture-dependent `ToString()` for the expected price.
+- Read the file name from `response.Content.Headers.ContentDisposition`, never by parsing the header text.
+- Then run all the tests with coverage as the CI does (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`): every file in `Features/Admin/PriceFeedback/` is at 100% lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
