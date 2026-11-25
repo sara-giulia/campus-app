@@ -12,7 +12,7 @@ import {
   type ListingFormSubmitResult,
   type ListingFormValues,
 } from './ListingForm'
-import { loadServerPhotos, uploadPending, type PhotoEntry } from './photoEntries'
+import { loadServerPhotos, syncPhotos, type PhotoEntry } from './photoEntries'
 import type { ListingDetail, ListingStatus } from './types'
 import './listings.css'
 
@@ -70,28 +70,9 @@ export function EditListingPage() {
     try {
       await api.put<void>(`/listings/${id}`, values)
 
-      // 1. the photos that were removed
-      const kept = new Set(photos.flatMap((p) => (p.kind === 'server' ? [p.id] : [])))
-      for (const photoId of serverIds.current.filter((known) => !kept.has(known))) {
-        await api.delete(`/listings/${id}/photos/${photoId}`)
-        serverIds.current = serverIds.current.filter((known) => known !== photoId)
-      }
-
-      // 2. the new photos, one by one, in order
-      // (the server puts each new photo last, so the known ids stay in the order of the server)
-      const { photos: uploaded, error: uploadError } = await uploadPending(id, photos, (next) => {
-        setPhotos(next)
-        const known = new Set(serverIds.current)
-        serverIds.current = [...serverIds.current, ...next.flatMap((p) => (p.kind === 'server' && !known.has(p.id) ? [p.id] : []))]
-      })
+      const uploadError = await syncPhotos(id, photos, serverIds, setPhotos)
       if (uploadError) {
         return { ok: false, formError: `Modificările au fost salvate, dar ${uploadError} Apasă din nou ca să continui.` }
-      }
-
-      // 3. the order, when it is not the one of the server
-      const order = uploaded.flatMap((p) => (p.kind === 'server' ? [p.id] : []))
-      if (order.length > 1 && order.some((photoId, i) => photoId !== serverIds.current[i])) {
-        await api.put(`/listings/${id}/photos/order`, { photoIds: order })
       }
 
       if (intent === 'publish') await api.post<void>(`/listings/${id}/publish`)
