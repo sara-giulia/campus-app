@@ -61,7 +61,7 @@ public class PriceTextFeaturesTests
         var brands = PriceTextFeatures.Brands;
 
         brands.Should().NotBeEmpty();
-        brands.Should().OnlyContain(b => b == b.ToLowerInvariant());
+        brands.Should().OnlyContain(b => string.Equals(b, b.ToLowerInvariant(), StringComparison.Ordinal));
         brands.Should().OnlyHaveUniqueItems();
         brands.Should().NotContain("none");
         brands.Should().Contain(["lenovo", "audio technica"]);
