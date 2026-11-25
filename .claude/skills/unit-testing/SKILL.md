@@ -1090,6 +1090,41 @@ Rules for this feature:
 - Use `DemoListings.ListingCount` for the expected count, never the literal 60.
 - Do not add a unit test for `BuildMembers`: its failure branch (empty hash) is already covered by the integration tests with `EmptyHashPasswordHasher`.
 
+## Feature: Price feedback export (Carina)
+
+Production code (written by hand, read it before generating):
+- `Features/Admin/PriceFeedback/PriceFeedbackHandler.cs`: a query handler (no `IUnitOfWork`) with `ISaleRecordRepository` and `IListingRepository`. It returns `PriceFeedbackResponse(RowCount, Csv)` and never fails. The CSV starts with `PriceFeedbackQuery.Header` (`Title,Description,Category,Condition,Price,IsSpam,TemplateId`, the same header as `ml/data/external.csv`), lines end with `\n` (LF). One row per `SaleRecord`, ordered by `SoldAt` then `Id`: `Title` and `Description` from the **listing** (the description `null` becomes `""`), `Category` and `Condition` from the **record** (the values at the time of the sale), `Price` = `SoldPrice`, `IsSpam` = `false`, `TemplateId` = `PriceFeedbackQuery.TemplateId` (`feedback`). A record whose listing is no longer in the repository is skipped and not counted in `RowCount`.
+- Text fields (`Title`, `Description`, `TemplateId`) are always in double quotes and an embedded `"` is doubled; commas and new lines stay inside the quotes. `Price` uses the invariant culture and the format `0.##`: `100` for whole lei, `99.5` for a fractional price, never a thousands separator.
+- `ml/CampusMarket.ML.Training/Evaluation/FeedbackEvaluation.cs`: `Run(mlContext, feedbackCsvPath, modelsDir)` does nothing when the file is missing; otherwise it loads the CSV with quoting and multiline values, drops the spam rows, prints `Feedback rows: 0, nothing to evaluate.` when none is left, or loads `price-regression.zip` from `modelsDir` and prints a table with `n`, MAE and R².
+
+File: `Features/Admin/PriceFeedback/PriceFeedbackHandlerTests.cs` (new). ML tests: `tests/CampusMarket.ML.Tests/FeedbackEvaluationTests.cs` (new), named like the other files of that project (a sentence, not `Given_When_Then`).
+
+Fakes: the existing `FakeSaleRecordRepository` and `FakeListingRepository`, used as they are. A listing is `Listing.Create(SellerId, title, category, condition, price, Now, description).Value` seeded straight into `FakeListingRepository.Items`; a record is `SaleRecord.Create(listing.Id, category, condition, suggested, sold, soldAt).Value` added to `FakeSaleRecordRepository.Items`. A deleted listing is a record whose `ListingId` is not in `FakeListingRepository.Items`.
+
+Tests to add (`PriceFeedbackHandler`):
+- no sales → success, `Csv` is exactly the header followed by `\n`, `RowCount` 0.
+- the first line of `Csv` equals `PriceFeedbackQuery.Header` and the literal `"Title,Description,Category,Condition,Price,IsSpam,TemplateId"` (so a change of the constant is caught).
+- one sale → `Csv` is exactly the header and one row: the listing's title and description, the record's category and condition (give the record a category and condition **different** from the listing's, so a swap is caught), `SoldPrice` (not `SuggestedPrice` and not the listing price), `false`, `"feedback"`; `RowCount` 1.
+- a listing without a description → `""` in the description column.
+- a record whose listing no longer exists → skipped: only the other rows, `RowCount` counts only them; with only such records → only the header, `RowCount` 0.
+- escaping: a title with `"`, a title with a comma, a description with a new line → each written exactly as the expected quoted text (`"Laptop 15"" Dell"`, `"Casti, sigilate"`, `"Linia 1\nLinia 2"`).
+- order: records seeded in the wrong order → rows by `SoldAt`; two records with the same `SoldAt` → ordered by the record `Id` (build the expected order from the arranged ids).
+- culture: `99.5` and `1234.5` sold prices written as `99.5` and `1234.5` while `CultureInfo.CurrentCulture` and `CurrentUICulture` are `ro-RO` (where the default would be `99,5`); a whole price `100` is written as `100`.
+- the repositories are unchanged after every call (same items, `UpdateCount` 0).
+
+Tests to add (`FeedbackEvaluation`, ML.Tests):
+- the CSV file does not exist → no exception and nothing is written to the console.
+- a small CSV written to a temporary folder (header from `PriceFeedbackQuery.Header`, 3 rows, one description with a new line inside quotes, one row with a quote doubled, one spam row) with the real `ml/models` folder → no exception; the output contains `Feedback evaluation`, the table header `| n | MAE (lei) | R² |` and a row starting with `| 2 |` (the spam row is not counted), so the multiline row was read as one row.
+- a CSV with only the header → `Feedback rows: 0, nothing to evaluate.`
+
+Rules for this feature:
+- Culture-independent: the tests must pass on a Romanian Windows. Set the culture in the test with a small private `IDisposable` class in the test file that saves `CultureInfo.CurrentCulture` and `CurrentUICulture`, sets `ro-RO` and restores both in `Dispose` (`using var _ = new CultureScope("ro-RO");`); never change the culture without restoring it. Expected prices are literals with a dot (`"99.5"`), never built with `ToString()` of the current culture.
+- Expected CSV text is a literal string (with `\n`, never `Environment.NewLine`: the handler writes LF on every OS).
+- The handler is a query: no unit of work, assert the repositories are unchanged.
+- The ML tests that capture the console use `Console.SetOut` with a `StringWriter` and restore the old writer (an `IDisposable` in the test class); the class is in an xUnit collection with `DisableParallelization = true`, so no other test writes into the captured output. Temporary files go under `Path.GetTempPath()` in a new folder that the test deletes; never write into `ml/data/`.
+- Never change `src/` or `ml/` to make a test pass; if the code behaves differently from this list, stop and report it.
+- Then run the tests with coverage as this skill says: `PriceFeedbackHandler.cs` is at 100% for lines and branches; `Domain/` and the handlers stay at 100%.
+
 ## Feature: Publish with photos and draft (Diana)
 
 Production code (read it before generating; commit 9371271):
