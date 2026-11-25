@@ -11,13 +11,13 @@ import {
   type ListingFormSubmitResult,
   type ListingFormValues,
 } from './ListingForm'
-import { uploadPending, type PhotoEntry } from './photoEntries'
+import { syncPhotos, type PhotoEntry } from './photoEntries'
 import type { CreateListingResponse } from './types'
 import './listings.css'
 
 // POST /api/v1/listings creates a draft (Title, Category, Condition and Price are required, the seller
-// comes from the JWT). Then the photos go up one by one, in the order of the list, and only when all of
-// them are up, "Publică" publishes the draft.
+// comes from the JWT). Then the draft is synced with the form (removed photos deleted, missing ones uploaded one by one,
+// order sent) and only when all of that worked, "Publică" publishes the draft.
 // If a step fails, the id of the draft is kept: the next try updates that same draft, uploads only the
 // photos that are not up yet and goes on. A second listing is never created.
 
@@ -30,6 +30,8 @@ export function CreateListingPage() {
   const navigate = useNavigate()
   const [photos, setPhotos] = useState<PhotoEntry[]>([])
   const draftId = useRef<string | null>(null)
+  // The photos the draft has on the server, in its order.
+  const serverIds = useRef<string[]>([])
 
   async function handleSubmit(values: ListingFormValues, intent: ListingFormIntent): Promise<ListingFormSubmitResult> {
     try {
@@ -41,7 +43,7 @@ export function CreateListingPage() {
       }
       const listingId = draftId.current
 
-      const { error: uploadError } = await uploadPending(listingId, photos, setPhotos)
+      const uploadError = await syncPhotos(listingId, photos, serverIds, setPhotos)
       if (uploadError) {
         return {
           ok: false,

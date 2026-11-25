@@ -69,3 +69,39 @@ export async function uploadPending(
   }
   return { photos: current, error: null }
 }
+
+// Makes the photos of the draft on the server the ones of the form: deletes the server photos that are
+// no longer in the form, uploads the missing ones, then sends the order of the form
+// (PUT /listings/{id}/photos/order). `serverIds` is what the server has, in its order; it is kept up to
+// date after each step, so a retry after a failure starts from what is really on the server.
+// Returns the upload message (null when the draft now matches the form); a failed delete or order
+// call throws the ApiError.
+export async function syncPhotos(
+  listingId: string,
+  photos: PhotoEntry[],
+  serverIds: { current: string[] },
+  setPhotos: (photos: PhotoEntry[]) => void,
+): Promise<string | null> {
+  // 1. the photos that were removed from the form
+  const kept = new Set(photos.flatMap((p) => (p.kind === 'server' ? [p.id] : [])))
+  for (const photoId of serverIds.current.filter((known) => !kept.has(known))) {
+    await api.delete(`/listings/${listingId}/photos/${photoId}`)
+    serverIds.current = serverIds.current.filter((known) => known !== photoId)
+  }
+
+  // 2. the new photos, one by one, in order (the server puts each new photo last)
+  const { photos: uploaded, error } = await uploadPending(listingId, photos, (next) => {
+    setPhotos(next)
+    const known = new Set(serverIds.current)
+    serverIds.current = [...serverIds.current, ...next.flatMap((p) => (p.kind === 'server' && !known.has(p.id) ? [p.id] : []))]
+  })
+  if (error) return error
+
+  // 3. the order of the form
+  const order = uploaded.flatMap((p) => (p.kind === 'server' ? [p.id] : []))
+  if (order.length > 1 && order.some((photoId, i) => photoId !== serverIds.current[i])) {
+    await api.put(`/listings/${listingId}/photos/order`, { photoIds: order })
+    serverIds.current = order
+  }
+  return null
+}
