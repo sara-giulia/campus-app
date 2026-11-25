@@ -14,8 +14,8 @@ generate, dataset v2: 5000 de rânduri, 10% spam, seed 2026) și sunt salvate ca
 `.zip` în `ml/models/`, lângă un fișier `.json` cu metadatele și metricile pe test.
 
 - **Preț** (`price-regression.zip`) — sugerează un preț în lei din titlu,
-  descriere, categorie și stare. FastTree pe `log1p(Price)`, ales din șase
-  candidați după MAE pe validare. Doar pe anunțuri care nu sunt spam. Este doar o
+  descriere, categorie și stare. LightGbm pe `log1p(Price)` cu trăsăturile Text (marcă, stocare, procesor, nou/sigilat, din `PriceTextFeatures`), ales din 12
+  candidați (2 seturi de trăsături × 3 algoritmi × 2 ținte) după MAE pe validare. Câștigul față de setul Current este mic pe test. Doar pe anunțuri care nu sunt spam. Este doar o
   sugestie, vânzătorul alege prețul. Fișa: [docs/ml/price.md](docs/ml/price.md).
 - **Categorie** (`category-classification.zip`) — sugerează una din cele cinci
   categorii (`Electronics`, `LabEquipment`, `Notes`, `Other`, `Textbook`) din
@@ -47,10 +47,10 @@ niciodată la antrenare sau la alegerea pragurilor.
 
 | Model | Metrică | Test (model) | Test (baseline) | Extern (model) | Extern (baseline) | Baseline-ul de bătut |
 |---|---|---|---|---|---|---|
-| Preț | R² | 0.451 | 0.274 | 0.239 | 0.232 | media prețului pe `Category × Condition` din train |
-| Preț | MAE (lei) | 268.53 | 345.44 | 174.27 | 200.77 | idem |
-| Preț | RMSE (lei) | 606.21 | 697.05 | lipsește | lipsește | idem |
-| Preț | MAPE | 75.3% | 176.5% | 79.3% | 132.7% | idem |
+| Preț | R² | 0.480 | 0.274 | 0.312 | 0.232 | media prețului pe `Category × Condition` din train |
+| Preț | MAE (lei) | 267.44 | 345.44 | 159.74 | 200.77 | idem |
+| Preț | RMSE (lei) | 589.85 | 697.05 | lipsește | lipsește | idem |
+| Preț | MAPE | 76.4% | 176.5% | 68.7% | 132.7% | idem |
 | Categorie | Micro accuracy | 0.853 | 0.281 / 0.519 | 0.618 | 0.196 / lipsește | cea mai frecventă clasă / regulă cu cuvinte cheie |
 | Categorie | Macro accuracy | 0.856 | 0.200 / 0.484 | 0.616 | 0.200 / lipsește | idem |
 | Categorie | Macro-F1 | 0.864 | lipsește | lipsește | lipsește | — |

@@ -982,14 +982,14 @@ Last run (seed `2026`, 15% grouped test part):
 
 Price (non-spam, test):
 
-| Metric | Model (FastTree on log1p(Price), picked by MAE on validation) | Baseline (mean by Category × Condition) |
+| Metric | Model (LightGbm on log1p(Price) with the Text features, picked by MAE on validation) | Baseline (mean by Category × Condition) |
 |---|---|---|
-| R² | **0.451** | 0.274 |
-| MAE | **268.53** lei | 345.44 lei |
-| RMSE | **606.21** lei | 697.05 lei |
-| MAPE | **75.3%** | 179.6% |
+| R² | **0.480** | 0.274 |
+| MAE | **267.44** lei | 345.44 lei |
+| RMSE | **589.85** lei | 697.05 lei |
+| MAPE | **76.4%** | 179.6% |
 
-Details of the 6-candidate selection, the per-category MAE and the
+Details of the 12-candidate selection, the per-category MAE and the
 5-fold grouped CV are in [docs/ml/price.md](docs/ml/price.md).
 
 Category (non-spam, test):
@@ -1028,9 +1028,9 @@ Last run (seed `2026`):
 
 | Task | Metric | Test (model) | Test (baseline) | External (model) | External (baseline) |
 |---|---|---|---|---|---|
-| Price (non-spam) | R² | **0.451** | 0.274 | **0.239** | 0.232 |
-| Price (non-spam) | MAE (lei) | **268.53** | 345.44 | **174.27** | 200.77 |
-| Price (non-spam) | MAPE | **75.3%** | 176.5% | **79.3%** | 132.7% |
+| Price (non-spam) | R² | **0.480** | 0.274 | **0.312** | 0.232 |
+| Price (non-spam) | MAE (lei) | **267.44** | 345.44 | **159.74** | 200.77 |
+| Price (non-spam) | MAPE | **76.4%** | 176.5% | **68.7%** | 132.7% |
 | Category (non-spam) | Micro accuracy | **0.853** | 0.281 | **0.618** | 0.196 |
 | Category (non-spam) | Macro accuracy | **0.856** | 0.200 | **0.616** | 0.200 |
 | Spam (all) | Accuracy | **1.000** | 0.987 | 0.918 | 0.910 |
@@ -1149,14 +1149,23 @@ Running the first two twice in a row produces identical bytes in
 
 - Trainer: `PriceTrainer` in `ml/CampusMarket.ML.Training`, regression on the
   non-spam rows only. Features: `Category` and `Condition` one-hot encoded,
-  `Title` and `Description` through `FeaturizeText`.
-- **Model selection (price v2):** six candidates — three algorithms (`FastTree`,
-  `LightGbm`, `Sdca`) × two targets (`Price`, `log1p(Price)`) — are trained on
-  the train part and scored on the **validation** part only; the winner is
-  picked by MAE in lei, tie-broken by R². The winner is retrained on
-  train + validation and evaluated **once** on the test part (the saved
-  model). The current winner is **FastTree on `log1p(Price)`**: dampening the
-  heavy-tailed price distribution with `log1p` wins on MAE and MAPE even
+  `Title` and `Description` through `FeaturizeText` (the **Current** feature
+  set), plus, in the **Text** feature set, four explicit features read from
+  title + description by `PriceTextFeatures` (`OneHot(Brand)`, `StorageGb`,
+  `CpuTier`, `IsNewOrSealed`; one file shared by the API and the trainer).
+- **Model selection (price v2):** twelve candidates — two feature sets
+  (Current, Text) × three algorithms (`FastTree`, `LightGbm`, `Sdca`) × two
+  targets (`Price`, `log1p(Price)`) — are trained on the train part and
+  scored on the **validation** part only; the winner is picked by MAE in lei,
+  tie-broken by R². Each feature set's best candidate is retrained on
+  train + validation and evaluated **once** on the test part; the better one
+  is the saved model. The current winner is **LightGbm on `log1p(Price)` with
+  the Text features** (validation MAE 171.06 lei against 179.48 for the best
+  Current candidate, FastTree on `log1p(Price)`). The gain is modest: test
+  MAE 267.44 against 268.53 lei, test R² 0.480 against 0.451, and the 5-fold
+  CV R² is the same (0.449); it is clearer on validation and on the external
+  set (MAE 159.74 against 174.27 lei). Dampening the
+  heavy-tailed price distribution with `log1p` still wins on MAE and MAPE even
   when raw-target Sdca has a higher R². When the target is log-based, the
   saved pipeline appends an `Expression` transform that maps `Score` back
   to lei, so the API's `PriceSuggester` reads `Score` directly and does not
@@ -1166,13 +1175,13 @@ Running the first two twice in a row produces identical bytes in
 
   | Metric | Value |
   |---|---|
-  | R²   | **0.451** |
-  | MAE  | 268.53 lei |
-  | RMSE | 606.21 lei |
-  | MAPE | 75.3% |
+  | R²   | **0.480** |
+  | MAE  | 267.44 lei |
+  | RMSE | 589.85 lei |
+  | MAPE | 76.4% |
 
-  5-fold grouped CV on train + validation: R² 0.449 ± 0.106,
-  MAE 164.95 ± 42.43 lei, RMSE 383.08 ± 113.76 lei. The six-candidate table,
+  5-fold grouped CV on train + validation: R² 0.449 ± 0.091,
+  MAE 163.43 ± 45.00 lei, RMSE 383.61 ± 111.62 lei. The twelve-candidate table,
   the MAE per category and the "when not to trust the suggestion" notes are
   in [docs/ml/price.md](docs/ml/price.md).
 - The saved model (`ml/models/price-regression.zip`) is loaded by the API through
