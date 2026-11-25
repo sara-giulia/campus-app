@@ -67,15 +67,15 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 
 ## Coverage
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
-- Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs"`
-- Target: 100% line and branch coverage for every file in the report (all of `Domain/` and every handler).
+- Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs;+*MetricsRegistry.cs;+*PriceTextFeatures.cs;+*DemoListings.cs"`
+- Target: 100% line and branch coverage for every file in the report (all of `Domain/`, every handler, `MetricsRegistry.cs`, `PriceTextFeatures.cs` and `DemoListings.cs`).
 - The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either.
 - When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
 - Everything that is not in the report is outside the target. This is the single list of exclusions (the README copies it word for word):
   - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
   - `CampusMarketSetup.cs`: only registers services and routes.
   - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
-  - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests.
+  - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests. Exceptions that are in the target (pure logic, no database, HTTP or file access): `Infrastructure/Observability/MetricsRegistry.cs`, `Infrastructure/ML/PriceTextFeatures.cs` and `Infrastructure/Persistence/Seed/DemoListings.cs`, all at 100% lines and branches (for `DemoListings.cs` the unit tests cover what the integration tests cannot reach, see "Feature: Demo seed (Diana)").
   - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 
 ## Never do
@@ -1033,3 +1033,59 @@ Rules for this feature:
 - The "reservoir full" branch is tested with a small positive capacity (3); never pass 0 (the index is taken modulo the capacity).
 - The endpoint `GET /api/v1/admin/metrics` and `MetricsMiddleware` are tested by the integration-testing skill, not here.
 - `MetricsRegistry.cs` is in the coverage filter of this skill and must be at 100% lines and branches; `Domain/` and the handlers stay at 100%.
+
+## Feature: Price text features (Diana)
+
+Production code (read it before generating):
+- `Infrastructure/ML/PriceTextFeatures.cs`: a static, pure class (no ML.NET, no API types). `Extract(string? title, string? description)` returns `PriceTextFeatures.Values(string Brand, float StorageGb, float CpuTier, float IsNewOrSealed)`. The same file is compiled into the training project as a linked file, so these tests also protect training. It reads `title + " " + description` after lowercasing and removing diacritics (`Normalize`, `internal`, visible through `InternalsVisibleTo`).
+  - `Brand`: the first brand in the text (title first). One-word terms and two-word terms (`"audio technica"`, `"western digital"`) are looked up, two words first. A product line maps to its maker (`thinkpad` → `lenovo`, `macbook` → `apple`). No brand → `PriceTextFeatures.NoBrand` (`"none"`). `PriceTextFeatures.Brands` is the sorted, distinct list of the brands the model can see.
+  - `StorageGb`: the **largest** number followed by `gb` or `tb`; `tb` counts as 1024 GB; a space before the unit is allowed (`512 GB`), a decimal part too (`1,5 TB` and `1.5 TB`); 0 when there is none. The number must not be glued to a letter or digit on the left, and the unit must not be followed by a letter or digit.
+  - `CpuTier`: `i3`, `i5`, `i7`, `i9` and `Ryzen 3/5/7/9` (with or without a space) give 3, 5, 7 or 9; the highest one in the text wins; 0 when there is none. `i5` must not match inside another word, and `Ryzen 55` is not a tier.
+  - `IsNewOrSealed`: 1 when `sigilat`, `nou`, `new` or `sealed` appears as a **whole word**, otherwise 0. Case and diacritics do not matter, and both Romanian forms of `ș`/`ț` (comma below and cedilla) fold to plain `s`/`t`.
+- `Infrastructure/ML/PriceSuggester.cs`: `Suggest(...)` calls `PriceTextFeatures.Extract(title, description)` and fills `PriceInput.Brand`, `StorageGb`, `CpuTier`, `IsNewOrSealed` next to `Title`, `Description` (`null` becomes `""`), `Category` and `Condition`, then asks the pool. The result is `Math.Max(1, Math.Round(score, MidpointRounding.AwayFromZero))`.
+
+Where the tests go and how they are named:
+- `Infrastructure/ML/PriceTextFeaturesTests.cs` in `tests/CampusMarket.UnitTests` (same folders as `src/`), method names `Given_<state>_When_<action>_Then_<expected>`. Like `MetricsRegistry`, this file is the second exception to the `Infrastructure/` exclusion: it is pure logic, every branch is reachable without files, a database or a clock. Add `+*PriceTextFeatures.cs` to the `-filefilters` of the report; it must be at 100% lines and branches.
+- `PriceSuggesterTests.cs` in `tests/CampusMarket.ML.Tests` (new). `PriceSuggester` needs a real `PredictionEnginePool<PriceInput, PricePrediction>` and a `MetricsRegistry`, so it cannot be a unit test with a fake, and it is not in the unit coverage report. Follow the naming of the other files of that project (a sentence, as in `SimilarListingsTests`), not `Given_When_Then`.
+
+Tests to add in `PriceTextFeaturesTests` (use `[Theory]` with `[InlineData]` for the variants of one feature):
+- Brand: a title with a known brand (`"Laptop Dell Latitude"` → `dell`); a product line (`"ThinkPad T480"` → `lenovo`, `"MacBook Air"` → `apple`); a two-word brand (`"Casti Audio Technica"` → `audio technica`); upper case and mixed case → same brand; no brand → `"none"`; two brands in the text → the first one wins; a brand only in the description → found; a brand as part of a longer word (`"dellicious"`) → `"none"`; every entry of `Brands` is lowercase and `"none"` is not in `Brands`.
+- StorageGb: `"16GB"` → 16; `"512 GB"` → 512; `"1TB"` → 1024; `"2 TB"` → 2048; `"1,5 TB"` and `"1.5 TB"` → 1536; `"16GB RAM 512GB SSD"` → 512 (the largest, not the first); `"256GB"` in the title and `"1TB"` in the description → 1024; a number without the unit (`"Dell 15 inch 2020"`) → 0; the unit without a number (`"GB"`) → 0; the unit glued to a letter or digit (`"512GBs"`, `"x512GB"`) → 0.
+- CpuTier: `"i3"`, `"i5"`, `"i7"`, `"i9"` → 3, 5, 7, 9 (also `"Core i7-8550U"`); `"Ryzen 5 3600"` and `"ryzen7"` → 5 and 7; `"i5 and i7"` → 7 (the highest); `"i2"`, `"i11"`, `"wifi5"` and `"Ryzen 55"` → 0; no processor → 0.
+- IsNewOrSealed: each of `sigilat`, `nou`, `new`, `sealed` → 1; `"NOU"`, `"Sigilat"` → 1; the diacritic forms `"ȘIGILAT"` and `"ŞIGILAT"` (comma below and cedilla) and `"sigilat"` → 1 each; a word that only contains one of them (`"noua"`, `"nouă"`, `"renovat"`, `"newton"`, `"unsealed"`, `"anou"`) → 0; the word next to punctuation (`"Nou, in cutie"`, `"(sealed)"`, `"nou!"`) → 1; no such word → 0.
+- Title and description are both read: the same feature in the title only, in the description only, and in both gives the same value; a brand in the title and another in the description → the title's brand; `StorageGb` takes the largest across both.
+- Edge cases: `null` description, `""` description, `null` title and `""` title → success with `Brand` `"none"` and the three numbers 0; `Extract(null, null)` does not throw; whitespace only → all defaults.
+- `Normalize`: `"ȘȚĂÂÎ şţ"` → `"staai st"` (both forms of `ș`/`ț` give `s`/`t`), and the result is lowercase. Test it only through `Extract` if `Normalize` is not visible.
+
+Tests to add in `PriceSuggesterTests` (ML.Tests):
+- Build the pool without a `.zip` file: register `AddPredictionEnginePool<PriceInput, PricePrediction>()` in a new `ServiceCollection` and give it an in-memory `ModelLoader` subclass (written in the test file) that returns a model made with a one-step ML.NET pipeline over `PriceInput`, so the score is a value copied from the column under test. Use four such models, one per column: `StorageGb` and `CpuTier` and `IsNewOrSealed` through an `Expression` (for example `x * 100 + 10`, so that 0 and 1 give different scores and are not hidden by the clamp to 1); `Brand` through a `MapValue` from brand to a number. `MetricsRegistry` is built with `new CampusMarketMeters()` and a `TimeProvider`.
+- `Suggest("Laptop Lenovo ThinkPad i7 512GB sigilat", null, ...)` → the four columns reach the model as `lenovo`, 512, 7 and 1 (one assertion per column, so a swapped column is caught).
+- A title with no feature (`"Scaun birou"`) → `none`, 0, 0, 0.
+- The features come from the title **and** the description: the brand in the title and `"1TB"` in the description → both are filled.
+- `description` `null` → no exception and the columns are filled from the title.
+- The prediction is rounded away from zero (a score of 100.5 → 101) and never below 1 (a score of 0 or a negative one → 1).
+
+Rules for this feature:
+- Never use the real `price-regression.zip` in these tests, and never change `PriceTextFeatures.cs` to make a test pass. A test that finds a wrong value is reported, not fixed in production.
+- Expected values are written as literals in the test (`1024f`, `"audio technica"`), never computed with the same code under test. Compare floats with `Should().Be(...)` on exact values: all of them are exact in `float`.
+- Characters outside ASCII (`ș`, `ş`, `ț`, `ţ`, `ă`) are written as `\u` escapes in the test source (`"șigilat"` comma below, `"şigilat"` cedilla), so the file encoding cannot change the test.
+- A new brand added to the list in `PriceTextFeatures.cs` needs one `[InlineData]` row; changing a rule (the `TB` factor, the CPU tiers) changes the model input, so the price model must be retrained (`docs/ml/price.md`).
+
+## Feature: Demo seed (Diana)
+
+Production code (read it before generating): `Infrastructure/Persistence/Seed/DemoListings.cs`, the static demo catalog. `BuildListings(List<Guid> sellerIds, DateTimeOffset now)` builds the 60 demo listings through the domain (`Listing.Create`, `Publish`, then `Reserve` and `ConfirmSale` for the Reserved and Sold ones). `BuildMembers(...)` is covered by the integration tests.
+
+Why unit tests: Sonar adds the unit and the integration coverage together, and the integration tests start the real app, where the seller ids are always distinct and never empty. Three branches of `BuildListings` can only be reached by calling it directly with unusual ids: the empty-list check, the `continue` when `Listing.Create` fails, and the `return` when `Reserve` fails.
+
+Where the tests go and how they are named:
+- `Infrastructure/Persistence/Seed/DemoListingsTests.cs` in `tests/CampusMarket.UnitTests` (same folders as `src/`), method names `Given_<state>_When_<action>_Then_<expected>`. It is the third exception to the `Infrastructure/` exclusion, with `MetricsRegistry` and `PriceTextFeatures`: add `+*DemoListings.cs` to the `-filefilters` of the report, and keep it at 100% lines and branches.
+
+Tests to add (one `[Fact]` each, a fixed `Now`, never `DateTimeOffset.UtcNow`):
+- An empty `sellerIds` list → `ArgumentException` with `ParamName` `"sellerIds"`.
+- A list with only `Guid.Empty` → `Listing.Create` fails for every template (`Listing.SellerEmpty`), so the result is empty.
+- The same id twice (`[id, id]`) → the buyer is the seller, `Reserve` fails (`Reservation.OwnListing`), so the result has `DemoListings.ListingCount` listings and every one is `Active`.
+
+Rules for this feature:
+- Never change `DemoListings.cs` to make a test pass, and do not duplicate the integration checks (database content, paging) here.
+- Use `DemoListings.ListingCount` for the expected count, never the literal 60.
+- Do not add a unit test for `BuildMembers`: its failure branch (empty hash) is already covered by the integration tests with `EmptyHashPasswordHasher`.

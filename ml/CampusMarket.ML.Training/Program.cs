@@ -44,9 +44,10 @@ CheckProportion("train", trainCount, total, 0.70);
 CheckProportion("validation", validationCount, total, 0.15);
 CheckProportion("test", testCount, total, 0.15);
 
+var priceTrainer = new PriceTrainer();
 var trainers = new List<IModelTrainer>
 {
-    new PriceTrainer(),
+    priceTrainer,
     new CategoryTrainer(),
     new SpamTrainer(),
     new SimilarTrainer()
@@ -103,7 +104,7 @@ var spamBaseline = Baselines.Spam(mlContext, testSet);
 
 Console.WriteLine();
 Console.WriteLine("Price (non-spam, test):");
-Console.WriteLine("| Metric | Model (FastTree) | Baseline (mean by Category x Condition) |");
+Console.WriteLine("| Metric | Model (saved winner) | Baseline (mean by Category x Condition) |");
 Console.WriteLine("|---|---|---|");
 Console.WriteLine($"| R²   | {F3(priceModelMetrics.R2)} | {F3(priceBaseline.R2)} |");
 Console.WriteLine($"| MAE  | {F2(priceModelMetrics.Mae)} lei | {F2(priceBaseline.Mae)} lei |");
@@ -126,7 +127,7 @@ Console.WriteLine($"| Recall    | {F3(spamModelMetrics.Recall)} | {F3(spamBaseli
 Console.WriteLine($"| F1 score  | {F3(spamModelMetrics.F1)} | {F3(spamBaseline.F1)} |");
 
 var externalCsvPath = Path.Combine(mlDir, "data", "external.csv");
-ExternalEvaluation.Run(mlContext, externalCsvPath, modelsDir, trainSet, testSet);
+ExternalEvaluation.Run(mlContext, externalCsvPath, modelsDir, trainSet, testSet, priceTrainer.Comparison);
 
 // Error analysis for the model cards: the mistakes worth reading, on test and on the external set,
 // with the thresholds chosen on validation.

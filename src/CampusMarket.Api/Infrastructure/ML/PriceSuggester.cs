@@ -16,12 +16,17 @@ public sealed class PriceSuggester(
 
     public int Suggest(string title, string? description, Category category, Condition condition)
     {
+        var features = PriceTextFeatures.Extract(title, description);
         var input = new PriceInput
         {
             Title = title,
             Description = description ?? string.Empty,
             Category = category.ToString(),
-            Condition = condition.ToString()
+            Condition = condition.ToString(),
+            Brand = features.Brand,
+            StorageGb = features.StorageGb,
+            CpuTier = features.CpuTier,
+            IsNewOrSealed = features.IsNewOrSealed
         };
 
         var prediction = metrics.MeasurePrediction(MetricModel, () => pool.Predict(ModelName, input));

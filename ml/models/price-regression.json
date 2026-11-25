@@ -1,10 +1,10 @@
 {
-  "algorithm": "FastTree / log1p(Price)",
+  "algorithm": "LightGbm / log1p(Price) / Text features",
   "dataset": {
-    "rowCountTest": 711,
-    "rowCountTrain": 3380,
-    "rowCountValidation": 909,
-    "sha256": "0b1ad7f4e36f5c01a9da90897252770d7c840e57bdd9275c678602940cd451ad"
+    "rowCountTest": 780,
+    "rowCountTrain": 3378,
+    "rowCountValidation": 842,
+    "sha256": "3a404e1453b9f6b7da2923c5fecc65a04812334874369a7c028aff8a2df7672a"
   },
   "gitCommit": null,
   "modelFileName": "price-regression.zip",
@@ -12,10 +12,10 @@
   "seed": 2026,
   "split": "70/15/15 grouped by TemplateId",
   "testMetrics": {
-    "mae": 268.526796,
-    "mape": 75.256721,
-    "r2": 0.451174,
-    "rmse": 606.213880
+    "mae": 267.435759,
+    "mape": 76.354471,
+    "r2": 0.480403,
+    "rmse": 589.850136
   },
-  "trainedAt": "2026-11-21T12:41:46Z"
+  "trainedAt": "2026-11-25T08:38:19Z"
 }
