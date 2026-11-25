@@ -11,12 +11,18 @@ RUN npm run build
 FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 COPY . .
+# The model of the search by meaning is not in git (~200 MB): downloaded here, checked against its SHA-256
+# (skipped when the build context already has the right files)
+RUN bash ml/scripts/download-search-model.sh
 RUN dotnet publish src/CampusMarket.Api/CampusMarket.Api.csproj -c Release -o /app
-# Fail the build if one of the trained ML models was not copied
+# Fail the build if one of the trained ML models or the search model was not copied
 RUN test -f /app/ml-models/price-regression.zip \
     && test -f /app/ml-models/category-classification.zip \
     && test -f /app/ml-models/spam-detection.zip \
-    && test -f /app/ml-models/similar-listings.zip
+    && test -f /app/ml-models/similar-listings.zip \
+    && test -f /app/ml-models/semantic-search/model_q4.onnx \
+    && test -f /app/ml-models/semantic-search/model_q4.onnx_data \
+    && test -f /app/ml-models/semantic-search/tokenizer.model
 
 FROM mcr.microsoft.com/dotnet/aspnet:11.0
 # curl is used only by the health check below; libgomp1 is needed by the native LightGBM library of the price model
