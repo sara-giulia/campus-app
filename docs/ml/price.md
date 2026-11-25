@@ -196,6 +196,36 @@ most expensive items. On absolute error (MAE and MAPE) the winner beats the base
 every row of the table. 102 rows is a small sample: treat the gap between Current and
 Text as a good sign, not as a measured effect size.
 
+## Feedback loop data
+
+Real sales can be scored too, as a third evaluation set next to the hold-out and
+`external.csv`. **Evaluation only**: these rows never enter training (yet).
+
+1. Export: `GET /api/v1/admin/ml/price-feedback` (Admin only; 401 without a token,
+   403 for a non-admin) returns `feedback.csv` (`text/csv`), one row per `SaleRecord`
+   whose listing still exists, with the same header and column order as
+   `external.csv`: `Title,Description,Category,Condition,Price,IsSpam,TemplateId`,
+   where `Price` = `SoldPrice`, `IsSpam` = `false`, `TemplateId` = `feedback`.
+2. Save the file as `ml/data/feedback.csv` (not committed) and run the training
+   program. After the external evaluation it prints `n`, MAE and R² of the saved
+   price model on those rows; without the file the step is a no-op, like `external.csv`.
+
+Read the numbers with care:
+
+- They are **indicative** while `n` is small; the output always shows `n`, and R² in
+  particular jumps from one sale to the next with a few dozen rows.
+- The demo seed does not create `SaleRecord`s, so a fresh database exports a
+  header-only file; rows appear only after real `ConfirmSale` calls.
+- `SoldPrice` is the listing's **asking price** at the moment of the sale, not a
+  negotiated price, and the join returns the **current** listing title and
+  description (Category and Condition come from the record).
+- The CSV has no `SuggestedPrice`, so the suggester-vs-sold MAE is not computed here;
+  it is on `GET /api/v1/admin/ml/price-accuracy`.
+
+Rule for a later step: add feedback rows to training only once there are at least
+~100 of them, and then only to the **train** part, never to validation, test or any
+evaluation set.
+
 ## 5-fold grouped cross-validation
 
 On top of the single hold-out, each feature set's best candidate is validated with a

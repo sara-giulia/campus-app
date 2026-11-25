@@ -280,6 +280,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `RemoveFavorite` | `DELETE /api/v1/members/me/favorites/{listingId}` | anyone logged in; only their own favorites | 204, 401, 404 `Favorite.NotFound` |
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
+| Admin | `GetPriceFeedback` | `GET /api/v1/admin/ml/price-feedback` | Admins only | 200 `text/csv` file `feedback.csv` (header `Title,Description,Category,Condition,Price,IsSpam,TemplateId`, one row per `SaleRecord` whose listing still exists; header only when there are none), 401, 403 |
 | Admin | `GetAdminMetrics` | `GET /api/v1/admin/metrics` | Admins only | 200 `{ endpoints: [{ route, requests, errors, averageMs, p95Ms, statusCodes }], mlPredictions: [{ model, count, averageMs }] }`, 401, 403 |
 | Category | `GetCategories` | `GET /api/v1/categories` | everyone | 200 `{ items: [{ key, displayName, description, isActive }], count }` (all 5 base categories, active or not) |
 | Category | `UpdateCategory` | `PUT /api/v1/categories/{category}` (`{ displayName, description, isActive }`) | Admins only | 204, 400 `Category.IsActiveRequired` / `Category.DisplayNameEmpty` / `Category.DisplayNameTooLong` / `Category.DescriptionTooLong`, 401, 403, 404 `Category.NotFound`, 409 `Category.LastActive` |
@@ -1216,6 +1217,7 @@ down per `Category`, and the 10 newest records (`listingId`, `category`,
 the response is `{ count: 0, mae: null, mape: null, perCategory: [],
 lastRecords: [] }`. The query handler uses `AsNoTracking` reads through
 `ISaleRecordRepository` and no `IUnitOfWork`.
+`GET /api/v1/admin/ml/price-feedback` (Admins only) exports the same records as `feedback.csv` in the dataset format (`TemplateId = feedback`, label = sold price), for evaluating the saved price model on real sales (`ml/data/feedback.csv`, evaluation only).
 
 ### Category suggestion model (B4)
 
