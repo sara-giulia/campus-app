@@ -20,6 +20,7 @@ public sealed class GetListingByIdTests : IntegrationTestBase
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         await SeedAsync(listing);
+        AuthenticateAs(SellerId);   // the listing is a draft: only its seller (or an Admin) can open it
 
         // Act
         var response = await Client.GetAsync($"/api/v1/listings/{listing.Id}");

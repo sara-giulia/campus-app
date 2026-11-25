@@ -7,8 +7,8 @@ namespace CampusMarket.Api.Features.Listings.UpdateListing;
 /// </summary>
 public sealed record UpdateListingRequest(
     string Title,
-    Category Category,
-    Condition Condition,
+    Category? Category,
+    Condition? Condition,
     decimal Price,
     string? Description = null);
     

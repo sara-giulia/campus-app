@@ -34,7 +34,7 @@ public class GetListingPhotosHandlerTests
         var before = photos.Items.ToList();
         var handler = new GetListingPhotosHandler(listings, photos);
 
-        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Count.Should().Be(3);
@@ -61,7 +61,7 @@ public class GetListingPhotosHandlerTests
         var before = photos.Items.ToList();
         var handler = new GetListingPhotosHandler(listings, photos);
 
-        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().HaveCount(3);
@@ -84,7 +84,7 @@ public class GetListingPhotosHandlerTests
         var before = photos.Items.ToList();
         var handler = new GetListingPhotosHandler(listings, photos);
 
-        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Count.Should().Be(1);
@@ -101,7 +101,7 @@ public class GetListingPhotosHandlerTests
         var photos = new FakePhotoRepository();
         var handler = new GetListingPhotosHandler(listings, photos);
 
-        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
+        var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Items.Should().BeEmpty();

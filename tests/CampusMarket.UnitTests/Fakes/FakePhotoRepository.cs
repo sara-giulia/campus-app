@@ -29,6 +29,11 @@ public sealed class FakePhotoRepository : IPhotoRepository
         return Task.FromResult(Items.Count(p => p.ListingId == listingId));
     }
 
+    public void Update(Photo photo)
+    {
+        // The photo object is shared with Items, so its new Position is already stored.
+    }
+
     public void Delete(Photo photo)
     {
         Items.Remove(photo);

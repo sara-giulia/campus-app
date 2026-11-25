@@ -201,6 +201,24 @@ public sealed class Listing
         return Money.Create(price);
     }
 
+    // Category and condition must be sent (the request fields are nullable so that a missing one is an
+    // error, not the first enum value). Used by create, update and the price suggestion.
+    public static Result<(Category Category, Condition Condition)> RequireClassification(Category? category, Condition? condition)
+    {
+        if (category is null)
+            return Result<(Category, Condition)>.Failure(
+                Error.Validation("Listing.CategoryRequired", "Category is required."));
+        if (condition is null)
+            return Result<(Category, Condition)>.Failure(
+                Error.Validation("Listing.ConditionRequired", "Condition is required."));
+
+        return (category.Value, condition.Value);
+    }
+
+    // A draft is private: only its seller or an Admin sees it. Everyone else gets "not found".
+    public bool IsVisibleTo(Guid? requesterId, bool isAdmin) =>
+        Status != ListingStatus.Draft || isAdmin || (requesterId is not null && requesterId == SellerId);
+
     // The title and description rules, in one place. The suggestion endpoints (price, category)
     // use them too, so a caller gets the same errors there as when creating a listing.
     // Returns null when both are valid.

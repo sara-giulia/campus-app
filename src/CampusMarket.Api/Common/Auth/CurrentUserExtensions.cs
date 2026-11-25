@@ -8,6 +8,10 @@ public static class CurrentUserExtensions
     public static Guid GetMemberId(this ClaimsPrincipal user) =>
         Guid.Parse(user.FindFirst("sub")!.Value);
 
+    // For public endpoints that show more to a logged-in member: null when there is no valid token.
+    public static Guid? GetMemberIdOrNull(this ClaimsPrincipal user) =>
+        Guid.TryParse(user.FindFirst("sub")?.Value, out var id) ? id : null;
+
     public static bool IsAdmin(this ClaimsPrincipal user) =>
         user.HasClaim("role", "Admin");
 }

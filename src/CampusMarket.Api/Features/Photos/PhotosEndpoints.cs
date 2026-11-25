@@ -1,6 +1,7 @@
 using CampusMarket.Api.Features.Photos.DeletePhoto;
 using CampusMarket.Api.Features.Photos.GetListingPhotos;
 using CampusMarket.Api.Features.Photos.GetPhotoFile;
+using CampusMarket.Api.Features.Photos.ReorderPhotos;
 using CampusMarket.Api.Features.Photos.UploadPhoto;
 
 namespace CampusMarket.Api.Features.Photos;
@@ -14,6 +15,7 @@ public static class PhotosEndpoints
         UploadPhotoEndpoint.Map(listings);
         GetListingPhotosEndpoint.Map(listings);
         DeletePhotoEndpoint.Map(listings);
+        ReorderPhotosEndpoint.Map(listings);
 
         // The image itself: /api/v1/photos/{id}
         GetPhotoFileEndpoint.Map(app.MapGroup("/photos"));

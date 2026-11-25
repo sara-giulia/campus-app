@@ -5,6 +5,6 @@ namespace CampusMarket.Api.Features.Listings.SuggestPrice;
 
 public sealed record SuggestPriceQuery(
     string Title,
-    Category Category,
-    Condition Condition,
+    Category? Category,
+    Condition? Condition,
     string? Description = null) : IQuery<SuggestPriceResponse>;

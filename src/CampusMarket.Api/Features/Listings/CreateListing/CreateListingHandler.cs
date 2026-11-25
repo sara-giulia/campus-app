@@ -15,16 +15,21 @@ public sealed class CreateListingHandler(
     public async Task<Result<CreateListingResponse>> HandleAsync(
         CreateListingCommand command, CancellationToken ct)
     {
+        var required = Listing.RequireClassification(command.Category, command.Condition);
+        if (required.IsFailure)
+            return Result<CreateListingResponse>.Failure(required.Error);
+        var (categoryKey, condition) = required.Value;
+
         // A deactivated category takes no new listings. An unknown category is not found here
         // and is refused by Listing.Create (Listing.CategoryInvalid), as before.
-        var category = await categories.GetByKeyAsync(command.Category, ct);
+        var category = await categories.GetByKeyAsync(categoryKey, ct);
         var categoryError = category?.CheckAcceptsListings();
         if (categoryError is not null)
             return Result<CreateListingResponse>.Failure(categoryError);
 
         var created = Listing.Create(
-            command.SellerId, command.Title, command.Category,
-            command.Condition, command.Price, timeProvider.GetUtcNow(), command.Description);
+            command.SellerId, command.Title, categoryKey,
+            condition, command.Price, timeProvider.GetUtcNow(), command.Description);
 
         if (created.IsFailure)
             return Result<CreateListingResponse>.Failure(created.Error);

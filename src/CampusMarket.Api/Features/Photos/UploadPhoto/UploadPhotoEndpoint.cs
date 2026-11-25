@@ -34,6 +34,8 @@ public static class UploadPhotoEndpoint
             {
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
                 ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
+                _ when result.Error.Code == "Photo.StorageFailed" =>
+                    TypedResults.Json(result.Error, statusCode: StatusCodes.Status503ServiceUnavailable),
                 _ => TypedResults.BadRequest(result.Error)
             };
 

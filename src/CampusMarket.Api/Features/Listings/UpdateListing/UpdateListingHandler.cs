@@ -24,18 +24,23 @@ public sealed class UpdateListingHandler(
             return Result<Guid>.Failure(
                 Error.Forbidden("Listing.NotOwner", "Only the seller or an Admin can change this listing."));
 
+        var required = Listing.RequireClassification(command.Category, command.Condition);
+        if (required.IsFailure)
+            return Result<Guid>.Failure(required.Error);
+        var (categoryKey, condition) = required.Value;
+
         // Only moving the listing into a deactivated category is refused: a listing that is already
         // in a deactivated category can still be edited while it stays there.
-        if (command.Category != listing.Category)
+        if (categoryKey != listing.Category)
         {
-            var category = await categories.GetByKeyAsync(command.Category, ct);
+            var category = await categories.GetByKeyAsync(categoryKey, ct);
             var categoryError = category?.CheckAcceptsListings();
             if (categoryError is not null)
                 return Result<Guid>.Failure(categoryError);
         }
 
         var updated = listing.UpdateDetails(
-            command.Title, command.Category, command.Condition, command.Price, command.Description);
+            command.Title, categoryKey, condition, command.Price, command.Description);
 
         if (updated.IsFailure)
             return Result<Guid>.Failure(updated.Error);

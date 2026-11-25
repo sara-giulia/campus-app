@@ -16,7 +16,7 @@ public class GetListingByIdHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var handler = new GetListingByIdHandler(repository);
-        var query = new GetListingByIdQuery(listing.Id);
+        var query = new GetListingByIdQuery(listing.Id, listing.SellerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
 
