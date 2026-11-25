@@ -1196,6 +1196,24 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** the correction of row 2 (commit 171c6c5).
 - **Commits:** code 9371271 (backend), dcd7fc3 (frontend); skill section b177ca5, fix 171c6c5; tests generated in 36c7945
 
+### Run 46, skill v49 (Feature: Search by meaning)
+
+- **Why a new version:** branch `feature/semantic-search`. New code the skill did not cover: `SearchText.Fold`, `SemanticMatchSelection` (the three thresholds), `ListingSearch.Rank` (words first, then meaning), the changed `GetListingsHandler` (`ISemanticSearch`, `sort=relevance`, `match`, no model call under 3 characters), and the small infrastructure types that need no database (`ListingEmbedding`, `QueryEmbeddingCache`, `SemanticSearchOptions`, the registration in `AddCampusMarketSearch`).
+
+#### Change to SKILL.md (v48 → v49) and why
+
+| # | v48 (before) | v49 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the search by meaning. | New section *"Feature: Search by meaning (Anca)"*: the production code to read, the files (new test classes, the existing `GetListingsHandlerTests` only updated where it no longer compiles), the new `FakeSemanticSearch`, the tests to add and the rules (never load the real model, 100% on the listed files, stop and report instead of changing `src/`). | The thresholds, the edges (equal similarity kept), the order of text and meaning matches and the 3-character rule are decisions, not guessable. |
+| 2 | Section as first written. | Added the tests of `AddCampusMarketSearch` on a `ServiceCollection`, with three **empty** model files in a temp folder (the only test allowed to create files), never resolving the embedder. | The branch "model files present" of the registration is not reached by any other test, and Sonar wants 100% on new code. |
+
+- **Prompt:** `Run the unit-testing skill and generate the unit tests for the section "Feature: Search by meaning (Anca)". Only tests/CampusMarket.UnitTests may change, no git commands that change state; the existing GetListingsHandlerTests only where they no longer compile. If a test fails because the production code behaves differently from the section, stop and report it. At the end: files, number of tests before/after, pass/fail, coverage of the listed files, mismatches.` (plus, during the run, the message with row 2)
+- **Skill version:** v49 (the last unit-testing version was v48, Run 45)
+- **Result:** 72 new unit tests, 973 in total (901 before). All pass, no production fix needed. Every file of the section at 100% lines and branches; the `SemanticListingSearch` arm of the `ISemanticSearch` factory is covered by the integration tests.
+- **Problems seen:** two small production changes made during the run so that every branch can be reached (the invalid-vector check in `GemmaTextEmbedder` that the model can never trigger, and an impossible `null` in `QueryEmbeddingCache`); `ListingSearch.Rank` has a branch for a lazy sequence that the section did not name (one more test); `reportgenerator` is not installed, so the coverage was read from the opencover XML and `coverage-report/` was not regenerated.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 28d2802; skill section 1c83bc0; tests generated in 4e479ce
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2266,6 +2284,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none. Section 7 of the skill says never edit `.claude/skills/` or `PROMPTS.md`, and never change `src/`; the skill was changed here because the task asked for it explicitly.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 9371271 (backend), dcd7fc3 (frontend); skill section b177ca5; tests generated in 36c7945
+
+### Run 58, skill v57 (Feature: Search by meaning)
+
+- **Why a new version:** branch `feature/semantic-search`. The API changed in ways the skill did not cover: PostgreSQL needs the `vector` extension (the Testcontainers image and `UseVector()` in the test `DbContext`), the new table `ListingEmbeddings` and its migration, a background service that indexes the listings, `match` and `sort=relevance` in `GET /listings`, and a model that must never be loaded in the tests.
+
+#### Change to SKILL.md (v56 → v57) and why
+
+| # | v56 (before) | v57 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the search by meaning. | New section *"Feature: Search by meaning (Anca)"*: what changed, the only three changes allowed to existing test files (image `pgvector/pgvector:pg17`, `UseVector()` and `SemanticSearch:Enabled=false` in the factory, `UseVector()` in `AddPhotoPositionMigrationTests`), a `FakeTextEmbedder` with concept groups (so "calculator portabil" and "Laptop Dell" have similarity 1), waiting on the `Indexed … listings` log line, the tests to add and the rules. | Without the fake a test would need the 200 MB model; without the log wait a test would read the database while the service writes. |
+| 2 | Section as first written. | Added a listing deleted while it is indexed (`BeforeListing` in the fake) and an embedder that throws while indexing (`ThrowOnListing`). | Two branches of `ListingIndexer` and `ListingIndexService` that no other case reaches. |
+
+- **Prompt:** `Run the integration-testing skill and generate the integration tests for the section "Feature: Search by meaning (Anca)": first the three allowed changes to existing test files, then FakeTextEmbedder, SearchByMeaningTests and AddListingEmbeddingsMigrationTests. Only tests/CampusMarket.IntegrationTests may change, no git commands that change state, never load the real model. If a test fails because the API behaves differently from the section, stop and report it. Run the whole project 3 times and the coverage merged with the unit tests. At the end: files, tests before/after, pass/fail, coverage, mismatches.`
+- **Skill version:** v57 (the last integration-testing version was v56, Run 57)
+- **Result:** 29 new integration tests, 517 in total (488 before); one existing test updated (the new `InvalidSort` message). After the fix below, all pass; the listed files at 100% lines and branches with the unit tests merged.
+- **Problems seen:** the first run found a real bug: in Development (the test host) every registration is checked at start, and `ListingIndexer` needed an `ITextEmbedder` that is not registered when the model is off, so the API did not start without the model. Fixed in `src/` (registered through a factory, like `ISemanticSearch`); it had not shown up before because the model was downloaded on the machine. The normal end of the service loop could not be reached: the service now closes the signal when the app stops (like `ImageGenerationService` with its queue). One of eight full runs had 3 failures in old tests (confirm sale, upload, notifications) after a 4-minute stall of the container; the next runs passed.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 28d2802; skill section 1c83bc0; tests generated in 4e479ce
 
 ## code-review
 
@@ -3351,3 +3387,24 @@ Week 8, task 2: the professor asked for the move to .NET 11 (released on 10 Nove
 - **Problems seen:** EF Core 11 marks `ExecuteSqlInterpolatedAsync` obsolete (warning CS0618 in `ListingsCacheTests.cs`): replaced with `ExecuteSqlAsync`, same behaviour.
 - **Checks:** build 0 warnings, SARIF empty; 10 architecture, 727 unit, 69 ML and 413 integration tests pass on net11.0; `dotnet ef migrations has-pending-model-changes`: no changes, so no new migration; the dataset regenerates byte for byte and the retrained models give exactly the same metrics (`check_metrics.py` passes, only `trainedAt` changed, so the committed models were kept); the API starts, `/health/ready` is 200 (database and the 4 models), the OpenAPI document is now **3.2.0** (the ASP.NET Core 11 default) and Scalar shows it correctly; the Postman collection with newman: 188 requests, 367 assertions, 0 failures. The Docker image is checked by the `docker` job of `build.yml`.
 - **Commits:** to be filled in
+
+## semantic-search
+
+Weeks 9–10, Anca's task "Căutare după sens": a pretrained multilingual embedding model (ONNX) run locally, the vectors in PostgreSQL with pgvector, "calculator portabil" should also find "laptop", and an evaluation against the search by words. A first version was made with Codex; it was dropped (kept only as a backup outside the repo) and the task was done again by Ancuța Ilenei with Claude Code. The tests were generated with the unit-testing (Run 46) and integration-testing (Run 58) skills; the evaluation of the model in `CampusMarket.ML.Tests` is written by hand, like the other ML tests.
+
+### Run 1
+
+- **Prompt:** `I did my first task with Codex but I am not sure what it did and if it is right. Look at it and redo it properly, logically, following the task, and make it work very well.`
+- **What the Codex version did and why it was dropped:** multilingual-e5-small plus a second 340 MB reranker model; a dictionary that rewrote "calculator portabil" / "computer portabil" into "laptop" by hand (the exact example of the task); four magic thresholds, a list of filler words, a "same word but the last vowel" rule and "produs pe marketplace" added to one-word searches in `GetListingsHandler` (+150 lines); the vectors in a table made by hand-written SQL, migrations with invented timestamps outside the EF snapshot and no index; hand-written integration tests, no unit tests, no skill section; 735 MB of memory and 0.7–2 s per search on a laptop (Render free has 512 MB and 0.1 CPU); an evaluation on 6 searches against a version that already had the hand-made rule.
+- **Decisions:**
+    - Model chosen by measuring, not by name: five pretrained multilingual models (e5-small, e5-base, paraphrase MiniLM, paraphrase mpnet, EmbeddingGemma-300m) on the demo seed with 31 labelled searches, plus their memory. EmbeddingGemma-300m (4-bit ONNX, onnx-community, pinned revision) is as good as e5-base (Hit@3 0.85) with the least memory (~190 MB); e5-small, the model of the Codex version, gets 0.67. No reranker: it does not fit Render. The 8-bit variant was not better.
+    - The prompts the model was trained with (`task: search result | query:` and `title: none | text:`), title and description together, lower case, diacritics kept: each choice measured on both catalogs.
+    - No word lists, no aliases: the listings found by words come first exactly as before (title contains the text, now also ignoring diacritics), then the ones found by meaning, marked `match: "Meaning"` in the API and "Găsit după sens" in the frontend. Three numbers decide what counts as found by meaning (similarity ≥ 0.36, at most 0.15 under the best, at most 10), chosen from a grid on the two catalogs; the filters apply to them too; `sort=relevance` is the default when there is a search.
+    - ONNX Runtime + `Microsoft.ML.Tokenizers` (ML.NET) in the API; the token ids checked against the reference tokenizer of the same model revision (identical, diacritics and emoji included).
+    - PostgreSQL + pgvector through EF Core (`Pgvector.EntityFrameworkCore`): entity `ListingEmbedding`, generated migration `AddListingEmbeddings` (extension, table, HNSW cosine index), the search is one SQL query. The model name and a SHA-256 of the text are stored with each vector, so an edit or a new model re-indexes.
+    - Indexing in the background (`ListingIndexService`): at start, then one second after a save that touched a listing (`EfUnitOfWork` rings `ListingIndexSignal`). No timer, so Neon can sleep.
+    - The model (~200 MB) is not in git: `ml/scripts/download-search-model.sh` (pinned revision, SHA-256 of every file), run by the Dockerfile, the CI (with a cache) and once by each of us. Without it the API starts and searches by words only.
+    - The evaluation runs the real C# code on two catalogs: the demo seed (31 searches, labelled by hand) and 966 listings of `ml/data/listings.csv` (50 searches labelled by item type), compared with the search before.
+- **Checks:** build 0 warnings; `dotnet ef migrations has-pending-model-changes`: none; 10 architecture, 973 unit, 85 ML and 517 integration tests pass (2 old `PriceSuggesterTests` fail only on a Windows with the Romanian number format, in code this task did not touch, and pass with the invariant culture, as on the Linux CI); the evaluation: demo Hit@3 0.70 / MRR 0.67, dataset 0.73 / 0.70, against 0.04 for the words alone; the new code at 100% lines and branches (unit, integration and ML merged); on the running API with the demo seed: the 60 listings indexed at start, a search in ~30–45 ms; the Docker image builds with the model, the container uses ~257 MB with the model loaded (Render free has 512 MB); the Postman collection with newman: 211 requests, 415 assertions, 0 failures, with the real model; frontend build and lint clean.
+- **Result:** new `Common/Search/` (`ITextEmbedder`, `ISemanticSearch`, `SemanticMatchSelection`, `SearchText`), `Infrastructure/Search/` (`GemmaTextEmbedder`, `ListingEmbedding`, `ListingIndexer`, `ListingIndexSignal`, `SemanticListingSearch`, `QueryEmbeddingCache`, `SemanticSearchOptions`, `SearchServiceCollectionExtensions`), `Infrastructure/Background/ListingIndexService.cs`, `Features/Listings/GetListings/ListingSearch.cs`, `ListingEmbeddingConfiguration`, migration `AddListingEmbeddings`, `ml/scripts/download-search-model.sh`, `ml/data/search/*.json`, `docs/ml/semantic-search.md`, `tests/CampusMarket.ML.Tests/SemanticSearchEvaluationTests.cs`; changed `GetListingsHandler`, `GetListingsQuery`, `GetListingsResponse`, `EfUnitOfWork`, `CampusMarketDbContext`, `CampusMarketSetup`, the csproj, `Dockerfile`, `docker-compose.yml` (`pgvector/pgvector:pg17`), `build.yml` and `ml.yml`, `.gitignore`, `.gitattributes`, the frontend search page and cards, README, ML.md, Postman.
+- **Commits:** code 28d2802; skill sections 1c83bc0; tests generated in 4e479ce (see Run 46 of unit-testing and Run 58 of integration-testing)
