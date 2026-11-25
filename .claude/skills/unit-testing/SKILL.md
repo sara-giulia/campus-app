@@ -67,15 +67,15 @@ The old week 2 tests in `Domain/` (`ListingTests`, `MemberReservationTests`, `Me
 
 ## Coverage
 - Collect with the repo file `coverlet.runsettings` (the CI uses it too, format opencover): `dotnet test tests/CampusMarket.UnitTests --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./TestResults`
-- Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs;+*MetricsRegistry.cs;+*PriceTextFeatures.cs"`
-- Target: 100% line and branch coverage for every file in the report (all of `Domain/`, every handler, `MetricsRegistry.cs` and `PriceTextFeatures.cs`).
+- Generate the HTML report only for the target files: `reportgenerator -reports:"TestResults/**/coverage.opencover.xml" -targetdir:coverage-report -reporttypes:Html -filefilters:"+*Domain*;+*Features*Handler.cs;+*MetricsRegistry.cs;+*PriceTextFeatures.cs;+*DemoListings.cs"`
+- Target: 100% line and branch coverage for every file in the report (all of `Domain/`, every handler, `MetricsRegistry.cs`, `PriceTextFeatures.cs` and `DemoListings.cs`).
 - The report in `coverage-report/` is only for reading locally. It is ignored by `.gitignore`: never commit it. Before committing, `git status` must not list `coverage-report/`. Never commit `TestResults/` either.
 - When coverage is below 100%, list the uncovered lines from the report, add tests for exactly those lines and run again. If the same kind of gap repeats, add a rule to this file instead of fixing the tests by hand.
 - Everything that is not in the report is outside the target. This is the single list of exclusions (the README copies it word for word):
   - `Program.cs`: starts the web host, no logic to test (also excluded in the CI).
   - `CampusMarketSetup.cs`: only registers services and routes.
   - `Common/CQRS/`: marker interfaces and reflection-based handler registration, checked by the integration tests.
-  - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests. Exceptions that are in the target (pure logic, no database, HTTP or file access): `Infrastructure/Observability/MetricsRegistry.cs` and `Infrastructure/ML/PriceTextFeatures.cs`, both at 100% lines and branches.
+  - `Infrastructure/`: EF Core DbContext, configurations, repositories and unit of work, no domain logic, covered by the integration tests. Exceptions that are in the target (pure logic, no database, HTTP or file access): `Infrastructure/Observability/MetricsRegistry.cs`, `Infrastructure/ML/PriceTextFeatures.cs` and `Infrastructure/Persistence/Seed/DemoListings.cs`, all at 100% lines and branches (for `DemoListings.cs` the unit tests cover what the integration tests cannot reach, see "Feature: Demo seed (Diana)").
   - `Features/` except `*Handler.cs`: endpoints, requests, responses, commands and queries are HTTP mapping or plain data, covered by the integration tests.
 
 ## Never do
@@ -1070,3 +1070,22 @@ Rules for this feature:
 - Expected values are written as literals in the test (`1024f`, `"audio technica"`), never computed with the same code under test. Compare floats with `Should().Be(...)` on exact values: all of them are exact in `float`.
 - Characters outside ASCII (`ș`, `ş`, `ț`, `ţ`, `ă`) are written as `\u` escapes in the test source (`"șigilat"` comma below, `"şigilat"` cedilla), so the file encoding cannot change the test.
 - A new brand added to the list in `PriceTextFeatures.cs` needs one `[InlineData]` row; changing a rule (the `TB` factor, the CPU tiers) changes the model input, so the price model must be retrained (`docs/ml/price.md`).
+
+## Feature: Demo seed (Diana)
+
+Production code (read it before generating): `Infrastructure/Persistence/Seed/DemoListings.cs`, the static demo catalog. `BuildListings(List<Guid> sellerIds, DateTimeOffset now)` builds the 60 demo listings through the domain (`Listing.Create`, `Publish`, then `Reserve` and `ConfirmSale` for the Reserved and Sold ones). `BuildMembers(...)` is covered by the integration tests.
+
+Why unit tests: Sonar adds the unit and the integration coverage together, and the integration tests start the real app, where the seller ids are always distinct and never empty. Three branches of `BuildListings` can only be reached by calling it directly with unusual ids: the empty-list check, the `continue` when `Listing.Create` fails, and the `return` when `Reserve` fails.
+
+Where the tests go and how they are named:
+- `Infrastructure/Persistence/Seed/DemoListingsTests.cs` in `tests/CampusMarket.UnitTests` (same folders as `src/`), method names `Given_<state>_When_<action>_Then_<expected>`. It is the third exception to the `Infrastructure/` exclusion, with `MetricsRegistry` and `PriceTextFeatures`: add `+*DemoListings.cs` to the `-filefilters` of the report, and keep it at 100% lines and branches.
+
+Tests to add (one `[Fact]` each, a fixed `Now`, never `DateTimeOffset.UtcNow`):
+- An empty `sellerIds` list → `ArgumentException` with `ParamName` `"sellerIds"`.
+- A list with only `Guid.Empty` → `Listing.Create` fails for every template (`Listing.SellerEmpty`), so the result is empty.
+- The same id twice (`[id, id]`) → the buyer is the seller, `Reserve` fails (`Reservation.OwnListing`), so the result has `DemoListings.ListingCount` listings and every one is `Active`.
+
+Rules for this feature:
+- Never change `DemoListings.cs` to make a test pass, and do not duplicate the integration checks (database content, paging) here.
+- Use `DemoListings.ListingCount` for the expected count, never the literal 60.
+- Do not add a unit test for `BuildMembers`: its failure branch (empty hash) is already covered by the integration tests with `EmptyHashPasswordHasher`.
