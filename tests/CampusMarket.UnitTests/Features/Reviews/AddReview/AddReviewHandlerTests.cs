@@ -1,6 +1,7 @@
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews.AddReview;
 using CampusMarket.UnitTests.Fakes;
@@ -46,8 +47,9 @@ public class AddReviewHandlerTests
         FakeListingRepository listings,
         FakeMemberRepository members,
         FakeReviewRepository reviews,
-        FakeUnitOfWork unitOfWork) =>
-        new(listings, members, reviews, new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
+        FakeUnitOfWork unitOfWork,
+        FakeNotificationRepository? notifications = null) =>
+        new(listings, members, reviews, notifications ?? new FakeNotificationRepository(), unitOfWork, new FixedTimeProvider(Now));
 
     [Fact]
     public async Task Given_BuyerOfSoldListing_When_Handling_Then_StoresReviewAndSavesOnce()
@@ -264,6 +266,216 @@ public class AddReviewHandlerTests
         result.Error.Code.Should().Be("Review.Duplicate");
         result.Error.Message.Should().Match("A review with id '*' already exists.");
         reviews.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_BuyerOfSoldListing_When_Handling_Then_NotifiesSellerWithReviewReceivedAndSavesOnce()
+    {
+        var buyer = BuildBuyer();
+        var listing = BuildSoldListing(buyer.Id);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var reviews = new FakeReviewRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, members, reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(buyer.Id, listing.Id, 4, null);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var notification = notifications.Items.Should().ContainSingle().Subject;
+        notification.Type.Should().Be(NotificationType.ReviewReceived);
+        notification.MemberId.Should().Be(SellerId);
+        notification.MemberId.Should().NotBe(buyer.Id);
+        notification.ListingId.Should().Be(listing.Id);
+        notification.CreatedAt.Should().Be(reviews.Items.Single().CreatedAt);
+        notification.IsRead.Should().BeFalse();
+        notification.Message.Should().Be("Ana Pop rated Algebra book 4/5");
+        reviews.Items.Should().ContainSingle();
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_UnknownListing_When_Handling_Then_AddsNoNotification()
+    {
+        var buyer = BuildBuyer();
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var reviews = new FakeReviewRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(new FakeListingRepository(), members, reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(buyer.Id, Guid.NewGuid(), 5, null);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.NotFound);
+        result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{command.ListingId}' was not found.");
+        notifications.Items.Should().BeEmpty();
+        reviews.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_UnknownMember_When_Handling_Then_AddsNoNotification()
+    {
+        var listing = BuildSoldListing(BuyerId);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var reviews = new FakeReviewRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, new FakeMemberRepository(), reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(BuyerId, listing.Id, 5, null);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.NotFound);
+        result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Be($"Member '{BuyerId}' was not found.");
+        notifications.Items.Should().BeEmpty();
+        reviews.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ListingNotSold_When_Handling_Then_AddsNoNotification()
+    {
+        var buyer = BuildBuyer();
+        var listing = BuildReservedListing(buyer.Id);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var reviews = new FakeReviewRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, members, reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(buyer.Id, listing.Id, 5, null);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Review.SaleNotCompleted");
+        result.Error.Message.Should().Be("Only a sold listing can be reviewed.");
+        notifications.Items.Should().BeEmpty();
+        reviews.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_RatingZero_When_Handling_Then_AddsNoNotification()
+    {
+        var buyer = BuildBuyer();
+        var listing = BuildSoldListing(buyer.Id);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var reviews = new FakeReviewRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, members, reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(buyer.Id, listing.Id, 0, null);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Review.InvalidRating");
+        result.Error.Message.Should().Be($"Rating must be between {Review.MinRating} and {Review.MaxRating}.");
+        notifications.Items.Should().BeEmpty();
+        reviews.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_CommentTooLong_When_Handling_Then_AddsNoNotification()
+    {
+        var buyer = BuildBuyer();
+        var listing = BuildSoldListing(buyer.Id);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var reviews = new FakeReviewRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, members, reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(buyer.Id, listing.Id, 5, new string('a', Review.MaxCommentLength + 1));
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Review.CommentTooLong");
+        result.Error.Message.Should().Be($"Comment must have at most {Review.MaxCommentLength} characters.");
+        notifications.Items.Should().BeEmpty();
+        reviews.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_OtherMember_When_Handling_Then_AddsNoNotification()
+    {
+        var buyer = BuildBuyer();
+        var other = BuildOtherMember();
+        var listing = BuildSoldListing(buyer.Id);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        members.Items[other.Id] = other;
+        var reviews = new FakeReviewRepository();
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, members, reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(other.Id, listing.Id, 5, null);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Forbidden);
+        result.Error.Code.Should().Be("Review.NotBuyer");
+        result.Error.Message.Should().Be("Only the buyer of this listing can review the seller.");
+        notifications.Items.Should().BeEmpty();
+        reviews.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ListingAlreadyReviewed_When_Handling_Then_AddsNoNotification()
+    {
+        var buyer = BuildBuyer();
+        var listing = BuildSoldListing(buyer.Id);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[buyer.Id] = buyer;
+        var reviews = new FakeReviewRepository();
+        var existing = Review.Create(buyer.Id, listing, 4, null, Now.AddHours(-2)).Value;
+        reviews.Items.Add(existing);
+        var notifications = new FakeNotificationRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = BuildHandler(listings, members, reviews, unitOfWork, notifications);
+        var command = new AddReviewCommand(buyer.Id, listing.Id, 5, null);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Conflict);
+        result.Error.Code.Should().Be("Review.AlreadyExists");
+        result.Error.Message.Should().Be("This sale has already been reviewed.");
+        notifications.Items.Should().BeEmpty();
+        reviews.Items.Should().ContainSingle().Which.Should().BeSameAs(existing);
         unitOfWork.SaveCount.Should().Be(0);
     }
 }
