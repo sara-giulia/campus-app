@@ -49,7 +49,7 @@ public sealed class SendMessageTests : IntegrationTestBase
         message.Text.Should().Be("Da, inca e.");
 
         var saved = await QueryDbAsync(db => db.Set<Conversation>().AsNoTracking().SingleAsync());
-        saved.LastMessageAt.Should().Be(body.SentAt);
+        saved.LastMessageAt.Should().Be(body.SentAt.ToMicroseconds());
 
         var messageCount = await QueryDbAsync(db => db.Set<Message>().CountAsync());
         messageCount.Should().Be(2);

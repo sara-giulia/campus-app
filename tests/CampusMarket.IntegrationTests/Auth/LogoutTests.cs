@@ -65,8 +65,8 @@ public sealed class LogoutTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<RefreshToken>().AsNoTracking().SingleAsync());
         saved.Id.Should().Be(token.Id);
         saved.TokenHash.Should().Be(token.TokenHash);
-        saved.RevokedAt.Should().Be(token.RevokedAt);
-        saved.ExpiresAt.Should().Be(token.ExpiresAt);
+        saved.RevokedAt.Should().Be(token.RevokedAt.ToMicroseconds());
+        saved.ExpiresAt.Should().Be(token.ExpiresAt.ToMicroseconds());
     }
 
     [Fact]

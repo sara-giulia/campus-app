@@ -5,12 +5,13 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 
 ## How to run
 
-1. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
-2. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
-3. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
-4. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
+1. Start PostgreSQL: `docker compose up -d db` (port **5433** on your machine; `appsettings.Development.json` already points at it with `Host=localhost;Port=5433;Database=campusmarket;Username=campusmarket;Password=campusmarket`). Docker must be running. The API creates the tables itself at startup (EF Core migrations), and the data stays in the `campusmarket-pg` volume, so it is not lost when you restart the API or run `docker compose down` (`docker compose down -v` removes it).
+2. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
+3. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
+4. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
+5. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
 
-Unit tests: `dotnet test` from the repository root.
+Tests: `dotnet test` from the repository root. The integration tests start their own PostgreSQL in Docker (Testcontainers, `postgres:17`, one container for the whole run, one database per test), so **Docker must be running**; they never use the database on port 5433.
 
 ### Web frontend
 
@@ -34,7 +35,7 @@ Listings that are already `Active` in a deactivated category stay visible: they 
 3. In Postman, set the `baseUrl` collection variable to `http://localhost:5080` and run the collection.
 
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
-- The container runs as the non-root user of the .NET image. The SQLite file is `/app/data/campusmarket.db` inside the container, on the named volume `campusmarket-data`, so the data is kept after `docker compose down`. `docker compose down -v` also removes the volume and starts from an empty database.
+- The container runs as the non-root user of the .NET image. The API talks to the `db` service (PostgreSQL 17, `ConnectionStrings__CampusMarket` in `docker-compose.yml`), whose data is in the named volume `campusmarket-pg`; the uploaded photos are in `/app/data/photos` on the volume `campusmarket-data`. Both are kept after `docker compose down`; `docker compose down -v` removes them and starts from an empty database. `docker compose up -d db` starts only the database (port 5433), for running the API on the host.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
 - The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) was not copied to `ml-models/`.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
@@ -80,7 +81,7 @@ before Render is wired up and remains idempotent afterwards.
    | `Jwt__Key` | yes | Random string of **at least 32 characters** used to sign JWTs. The API refuses to start in Production if it is missing or shorter than 32 characters. |
    | `Seed__AdminEmail` | optional | Email of the first Admin created on startup. Leave unset to skip the admin seed. |
    | `Seed__AdminPassword` | optional | Password of the first Admin. Needed only when `Seed__AdminEmail` is set. |
-   | `ConnectionStrings__CampusMarket` | optional | SQLite connection string. The Docker image already defaults this to `Data Source=/app/data/campusmarket.db`, so it only needs to be overridden to point the API at a different path (for example, an attached disk). |
+   | `ConnectionStrings__CampusMarket` | yes | Npgsql connection string of the PostgreSQL database, for example `Host=<host>;Port=5432;Database=campusmarket;Username=<user>;Password=<password>` (we use a free Neon or Supabase database: the free Render PostgreSQL expires). Add `SSL Mode=Require` for a hosted database. It must be in this key/value form: a `postgresql://...` URL, as Neon shows it, does not work, and the API refuses to start in Production without this variable. The API runs the migrations on this database at startup. There is no default in Production. |
    | `Seed__DemoData` | optional | `true` seeds a demo member and a few published listings when the database is empty, so a fresh Render instance has something to browse. Off by default and never on in tests. |
    | `Seed__DemoPassword` | optional | Password for the demo student account created when `Seed__DemoData=true`. Must be at least 8 characters. If missing or shorter, the demo listings are still seeded but the demo member is skipped (a warning is written to the log). The demo member always has the `Student` role. |
 
@@ -96,12 +97,7 @@ before Render is wired up and remains idempotent afterwards.
   sleep wakes the instance; typical cold-start latency is tens of seconds.
   Render's uptime checks keep the service warmer than no traffic at all,
   but there is no hard guarantee it stays up.
-- **No persistent disk on the free tier.** SQLite lives inside the
-  container's filesystem, which is reset on every redeploy and every
-  cold start, so the database is wiped whenever a new image is pulled or
-  the instance is rebuilt. Set `Seed__DemoData=true` to repopulate a bit
-  of data after each redeploy; attach a disk (paid tier) if the data has
-  to survive. The uploaded photos (`/app/data/photos`) are wiped the same way.
+- **No persistent disk on the free tier.** The data is in PostgreSQL, a separate server, so it survives a redeploy or a cold start of the web service (it lasts as long as the PostgreSQL instance does; check the retention limit of the plan you use). The container's own filesystem is reset on every redeploy and every cold start, so the uploaded photos (`/app/data/photos`) are wiped whenever a new image is pulled or the instance is rebuilt; attach a disk (paid tier) if they have to survive. `Seed__DemoData=true` only adds the demo data when the database is empty.
 - **One instance, no scaling.** Fine for a student demo, not for traffic.
 
 ---
@@ -153,7 +149,7 @@ Architecture diagrams (Mermaid, in Romanian): [docs/architecture.md](docs/archit
 
 - .NET 11, ASP.NET Core **minimal APIs** (moved from .NET 10 in week 8; the OpenAPI document is now version 3.2, Scalar shows it as before)
 - **Vertical slices** with hand-written **CQRS** handlers (commands and queries)
-- **Repository + Unit of Work** over **EF Core** with **SQLite**
+- **Repository + Unit of Work** over **EF Core** with **PostgreSQL** (Npgsql; migrations run at startup)
 - `Result<T>` for expected errors (no exceptions for business rule violations)
 - A global exception handler that answers with **ProblemDetails** (see [Error format](#error-format))
 - `TimeProvider` for anything that depends on the clock
@@ -355,7 +351,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidSort` | `sort` is not `newest`, `price_asc` or `price_desc` |
 | 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
-Listings (with their reservations) and members are stored in SQLite through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
+Listings (with their reservations) and members are stored in PostgreSQL through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
 
 ### Authentication
 
@@ -390,7 +386,7 @@ Transactional emails (password-reset link, "your password was changed" notice) g
   | `Email__Password` | SMTP auth password. Same rule as `Email__Username`. |
   | `Frontend__BaseUrl` | Base URL of the frontend, embedded in the reset link as `{BaseUrl}/reset-password?token=...` (default `http://localhost:5173`). |
 
-- **Password reset flow.** `POST /api/v1/auth/forgot-password { email }` always answers **202** with the same body whether the email exists or not (no user enumeration); rate-limited by the same `login` policy. If a member is found, a 32-byte URL-safe-Base64 token is saved as its SHA-256 hash in `PasswordResetTokens` (migration `AddPasswordResetTokens`), valid 30 minutes, and the reset link is emailed. `POST /api/v1/auth/reset-password { token, newPassword, confirmNewPassword }` → **204**; same password rules as `Register` (`Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`); unknown / expired / already-used token → **400** `Auth.InvalidResetToken`. On success the token is marked used, every active refresh token of the member is revoked, and a "your password was changed" email is sent (the password itself never appears in the body).
+- **Password reset flow.** `POST /api/v1/auth/forgot-password { email }` always answers **202** with the same body whether the email exists or not (no user enumeration); rate-limited by the same `login` policy. If a member is found, a 32-byte URL-safe-Base64 token is saved as its SHA-256 hash in `PasswordResetTokens` (migration `InitialPostgres`), valid 30 minutes, and the reset link is emailed. `POST /api/v1/auth/reset-password { token, newPassword, confirmNewPassword }` → **204**; same password rules as `Register` (`Auth.WeakPassword`, `Auth.PasswordsDoNotMatch`); unknown / expired / already-used token → **400** `Auth.InvalidResetToken`. On success the token is marked used, every active refresh token of the member is revoked, and a "your password was changed" email is sent (the password itself never appears in the body).
 
 ### Error codes
 
@@ -518,7 +514,7 @@ A member saves listings to find them again later. The member is always the user 
 }
 ```
 
-Favorites are stored in their own table (`Favorites`, migration `AddFavorites`), with a unique index on member + listing and foreign keys to `Members` and `Listings`: when a listing or a member is deleted, their favorites are deleted too.
+Favorites are stored in their own table (`Favorites`, migration `InitialPostgres`), with a unique index on member + listing and foreign keys to `Members` and `Listings`: when a listing or a member is deleted, their favorites are deleted too.
 
 A listing hidden by an Admin cannot be saved (400 `Favorite.ListingNotAvailable`) and is left out of the list while it is hidden.
 
@@ -542,7 +538,7 @@ Members report listings, the spam model reports suspicious ones on its own, and 
 
 - `POST /api/v1/moderation/listings/{id}/hide` (Admins only): 204. The listing becomes `Hidden`: it leaves the search, the moderation list and the favorites lists, and it cannot be reserved, reported or saved. A reserved listing loses its active reservation. Only `Active` and `Reserved` listings can be hidden.
 
-Reports are stored in their own table (`Reports`, migration `AddReports`), with a unique index on listing + reporter and foreign keys to `Listings` and `Members` (cascade delete).
+Reports are stored in their own table (`Reports`, migration `InitialPostgres`), with a unique index on listing + reporter and foreign keys to `Listings` and `Members` (cascade delete).
 
 ### Seller reviews
 
@@ -563,7 +559,7 @@ After a sale is confirmed, the buyer rates the seller once.
 }
 ```
 
-Reviews are stored in their own table (`Reviews`, migration `AddReviews`), with a unique index on the listing (one sale, one review) and foreign keys to `Listings` and to `Members` for the seller and the reviewer (cascade delete).
+Reviews are stored in their own table (`Reviews`, migration `InitialPostgres`), with a unique index on the listing (one sale, one review) and foreign keys to `Listings` and to `Members` for the seller and the reviewer (cascade delete).
 
 ### Messages between buyer and seller
 
@@ -574,7 +570,7 @@ A buyer writes to the seller about a listing; only the two of them can read or w
 - `GET /api/v1/conversations/{id}`: the listing title, the two members' names and every message, in the order they were sent.
 - `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message and the number of messages.
 
-A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `AddConversations`.
+A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `InitialPostgres`.
 
 ### Listing photos
 
@@ -585,7 +581,7 @@ The seller adds up to 5 photos to a listing (any status), each a JPEG, PNG or We
 - `GET /api/v1/photos/{id}` (public): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id), `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff` (a generated image is an SVG, which must not run anything when opened directly).
 - `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
 
-The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, inside the same volume as the database, so the photos survive a restart. The database (`Photos` table, migration `AddPhotos`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
+The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, on the `campusmarket-data` volume, so the photos survive a restart. The database (`Photos` table, migration `InitialPostgres`) keeps only the file name, type and size. Deleting a listing removes its photo rows (cascade) and its folder.
 
 ### Generated images for listings without photos
 
@@ -596,11 +592,11 @@ A listing that is published without any photo gets a picture made by the app, so
   - `Svg` (default, used on Render, where there is no GPU): an 800×600 SVG with the colour and icon of the category, the title (at most 3 lines, whole words) and the category name. Only the seller's own words, nothing invented; every text is XML-escaped.
   - `Ollama`: a local image model through Ollama's OpenAI-compatible `POST /v1/images/generations` (`ImageGeneration:Ollama:BaseUrl`, `Model` `x/z-image-turbo`, `TimeoutSeconds`). The prompt is the title and the first 200 characters of the description, and asks for no text in the picture. Image generation in Ollama is experimental (it ran only on macOS when we checked), so any failure falls back to the SVG.
 - `ImageGeneration:Enabled` (true) turns the whole thing off; the integration tests turn it off except in their own tests.
-- The `Photos` table has a new `IsGenerated` column (migration `AddGeneratedPhotos`, the first one made with EF Core 11, which also rewrote the model snapshot in its new format). On Render the files are lost at a restart like the uploaded photos, and the service makes them again at the next start.
+- The `Photos` table has a new `IsGenerated` column (part of the `InitialPostgres` migration). On Render the files are lost at a restart like the uploaded photos, and the service makes them again at the next start.
 
 ### Notifications
 
-Members are told when something relevant happens to a listing of theirs. Three kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you") and `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired"). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `AddNotifications`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
+Members are told when something relevant happens to a listing of theirs. Three kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you") and `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired"). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `InitialPostgres`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
 
 ### Live events (Server-Sent Events)
 
@@ -721,7 +717,7 @@ sequenceDiagram
     actor A as Buyer A
     actor B as Buyer B
     participant API as ReserveListing handler
-    participant DB as SQLite
+    participant DB as PostgreSQL
 
     A->>API: POST /api/v1/listings/42/reservations
     B->>API: POST /api/v1/listings/42/reservations
@@ -839,7 +835,7 @@ However the work is split, every slice comes with its tests, its Postman request
 ## Testing
 
 - **Run the unit tests:** `dotnet test tests/CampusMarket.UnitTests`
-- **Run the integration tests:** `dotnet test tests/CampusMarket.IntegrationTests`
+- **Run the integration tests:** `dotnet test tests/CampusMarket.IntegrationTests` (Docker must be running: the tests start a PostgreSQL container with Testcontainers)
 - **Generate the coverage report** (run from the repository root, install the tool once with `dotnet tool install -g dotnet-reportgenerator-globaltool`):
 
   ```
@@ -1201,7 +1197,7 @@ suggested price, the actual sold price (`Listing.Price.Amount`) and
 `SoldAt`. If the suggester throws or returns nothing, the sale still goes
 through — a warning is logged and no `SaleRecord` is written, so the
 feedback loop never blocks the sale. Records live in the `SaleRecords`
-table (migration `AddSaleRecords`), with no FK to `Listings` on purpose so
+table (migration `InitialPostgres`), with no FK to `Listings` on purpose so
 analytics survives listing deletion.
 
 `GET /api/v1/admin/ml/price-accuracy` (Admins only) reads the table and

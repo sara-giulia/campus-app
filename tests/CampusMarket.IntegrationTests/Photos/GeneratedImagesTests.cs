@@ -48,7 +48,7 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
 
     private readonly CapturingLoggerProvider _logs = new();
 
-    // A copy of the API on the same in-memory database with image generation on and the capturing logger.
+    // A copy of the API on the same database with image generation on and the capturing logger.
     private WebApplicationFactory<Program> WithGeneration(
         string provider = ImageGenerationOptions.SvgProvider, Action<IServiceCollection>? configureServices = null) =>
         Factory.WithWebHostBuilder(builder =>
@@ -92,8 +92,7 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
     }
 
     // Waits until the service has finished with the listing (generated, skipped or failed), by its log line.
-    // The test does not read the database meanwhile: the service writes on the same in-memory connection,
-    // and a read at that moment makes its save fail with "database is locked".
+    // The wait is based on the log line, not on database reads: the line is written when the service is done.
     private Task<bool> WaitForServiceAsync(Guid listingId, TimeSpan timeout) =>
         WaitUntilAsync(() => Task.FromResult(
             _logs.Entries.Any(e => e.Category == ServiceCategory && e.Message.Contains(listingId.ToString()))), timeout);

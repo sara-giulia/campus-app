@@ -16,14 +16,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected CampusMarketApiFactory Factory { get; private set; } = null!;
     protected HttpClient Client { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
+        // Starting the host runs Migrate() on this test's own database, so the schema comes from the real migrations.
         Factory = new CampusMarketApiFactory();
         Client = Factory.CreateClient();
-
-        await using var scope = Factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()

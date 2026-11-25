@@ -1,6 +1,6 @@
 ---
 name: integration-testing
-description: Generates xUnit integration tests for CampusMarket that send real HTTP requests through WebApplicationFactory<Program> to the API running on an in-memory SQLite database, and check the status code, the response body and the database state through the DbContext. Use when adding or changing integration tests, or when a slice has no integration test yet.
+description: Generates xUnit integration tests for CampusMarket that send real HTTP requests through WebApplicationFactory<Program> to the API running on a real PostgreSQL database (Testcontainers, Docker must be running), and check the status code, the response body and the database state through the DbContext. Use when adding or changing integration tests, or when a slice has no integration test yet.
 ---
 
 # Integration testing skill for CampusMarket
@@ -11,8 +11,9 @@ description: Generates xUnit integration tests for CampusMarket that send real H
 
 - .NET 11 minimal API in `src/CampusMarket.Api`, root namespace `CampusMarket.Api`. Routes are under `/api/v1`.
 - Endpoints call CQRS handlers; handlers use the repositories and `IUnitOfWork`. The tests do not call handlers or repositories: they go through HTTP only.
-- The database is SQLite through EF Core. DbContext: `CampusMarketDbContext` in `CampusMarket.Api.Infrastructure.Persistence`, registered in `CampusMarketSetup.AddCampusMarket` with `AddDbContext<CampusMarketDbContext>((sp, options) => options.UseSqlite(...))` and the connection string `CampusMarket` from `appsettings.json`.
-- `Program.cs` calls `app.EnsureCampusMarketDatabase()` at startup. In the tests it runs on the in-memory connection, so the file `campusmarket.db` is never used.
+- The database is PostgreSQL through EF Core (Npgsql). DbContext: `CampusMarketDbContext` in `CampusMarket.Api.Infrastructure.Persistence`, registered in `CampusMarketSetup.AddCampusMarket` with `AddDbContext<CampusMarketDbContext>((sp, options) => options.UseNpgsql(...))` and the connection string `ConnectionStrings:CampusMarket`.
+- `Program.cs` calls `app.EnsureCampusMarketDatabase()` at startup, which runs `Database.Migrate()`. In the tests it runs on the test's own database (section 3), so the real migrations are what creates the schema, and the local database on port 5433 is never used.
+- Docker must be running to run the integration tests: the first test starts the PostgreSQL container. If Docker is not running, every test fails with a Docker connection error; start Docker Desktop, do not change the tests.
 - There is no foreign key from `Listing.SellerId` to `Member`: a listing can be seeded without a member.
 - Errors come back as the `Error` record from `Domain/Common/`: `{ "code": "...", "message": "...", "type": "Validation" | "NotFound" | "Conflict" }`.
 - Enums travel as text in JSON (`"Textbook"`, `"Draft"`), because the API registers `JsonStringEnumConverter`.
@@ -37,8 +38,10 @@ A separate project, added to `CampusMarket.sln` (`dotnet sln add tests/CampusMar
 tests/CampusMarket.IntegrationTests/
   CampusMarket.IntegrationTests.csproj
   Infrastructure/
-    CampusMarketApiFactory.cs      # WebApplicationFactory<Program> + SQLite connection
+    SharedPostgres.cs              # one PostgreSQL container for the whole run (Testcontainers)
+    CampusMarketApiFactory.cs      # WebApplicationFactory<Program> + its own database on that container
     IntegrationTestBase.cs         # creates the factory and client per test, seed and query helpers
+    PostgresTime.cs                # ToMicroseconds(): what PostgreSQL gives back for a DateTimeOffset
   Listings/
     CreateListingTests.cs
     GetListingByIdTests.cs
@@ -57,9 +60,9 @@ tests/CampusMarket.IntegrationTests/
 - `.csproj`: `net11.0`, `Nullable` and `ImplicitUsings` enabled, `IsPackable` false, `<Using Include="Xunit" />`, a `ProjectReference` to `src/CampusMarket.Api/CampusMarket.Api.csproj`.
 - Packages (same versions as `CampusMarket.UnitTests` where they overlap):
   - `Microsoft.NET.Test.Sdk` 17.14.1, `xunit` 2.9.3, `xunit.runner.visualstudio` 3.1.4, `coverlet.collector` 6.0.4
-  - `Microsoft.AspNetCore.Mvc.Testing` 10.0.*
+  - `Microsoft.AspNetCore.Mvc.Testing` 11.0.*
   - `FluentAssertions` 7.2.0, the same as `CampusMarket.UnitTests` (never 8)
-  - SQLite for EF Core (`Microsoft.EntityFrameworkCore.Sqlite` 10.0.*) comes through the API project reference. Do not add it to the test project.
+  - `Testcontainers.PostgreSql` 4.*: the PostgreSQL container. Npgsql and EF Core come through the API project reference; do not add them to the test project.
 - CI: `.github/workflows/build.yml` already runs `dotnet test` on the whole solution, so adding the project to the `.sln` is enough. Do not edit the workflow.
 
 ## 3. Test host
@@ -73,12 +76,52 @@ Only if the build fails with "`Program` is inaccessible due to its protection le
 public partial class Program { }
 ```
 
-### One fresh SQLite database per test
+### One database per test, on one shared PostgreSQL container
 
-- SQLite `DataSource=:memory:` keeps the database in RAM. It lives only while its connection is open: when the connection closes, the database is gone.
-- So the factory opens one `SqliteConnection` itself, keeps it open for the whole test, and gives that same connection to EF Core. It closes it when the factory is disposed.
-- xUnit creates a new instance of the test class for every test. `IntegrationTestBase` creates a new factory (so a new connection and a new empty database) in `InitializeAsync` and disposes it in `DisposeAsync`. No test sees the data of another test, and the order of the tests does not matter.
-- The schema is created by the app itself: at startup `Program.cs` calls `EnsureCampusMarketDatabase()`, which runs `Database.Migrate()` on the open connection. The `EnsureCreatedAsync()` call in `IntegrationTestBase` then finds the tables already there and does nothing; keep it.
+- The tests run on a real PostgreSQL (`postgres:17`) in Docker, started by Testcontainers. Docker must be running. There is no SQLite and no in-memory database anywhere in the tests.
+- `Infrastructure/SharedPostgres.cs` owns **one** container for the whole test run: a `static readonly Lazy<PostgreSqlContainer>`, started the first time a test needs it and shared by every test class. It is never one container per test and never an `IClassFixture` / collection fixture. The Testcontainers resource reaper removes the container when the run ends.
+- Each `CampusMarketApiFactory` has its own database on that container, with a unique name (`campusmarket_test_<guid>`). The connection string comes from the container, with `Database` set to that name and `Pooling=false`, so no connection stays open after the test (a pooled connection would block `DROP DATABASE`).
+- xUnit creates a new instance of the test class for every test. `IntegrationTestBase` creates a new factory (so a new, empty database) in `InitializeAsync` and disposes it in `DisposeAsync`. The factory drops its database in `Dispose` (`DROP DATABASE IF EXISTS ... WITH (FORCE)`, after the hosts are stopped). No test sees the data of another test, and the order of the tests does not matter.
+- A copy made with `Factory.WithWebHostBuilder(...)` runs `ConfigureWebHost` of the parent factory, so it uses the same database as its parent. `SeedAsync` and `QueryDbAsync` therefore see the same data from the parent and from every copy.
+- The schema is created by the app itself: at startup `Program.cs` calls `EnsureCampusMarketDatabase()`, which runs `Database.Migrate()` (and creates the database if it does not exist). So every test also exercises the real migration (`InitialPostgres`), and the migrations path stays tested. Do **not** call `EnsureCreatedAsync()`: the host is started by `Factory.CreateClient()` in `InitializeAsync`, before the test body, and `EnsureCreated` would only be a second, unneeded schema path.
+- The PostgreSQL rules for the test data: see section 7 (timestamps with microsecond precision, `DateTimeOffset` with offset 0, quoted names in raw SQL).
+
+`Infrastructure/SharedPostgres.cs`
+
+```csharp
+internal static class SharedPostgres
+{
+    private static readonly Lazy<PostgreSqlContainer> Container = new(StartContainer, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    private static PostgreSqlContainer StartContainer()
+    {
+        var container = new PostgreSqlBuilder("postgres:17").Build();
+        container.StartAsync().GetAwaiter().GetResult();
+        return container;
+    }
+
+    // Connection string for a new, unique database on the shared container. Pooling is off so no connection lingers after the test.
+    public static string ConnectionStringFor(string database)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(Container.Value.GetConnectionString())
+        {
+            Database = database,
+            Pooling = false
+        };
+        return builder.ConnectionString;
+    }
+
+    public static void DropDatabase(string database)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(Container.Value.GetConnectionString()) { Pooling = false };
+        using var connection = new NpgsqlConnection(builder.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"DROP DATABASE IF EXISTS \"{database}\" WITH (FORCE)";
+        command.ExecuteNonQuery();
+    }
+}
+```
 
 `Infrastructure/CampusMarketApiFactory.cs`
 
@@ -86,19 +129,19 @@ public partial class Program { }
 // AddDbContext with an options lambda registers both DbContextOptions<T> and IDbContextOptionsConfiguration<T>: remove both.
 public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
 {
-    // The in-memory database lives as long as this connection stays open.
-    private readonly SqliteConnection _connection = new("DataSource=:memory:");
-
-    public CampusMarketApiFactory() => _connection.Open();
+    // Each factory has its own database on the shared PostgreSQL container; the app creates it with Migrate() at startup.
+    // Copies made with WithWebHostBuilder run ConfigureWebHost of this instance, so they use the same database.
+    private readonly string _database = $"campusmarket_test_{Guid.NewGuid():N}";
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureTestServices(services =>
         {
-            // Remove the app's SQLite file registration, then use the open in-memory connection.
+            // Remove the app's PostgreSQL registration, then point the DbContext at this factory's own database.
             services.RemoveAll<DbContextOptions<CampusMarketDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<CampusMarketDbContext>>();
-            services.AddDbContext<CampusMarketDbContext>(options => options.UseSqlite(_connection));
+            services.AddDbContext<CampusMarketDbContext>(options =>
+                options.UseNpgsql(SharedPostgres.ConnectionStringFor(_database)));
         });
     }
 
@@ -107,10 +150,12 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
         base.Dispose(disposing);
 
         if (disposing)
-            _connection.Dispose();
+            SharedPostgres.DropDatabase(_database);
     }
 }
 ```
+
+(The real factory also sets the other `UseSetting` values and removes the temp photos folder; they are not part of the database rules.)
 
 `Infrastructure/IntegrationTestBase.cs`
 
@@ -126,14 +171,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected CampusMarketApiFactory Factory { get; private set; } = null!;
     protected HttpClient Client { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
+        // Starting the host runs Migrate() on this test's own database, so the schema comes from the real migrations.
         Factory = new CampusMarketApiFactory();
         Client = Factory.CreateClient();
-
-        await using var scope = Factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
@@ -158,6 +201,21 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<CampusMarketDbContext>();
         return await query(db);
     }
+}
+```
+
+`Infrastructure/PostgresTime.cs`
+
+```csharp
+// PostgreSQL stores timestamps with microsecond precision, while DateTimeOffset has 100 ns ticks.
+// A value saved and read back equals the original rounded down to a whole microsecond.
+public static class PostgresTime
+{
+    public static DateTimeOffset ToMicroseconds(this DateTimeOffset value) =>
+        value.AddTicks(-(value.Ticks % 10));
+
+    public static DateTimeOffset? ToMicroseconds(this DateTimeOffset? value) =>
+        value?.ToMicroseconds();
 }
 ```
 
@@ -218,8 +276,14 @@ Arrange data with `SeedAsync` and the domain factories (`Listing.Create(...).Val
 
 ## 7. Never do
 
-- Never use the EF Core InMemory provider (`UseInMemoryDatabase`): it is not a real database. Always SQLite.
-- Never use a SQLite file, a shared static factory, or `IClassFixture` / collection fixtures that share a database between tests.
+- Never use the EF Core InMemory provider (`UseInMemoryDatabase`) and never SQLite: neither behaves like the production database. Always the real PostgreSQL from Testcontainers (section 3).
+- Never use a static factory, or `IClassFixture` / collection fixtures that share a database between tests: one database per test, on the one shared container. Never start a container per test, and never use the local database on port 5433 or `docker compose` from a test.
+- PostgreSQL rules for test data and assertions (the differences from the old SQLite tests):
+    - A `DateTimeOffset` saved to `timestamptz` must have offset 0 (`TimeSpan.Zero`), or Npgsql refuses it. Fixed test dates use `new DateTimeOffset(..., TimeSpan.Zero)` and "now" is `DateTimeOffset.UtcNow`, never `DateTimeOffset.Now` or a local offset.
+    - PostgreSQL keeps microseconds, `DateTimeOffset` keeps 100 ns ticks. A value taken from a response or a seeded entity built with `UtcNow` and compared with what was saved must be rounded first: `saved.RevokedAt.Should().Be(token.RevokedAt.ToMicroseconds())` (`PostgresTime.ToMicroseconds()`). For a whole object, `BeEquivalentTo(..., options => options.Using<DateTimeOffset>(ctx => ctx.Subject.Should().Be(ctx.Expectation.ToMicroseconds())).WhenTypeIs<DateTimeOffset>())`. The assertion stays exact: never replace it with `BeCloseTo`, and never loosen a precision to make it pass. Fixed dates like `CreatedAt` (whole seconds) need no rounding.
+    - Raw SQL (`ExecuteSqlAsync`, `ExecuteSqlRawAsync`) uses the quoted names of the migration: `UPDATE "Listings" SET "Title" = {title} WHERE "Id" = {id}`. Unquoted names are folded to lower case by PostgreSQL and the table is not found (`42P01`).
+    - Text comparison and ordering follow the database collation and are case-sensitive: do not assert an order or a match that depends on a case-insensitive match or on a default sort order; seed data whose expected order is clear, with an explicit tie-breaker.
+    - If a test fails only because of a PostgreSQL difference, fix the test or its data. If it points to a real bug in the API, stop and report it; never change `src/`.
 - Never let a test depend on another test or on the order of the tests.
 - Never start a real server on a port (`UseUrls`, Kestrel); use `Factory.CreateClient()`.
 - Never call handlers or repositories from a test, and never check the database through a repository: use the `DbContext`.
@@ -468,7 +532,7 @@ Production code (written by hand, read it before generating):
 
 Test host:
 - `CampusMarketApiFactory` sets `Seed:AdminEmail` to `""`, so the seed never runs in the other tests. Do not change the factory or `IntegrationTestBase`.
-- To turn the seed on in one test, start a second copy of the API on the same in-memory database with `Factory.WithWebHostBuilder(builder => { builder.UseSetting("Seed:AdminEmail", email); builder.UseSetting("Seed:AdminPassword", password); })`. It uses the same open connection as `Factory`, so `SeedAsync` and `QueryDbAsync` see the same data. The copy starts, and the seed runs, at its first `CreateClient()`. Dispose every copy with `await using`.
+- To turn the seed on in one test, start a second copy of the API on the same database with `Factory.WithWebHostBuilder(builder => { builder.UseSetting("Seed:AdminEmail", email); builder.UseSetting("Seed:AdminPassword", password); })`. It uses the same database as `Factory`, so `SeedAsync` and `QueryDbAsync` see the same data. The copy starts, and the seed runs, at its first `CreateClient()`. Dispose every copy with `await using`.
 - Put this in one private helper `WithAdminSeed(string adminEmail, string adminPassword = AdminPassword)` that returns `WebApplicationFactory<Program>`. Always set both settings in the test; never rely on `appsettings.Development.json`.
 - Fixed data: `private const string AdminPassword = "admin-secret12";` and the class `CreatedAt`.
 
@@ -551,8 +615,8 @@ Tests to add:
 Rules for this feature:
 - Never use a fixed `Task.Delay` as the assertion: poll the database with a timeout.
 - Every test checks the database at the end.
-- The copy of the API with the job on runs a tick every 200 ms on the shared in-memory SQLite connection, so it must never be running while the test sends its Act request or reads the database for its assertions: a tick at the same moment gives "database is locked" and a 500. Start it with `await using (var withJob = WithExpiryJob()) { withJob.CreateClient(); ... }`, poll inside that block until the reservation is `Expired`, and leave the block (the job stops) before the Act and the assertions. In "another member reserves", the Act is sent with the normal `Client` after `AuthenticateAs(...)`, where the job is off.
-- The polling reads also run while the job ticks on the same connection, and one of them can fail now and then (the read collides with the job's write). In the polling helper, a read that throws a `SqliteException` or an `InvalidOperationException` (which also covers `ObjectDisposedException`) counts as "not yet": wait 100 ms and read again until the timeout. Catch only those two (`catch (Exception ex) when (ex is SqliteException or InvalidOperationException)`), never every exception: Sonar flags a general catch. After the timeout, read once more without catching anything, so an error that never goes away still fails the test with its own message.
+- The copy of the API with the job on runs a tick every 200 ms on the same database as `Factory`. PostgreSQL has no database lock, so a read and the job's write never fail each other; the copy is still stopped before the Act and the assertions, so no background tick changes the data while the test checks it. Start it with `await using (var withJob = WithExpiryJob()) { withJob.CreateClient(); ... }`, poll inside that block until the reservation is `Expired`, and leave the block (the job stops) before the Act and the assertions. In "another member reserves", the Act is sent with the normal `Client` after `AuthenticateAs(...)`, where the job is off.
+- The polling helper reads the status every 100 ms until the timeout and returns the last value read. It has no `try`/`catch`: a read never collides with the job's write on PostgreSQL, so there is no exception to swallow (no `SqliteException`, no `NpgsqlException` handling). A read that throws fails the test with its own message.
 
 
 
@@ -573,7 +637,7 @@ Helpers to add in `Infrastructure/` of the test project:
 - `ProblemResponse.cs`: `public sealed record ProblemResponse(int Status, string Title, string Instance, string Code, string TraceId);`, read with `ReadFromJsonAsync<ProblemResponse>(Json)`.
 - `ConcurrentEditUnitOfWork.cs`: implements `IUnitOfWork`, gets `CampusMarketDbContext` in its constructor. In `CommitAsync` it first runs `await db.Database.ExecuteSqlRawAsync("UPDATE Listings SET Version = Version + 1", ct)` (another user changed the row a moment earlier), then returns `await db.SaveChangesAsync(ct)`, so EF Core's own `Version` check throws a real `DbUpdateConcurrencyException`.
 - `ThrowingUnitOfWork.cs`: implements `IUnitOfWork`; `CommitAsync` throws `new InvalidOperationException("secret: Data Source=prod.db")`.
-- To use one of them in a test, create the client in the Arrange: `var client = Factory.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddScoped<IUnitOfWork, ConcurrentEditUnitOfWork>())).CreateClient();`, log it in with the same `Authorization: Bearer` header that `AuthenticateAs` sets (`TestTokens.Create(...)`), and send the one HTTP call with it. `SeedAsync` and `QueryDbAsync` keep working: both clients use the same in-memory database.
+- To use one of them in a test, create the client in the Arrange: `var client = Factory.WithWebHostBuilder(b => b.ConfigureTestServices(s => s.AddScoped<IUnitOfWork, ConcurrentEditUnitOfWork>())).CreateClient();`, log it in with the same `Authorization: Bearer` header that `AuthenticateAs` sets (`TestTokens.Create(...)`), and send the one HTTP call with it. `SeedAsync` and `QueryDbAsync` keep working: both clients use the same database.
 
 Every ProblemDetails test checks: the status code; `response.Content.Headers.ContentType!.MediaType` is `application/problem+json`; `Status` and `Code`; `Instance` is the request path; `TraceId` is not empty; then the database.
 
@@ -760,7 +824,7 @@ Production code (read it before generating):
 - `Infrastructure/Background/ReservationExpiryService.cs`: every `ReservationExpiry:Interval` it resolves `ICommandHandler<ExpireReservationsCommand, int>` in a new scope and runs it. A failed `Result` is logged with `LogError` ("ReservationExpiryService run failed: {Code} {Message}") and the service keeps running; an exception is logged with `LogError(ex, "ReservationExpiryService run failed.")` and the service keeps running; an `OperationCanceledException` while the host is stopping ends the loop without an error log.
 
 Test host:
-- Never change `CampusMarketApiFactory` or `IntegrationTestBase`. Every special setup goes through `Factory.WithWebHostBuilder(...)` in the test class (a copy of the API on the same in-memory database, started at its first `CreateClient()`, disposed with `await using`), the same way `SeedAdminTests` and `ReservationExpiryTests` do.
+- Never change `CampusMarketApiFactory` or `IntegrationTestBase`. Every special setup goes through `Factory.WithWebHostBuilder(...)` in the test class (a copy of the API on the same database, started at its first `CreateClient()`, disposed with `await using`), the same way `SeedAdminTests` and `ReservationExpiryTests` do.
 - Replace a service with `builder.ConfigureTestServices(services => { services.RemoveAll<T>(); services.AddScoped<T, Fake>(); })`. New fakes go in `Infrastructure/` of the test project, next to `ThrowingUnitOfWork`, one class per file, with a one-line comment that says what they do.
 - To give a request an IP address, register an `IStartupFilter` (`Infrastructure/TestRemoteIpStartupFilter.cs`) that adds a first middleware: when the request has the header `X-Test-Remote-Ip`, it sets `context.Connection.RemoteIpAddress = IPAddress.Parse(value)`.
 - To read the logs of the background service, register a hand-written `ILoggerProvider` (`Infrastructure/CapturingLoggerProvider.cs`) with `builder.ConfigureLogging(logging => logging.AddProvider(provider))`. It keeps every entry (category, `LogLevel`, formatted message, exception) in a thread-safe list that the test can read.
@@ -891,6 +955,15 @@ Tests to add:
   Rules for this feature:
 - Never hard-code a real key; use generated test strings.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+### Connection string check in Production (added in v54)
+Production code: in `ValidateCampusMarketProductionConfiguration`, after the `Jwt:Key` check, Production throws `InvalidOperationException` when `ConnectionStrings:CampusMarket` is missing or whitespace; the message names `ConnectionStrings__CampusMarket` and says it must be a PostgreSQL connection string in key/value form, not a `postgresql://` URL.
+Test host: `CampusMarketApiFactory` sets `ConnectionStrings:CampusMarket` with `UseSetting` to its own test database, so every other Production test passes this check. The new tests override it with `UseSetting` in their own `WithWebHostBuilder` copy (a later `UseSetting` for the same key wins).
+Tests to add in `Infrastructure/ProductionConfigurationTests.cs` (three; a valid 40-character `Jwt:Key` in every one, so the connection string check is the one that fires):
+- Environment Production, `ConnectionStrings:CampusMarket` = `""` → creating the client throws `InvalidOperationException` whose message mentions `ConnectionStrings__CampusMarket`.
+- Environment Production, `ConnectionStrings:CampusMarket` = `"   "` → the same exception and message.
+- Environment Development, `ConnectionStrings:CampusMarket` = `""` → this check does not run: `GET /health` is 200. The factory registers the DbContext on its own database whatever the setting says, so the empty setting changes only what the check would read.
+- Never put a real connection string or password in a test; the factory's Testcontainers string is the only one used.
 
 
 
@@ -1249,7 +1322,7 @@ Tests to add (status, body, then the database through `db.Set<ListingCategory>()
 - Existing listings in a deactivated category (decision of week 8, task 12): deactivating a category only stops **new** listings (create, move by edit, publish draft). An `Active` listing whose category is deactivated afterwards stays visible. In `InactiveCategoryTests`, seed a published listing (`Publish()` before `SeedAsync`), then deactivate its category with the helper, then send the one HTTP call without a token: `GET /api/v1/listings` → 200, the listing is in `items` (`totalCount` 1); `GET /api/v1/listings?category=<that category>` → 200, the listing is returned; `GET /api/v1/listings/{id}` → 200 with the listing's fields and `Active`. Every test checks at the end that the listing is unchanged (`Active`, `Version` 2) and that the category is still inactive in the database.
 
 Rules for this feature:
-- A test that deactivates a category must not affect other tests: it deactivates only in its own database (every test has a fresh factory and in-memory database, section 3), never through a shared or static state, and never with a `WithWebHostBuilder` copy kept between tests.
+- A test that deactivates a category must not affect other tests: it deactivates only in its own database (every test has a fresh factory and its own database, section 3), never through a shared or static state, and never with a `WithWebHostBuilder` copy kept between tests.
 - The existing publish, create and edit integration tests (`PublishListingTests`, `CreateListingTests`, `UpdateListingTests`) stay unchanged: they run with all 5 categories active, as the migration seeds them. The new cases go in `Listings/InactiveCategoryTests.cs`.
 - Read 400/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 and 403 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - Then run all the tests with coverage as the CI does: `Domain/Categories/`, `Features/Categories/`, `EfCategoryRepository.cs`, `ListingCategoryConfiguration.cs`, the three listing handlers, `CampusMarketSetup.cs` and `CampusMarketDbContext.cs` are at 100% for lines and branches (all test projects merged).
@@ -1339,7 +1412,7 @@ What changed (read these files before generating): `Common/Images/` (`IImageGene
 
 **First, in `Infrastructure/CampusMarketApiFactory.cs`:** add `builder.UseSetting("ImageGeneration:Enabled", "false");` next to `ReservationExpiry:Enabled`, so the background service does not run in the other tests (with it on, 4 publish tests failed because the service saved photos while they ran). This is the only change to existing test files allowed for this feature.
 
-Test copies of the API: like `ReservationExpiryServiceTests`, `Factory.WithWebHostBuilder(...)` with `UseSetting("ImageGeneration:Enabled", "true")` (and `Provider`, `Ollama:BaseUrl` when needed), `ConfigureLogging` with a `CapturingLoggerProvider` for the log checks, and `ConfigureTestServices` to replace `IImageGenerator` or the Ollama `HttpClient`'s handler (`services.AddHttpClient<IImageGenerator, OllamaImageGenerator>().ConfigurePrimaryHttpMessageHandler(() => fakeHandler)`) — a small private `HttpMessageHandler` in the test file that returns a given status and body and counts the calls. Never call a real Ollama. Waiting for the background service: wait for the service's own log line about that listing (`Generated image…`, `No image generated…` at Debug, so capture Debug for `ImageGenerationService` with `AddFilter<CapturingLoggerProvider>(..., LogLevel.Debug)`, or `Image generation failed…`), checked every 50 ms for at most 5 seconds as `WaitForCallsAsync` in `ReservationExpiryServiceTests` does, then read the database **once**. Never poll the database while the service may be writing: the test and the service share the in-memory connection, and a read during the service's save makes that save fail (`database is locked`). Only the generation-off test, where no service runs, reads the database after waiting. The wait helper is the only place with `Task.Delay`.
+Test copies of the API: like `ReservationExpiryServiceTests`, `Factory.WithWebHostBuilder(...)` with `UseSetting("ImageGeneration:Enabled", "true")` (and `Provider`, `Ollama:BaseUrl` when needed), `ConfigureLogging` with a `CapturingLoggerProvider` for the log checks, and `ConfigureTestServices` to replace `IImageGenerator` or the Ollama `HttpClient`'s handler (`services.AddHttpClient<IImageGenerator, OllamaImageGenerator>().ConfigurePrimaryHttpMessageHandler(() => fakeHandler)`) — a small private `HttpMessageHandler` in the test file that returns a given status and body and counts the calls. Never call a real Ollama. Waiting for the background service: wait for the service's own log line about that listing (`Generated image…`, `No image generated…` at Debug, so capture Debug for `ImageGenerationService` with `AddFilter<CapturingLoggerProvider>(..., LogLevel.Debug)`, or `Image generation failed…`), checked every 50 ms for at most 5 seconds as `WaitForCallsAsync` in `ReservationExpiryServiceTests` does, then read the database **once**. Never poll the database while the service may be writing: the wait is on the log line so that the test reads the saved result once the service is done, not half way. Only the generation-off test, where no service runs, reads the database after waiting. The wait helper is the only place with `Task.Delay`.
 
 Files: `Photos/GeneratedImagesTests.cs` (new, class `GeneratedImagesTests : IntegrationTestBase`); the upload and header cases may also go there. Seed members with `Member.Create(...)` and use their ids; listings with `Listing.Create(seller.Id, ...)` (and `Publish()` when the test needs `Active` before the host starts).
 

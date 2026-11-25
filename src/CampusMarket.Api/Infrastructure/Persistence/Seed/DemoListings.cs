@@ -3,7 +3,7 @@ using CampusMarket.Api.Domain.Members;
 
 namespace CampusMarket.Api.Infrastructure.Persistence.Seed;
 
-// Demo data for the Render live demo (SQLite is reset on every restart).
+// Demo data for the Render live demo (seeded once, into an empty database).
 // The data is written in Romanian and goes through the domain factories
 // (Member.Register / Listing.Create / Listing.Publish / Reserve / ConfirmSale),
 // so the same validation that every real request goes through also runs here.
