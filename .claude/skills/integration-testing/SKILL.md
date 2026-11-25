@@ -811,6 +811,25 @@ Rules for this feature:
 - Read 400/403/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails, as in "Feature: Error handling (Anca)".
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Review notification and reviewed flag (Diana)
+
+Endpoints: `POST /api/v1/listings/{listingId}/reviews` (as in "Feature: Seller reviews (Anca)"), `GET /api/v1/members/me/notifications` (as in "Feature: Notifications (Sara)") and `GET /api/v1/members/me/reservations` (token needed; items now have a last field `reviewed`, a boolean).
+
+Read `Features/Reviews/AddReview/AddReviewHandler.cs` and `Features/Members/GetMyReservations/` before generating. No migration: the notification type is stored as text.
+
+Files: add the tests to `Reviews/AddReviewTests.cs` (notification) and to the existing my-reservations test class (flag), same base class and login helper.
+
+Arrange: as in "Feature: Seller reviews (Anca)": seller and buyer seeded, a sold listing, `AuthenticateAs(buyer.Id)`.
+
+Tests to add (status, body, then the database through `db.Set<Notification>()` and `db.Set<Review>()`):
+- The buyer reviews a sold listing with rating 4 → 201; the database has one `ReviewReceived` notification with `MemberId` = the seller, `ListingId` = the listing, unread, `CreatedAt` = the review's `CreatedAt`, and the text `"{buyer name} rated {listing title} 4/5"`; the review and the notification are both there (same save). The buyer has no `ReviewReceived` notification. Logged in as the seller, `GET /api/v1/members/me/notifications` returns it (`type` `ReviewReceived`, text, `listingId`, unread, `unreadCount` 1).
+- Failures (rating 0 → 400 `Review.InvalidRating`, a reserved but not sold listing → 400 `Review.SaleNotCompleted`, another member → 403 `Review.NotBuyer`, the same listing twice → 409 `Review.AlreadyExists`, unknown listing → 404 `Listing.NotFound`, no token → 401): no new `ReviewReceived` notification saved (after the 409 there is still only the first one) and no new review.
+- `GET /api/v1/members/me/reservations` as the buyer: a sold listing without a review → 200, `reviewed` false; after `POST .../reviews` (or a seeded `Review.Create(...)`) → `reviewed` true, the other fields unchanged. A reservation on a listing that is not sold (still reserved) → `reviewed` false. A buyer with two sold listings, one reviewed → each item has its own flag. A review of another member (seed it) does not make `reviewed` true for this buyer. The database is unchanged after every GET.
+
+Rules for this feature:
+- Read 400/403/404/409 bodies of our handlers into `Error` and check `Code` and `Type`; 401 bodies are ProblemDetails.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Whole project coverage (Anca)
 
 SonarCloud measures the coverage of the whole API (only `Program.cs`, `ml/**` and the migrations are left out), not only of `Domain/` and the handlers. After every test project runs, these lines are still not covered. Add the tests below and nothing else; keep every existing test.
