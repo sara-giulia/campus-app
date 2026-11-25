@@ -1247,6 +1247,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code be13bc7; skill section 236a992; tests generated in 8421dee
 
+### Run 49, skill v52 (Feature: Member blocking)
+
+- **Why a new version:** branch `feature/member-blocking` (code f92ba3e). New rules the skill did not cover: the `MemberBlock` aggregate (`Create`, `Block.Self`, `BlockedError`), `Offer.CloseBecauseBlocked` and `IOfferRepository.GetPendingBetweenAsync`, the new handlers `BlockMemberHandler` (idempotent, pending offers rejected without a notification), `UnblockMemberHandler` and `GetMyBlockedHandler`, the `Member.Blocked` check (one way, only the blocked side) in `MakeOfferHandler`, `CounterOfferHandler`, `StartConversationHandler`, `SendMessageHandler` and `ReserveListingHandler`, and the listings of a blocked seller left out by `GetListingsHandler`, `GetSimilarListingsHandler` and `GetMyFavoritesHandler`. The handlers must stay at 100%, and the direction of the block and the place of the check in each handler are decisions of the code, not guessable.
+
+#### Change to SKILL.md (v51 → v52) and why
+
+| # | v51 (before) | v52 (after) | Why |
+|---|---|---|---|
+| 1 | No section for member blocking. | New section *"Feature: Member blocking (Diana)"*: the production code to read first (`MemberBlock` rules and `Member.Blocked`, the handlers and the exact place of each block check, `ViewerId` in the three queries), the files (`MemberBlockTests` new, `OfferBlockedTests` for `CloseBecauseBlocked`, three new handler test classes, one new `...BlockedTests` class per action handler and per query, `FakeMemberBlockRepository` and `FakeOfferRepository`), the tests to add (`Block.Self`, idempotent block and unblock, `Member.Blocked` in every action handler, the block is one way, a stranger still gets `NotParticipant`, pending offers rejected without a notification, listings hidden from the blocker only and `totalCount` without them) and the rules (fixed ids and date, `Error.Code`, `Error.Type` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model guesses which side is blocked, whether the blocker is restricted too, and whether blocking sends a notification. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Member blocking (Diana)": MemberBlockTests, the tests for Offer.CloseBecauseBlocked, the three new handler test classes in Blocks and the Member.Blocked and hidden-listings tests for MakeOfferHandler, CounterOfferHandler, StartConversationHandler, SendMessageHandler, ReserveListingHandler, GetListingsHandler, GetSimilarListingsHandler and GetMyFavoritesHandler. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v52 (section written by Diana with Claude Code; the last unit-testing version was v51, Run 48)
+- **Result:** 44 new unit tests; all four test projects pass, no production fix needed. The integration tests of the same task are in integration-testing Run 61.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code f92ba3e; skill section cbf29c5; tests generated in eabf5bd
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2371,6 +2388,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code be13bc7; skill section 236a992; tests generated in 8421dee
+
+### Run 61, skill v60 (Feature: Member blocking)
+
+- **Why a new version:** branch `feature/member-blocking` (code f92ba3e). A new API the skill did not cover: `POST` and `DELETE /api/v1/members/{id}/block`, `GET /api/v1/members/me/blocked`, the 403 `Member.Blocked` on make offer, counter-offer, start conversation, send message and reserve, the listings of a blocked member hidden from the blocker in the search, the similar listings and the favorites, the search cache evicted on block and unblock, and the new table `MemberBlocks` (migration `AddMemberBlocks`). Without a section a model would not know that the block is one way, that the counter-offer case cannot be built through the API (blocking rejects the pending offer) or that authenticated requests are never output-cached.
+
+#### Change to SKILL.md (v59 → v60) and why
+
+| # | v59 (before) | v60 (after) | Why |
+|---|---|---|---|
+| 1 | No section for member blocking. | New section *"Feature: Member blocking (Diana)"*: the three routes with status, body and every error code, the 403s and the one-way rule, the offers rejected on block, the hidden listings and the cache behaviour, the migration `AddMemberBlocks`, the files (`Blocks/BlockMemberTests.cs`, `UnblockMemberTests.cs`, `GetMyBlockedTests.cs`, `BlockedActionsTests.cs`, `BlockedVisibilityTests.cs`, `Persistence/AddMemberBlocksMigrationTests.cs`), the tests to add (real seeded members, the database checked after every failure, the counter-offer 403 seeded directly, search/similar/favorites before and after block and unblock, the migration up and down on a separate PostgreSQL database) and the rules (`ToMicroseconds()`, `Code` and `Type` of every failure, stop and report instead of changing `src/`). | The direction of the block, the cache behaviour and the unreachable counter-offer case are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Member blocking (Diana)": the new Blocks tests and the migration test. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v60 (section written by Diana with Claude Code; the last integration-testing version was v59, Run 60)
+- **Result:** 36 new integration tests; all four test projects pass, no production fix needed. The unit tests of the same task are in unit-testing Run 49.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code f92ba3e; skill section cbf29c5; tests generated in eabf5bd
 
 ## code-review
 
