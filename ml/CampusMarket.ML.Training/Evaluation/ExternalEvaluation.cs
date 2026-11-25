@@ -18,7 +18,8 @@ public static class ExternalEvaluation
         string externalCsvPath,
         string modelsDir,
         IDataView trainData,
-        IDataView testData)
+        IDataView testData,
+        PriceTrainer.PriceComparison? priceComparison = null)
     {
         if (!File.Exists(externalCsvPath))
         {
@@ -74,6 +75,11 @@ public static class ExternalEvaluation
         var spamBaselineMetricsTest = BinaryMetrics(spamBaselineTest);
 
         PrintCounts(externalRows);
+        if (priceComparison is not null)
+        {
+            PrintPriceFeatureSets(mlContext, priceComparison, externalRows.Where(r => !r.IsSpam).ToList());
+        }
+
         PrintTable(
             priceMetricsTest, priceMetricsExt, priceBaselineMetricsTest, priceBaselineMetricsExt,
             catMetricsTest, catMetricsExt, catBaselineMetricsTest, catBaselineMetricsExt,
@@ -89,7 +95,8 @@ public static class ExternalEvaluation
     {
         if (rows.Count == 0) return new List<(ListingRow, double)>();
 
-        var view = mlContext.Data.LoadFromEnumerable(rows);
+        // The Text feature set needs Brand, StorageGb, CpuTier and IsNewOrSealed at Transform time.
+        var view = mlContext.Data.LoadFromEnumerable(rows.Select(PriceModelInput.From).ToList());
         var scored = model.Transform(view);
         var scoredRows = mlContext.Data.CreateEnumerable<PriceScored>(scored, reuseRowObject: false).ToList();
 
@@ -296,6 +303,22 @@ public static class ExternalEvaluation
             var sp = rows.Count(r => r.Category == cat && r.IsSpam);
             Console.WriteLine(string.Create(inv, $"| {cat} | {ns} | {sp} |"));
         }
+    }
+
+    // Price MAE on the external non-spam rows for the two retrained finalists (Current vs Text).
+    private static void PrintPriceFeatureSets(MLContext mlContext, PriceTrainer.PriceComparison comparison, List<ListingRow> nonSpamRows)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var current = RegressionMetrics(PricePredictions(mlContext, comparison.CurrentModel, nonSpamRows));
+        var text = RegressionMetrics(PricePredictions(mlContext, comparison.TextModel, nonSpamRows));
+        Console.WriteLine();
+        Console.WriteLine(string.Create(inv, $"Price on the external set, non-spam ({nonSpamRows.Count} rows), Current vs Text feature set:"));
+        Console.WriteLine("| Metric | Current | Text |");
+        Console.WriteLine("|---|---|---|");
+        Console.WriteLine(string.Create(inv, $"| MAE (lei) | {current.Mae:0.00} | {text.Mae:0.00} |"));
+        Console.WriteLine(string.Create(inv, $"| R² | {current.R2:0.000} | {text.R2:0.000} |"));
+        Console.WriteLine(string.Create(inv, $"| MAPE | {current.Mape:0.0}% | {text.Mape:0.0}% |"));
+        Console.WriteLine(string.Create(inv, $"Saved price model uses the {comparison.Winner} feature set."));
     }
 
     private static void PrintTable(

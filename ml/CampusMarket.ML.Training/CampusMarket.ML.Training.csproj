@@ -9,6 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Single source of truth for the price text features: the API compiles the same file. -->
+    <Compile Include="..\..\src\CampusMarket.Api\Infrastructure\ML\PriceTextFeatures.cs" Link="PriceTextFeatures.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.ML" Version="5.0.1" />
     <PackageReference Include="Microsoft.ML.FastTree" Version="5.0.1" />
     <PackageReference Include="Microsoft.ML.LightGbm" Version="5.0.1" />

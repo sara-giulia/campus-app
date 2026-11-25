@@ -120,7 +120,7 @@ public static partial class Baselines
     // need Label at Transform time.
     public static PriceMetrics EvaluatePriceModel(MLContext mlContext, ITransformer model, IDataView testData)
     {
-        var rows = NonSpam(mlContext, testData);
+        var rows = NonSpam(mlContext, testData).Select(PriceModelInput.From).ToList();
         var view = mlContext.Data.LoadFromEnumerable(rows);
         var scored = model.Transform(view);
         var scoredRows = mlContext.Data.CreateEnumerable<PriceScoredRow>(scored, reuseRowObject: false).ToList();

@@ -1,3 +1,4 @@
+using CampusMarket.Api.Infrastructure.ML;
 using CampusMarket.ML.Training;
 using Microsoft.ML;
 using Microsoft.ML.Data;
@@ -13,12 +14,12 @@ namespace CampusMarket.ML.Tests;
 //    lower than or equal to a "Worn" one: condition must carry weight.
 public sealed class PriceModelQualityTests
 {
-    // Raised for the price v2 winner (FastTree on log1p(Price), picked by
-    // MAE on validation; see docs/ml/price.md). Winner's test R² is 0.451
-    // on unseen item types (grouped split by TemplateId); grouped 5-fold CV
-    // gives R² 0.449 ± 0.106. The bar is (winner's test R² - 0.05), rounded
-    // down to 2 decimals, so the test tolerates ~0.05 of seed-to-seed drift
-    // without going green on a materially worse model.
+    // Set for the price v2 winner at the time (FastTree on log1p(Price), test R²
+    // 0.451). The current winner (LightGbm on log1p(Price) with the Text features,
+    // picked by MAE on validation; see docs/ml/price.md) has test R² 0.480 on unseen
+    // item types (grouped split by TemplateId); grouped 5-fold CV gives R² 0.449 ± 0.091.
+    // The bar was not tightened: it still tolerates ~0.08 of drift without going green
+    // on a materially worse model.
     private const double MinRSquared = 0.40;
 
     [Fact]
@@ -51,21 +52,8 @@ public sealed class PriceModelQualityTests
 
         var engine = mlContext.Model.CreatePredictionEngine<PriceInput, PricePrediction>(model);
 
-        var newPrice = engine.Predict(new PriceInput
-        {
-            Title = title,
-            Description = description,
-            Category = category,
-            Condition = "New"
-        }).Score;
-
-        var wornPrice = engine.Predict(new PriceInput
-        {
-            Title = title,
-            Description = description,
-            Category = category,
-            Condition = "Worn"
-        }).Score;
+        var newPrice = engine.Predict(InputFor(title, description, category, "New")).Score;
+        var wornPrice = engine.Predict(InputFor(title, description, category, "Worn")).Score;
 
         newPrice.Should().BeGreaterThan(wornPrice,
             $"'{title}' should be priced higher when New than when Worn (New={newPrice:0}, Worn={wornPrice:0}).");
@@ -92,10 +80,28 @@ public sealed class PriceModelQualityTests
 
         var (_, _, test) = DatasetSplit.Split(mlContext, data);
 
+        // PriceModelInput adds the four text features a model trained on the Text feature set needs.
         var nonSpam = mlContext.Data.CreateEnumerable<ListingRow>(test, reuseRowObject: false)
             .Where(r => !r.IsSpam)
+            .Select(PriceModelInput.From)
             .ToList();
         return mlContext.Data.LoadFromEnumerable(nonSpam);
+    }
+
+    private static PriceInput InputFor(string title, string description, string category, string condition)
+    {
+        var features = PriceTextFeatures.Extract(title, description);
+        return new PriceInput
+        {
+            Title = title,
+            Description = description,
+            Category = category,
+            Condition = condition,
+            Brand = features.Brand,
+            StorageGb = features.StorageGb,
+            CpuTier = features.CpuTier,
+            IsNewOrSealed = features.IsNewOrSealed
+        };
     }
 
     private static double ComputeRSquared(IEnumerable<double> actual, IEnumerable<double> predicted)
@@ -125,6 +131,14 @@ public sealed class PriceModelQualityTests
         public string Category { get; set; } = string.Empty;
 
         public string Condition { get; set; } = string.Empty;
+
+        public string Brand { get; set; } = PriceTextFeatures.NoBrand;
+
+        public float StorageGb { get; set; }
+
+        public float CpuTier { get; set; }
+
+        public float IsNewOrSealed { get; set; }
     }
 
     private sealed class PricePrediction

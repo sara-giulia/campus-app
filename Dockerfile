@@ -19,9 +19,9 @@ RUN test -f /app/ml-models/price-regression.zip \
     && test -f /app/ml-models/similar-listings.zip
 
 FROM mcr.microsoft.com/dotnet/aspnet:11.0
-# curl is used only by the health check below
+# curl is used only by the health check below; libgomp1 is needed by the native LightGBM library of the price model
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .
