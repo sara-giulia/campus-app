@@ -185,3 +185,83 @@
     flex: 1;
   }
 }
+
+/* ---------- Photo picker (listing form) ---------- */
+.photo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.photo-picker__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.photo-picker__hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.photo-picker__list {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.photo-picker__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  max-width: 150px;
+}
+
+.photo-picker__item img {
+  width: 140px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.photo-picker__item--failed img {
+  border-color: var(--danger, #c0392b);
+}
+
+.photo-picker__cover {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.photo-picker__buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.photo-picker__error {
+  color: var(--danger, #c0392b);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.photo-picker__add {
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+.photo-picker__add.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}

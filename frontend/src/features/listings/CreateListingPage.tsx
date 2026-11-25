@@ -1,39 +1,71 @@
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import { Card, PageHeader } from '../../app/ui'
 import { placeListingError } from './errors'
-import { ListingForm, type ListingFormSubmitResult, type ListingFormValues } from './ListingForm'
+import {
+  ListingForm,
+  type ListingFormAction,
+  type ListingFormIntent,
+  type ListingFormSubmitResult,
+  type ListingFormValues,
+} from './ListingForm'
+import { uploadPending, type PhotoEntry } from './photoEntries'
 import type { CreateListingResponse } from './types'
 import './listings.css'
 
-// POST /api/v1/listings needs Title, Category, Condition, Price and an optional
-// Description. The seller comes from the JWT. On success we immediately publish
-// the draft so the listing shows up in /my/listings (GET /listings only returns
-// Active listings) and navigate there.
+// POST /api/v1/listings creates a draft (Title, Category, Condition and Price are required, the seller
+// comes from the JWT). Then the photos go up one by one, in the order of the list, and only when all of
+// them are up, "Publică" publishes the draft.
+// If a step fails, the id of the draft is kept: the next try updates that same draft, uploads only the
+// photos that are not up yet and goes on. A second listing is never created.
+
+const ACTIONS: ListingFormAction[] = [
+  { intent: 'save', label: 'Salvează ca ciornă', submittingLabel: 'Se salvează…' },
+  { intent: 'publish', label: 'Publică', submittingLabel: 'Se publică…' },
+]
 
 export function CreateListingPage() {
   const navigate = useNavigate()
+  const [photos, setPhotos] = useState<PhotoEntry[]>([])
+  const draftId = useRef<string | null>(null)
 
-  async function handleSubmit(values: ListingFormValues): Promise<ListingFormSubmitResult> {
+  async function handleSubmit(values: ListingFormValues, intent: ListingFormIntent): Promise<ListingFormSubmitResult> {
     try {
-      const created = await api.post<CreateListingResponse>('/listings', values)
-      try {
-        await api.post<void>(`/listings/${created.id}/publish`)
-      } catch (publishError) {
-        // A publish error still leaves the listing created as a draft. We show
-        // the error and keep the user on the form so they can retry or go to
-        // "my listings" by other means.
-        if (publishError instanceof ApiError) {
-          // A field error (e.g. Listing.CategoryInactive, the category was deactivated meanwhile) is shown here too.
-          const placed = placeListingError(publishError)
-          return {
-            ok: false,
-            formError: `Anunțul a fost creat, dar publicarea a eșuat: ${placed.form ?? placed.fields.category ?? publishError.message}`,
-          }
-        }
-        return { ok: false, formError: 'Anunțul a fost creat, dar publicarea a eșuat.' }
+      if (draftId.current === null) {
+        const created = await api.post<CreateListingResponse>('/listings', values)
+        draftId.current = created.id
+      } else {
+        await api.put<void>(`/listings/${draftId.current}`, values)
       }
+      const listingId = draftId.current
+
+      const { error: uploadError } = await uploadPending(listingId, photos, setPhotos)
+      if (uploadError) {
+        return {
+          ok: false,
+          formError: `Anunțul a fost salvat ca ciornă, dar ${uploadError} Apasă din nou ca să continui cu aceeași ciornă.`,
+        }
+      }
+
+      if (intent === 'publish') {
+        try {
+          await api.post<void>(`/listings/${listingId}/publish`)
+        } catch (publishError) {
+          if (publishError instanceof ApiError) {
+            // E.g. Listing.CategoryInactive: the category was deactivated meanwhile.
+            const placed = placeListingError(publishError)
+            return {
+              ok: false,
+              fieldErrors: placed.fields,
+              formError: `Anunțul a fost salvat ca ciornă, dar publicarea a eșuat: ${placed.form ?? placed.fields.category ?? publishError.message}`,
+            }
+          }
+          return { ok: false, formError: 'Anunțul a fost salvat ca ciornă, dar publicarea a eșuat.' }
+        }
+      }
+
       navigate('/my/listings')
       return { ok: true }
     } catch (err) {
@@ -47,13 +79,14 @@ export function CreateListingPage() {
 
   return (
     <div className="listings-page">
-      <PageHeader eyebrow="Anunțuri" title="Publică un anunț" lead="Completează detaliile anunțului. Îți putem sugera un preț sau o categorie." />
+      <PageHeader eyebrow="Anunțuri" title="Publică un anunț" lead="Completează detaliile anunțului și adaugă poze. Îți putem sugera un preț sau o categorie." />
 
       <Card className="listings-card">
         <ListingForm
           onSubmit={handleSubmit}
-          submitLabel="Publică anunțul"
-          submittingLabel="Se publică…"
+          actions={ACTIONS}
+          photos={photos}
+          onPhotosChange={setPhotos}
           showSuggestions
         />
       </Card>

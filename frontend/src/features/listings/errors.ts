@@ -30,6 +30,10 @@ export function placeListingError(error: ApiError): PlacedError {
       return { fields: { category: 'Alege o categorie validă.' }, form: null }
     case 'Listing.CategoryInactive':
       return { fields: { category: 'Categoria aleasă nu mai este activă. Alege altă categorie.' }, form: null }
+    case 'Listing.CategoryRequired':
+      return { fields: { category: 'Alege categoria.' }, form: null }
+    case 'Listing.ConditionRequired':
+      return { fields: { condition: 'Alege starea.' }, form: null }
     case 'Listing.ConditionInvalid':
       return { fields: { condition: 'Alege o stare validă.' }, form: null }
     case 'Money.Negative':
@@ -41,6 +45,8 @@ export function placeListingError(error: ApiError): PlacedError {
       return { fields: {}, form: 'Un anunț vândut nu mai poate fi modificat.' }
     case 'Listing.NotFound':
       return { fields: {}, form: 'Anunțul nu a fost găsit.' }
+    case 'Listing.NotDraft':
+      return { fields: {}, form: 'Anunțul nu mai este o ciornă.' }
     case 'Listing.NotOwner':
       return { fields: {}, form: 'Doar autorul anunțului poate face această acțiune.' }
     case 'Network.Unreachable':

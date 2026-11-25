@@ -28,6 +28,8 @@ const MESSAGES: Record<string, string> = {
   'Photo.LimitReached': 'Un anunț poate avea cel mult 5 poze.',
   'Photo.Empty': 'Alege o poză.',
   'Photo.TooLarge': 'Poza poate avea cel mult 2 MB.',
+  'Photo.StorageFailed': 'Poza nu a putut fi salvată pe server. Încearcă din nou peste puțin timp.',
+  'Photo.OrderMismatch': 'Lista de poze s-a schimbat între timp. Reîncarcă pagina și încearcă din nou.',
   'Photo.InvalidFormat': 'Sunt acceptate doar poze JPEG, PNG sau WebP.',
   'Listings.InvalidPriceRange': 'Prețul minim nu poate fi mai mare decât cel maxim.',
   'Listings.InvalidSort': 'Ordinea aleasă nu e validă.',
