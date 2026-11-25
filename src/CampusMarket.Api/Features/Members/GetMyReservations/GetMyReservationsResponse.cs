@@ -8,7 +8,10 @@ public sealed record MyReservationItem(
     Guid ReservationId,
     Guid ListingId,
     string ListingTitle,
+    // The listing's price.
     decimal Price,
+    // The price agreed through an accepted offer; null when the reservation was made at the listing's price.
+    decimal? AgreedPrice,
     ReservationStatus Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset ExpiresAt,

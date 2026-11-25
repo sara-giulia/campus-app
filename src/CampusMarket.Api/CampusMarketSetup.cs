@@ -44,6 +44,8 @@ using CampusMarket.Api.Infrastructure.Events;
 using CampusMarket.Api.Common.Images;
 using CampusMarket.Api.Infrastructure.Images;
 using CampusMarket.Api.Common.Listings;
+using CampusMarket.Api.Domain.Offers;
+using CampusMarket.Api.Features.Offers;
 
 namespace CampusMarket.Api;
 
@@ -78,6 +80,7 @@ public static class CampusMarketSetup
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
         services.AddScoped<IConversationRepository, EfConversationRepository>();
+        services.AddScoped<IOfferRepository, EfOfferRepository>();
         services.AddScoped<IPasswordResetTokenRepository, EfPasswordResetTokenRepository>();
         services.AddScoped<IPhotoRepository, EfPhotoRepository>();
         services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
@@ -440,6 +443,7 @@ public static class CampusMarketSetup
         api.MapReviewsEndpoints();
         api.MapAdminEndpoints();
         api.MapConversationsEndpoints();
+        api.MapOffersEndpoints();
         api.MapPhotosEndpoints();
         api.MapNotificationsEndpoints();
         api.MapCategoriesEndpoints();

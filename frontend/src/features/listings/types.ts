@@ -43,7 +43,10 @@ export interface MyReservationItem {
   reservationId: string
   listingId: string
   listingTitle: string
+  // The listing's price.
   price: number
+  // The price agreed through an accepted offer (features/offers); null when reserved at the listing's price.
+  agreedPrice: number | null
   status: ReservationStatus
   createdAt: string
   expiresAt: string

@@ -39,7 +39,7 @@ public class GetConversationHandlerTests
         FakeConversationRepository conversations,
         FakeListingRepository listings,
         FakeMemberRepository members) =>
-        new(conversations, listings, members);
+        new(conversations, listings, members, new FakeOfferRepository());
 
     [Fact]
     public async Task Given_Buyer_When_Handling_Then_ReturnsConversationWithMessagesInNumberOrder()

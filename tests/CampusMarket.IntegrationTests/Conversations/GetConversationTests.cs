@@ -147,7 +147,9 @@ public sealed class GetConversationTests : IntegrationTestBase
             new ConversationMessage(_conversation.Messages[0].Id, 1, _buyer.Id, "Mai e disponibil?", CreatedAt),
             new ConversationMessage(_conversation.Messages[1].Id, 2, _seller.Id, "Da, inca e.", CreatedAt.AddMinutes(5)),
             new ConversationMessage(_conversation.Messages[2].Id, 3, _buyer.Id, "Pot sa vin maine?", CreatedAt.AddMinutes(10))
-        ]);
+        ],
+        // No offers were made in this conversation.
+        []);
 
     // Still one conversation with its three messages, and the last message time did not move.
     private async Task AssertDatabaseUnchangedAsync()

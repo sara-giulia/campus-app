@@ -3,6 +3,8 @@ using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Domain.Offers;
+using CampusMarket.Api.Features.Offers;
 
 namespace CampusMarket.Api.Features.Conversations.GetConversation;
 
@@ -10,7 +12,8 @@ namespace CampusMarket.Api.Features.Conversations.GetConversation;
 public sealed class GetConversationHandler(
     IConversationRepository conversations,
     IListingRepository listings,
-    IMemberRepository members)
+    IMemberRepository members,
+    IOfferRepository offers)
     : IQueryHandler<GetConversationQuery, GetConversationResponse>
 {
     public async Task<Result<GetConversationResponse>> HandleAsync(GetConversationQuery query, CancellationToken ct)
@@ -34,6 +37,11 @@ public sealed class GetConversationHandler(
             .Select(ConversationMessage.From)
             .ToList();
 
+        // The price offers between these two members on this listing, the oldest first.
+        var conversationOffers = (await offers.GetForConversationAsync(conversation.ListingId, conversation.BuyerId, ct))
+            .Select(OfferResponse.From)
+            .ToList();
+
         return new GetConversationResponse(
             conversation.Id,
             listing.Id,
@@ -43,6 +51,7 @@ public sealed class GetConversationHandler(
             buyer.Id,
             buyer.Name,
             conversation.CreatedAt,
-            messages);
+            messages,
+            conversationOffers);
     }
 }
