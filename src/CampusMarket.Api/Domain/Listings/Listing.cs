@@ -217,7 +217,7 @@ public sealed class Listing
 
     // A draft is private: only its seller or an Admin sees it. Everyone else gets "not found".
     public bool IsVisibleTo(Guid? requesterId, bool isAdmin) =>
-        Status != ListingStatus.Draft || isAdmin || (requesterId is not null && requesterId == SellerId);
+        Status != ListingStatus.Draft || isAdmin || requesterId == SellerId;
 
     // The title and description rules, in one place. The suggestion endpoints (price, category)
     // use them too, so a caller gets the same errors there as when creating a listing.

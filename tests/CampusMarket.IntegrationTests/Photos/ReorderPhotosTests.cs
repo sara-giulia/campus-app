@@ -212,7 +212,7 @@ public sealed class ReorderPhotosTests : IntegrationTestBase
         return (seller, listing, photos);
     }
 
-    private async Task AssertOrderMismatchAsync(HttpResponseMessage response)
+    private static async Task AssertOrderMismatchAsync(HttpResponseMessage response)
     {
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
