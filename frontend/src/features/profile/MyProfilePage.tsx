@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import { Alert, Badge, Button, Card, Loading, PageHeader, TextField } from '../../app/ui'
+import { BlockedMembersCard } from '../blocks/BlockedMembersCard'
 import './profile.css'
 
 interface MyProfile {
@@ -253,6 +254,8 @@ export function MyProfilePage() {
           </div>
         </form>
       </Card>
+
+      <BlockedMembersCard />
     </div>
   )
 }

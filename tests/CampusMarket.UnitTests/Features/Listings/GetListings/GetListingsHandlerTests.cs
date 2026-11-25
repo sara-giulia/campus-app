@@ -13,7 +13,7 @@ public class GetListingsHandlerTests
     public async Task Given_EmptyRepository_When_Handling_Then_ReturnsEmptyList()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -34,7 +34,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -63,7 +63,7 @@ public class GetListingsHandlerTests
         repository.Items[draft.Id] = draft;
         repository.Items[active.Id] = active;
         repository.Items[reserved.Id] = reserved;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -81,7 +81,7 @@ public class GetListingsHandlerTests
     public async Task Given_InvalidPage_When_Handling_Then_ReturnsValidationError(int page)
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Page: page);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -100,7 +100,7 @@ public class GetListingsHandlerTests
     public async Task Given_InvalidPageSize_When_Handling_Then_ReturnsValidationError(int pageSize)
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(PageSize: pageSize);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -116,7 +116,7 @@ public class GetListingsHandlerTests
     public async Task Given_MinPriceGreaterThanMaxPrice_When_Handling_Then_ReturnsValidationError()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(MinPrice: 50m, MaxPrice: 20m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -134,7 +134,7 @@ public class GetListingsHandlerTests
     public async Task Given_PageSizeAtLimit_When_Handling_Then_Succeeds(int pageSize)
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(PageSize: pageSize);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -148,7 +148,7 @@ public class GetListingsHandlerTests
     public async Task Given_MinPriceEqualToMaxPrice_When_Handling_Then_Succeeds()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(MinPrice: 25m, MaxPrice: 25m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -161,7 +161,7 @@ public class GetListingsHandlerTests
     public async Task Given_OnlyMinPriceSet_When_Handling_Then_Succeeds()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(MinPrice: 10m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -174,7 +174,7 @@ public class GetListingsHandlerTests
     public async Task Given_OnlyMaxPriceSet_When_Handling_Then_Succeeds()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(MaxPrice: 100m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -193,7 +193,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[textbook.Id] = textbook;
         repository.Items[electronics.Id] = electronics;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Category: Category.Textbook);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -215,7 +215,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[below.Id] = below;
         repository.Items[atLimit.Id] = atLimit;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(MinPrice: 10m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -237,7 +237,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[atLimit.Id] = atLimit;
         repository.Items[above.Id] = above;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(MaxPrice: 50m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -259,7 +259,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         repository.Items[other.Id] = other;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Search: "oop");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -278,7 +278,7 @@ public class GetListingsHandlerTests
         listing.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Search: "  oop  ");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -301,7 +301,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Search: search);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -319,7 +319,7 @@ public class GetListingsHandlerTests
         listing.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Search: "zzz");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -344,7 +344,7 @@ public class GetListingsHandlerTests
         repository.Items[textbookMatch.Id] = textbookMatch;
         repository.Items[textbookNoMatch.Id] = textbookNoMatch;
         repository.Items[electronicsMatch.Id] = electronicsMatch;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Category: Category.Textbook, Search: "oop");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -369,7 +369,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -392,7 +392,7 @@ public class GetListingsHandlerTests
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
         repository.Items[third.Id] = third;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -415,7 +415,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Page: 1, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -442,7 +442,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Page: 2, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -468,7 +468,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Page: 5, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -484,7 +484,7 @@ public class GetListingsHandlerTests
     public async Task Given_DefaultQuery_When_Handling_Then_UsesDefaultPageAndPageSize()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -511,7 +511,7 @@ public class GetListingsHandlerTests
         repository.Items[textbookTwo.Id] = textbookTwo;
         repository.Items[textbookThree.Id] = textbookThree;
         repository.Items[electronics.Id] = electronics;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Category: Category.Textbook, Page: 1, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -536,7 +536,7 @@ public class GetListingsHandlerTests
         repository.Items[newBook.Id] = newBook;
         repository.Items[goodBook.Id] = goodBook;
         repository.Items[wornBook.Id] = wornBook;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Condition: Condition.Good);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -560,7 +560,7 @@ public class GetListingsHandlerTests
         repository.Items[goodTextbook.Id] = goodTextbook;
         repository.Items[wornTextbook.Id] = wornTextbook;
         repository.Items[goodCalculator.Id] = goodCalculator;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Category: Category.Textbook, Condition: Condition.Good);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -584,7 +584,7 @@ public class GetListingsHandlerTests
         repository.Items[newBook.Id] = newBook;
         repository.Items[goodBook.Id] = goodBook;
         repository.Items[wornBook.Id] = wornBook;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -614,7 +614,7 @@ public class GetListingsHandlerTests
             Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 30m, Now).Value,
             Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 10m, Now.AddHours(1)).Value,
             Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Sort: "price_asc");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -631,7 +631,7 @@ public class GetListingsHandlerTests
             Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 30m, Now).Value,
             Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 10m, Now.AddHours(1)).Value,
             Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Sort: "price_desc");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -650,7 +650,7 @@ public class GetListingsHandlerTests
         var middle = Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 30m, Now.AddHours(1)).Value;
         var newest = Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value;
         var repository = RepositoryWithActiveListings(oldest, middle, newest);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Sort: sort);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -668,7 +668,7 @@ public class GetListingsHandlerTests
         var repository = RepositoryWithActiveListings(
             Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 20m, Now).Value,
             Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Sort: sort);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -684,7 +684,7 @@ public class GetListingsHandlerTests
     {
         var listing = Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 20m, Now).Value;
         var repository = RepositoryWithActiveListings(listing);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeMemberBlockRepository());
         var query = new GetListingsQuery(Sort: "abc");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);

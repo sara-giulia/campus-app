@@ -13,7 +13,7 @@ export function LatestListings() {
   useEffect(() => {
     const controller = new AbortController()
     api
-      .get<GetListingsResponse>('/listings?pageSize=8', { signal: controller.signal, auth: false })
+      .get<GetListingsResponse>('/listings?pageSize=8', { signal: controller.signal })
       .then((data) => setItems(data.items))
       .catch(() => setItems([]))
     return () => controller.abort()

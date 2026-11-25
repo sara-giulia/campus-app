@@ -78,7 +78,7 @@ function ListingView({ id }: { id: string }) {
         if (!isAbort(err)) setLoadError(errorMessage(err))
       })
     api
-      .get<GetSimilarListingsResponse>(`/listings/${id}/similar`, { signal, auth: false })
+      .get<GetSimilarListingsResponse>(`/listings/${id}/similar`, { signal })
       // Four, one full row of the grid.
       .then((data) => setSimilar(data.items.slice(0, 4)))
       .catch(() => setSimilar([]))

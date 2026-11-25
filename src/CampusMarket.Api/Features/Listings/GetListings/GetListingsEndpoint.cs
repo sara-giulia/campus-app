@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
@@ -11,10 +13,11 @@ public static class GetListingsEndpoint
     {
         group.MapGet("/", Handle)
             .WithName("GetListings")
-            .CacheOutput(p => p.Expire(TimeSpan.FromSeconds(30)).SetVaryByQuery("*").Tag(ListingsCache.Tag));
+            .CacheOutput(p => p.Expire(TimeSpan.FromSeconds(30)).SetVaryByQuery("*").SetVaryByHeader("Authorization").Tag(ListingsCache.Tag));
     }
 
     private static async Task<Results<Ok<GetListingsResponse>, BadRequest<Error>>> Handle(
+        ClaimsPrincipal user,
         IQueryHandler<GetListingsQuery, GetListingsResponse> handler,
         Category? category,
         decimal? minPrice,
@@ -34,7 +37,8 @@ public static class GetListingsEndpoint
             page ?? GetListingsQuery.DefaultPage,
             pageSize ?? GetListingsQuery.DefaultPageSize,
             condition,
-            sort);
+            sort,
+            user.GetMemberIdOrNull());
 
         var result = await handler.HandleAsync(query, ct);
 

@@ -27,4 +27,9 @@ public interface IOfferRepository
     /// the oldest first.
     /// </summary>
     Task<IReadOnlyList<Offer>> GetForConversationAsync(Guid listingId, Guid buyerId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Every Pending offer between the two members, on any listing, whichever of them is the buyer; tracked.
+    /// </summary>
+    Task<IReadOnlyList<Offer>> GetPendingBetweenAsync(Guid memberId, Guid otherId, CancellationToken ct = default);
 }

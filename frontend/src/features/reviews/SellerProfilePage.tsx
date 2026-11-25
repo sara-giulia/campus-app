@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { api } from '../../api/client'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Card, EmptyState, Loading, Pagination } from '../../app/ui'
+import { BlockButton } from '../blocks/BlockButton'
 import { formatDate, formatPrice, type PublicProfile } from '../listings/publicTypes'
 import './reviews.css'
 
@@ -75,6 +76,9 @@ function SellerProfile({ id }: { id: string }) {
             {' · '}
             {profile.averageRating === null ? 'fără review-uri încă' : <Stars value={profile.averageRating} label={`${profile.averageRating.toFixed(1)} din ${profile.reviewCount} review-uri`} />}
           </p>
+        </div>
+        <div className="seller__actions">
+          <BlockButton memberId={id} name={profile.name} />
         </div>
       </header>
 

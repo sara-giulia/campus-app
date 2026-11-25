@@ -35,7 +35,7 @@ public class CounterOfferHandlerTests
         _members.Items[_stranger.Id] = _stranger;
         _offer = Offer.Make(_listing, _buyer.Id, 90m, Now).Value;
         _offers.Add(_offer);
-        _handler = new CounterOfferHandler(_offers, _listings, _members, _notifications, _unitOfWork, new FixedTimeProvider(Later));
+        _handler = new CounterOfferHandler(_offers, _listings, _members, _notifications, new FakeMemberBlockRepository(), _unitOfWork, new FixedTimeProvider(Later));
     }
 
     private void AssertNothingChanged()

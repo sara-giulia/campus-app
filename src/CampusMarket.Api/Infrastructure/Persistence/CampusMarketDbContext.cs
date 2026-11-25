@@ -1,3 +1,4 @@
+using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Favorites;
@@ -31,6 +32,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ListingCategory> Categories => Set<ListingCategory>();
     public DbSet<Offer> Offers => Set<Offer>();
+    public DbSet<MemberBlock> MemberBlocks => Set<MemberBlock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

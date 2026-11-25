@@ -1,5 +1,6 @@
 using System.Globalization;
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Listings;
@@ -17,6 +18,7 @@ public sealed class MakeOfferHandler(
     IOfferRepository offers,
     IConversationRepository conversations,
     INotificationRepository notifications,
+    IMemberBlockRepository blocks,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<MakeOfferCommand, MakeOfferResponse>
@@ -32,6 +34,9 @@ public sealed class MakeOfferHandler(
         if (buyer is null)
             return Result<MakeOfferResponse>.Failure(
                 Error.NotFound("Member.NotFound", $"Member '{command.BuyerId}' was not found."));
+
+        if (await blocks.IsBlockedAsync(listing.SellerId, command.BuyerId, ct))
+            return Result<MakeOfferResponse>.Failure(MemberBlock.BlockedError());
 
         var now = timeProvider.GetUtcNow();
         var made = Offer.Make(listing, command.BuyerId, command.Amount, now);

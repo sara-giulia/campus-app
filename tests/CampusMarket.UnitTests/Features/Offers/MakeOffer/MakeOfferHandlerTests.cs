@@ -33,7 +33,7 @@ public class MakeOfferHandlerTests
         _members.Items[_seller.Id] = _seller;
         _members.Items[_buyer.Id] = _buyer;
         _members.Items[_otherBuyer.Id] = _otherBuyer;
-        _handler = new MakeOfferHandler(_listings, _members, _offers, _conversations, _notifications, _unitOfWork, new FixedTimeProvider(Now));
+        _handler = new MakeOfferHandler(_listings, _members, _offers, _conversations, _notifications, new FakeMemberBlockRepository(), _unitOfWork, new FixedTimeProvider(Now));
     }
 
     private void AssertNothingSaved()

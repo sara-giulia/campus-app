@@ -132,6 +132,18 @@ public sealed class Offer
         return true;
     }
 
+    // One of the two members blocked the other: a Pending offer between them can no longer be answered.
+    // Returns false when the offer was not Pending (nothing changed).
+    public bool CloseBecauseBlocked(DateTimeOffset now)
+    {
+        if (Status != OfferStatus.Pending)
+            return false;
+
+        Status = OfferStatus.Rejected;
+        RespondedAt = now;
+        return true;
+    }
+
     private static Offer New(Guid listingId, Guid buyerId, Guid sellerId, Guid proposedById, decimal amount, Guid? parentOfferId, DateTimeOffset now) => new()
     {
         Id = Guid.NewGuid(),

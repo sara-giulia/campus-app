@@ -31,4 +31,14 @@ public sealed class FakeOfferRepository : IOfferRepository
             .ToList();
         return Task.FromResult(offers);
     }
+
+    public Task<IReadOnlyList<Offer>> GetPendingBetweenAsync(Guid memberId, Guid otherId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Offer> offers = Items
+            .Where(o => o.Status == OfferStatus.Pending
+                        && ((o.BuyerId == memberId && o.SellerId == otherId)
+                            || (o.BuyerId == otherId && o.SellerId == memberId)))
+            .ToList();
+        return Task.FromResult(offers);
+    }
 }

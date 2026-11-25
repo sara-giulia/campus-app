@@ -34,6 +34,8 @@ const MESSAGES: Record<string, string> = {
   'Listings.InvalidPriceRange': 'Prețul minim nu poate fi mai mare decât cel maxim.',
   'Listings.InvalidSort': 'Ordinea aleasă nu e validă.',
   'Member.NotFound': 'Membrul nu există.',
+  'Member.Blocked': 'Acest utilizator te-a blocat: nu îi mai poți scrie, face oferte sau rezerva anunțurile.',
+  'Block.Self': 'Nu te poți bloca pe tine.',
   'Listing.CategoryInactive': 'Categoria anunțului nu mai este activă.',
   'Listing.NotExpired': 'Doar un anunț expirat poate fi reînnoit.',
 }

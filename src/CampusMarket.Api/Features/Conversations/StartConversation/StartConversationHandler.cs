@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Listings;
@@ -13,6 +14,7 @@ public sealed class StartConversationHandler(
     IListingRepository listings,
     IMemberRepository members,
     IConversationRepository conversations,
+    IMemberBlockRepository blocks,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<StartConversationCommand, MessageResponse>
@@ -28,6 +30,9 @@ public sealed class StartConversationHandler(
         if (member is null)
             return Result<MessageResponse>.Failure(
                 Error.NotFound("Member.NotFound", $"Member '{command.BuyerId}' was not found."));
+
+        if (await blocks.IsBlockedAsync(listing.SellerId, command.BuyerId, ct))
+            return Result<MessageResponse>.Failure(MemberBlock.BlockedError());
 
         var now = timeProvider.GetUtcNow();
         Message message;

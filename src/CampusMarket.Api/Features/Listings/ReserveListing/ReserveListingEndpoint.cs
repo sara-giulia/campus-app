@@ -16,7 +16,7 @@ public static class ReserveListingEndpoint
             .RequireAuthorization();
     }
 
-    private static async Task<Results<CreatedAtRoute<ReserveListingResponse>, NotFound<Error>, BadRequest<Error>>> Handle(
+    private static async Task<Results<CreatedAtRoute<ReserveListingResponse>, NotFound<Error>, BadRequest<Error>, JsonHttpResult<Error>>> Handle(
         Guid id,
         ClaimsPrincipal user,
         ICommandHandler<ReserveListingCommand, ReserveListingResponse> handler,
@@ -29,6 +29,7 @@ public static class ReserveListingEndpoint
             return result.Error.Type switch
             {
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
+                ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };
 

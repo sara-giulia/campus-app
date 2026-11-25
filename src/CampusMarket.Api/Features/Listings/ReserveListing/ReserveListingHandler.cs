@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
@@ -10,6 +11,7 @@ public sealed class ReserveListingHandler(
     IListingRepository listings,
     IMemberRepository members,
     INotificationRepository notifications,
+    IMemberBlockRepository blocks,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<ReserveListingCommand, ReserveListingResponse>
@@ -31,6 +33,9 @@ public sealed class ReserveListingHandler(
         if (buyer is null)
             return Result<ReserveListingResponse>.Failure(
                 Error.NotFound("Member.NotFound", $"Member '{command.BuyerId}' was not found."));
+
+        if (await blocks.IsBlockedAsync(listing.SellerId, command.BuyerId, ct))
+            return Result<ReserveListingResponse>.Failure(MemberBlock.BlockedError());
 
         var allListings = await listings.GetAllAsync(ct);
         var activeReservations = allListings

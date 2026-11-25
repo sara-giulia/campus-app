@@ -16,7 +16,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261125170000_AddOffers";
+    public override string LastMigrationId => "20261125190000_AddMemberBlocks";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -26,6 +26,30 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Blocks.MemberBlock", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("BlockedId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("BlockerId")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.HasKey("Id");
+
+                b.HasIndex("BlockedId");
+
+                b.HasIndex("BlockerId", "BlockedId")
+                    .IsUnique();
+
+                b.ToTable("MemberBlocks");
+            });
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Categories.ListingCategory", b =>
             {
@@ -588,6 +612,21 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("CampusMarket.Api.Domain.Conversations.Conversation", null)
                     .WithMany("Messages")
                     .HasForeignKey("ConversationId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Blocks.MemberBlock", b =>
+            {
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("BlockedId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("BlockerId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });

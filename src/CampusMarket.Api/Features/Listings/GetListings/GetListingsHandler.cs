@@ -1,10 +1,11 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 
 namespace CampusMarket.Api.Features.Listings.GetListings;
 
-public sealed class GetListingsHandler(IListingRepository repository)
+public sealed class GetListingsHandler(IListingRepository repository, IMemberBlockRepository blocks)
     : IQueryHandler<GetListingsQuery, GetListingsResponse>
 {
     public async Task<Result<GetListingsResponse>> HandleAsync(
@@ -27,6 +28,12 @@ public sealed class GetListingsHandler(IListingRepository repository)
 
         var listings = await repository.GetAllAsync(ct);
         IEnumerable<Listing> filtered = listings.Where(l => l.Status == ListingStatus.Active);
+
+        if (query.ViewerId is { } viewerId)
+        {
+            var blockedIds = await blocks.GetBlockedIdsAsync(viewerId, ct);
+            filtered = filtered.Where(l => !blockedIds.Contains(l.SellerId));
+        }
 
         if (query.Category is not null)
             filtered = filtered.Where(l => l.Category == query.Category);
