@@ -1,3 +1,4 @@
+using CampusMarket.Api.Common.Search;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Features.Listings.GetListings;
@@ -13,7 +14,7 @@ public class GetListingsHandlerTests
     public async Task Given_EmptyRepository_When_Handling_Then_ReturnsEmptyList()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -34,7 +35,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -63,7 +64,7 @@ public class GetListingsHandlerTests
         repository.Items[draft.Id] = draft;
         repository.Items[active.Id] = active;
         repository.Items[reserved.Id] = reserved;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -81,7 +82,7 @@ public class GetListingsHandlerTests
     public async Task Given_InvalidPage_When_Handling_Then_ReturnsValidationError(int page)
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Page: page);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -100,7 +101,7 @@ public class GetListingsHandlerTests
     public async Task Given_InvalidPageSize_When_Handling_Then_ReturnsValidationError(int pageSize)
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(PageSize: pageSize);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -116,7 +117,7 @@ public class GetListingsHandlerTests
     public async Task Given_MinPriceGreaterThanMaxPrice_When_Handling_Then_ReturnsValidationError()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(MinPrice: 50m, MaxPrice: 20m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -134,7 +135,7 @@ public class GetListingsHandlerTests
     public async Task Given_PageSizeAtLimit_When_Handling_Then_Succeeds(int pageSize)
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(PageSize: pageSize);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -148,7 +149,7 @@ public class GetListingsHandlerTests
     public async Task Given_MinPriceEqualToMaxPrice_When_Handling_Then_Succeeds()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(MinPrice: 25m, MaxPrice: 25m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -161,7 +162,7 @@ public class GetListingsHandlerTests
     public async Task Given_OnlyMinPriceSet_When_Handling_Then_Succeeds()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(MinPrice: 10m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -174,7 +175,7 @@ public class GetListingsHandlerTests
     public async Task Given_OnlyMaxPriceSet_When_Handling_Then_Succeeds()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(MaxPrice: 100m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -193,7 +194,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[textbook.Id] = textbook;
         repository.Items[electronics.Id] = electronics;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Category: Category.Textbook);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -215,7 +216,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[below.Id] = below;
         repository.Items[atLimit.Id] = atLimit;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(MinPrice: 10m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -237,7 +238,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[atLimit.Id] = atLimit;
         repository.Items[above.Id] = above;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(MaxPrice: 50m);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -259,7 +260,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         repository.Items[other.Id] = other;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Search: "oop");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -278,7 +279,7 @@ public class GetListingsHandlerTests
         listing.Publish();
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Search: "  oop  ");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -301,7 +302,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Search: search);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -319,7 +320,7 @@ public class GetListingsHandlerTests
         listing.Publish();
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Search: "zzz");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -344,7 +345,7 @@ public class GetListingsHandlerTests
         repository.Items[textbookMatch.Id] = textbookMatch;
         repository.Items[textbookNoMatch.Id] = textbookNoMatch;
         repository.Items[electronicsMatch.Id] = electronicsMatch;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Category: Category.Textbook, Search: "oop");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -369,7 +370,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -392,7 +393,7 @@ public class GetListingsHandlerTests
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
         repository.Items[third.Id] = third;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -415,7 +416,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Page: 1, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -442,7 +443,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Page: 2, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -468,7 +469,7 @@ public class GetListingsHandlerTests
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
         repository.Items[newest.Id] = newest;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Page: 5, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -484,7 +485,7 @@ public class GetListingsHandlerTests
     public async Task Given_DefaultQuery_When_Handling_Then_UsesDefaultPageAndPageSize()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -511,7 +512,7 @@ public class GetListingsHandlerTests
         repository.Items[textbookTwo.Id] = textbookTwo;
         repository.Items[textbookThree.Id] = textbookThree;
         repository.Items[electronics.Id] = electronics;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Category: Category.Textbook, Page: 1, PageSize: 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -536,7 +537,7 @@ public class GetListingsHandlerTests
         repository.Items[newBook.Id] = newBook;
         repository.Items[goodBook.Id] = goodBook;
         repository.Items[wornBook.Id] = wornBook;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Condition: Condition.Good);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -560,7 +561,7 @@ public class GetListingsHandlerTests
         repository.Items[goodTextbook.Id] = goodTextbook;
         repository.Items[wornTextbook.Id] = wornTextbook;
         repository.Items[goodCalculator.Id] = goodCalculator;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Category: Category.Textbook, Condition: Condition.Good);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -584,7 +585,7 @@ public class GetListingsHandlerTests
         repository.Items[newBook.Id] = newBook;
         repository.Items[goodBook.Id] = goodBook;
         repository.Items[wornBook.Id] = wornBook;
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery();
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -614,7 +615,7 @@ public class GetListingsHandlerTests
             Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 30m, Now).Value,
             Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 10m, Now.AddHours(1)).Value,
             Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Sort: "price_asc");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -631,7 +632,7 @@ public class GetListingsHandlerTests
             Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 30m, Now).Value,
             Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 10m, Now.AddHours(1)).Value,
             Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Sort: "price_desc");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -650,7 +651,7 @@ public class GetListingsHandlerTests
         var middle = Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 30m, Now.AddHours(1)).Value;
         var newest = Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 20m, Now.AddHours(2)).Value;
         var repository = RepositoryWithActiveListings(oldest, middle, newest);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Sort: sort);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -668,7 +669,7 @@ public class GetListingsHandlerTests
         var repository = RepositoryWithActiveListings(
             Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 20m, Now).Value,
             Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Sort: sort);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -684,7 +685,7 @@ public class GetListingsHandlerTests
     {
         var listing = Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 20m, Now).Value;
         var repository = RepositoryWithActiveListings(listing);
-        var handler = new GetListingsHandler(repository);
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
         var query = new GetListingsQuery(Sort: "abc");
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -692,7 +693,247 @@ public class GetListingsHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listings.InvalidSort");
-        result.Error.Message.Should().Be("Sort must be newest, price_asc or price_desc.");
+        result.Error.Message.Should().Be("Sort must be relevance, newest, price_asc or price_desc.");
         repository.Items.Should().HaveCount(1);
+    }
+
+    private static readonly Guid SearchSellerId = new("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid SearchBuyerId = new("22222222-2222-2222-2222-222222222222");
+
+    private static Listing ActiveListing(
+        string title, DateTimeOffset createdAt, decimal price = 50m,
+        Category category = Category.Electronics, Condition condition = Condition.Good)
+    {
+        var listing = Listing.Create(SearchSellerId, title, category, condition, price, createdAt).Value;
+        listing.Publish();
+        return listing;
+    }
+
+    private static FakeListingRepository RepositoryWith(params Listing[] listings)
+    {
+        var repository = new FakeListingRepository();
+        foreach (var listing in listings)
+            repository.Items[listing.Id] = listing;
+
+        return repository;
+    }
+
+    [Fact]
+    public async Task Given_SearchOfTwoCharacters_When_Handling_Then_DoesNotAskTheSemanticSearchButFindsByTitle()
+    {
+        var pc = ActiveListing("PC gaming", Now);
+        var chair = ActiveListing("Scaun birou", Now);
+        var repository = RepositoryWith(pc, chair);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.Add(new SemanticMatch(chair.Id, 0.9));
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "pc"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(pc.Id);
+        result.Value.Items[0].Match.Should().Be(SearchMatch.Text);
+        semanticSearch.Queries.Should().BeEmpty();
+        repository.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Given_SearchOfThreeCharactersWithSpaces_When_Handling_Then_AsksTheSemanticSearchOnceWithTheTrimmedSearch()
+    {
+        var repository = RepositoryWith(ActiveListing("Laptop Dell", Now));
+        var semanticSearch = new FakeSemanticSearch();
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "  pc1  "), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        semanticSearch.Queries.Should().Equal("pc1");
+        repository.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Given_ListingFoundByMeaning_When_Handling_Then_ComesAfterTheTitleMatchesWithMatchMeaning()
+    {
+        var laptop = ActiveListing("Laptop Dell", Now);
+        var calculator = ActiveListing("Calculator portabil", Now.AddHours(5));
+        var repository = RepositoryWith(calculator, laptop);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.Add(new SemanticMatch(calculator.Id, 0.8));
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "laptop"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(laptop.Id, calculator.Id);
+        result.Value.Items.Select(i => i.Match).Should().Equal(SearchMatch.Text, SearchMatch.Meaning);
+        repository.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Given_MeaningMatchesThatAreNotActive_When_Handling_Then_ReturnsNoneOfThem()
+    {
+        var draft = Listing.Create(SearchSellerId, "Calculator portabil", Category.Electronics, Condition.Good, 50m, Now).Value;
+        var hidden = ActiveListing("Notebook Asus", Now);
+        hidden.Hide();
+        var reserved = ActiveListing("Ultrabook HP", Now);
+        reserved.Reserve(SearchBuyerId, Now);
+        var repository = RepositoryWith(draft, hidden, reserved);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.AddRange([new(draft.Id, 0.9), new(hidden.Id, 0.8), new(reserved.Id, 0.7)]);
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "laptop"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().BeEmpty();
+        result.Value.TotalCount.Should().Be(0);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_MeaningMatchesOutsideTheFilters_When_Handling_Then_ReturnsOnlyTheOneInsideThem()
+    {
+        var inside = ActiveListing("Calculator portabil", Now, 30m, Category.Electronics, Condition.Good);
+        var otherCategory = ActiveListing("Manual de programare", Now, 30m, Category.Textbook, Condition.Good);
+        var otherCondition = ActiveListing("Notebook Asus", Now, 30m, Category.Electronics, Condition.New);
+        var tooCheap = ActiveListing("Tableta veche", Now, 5m, Category.Electronics, Condition.Good);
+        var tooExpensive = ActiveListing("Ultrabook HP", Now, 100m, Category.Electronics, Condition.Good);
+        var repository = RepositoryWith(inside, otherCategory, otherCondition, tooCheap, tooExpensive);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.AddRange(
+        [
+            new(otherCategory.Id, 0.9), new(otherCondition.Id, 0.85), new(tooCheap.Id, 0.8),
+            new(tooExpensive.Id, 0.75), new(inside.Id, 0.7)
+        ]);
+        var handler = new GetListingsHandler(repository, semanticSearch);
+        var query = new GetListingsQuery(
+            Category: Category.Electronics, MinPrice: 10m, MaxPrice: 50m, Search: "laptop", Condition: Condition.Good);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(inside.Id);
+        result.Value.TotalCount.Should().Be(1);
+        repository.Items.Should().HaveCount(5);
+    }
+
+    [Theory]
+    [InlineData("relevance")]
+    [InlineData(null)]
+    public async Task Given_RelevanceOrNoSort_When_Searching_Then_KeepsTextMatchesNewestFirstThenMeaningInGivenOrder(string? sort)
+    {
+        var olderText = ActiveListing("Laptop Dell", Now);
+        var newerText = ActiveListing("Laptop HP", Now.AddHours(1));
+        var firstMeaning = ActiveListing("Calculator portabil", Now.AddHours(2));
+        var secondMeaning = ActiveListing("Notebook Asus", Now.AddHours(3));
+        var repository = RepositoryWith(olderText, secondMeaning, newerText, firstMeaning);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.AddRange([new(firstMeaning.Id, 0.8), new(secondMeaning.Id, 0.7)]);
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "laptop", Sort: sort), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(newerText.Id, olderText.Id, firstMeaning.Id, secondMeaning.Id);
+        repository.Items.Should().HaveCount(4);
+    }
+
+    [Fact]
+    public async Task Given_SortNewest_When_Searching_Then_OrdersTextAndMeaningMatchesTogetherByCreatedAt()
+    {
+        var olderText = ActiveListing("Laptop Dell", Now);
+        var newestMeaning = ActiveListing("Calculator portabil", Now.AddHours(2));
+        var newerText = ActiveListing("Laptop HP", Now.AddHours(1));
+        var repository = RepositoryWith(olderText, newestMeaning, newerText);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.Add(new SemanticMatch(newestMeaning.Id, 0.8));
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "laptop", Sort: "newest"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(newestMeaning.Id, newerText.Id, olderText.Id);
+        result.Value.Items.Select(i => i.Match).Should().Equal(SearchMatch.Meaning, SearchMatch.Text, SearchMatch.Text);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_SortPriceAscending_When_Searching_Then_OrdersTextAndMeaningMatchesTogetherByPrice()
+    {
+        var text = ActiveListing("Laptop Dell", Now, 40m);
+        var cheapMeaning = ActiveListing("Calculator portabil", Now, 10m);
+        var expensiveMeaning = ActiveListing("Notebook Asus", Now, 70m);
+        var repository = RepositoryWith(text, cheapMeaning, expensiveMeaning);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.AddRange([new(expensiveMeaning.Id, 0.8), new(cheapMeaning.Id, 0.7)]);
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "laptop", Sort: "price_asc"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(cheapMeaning.Id, text.Id, expensiveMeaning.Id);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_SortPriceDescending_When_Searching_Then_OrdersTextAndMeaningMatchesTogetherByPrice()
+    {
+        var text = ActiveListing("Laptop Dell", Now, 40m);
+        var cheapMeaning = ActiveListing("Calculator portabil", Now, 10m);
+        var expensiveMeaning = ActiveListing("Notebook Asus", Now, 70m);
+        var repository = RepositoryWith(text, cheapMeaning, expensiveMeaning);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.AddRange([new(cheapMeaning.Id, 0.8), new(expensiveMeaning.Id, 0.7)]);
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: "laptop", Sort: "price_desc"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(expensiveMeaning.Id, text.Id, cheapMeaning.Id);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Given_TextAndMeaningMatches_When_RequestingSecondPage_Then_TotalCountCountsBothAndPagingComesAfterTheOrder()
+    {
+        var olderText = ActiveListing("Laptop Dell", Now);
+        var newerText = ActiveListing("Laptop HP", Now.AddHours(1));
+        var firstMeaning = ActiveListing("Calculator portabil", Now);
+        var secondMeaning = ActiveListing("Notebook Asus", Now);
+        var repository = RepositoryWith(olderText, newerText, firstMeaning, secondMeaning);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.AddRange([new(firstMeaning.Id, 0.8), new(secondMeaning.Id, 0.7)]);
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(
+            new GetListingsQuery(Search: "laptop", Page: 2, PageSize: 2), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(firstMeaning.Id, secondMeaning.Id);
+        result.Value.Count.Should().Be(2);
+        result.Value.TotalCount.Should().Be(4);
+        repository.Items.Should().HaveCount(4);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Given_NoSearch_When_Handling_Then_DoesNotAskTheSemanticSearchAndEveryMatchIsNull(string? search)
+    {
+        var older = ActiveListing("Laptop Dell", Now);
+        var newer = ActiveListing("Scaun birou", Now.AddHours(1));
+        var repository = RepositoryWith(older, newer);
+        var semanticSearch = new FakeSemanticSearch();
+        semanticSearch.Matches.Add(new SemanticMatch(older.Id, 0.9));
+        var handler = new GetListingsHandler(repository, semanticSearch);
+
+        var result = await handler.HandleAsync(new GetListingsQuery(Search: search), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(newer.Id, older.Id);
+        result.Value.Items.Should().OnlyContain(i => i.Match == null);
+        semanticSearch.Queries.Should().BeEmpty();
+        repository.Items.Should().HaveCount(2);
     }
 }
