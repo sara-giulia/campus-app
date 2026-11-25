@@ -96,7 +96,7 @@ public sealed class PriceFeedbackTests : IntegrationTestBase
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(
             SellerId, "Manual POO", Category.Textbook, Condition.Good, 45m, CreatedAt, "Putin folosit").Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, DateTimeOffset.UtcNow).Value;
         await SeedAsync(buyer, listing);
 
