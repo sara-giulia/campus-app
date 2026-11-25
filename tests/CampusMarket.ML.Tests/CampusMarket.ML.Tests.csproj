@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\ml\CampusMarket.ML.Training\CampusMarket.ML.Training.csproj" />
+    <!-- The API is aliased: the training project compiles the same PriceTextFeatures.cs, so the unaliased types would be ambiguous. -->
+    <ProjectReference Include="..\..\src\CampusMarket.Api\CampusMarket.Api.csproj" Aliases="api" />
   </ItemGroup>
 
   <!--
