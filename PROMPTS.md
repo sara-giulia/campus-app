@@ -1103,6 +1103,28 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 74f6193 (code), 5479664 (skills), a9aced1 (tests)
 
+### Run 42, skill v45 (Feature: Price text features)
+
+- **Why a new version:** branch `feature/price-model-v2`, task 10 part A (price model with explicit text features, code in 859e78a). `PriceTextFeatures` (brand, storage, CPU tier, new or sealed, read from title and description) is shared by the API and the training project, so a wrong rule would silently change the model input. The skill had no section for it, and its Coverage section still excluded all of `Infrastructure/` with `MetricsRegistry.cs` as the only exception. v44 is taken by the PostgreSQL wording update on `feature/postgres` (see "Skill update v43 → v44 (PostgreSQL)"), so this version is v45.
+
+#### Change to SKILL.md (v43 → v45) and why
+
+| # | v43 (before) | v45 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the price text features. | New section *"Feature: Price text features (Diana)"*: the rules of `PriceTextFeatures.Extract` (brand list and `"none"`, largest number followed by GB or TB with TB = 1024, CPU tier i3-i9 and Ryzen 3/5/7/9, whole-word `sigilat` / `nou` / `new` / `sealed` with both forms of `ș`/`ț`), what `PriceSuggester` must fill, the two test files and their naming, the tests to add and the rules (literal expected values, `\u` escapes for non-ASCII characters, never the real `.zip`, never change production code to pass a test). | The edge cases (`noua`, `renovat`, `512GBs`, `Ryzen 55`, `i11`, null description) are the ones a model would not guess. |
+| 2 | Exclusions list: all of `Infrastructure/` is excluded (the `MetricsRegistry.cs` exception is only in the Observability section). | The `Infrastructure/` line also names the exceptions that are in the target: `Infrastructure/Observability/MetricsRegistry.cs` and `Infrastructure/ML/PriceTextFeatures.cs`, both at 100% lines and branches. | `PriceTextFeatures` is pure logic with no I/O, like `MetricsRegistry`, and the integration tests do not reach its branches. |
+| 3 | Report filter `+*Domain*;+*Features*Handler.cs`; target "all of `Domain/` and every handler". | Filter `+*Domain*;+*Features*Handler.cs;+*MetricsRegistry.cs;+*PriceTextFeatures.cs`; the target names both files. | `MetricsRegistry.cs` was missing from the filter although its section requires 100%; the new file must be in the report to be held at 100%. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Price text features (Diana)": tests/CampusMarket.UnitTests/Infrastructure/ML/PriceTextFeaturesTests.cs and tests/CampusMarket.ML.Tests/PriceSuggesterTests.cs. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit and ML test projects and generate the coverage report as the skill says; PriceTextFeatures.cs must be at 100% lines and branches. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail, the coverage of PriceTextFeatures.cs, and git status. Do not commit. Do not push.`
+- **Skill version:** v45 (section written by Diana with Claude Code; the last unit-testing version recorded on this branch was v43, Run 41; commit 260a1f8)
+- **Result:** 85 new tests: 77 in `Infrastructure/ML/PriceTextFeaturesTests.cs` (22 methods, `[Theory]` rows counted) and 8 in `PriceSuggesterTests.cs` of the ML test project. All pass, no production fix needed. `PriceTextFeatures.cs` is at 100% lines and branches (`MetricsRegistry.cs` too). Full runs: 10 architecture, 839 unit, 77 ML and 452 integration tests pass; `dotnet build` 0 warnings, 0 errors.
+- **Problems seen:**
+    1. `PriceSuggester` needs a real `PredictionEnginePool`, which cannot be faked, so its tests are in the ML test project (as the section says), with an in-memory `ModelLoader` (`Support/InMemoryModelLoader.cs`) and one-step models whose score is copied from one input column: no `.zip` file. The ML test project now references the API, and the training project compiles the same `PriceTextFeatures.cs`, so the API reference has an alias (`Aliases="api"`) and the test file starts with `extern alias api;`; without it the type is ambiguous (CS0433).
+    2. `coverage-report/` is tracked in git although `.gitignore` lists it, so regenerating the report showed 46 modified files; restored with `git restore` after the run.
+    3. The report is not 100% as a whole: `Domain.Conversations.Message` (private constructor used only by EF Core) is at 93.7%, as in Runs 35 and 38. It is outside this task.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 859e78a; skill section 260a1f8; tests generated in cceb5bd
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
