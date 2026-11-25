@@ -1476,3 +1476,27 @@ Rules for this feature:
 - Then run all the tests with coverage as the CI does (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`): every file in `Infrastructure/Observability/` is at 100% lines and branches (all test projects merged). If a line or branch is still not covered, stop and report which one and why.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+
+## Feature: Publish with photos and draft (Diana)
+
+Endpoints (commit 9371271):
+- `POST /api/v1/listings`, `PUT /api/v1/listings/{id}` and the price suggestion: `category` and `condition` are required; missing (or `null`) → 400 ProblemDetails `Listing.CategoryRequired` / `Listing.ConditionRequired` (category checked first).
+- `GET /api/v1/listings/{id}` and `GET /api/v1/listings/{id}/photos`: a `Draft` is visible only to its seller and to an Admin; for another member and for an anonymous caller the answer is 404 `Listing.NotFound`, the same as for an unknown id. Photos come back ordered by `position`, then `createdAt`; each item has `position` (0 = cover).
+- `PUT /api/v1/listings/{id}/photos/order` (`ReorderPhotosEndpoint`), body `{ "photoIds": [...] }`, needs a login: 200 `{ items, count }` in the new order; 401 `Auth.Unauthorized` without a token; 404 `Listing.NotFound` (unknown listing, or the draft of someone else); 403 `Photo.NotSeller` (a member who is not the seller, an Admin too); 400 `Photo.OrderMismatch` (missing, extra, unknown or repeated id; a missing or `null` `photoIds` counts as an empty list).
+- `POST /api/v1/listings/{id}/photos`: the `position` of the new photo is the last one + 1; when the file storage fails → 503 `Photo.StorageFailed`.
+- Migration `AddPhotoPosition`: adds `Photos.Position` and numbers the existing photos from 0 in each listing by `CreatedAt`, then `Id`.
+
+Files: add to `Listings/CreateListingTests.cs`, `Listings/UpdateListingTests.cs`, `Listings/GetListingByIdTests.cs`, `Photos/UploadPhotoTests.cs`, `Photos/GetListingPhotosTests.cs`; new `Photos/ReorderPhotosTests.cs` (class `ReorderPhotosTests : IntegrationTestBase`) and `Persistence/AddPhotoPositionMigrationTests.cs`. Seed with `SeedAsync` (listings built in the domain: `Create` = `Draft`, `Publish()` = `Active`; photos with `Photo.Create(..., position)`); log in with `AuthenticateAs`; for the Admin use the helper of the other tests.
+
+Tests to add (status, ProblemDetails code or body, then the database state):
+- Create and update without `category` → 400 `Listing.CategoryRequired`; without `condition` → 400 `Listing.ConditionRequired`; 0 listings created / the listing unchanged. The same two cases on the price suggestion.
+- Draft: the seller gets 200 on `GET /listings/{id}` and on `/photos`; an Admin gets 200; another member → 404 `Listing.NotFound`; anonymous (no token) → 404 `Listing.NotFound` (not 401). An `Active` listing is 200 for anonymous.
+- Reorder: success (3 photos, reversed) → 200, `items` in the new order, then the `Position` of each photo read from the `DbContext`, and `GET .../photos` returns the same order; no token → 401; unknown listing → 404; draft of another member → 404; another member on an `Active` listing → 403 `Photo.NotSeller`; a missing id, an unknown id and a repeated id → each 400 `Photo.OrderMismatch` with the positions in the database unchanged; body `{}` on a listing with photos → 400 `Photo.OrderMismatch`.
+- Upload: two uploads in a row → `position` 0 then 1, in the response and in the database. Storage failure: replace only the photo storage service in the test host with one that throws → 503 `Photo.StorageFailed`, 0 photos in the database.
+- Migration: migrate a separate PostgreSQL database (never the shared one) to the migration before `AddPhotoPosition` (`IMigrator.MigrateAsync("<previous migration name>")`), insert photos with raw SQL in two listings (different `CreatedAt`, plus two photos with the same `CreatedAt`), migrate to `AddPhotoPosition`, and check that each listing is numbered 0, 1, 2… by `CreatedAt` then `Id`, and that the `CreatedAt` of every photo is unchanged.
+
+Rules for this feature:
+- Check the status code and the ProblemDetails code of every failure, and that the database did not change.
+- Read the success bodies into `GetListingPhotosResponse`; check the order by id, not only the count.
+- Never replace the `DbContext` in the test host; only the photo storage service for the storage failure.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
