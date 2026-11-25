@@ -1500,3 +1500,27 @@ Rules for this feature:
 - Read the success bodies into `GetListingPhotosResponse`; check the order by id, not only the count.
 - Never replace the `DbContext` in the test host; only the photo storage service for the storage failure.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Listing expiry (Diana)
+
+Endpoints and code (commit fa16910):
+- `POST /api/v1/listings/{id}/renew` (`RenewListingEndpoint`), needs a login, no body: 204 and the listing is `Active` again with `ExpiresAt` = now + `Listings:ExpiryDays` (30); 401 `Auth.Unauthorized` without a token; 404 `Listing.NotFound`; 403 `Listing.NotOwner` (another member, an Admin too); 400 `Listing.NotExpired` (any status but `Expired`). The listings cache is cleared on success.
+- `Infrastructure/Background/ListingExpiryService.cs`: expires every `Active` listing whose `ExpiresAt` has passed, writes a `ListingExpired` notification and sends an email. Registered only when `ListingExpiry:Enabled` is true; the factory keeps it `false`. Do not change the factory or `IntegrationTestBase`; for the job use a second copy of the API as in "Reservation expiry" (`Factory.WithWebHostBuilder`, `ListingExpiry:Enabled` true, a short `ListingExpiry:Interval`), polling the database with a timeout.
+- `Publish` sets `ExpiresAt` = now + 30 days. An `Expired` listing is not `Active`, so it is hidden from `GET /listings` (search), similar listings and the public profile of the seller. `Favorite.Create` refuses it and `GET /members/me/favorites` does not show or count it (it comes back after a renew). The moderation list of reported listings and `GET /members/me/listings` still show it with status `Expired`.
+- Migration `AddListingExpiry` (`20261125143000`): adds `Listings.ExpiresAt`; existing `Active` and `Reserved` listings get migration time + 30 days; `Draft`, `Sold` and `Hidden` stay `null`.
+
+Files: new `Listings/RenewListingTests.cs` (class `RenewListingTests : IntegrationTestBase`), `Listings/ListingExpiryJobTests.cs`, `Persistence/AddListingExpiryMigrationTests.cs`; add to `Listings/PublishListingTests.cs`, `Listings/GetListingsTests.cs`, `Listings/GetSimilarListingsTests.cs`, `Favorites/GetMyFavoritesTests.cs`, `Favorites/AddFavoriteTests.cs`, the public profile tests, the moderation tests and `Members/GetMyListingsTests.cs`. Seed with `SeedAsync` (listings built in the domain; for `Expired` call `Publish(past date)` then `Expire(now)`); log in with `AuthenticateAs`.
+
+Tests to add (status, ProblemDetails code or body, then the database state):
+- Renew: success: 204, status `Active`, `ExpiresAt` about now + 30 days (a tolerance of a few minutes), `Version` + 1, and the listing is back in `GET /listings`. No token: 401. Unknown id: 404 `Listing.NotFound`. Another member and an Admin: 403 `Listing.NotOwner`. `Draft`, `Active`, `Reserved`, `Sold`, `Hidden`: each 400 `Listing.NotExpired`. Every failure leaves the database unchanged. Renewing an expired listing of an inactive category: 400 with the category error.
+- Publish: `ExpiresAt` is set to about now + 30 days in the database.
+- An `Expired` listing is not in `GET /listings` (also with its category and text as filters), not in the similar listings of another listing, not in the public profile of the seller (count and items), not in `GET /members/me/favorites` (not counted either; after renew it is back); `POST` favorite on it is refused; it is shown in `GET /members/me/listings` with status `Expired` and in the moderation list of reported listings. `GET /listings/{id}` still returns it (200). A cached search is not stale after renew.
+- Job (second copy of the API, polling for at most 5 seconds): an `Active` listing past `ExpiresAt` becomes `Expired` with `Version` + 1, one `ListingExpired` notification exists for the seller (`GET /members/me/notifications` shows it); a listing not yet expired, a `Reserved` one and a `Draft` are unchanged. Leave the `await using` block before the assertions so no tick changes the data. The email sender is replaced by a recording one (only the email service, never the `DbContext`); a sender that throws does not undo the expiry.
+- Migration: migrate a separate PostgreSQL database (never the shared one) to the migration before `AddListingExpiry` (`IMigrator.MigrateAsync("<previous migration name>")`), insert one listing per status with raw SQL (`Draft`, `Active`, `Reserved`, `Sold`, `Hidden`), migrate to `AddListingExpiry`, and check that `Active` and `Reserved` have `ExpiresAt` between the start of the migration + 30 days and the end of it + 30 days, the others have `NULL`, and the other columns are unchanged. Also migrate down to the previous migration with an `Expired` listing: it becomes `Active`.
+
+Rules for this feature:
+- Compare `ExpiresAt` read from PostgreSQL with `ToMicroseconds()` (PostgreSQL keeps microseconds, .NET ticks are finer); never compare it with an exact `DateTimeOffset` taken from `UtcNow`.
+- Check the status code and the ProblemDetails code of every failure, and that the database did not change.
+- Never use a fixed `Task.Delay` as the assertion: poll the database with a timeout.
+- Never replace the `DbContext` in the test host; only the email service.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
