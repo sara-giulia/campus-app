@@ -2,8 +2,11 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import { Alert, Badge, Button, Card, Loading, PageHeader, TextField } from '../../app/ui'
+import { formatDate } from '../../i18n/format'
 import { BlockedMembersCard } from '../blocks/BlockedMembersCard'
 import './profile.css'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 
 interface MyProfile {
   id: string
@@ -17,9 +20,9 @@ interface MyProfile {
 function nameErrorMessage(error: ApiError): { field?: string; form?: string } {
   switch (error.code) {
     case 'Member.InvalidName':
-      return { field: 'Numele trebuie să aibă între 2 și 100 de caractere.' }
+      return { field: translate('profile.error.InvalidName') }
     case 'Network.Unreachable':
-      return { form: 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' }
+      return { form: translate('common.networkUnreachable') }
     default:
       return { form: error.message }
   }
@@ -34,28 +37,27 @@ function passwordErrorMessage(error: ApiError): {
 } {
   switch (error.code) {
     case 'Auth.InvalidCredentials':
-      return { current: 'Parola actuală nu este corectă.' }
+      return { current: translate('profile.error.currentWrong') }
     case 'Auth.WeakPassword':
-      return { next: 'Parola nouă trebuie să aibă cel puțin 8 caractere.' }
+      return { next: translate('profile.error.newWeak') }
     case 'Auth.PasswordsDoNotMatch':
-      return { confirm: 'Cele două parole nu coincid.' }
+      return { confirm: translate('auth.error.PasswordsDoNotMatch') }
     case 'Member.PasswordRequired':
-      return { next: 'Parola nouă este obligatorie.' }
+      return { next: translate('profile.error.newRequired') }
     case 'Network.Unreachable':
-      return { form: 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' }
+      return { form: translate('common.networkUnreachable') }
     default:
       return { form: error.message }
   }
 }
 
-const dateFormatter = new Intl.DateTimeFormat('ro-RO', { year: 'numeric', month: 'long', day: 'numeric' })
-
-function formatDate(iso: string): string {
+function formatMemberDate(iso: string): string {
   const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? iso : dateFormatter.format(date)
+  return Number.isNaN(date.getTime()) ? iso : formatDate(date, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 export function MyProfilePage() {
+  const t = useT()
   const [profile, setProfile] = useState<MyProfile | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -87,9 +89,9 @@ export function MyProfilePage() {
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
         if (err instanceof ApiError) {
-          setLoadError(err.code === 'Network.Unreachable' ? 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' : err.message)
+          setLoadError(err.code === 'Network.Unreachable' ? translate('common.networkUnreachable') : err.message)
         } else {
-          setLoadError('A apărut o eroare neașteptată.')
+          setLoadError(translate('common.unexpectedError'))
         }
       })
       .finally(() => setLoading(false))
@@ -113,7 +115,7 @@ export function MyProfilePage() {
         setNameFieldError(placed.field ?? null)
         setNameFormError(placed.form ?? null)
       } else {
-        setNameFormError('A apărut o eroare neașteptată.')
+        setNameFormError(translate('common.unexpectedError'))
       }
     } finally {
       setNameSaving(false)
@@ -142,59 +144,59 @@ export function MyProfilePage() {
         setPasswordErrors({ current: placed.current, next: placed.next, confirm: placed.confirm })
         setPasswordFormError(placed.form ?? null)
       } else {
-        setPasswordFormError('A apărut o eroare neașteptată.')
+        setPasswordFormError(translate('common.unexpectedError'))
       }
     } finally {
       setPasswordSaving(false)
     }
   }
 
-  if (loading) return <Loading text="Se încarcă profilul…" />
+  if (loading) return <Loading text={t('profile.loading')} />
 
   if (loadError || !profile) {
     return (
       <div className="profile">
-        <PageHeader eyebrow="Contul meu" title="Profilul meu" />
-        <Alert tone="error">{loadError ?? 'Profilul nu a putut fi încărcat.'}</Alert>
+        <PageHeader eyebrow={t('profile.eyebrow')} title={t('profile.title')} />
+        <Alert tone="error">{loadError ?? t('profile.loadFailed')}</Alert>
       </div>
     )
   }
 
-  const roleLabel = profile.role === 'Admin' ? 'Administrator' : 'Student'
+  const roleLabel = profile.role === 'Admin' ? t('profile.role.admin') : t('profile.role.student')
 
   return (
     <div className="profile">
-      <PageHeader eyebrow="Contul meu" title="Profilul meu" lead="Vezi și actualizează datele contului tău." />
+      <PageHeader eyebrow={t('profile.eyebrow')} title={t('profile.title')} lead={t('profile.lead')} />
 
       <Card className="profile__card">
-        <h2 className="profile__card-title">Datele contului</h2>
+        <h2 className="profile__card-title">{t('profile.details.title')}</h2>
         <dl className="profile__details">
           <div>
-            <dt>Nume</dt>
+            <dt>{t('profile.details.name')}</dt>
             <dd>{profile.name}</dd>
           </div>
           <div>
-            <dt>Email</dt>
+            <dt>{t('profile.details.email')}</dt>
             <dd>{profile.email}</dd>
           </div>
           <div>
-            <dt>Rol</dt>
+            <dt>{t('profile.details.role')}</dt>
             <dd>
               <Badge tone={profile.role === 'Admin' ? 'accent' : 'neutral'}>{roleLabel}</Badge>
             </dd>
           </div>
           <div>
-            <dt>Membru din</dt>
-            <dd>{formatDate(profile.createdAt)}</dd>
+            <dt>{t('profile.details.memberSince')}</dt>
+            <dd>{formatMemberDate(profile.createdAt)}</dd>
           </div>
         </dl>
       </Card>
 
       <Card className="profile__card">
-        <h2 className="profile__card-title">Schimbă numele</h2>
+        <h2 className="profile__card-title">{t('profile.name.title')}</h2>
         <form onSubmit={handleNameSubmit} className="profile__form" noValidate>
           <TextField
-            label="Nume"
+            label={t('profile.name.label')}
             value={name}
             onChange={(e) => {
               setName(e.target.value)
@@ -205,20 +207,20 @@ export function MyProfilePage() {
             required
           />
           {nameFormError && <Alert tone="error">{nameFormError}</Alert>}
-          {nameSuccess && <Alert tone="success">Numele a fost actualizat.</Alert>}
+          {nameSuccess && <Alert tone="success">{t('profile.name.updated')}</Alert>}
           <div className="profile__form-actions">
             <Button type="submit" loading={nameSaving} disabled={name.trim() === profile.name}>
-              {nameSaving ? 'Se salvează…' : 'Salvează numele'}
+              {nameSaving ? t('profile.saving') : t('profile.name.submit')}
             </Button>
           </div>
         </form>
       </Card>
 
       <Card className="profile__card">
-        <h2 className="profile__card-title">Schimbă parola</h2>
+        <h2 className="profile__card-title">{t('profile.password.title')}</h2>
         <form onSubmit={handlePasswordSubmit} className="profile__form" noValidate>
           <TextField
-            label="Parola actuală"
+            label={t('profile.password.current')}
             type="password"
             autoComplete="current-password"
             value={currentPassword}
@@ -227,17 +229,17 @@ export function MyProfilePage() {
             required
           />
           <TextField
-            label="Parola nouă"
+            label={t('profile.password.new')}
             type="password"
             autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             error={passwordErrors.next}
-            hint="Minim 8 caractere."
+            hint={t('auth.passwordHint')}
             required
           />
           <TextField
-            label="Confirmă parola nouă"
+            label={t('profile.password.confirm')}
             type="password"
             autoComplete="new-password"
             value={confirmNewPassword}
@@ -246,10 +248,10 @@ export function MyProfilePage() {
             required
           />
           {passwordFormError && <Alert tone="error">{passwordFormError}</Alert>}
-          {passwordSuccess && <Alert tone="success">Parola a fost schimbată.</Alert>}
+          {passwordSuccess && <Alert tone="success">{t('profile.password.changed')}</Alert>}
           <div className="profile__form-actions">
             <Button type="submit" loading={passwordSaving}>
-              {passwordSaving ? 'Se salvează…' : 'Schimbă parola'}
+              {passwordSaving ? t('profile.saving') : t('profile.password.submit')}
             </Button>
           </div>
         </form>

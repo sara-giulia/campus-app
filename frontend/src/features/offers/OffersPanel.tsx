@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { api } from '../../api/client'
 import { Alert, Button } from '../../app/ui'
+import { formatRon } from '../../i18n/format'
 import { OfferAmountForm } from './OfferAmountForm'
 import { OfferCard } from './OfferCard'
 import { offerErrorMessage } from './errors'
 import type { Offer } from './types'
 import './offers.css'
+import { useT } from '../../i18n/LanguageContext'
 
 interface Props {
   listingId: string
@@ -20,6 +22,7 @@ interface Props {
 // The price negotiation inside a conversation: the offers, the oldest first, and "Fă o ofertă" for
 // the buyer while no offer is waiting for an answer.
 export function OffersPanel({ listingId, buyerId, currentUserId, otherName, offers, onChanged }: Props) {
+  const t = useT()
   const [making, setMaking] = useState(false)
   const [busy, setBusy] = useState<{ offerId: string; action: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -59,7 +62,7 @@ export function OffersPanel({ listingId, buyerId, currentUserId, otherName, offe
   if (offers.length === 0 && !isBuyer) return null
 
   return (
-    <section className="offers" aria-label="Oferte de preț">
+    <section className="offers" aria-label={t('offers.panel.label')}>
       {offers.map((offer) => (
         <OfferCard
           key={offer.id}
@@ -76,21 +79,21 @@ export function OffersPanel({ listingId, buyerId, currentUserId, otherName, offe
 
       {accepted && (
         <Alert tone="success">
-          Oferta de {accepted.amount} RON a fost acceptată. Anunțul este rezervat la acest preț.
+          {t('offers.panel.accepted', { amount: formatRon(accepted.amount) })}
         </Alert>
       )}
 
       {isBuyer && !hasPending && !accepted && !making && (
         <div>
           <Button variant="secondary" size="sm" onClick={() => setMaking(true)}>
-            Fă o ofertă
+            {t('offers.panel.make')}
           </Button>
         </div>
       )}
       {isBuyer && making && (
         <OfferAmountForm
-          label="Cât oferi?"
-          submitText="Trimite oferta"
+          label={t('offers.panel.howMuch')}
+          submitText={t('offers.panel.submit')}
           onSubmit={makeOffer}
           onCancel={() => setMaking(false)}
         />

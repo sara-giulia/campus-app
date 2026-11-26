@@ -6,28 +6,17 @@ import { Alert, Badge, Button, EmptyState, Loading, PageHeader, Pagination } fro
 import { useNotifications } from './NotificationsContext'
 import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatAbsoluteDateTime, formatRelativeTime } from './relativeTime'
-import type { GetMyNotificationsResponse, NotificationItem } from './types'
+import type { GetMyNotificationsResponse } from './types'
 import { messageText } from './messageText'
 import './notifications.css'
+import { useT } from '../../i18n/LanguageContext'
 
 const PAGE_SIZE = 10
-
-// Short Romanian labels for the API's notification types, used as the eyebrow on each item.
-const TYPE_LABELS: Record<NotificationItem['type'], string> = {
-  ReservationCreated: 'Rezervare nouă',
-  ListingSold: 'Anunț vândut',
-  ReservationExpired: 'Rezervare expirată',
-  ListingExpired: 'Anunț expirat',
-  ReviewReceived: 'Recenzie nouă',
-  OfferReceived: 'Ofertă nouă',
-  OfferCountered: 'Contraofertă',
-  OfferAccepted: 'Ofertă acceptată',
-  OfferRejected: 'Ofertă refuzată',
-}
 
 // The newest-first notifications of the logged-in member, with mark-one-as-read,
 // mark-all-as-read, pagination and a link to the related listing when the API gave one.
 export function NotificationsPage() {
+  const t = useT()
   const { refresh: refreshBadge } = useNotifications()
 
   const [page, setPage] = useState(1)
@@ -87,21 +76,21 @@ export function NotificationsPage() {
 
   return (
     <div className="notifications">
-      <PageHeader eyebrow="Contul meu" title="Notificări" lead="Ce s-a întâmplat cu anunțurile și rezervările tale." />
+      <PageHeader eyebrow={t('notifications.eyebrow')} title={t('notifications.title')} lead={t('notifications.lead')} />
 
       {error && <Alert tone="error">{error}</Alert>}
-      {!error && data === null && <Loading text="Se încarcă notificările…" />}
+      {!error && data === null && <Loading text={t('notifications.loading')} />}
 
-      {data !== null && data.totalCount === 0 && <EmptyState title="Nu ai notificări.">Îți dăm de știre aici când cineva îți rezervă un anunț sau când o rezervare expiră.</EmptyState>}
+      {data !== null && data.totalCount === 0 && <EmptyState title={t('notifications.emptyTitle')}>{t('notifications.emptyText')}</EmptyState>}
 
       {data !== null && data.totalCount > 0 && (
         <>
           <div className="notifications__toolbar">
             <span className="notifications__count">
-              {data.unreadCount > 0 ? `${data.unreadCount} necitite` : 'Toate citite'}
+              {data.unreadCount > 0 ? t('notifications.unread', { count: data.unreadCount }) : t('notifications.allRead')}
             </span>
             <Button variant="secondary" size="sm" onClick={() => void markAll()} loading={markingAll} disabled={data.unreadCount === 0}>
-              Marchează toate ca citite
+              {t('notifications.markAll')}
             </Button>
           </div>
 
@@ -110,7 +99,7 @@ export function NotificationsPage() {
               <li key={n.id} className={n.readAt ? 'notif-item' : 'notif-item notif-item--unread'}>
                 <div className="notif-item__body">
                   <div className="notif-item__top">
-                    <Badge tone={n.readAt ? 'neutral' : 'accent'}>{TYPE_LABELS[n.type]}</Badge>
+                    <Badge tone={n.readAt ? 'neutral' : 'accent'}>{t(`notifications.type.${n.type}`)}</Badge>
                     <time className="notif-item__time" dateTime={n.createdAt} title={formatAbsoluteDateTime(n.createdAt)}>
                       {formatRelativeTime(n.createdAt)}
                     </time>
@@ -118,12 +107,12 @@ export function NotificationsPage() {
                   <p className="notif-item__message">{messageText(n)}</p>
                   {n.type === 'ListingExpired' ? (
                     <p className="notif-item__link">
-                      <Link to="/my/listings">Reînnoiește</Link>
+                      <Link to="/my/listings">{t('notifications.renew')}</Link>
                     </p>
                   ) : (
                     n.listingId && (
                       <p className="notif-item__link">
-                        <Link to={`/listings/${n.listingId}`}>Vezi anunțul</Link>
+                        <Link to={`/listings/${n.listingId}`}>{t('notifications.seeListing')}</Link>
                       </p>
                     )
                   )}
@@ -131,7 +120,7 @@ export function NotificationsPage() {
                 {!n.readAt && (
                   <div className="notif-item__actions">
                     <Button variant="ghost" size="sm" onClick={() => void markOne(n.id)} loading={markingId === n.id}>
-                      Marchează ca citită
+                      {t('notifications.markRead')}
                     </Button>
                   </div>
                 )}

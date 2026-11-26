@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Alert, Button } from '../../app/ui'
 import { checkPhotoFile, localEntry, MAX_PHOTOS, releasePreview, type PhotoEntry } from './photoEntries'
+import { useT } from '../../i18n/LanguageContext'
 
 interface PhotoPickerProps {
   photos: PhotoEntry[]
@@ -11,6 +12,7 @@ interface PhotoPickerProps {
 // Photos of a listing: pick files, see them at once (local previews), remove them and move them up or
 // down; the first one is the cover. Nothing is sent here: the page uploads them when the form is saved.
 export function PhotoPicker({ photos, onChange, disabled = false }: PhotoPickerProps) {
+  const t = useT()
   const [problems, setProblems] = useState<string[]>([])
 
   // The local previews are freed when the form goes away.
@@ -27,7 +29,7 @@ export function PhotoPicker({ photos, onChange, disabled = false }: PhotoPickerP
     const found: string[] = []
     for (const file of files) {
       if (next.length >= MAX_PHOTOS) {
-        found.push(`Un anunț poate avea cel mult ${MAX_PHOTOS} poze.`)
+        found.push(t('listings.photo.limit', { max: MAX_PHOTOS }))
         break
       }
       const problem = checkPhotoFile(file)
@@ -55,7 +57,7 @@ export function PhotoPicker({ photos, onChange, disabled = false }: PhotoPickerP
   return (
     <div className="photo-picker">
       <div className="photo-picker__head">
-        <span className="field__label">Poze</span>
+        <span className="field__label">{t('listings.photo.title')}</span>
         <span className="photo-picker__hint">
           {photos.length} / {MAX_PHOTOS}
         </span>
@@ -65,17 +67,17 @@ export function PhotoPicker({ photos, onChange, disabled = false }: PhotoPickerP
         <ul className="photo-picker__list">
           {photos.map((photo, index) => (
             <li key={photo.key} className={photo.error ? 'photo-picker__item photo-picker__item--failed' : 'photo-picker__item'}>
-              <img src={photo.previewUrl} alt={`Poza ${index + 1}`} />
-              {index === 0 && <span className="photo-picker__cover">Copertă</span>}
+              <img src={photo.previewUrl} alt={t('listings.photo.alt', { number: index + 1 })} />
+              {index === 0 && <span className="photo-picker__cover">{t('listings.photo.cover')}</span>}
               <div className="photo-picker__buttons">
-                <Button variant="ghost" size="sm" disabled={disabled || index === 0} aria-label={`Mută poza ${index + 1} mai sus`} onClick={() => move(index, -1)}>
+                <Button variant="ghost" size="sm" disabled={disabled || index === 0} aria-label={t('listings.photo.moveUp', { number: index + 1 })} onClick={() => move(index, -1)}>
                   ←
                 </Button>
-                <Button variant="ghost" size="sm" disabled={disabled || index === photos.length - 1} aria-label={`Mută poza ${index + 1} mai jos`} onClick={() => move(index, 1)}>
+                <Button variant="ghost" size="sm" disabled={disabled || index === photos.length - 1} aria-label={t('listings.photo.moveDown', { number: index + 1 })} onClick={() => move(index, 1)}>
                   →
                 </Button>
-                <Button variant="ghost" size="sm" disabled={disabled} aria-label={`Șterge poza ${index + 1}`} onClick={() => remove(index)}>
-                  Șterge
+                <Button variant="ghost" size="sm" disabled={disabled} aria-label={t('listings.photo.removeLabel', { number: index + 1 })} onClick={() => remove(index)}>
+                  {t('listings.photo.remove')}
                 </Button>
               </div>
               {photo.error && <span className="photo-picker__error">{photo.error}</span>}
@@ -86,11 +88,11 @@ export function PhotoPicker({ photos, onChange, disabled = false }: PhotoPickerP
 
       {photos.length < MAX_PHOTOS && (
         <label className={disabled ? 'btn btn--secondary btn--sm photo-picker__add is-disabled' : 'btn btn--secondary btn--sm photo-picker__add'}>
-          Adaugă poze
+          {t('listings.photo.add')}
           <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={add} disabled={disabled} hidden />
         </label>
       )}
-      <span className="photo-picker__hint">Maxim {MAX_PHOTOS} poze, JPEG, PNG sau WebP, cel mult 2 MB fiecare. Prima poză este coperta.</span>
+      <span className="photo-picker__hint">{t('listings.photo.hint', { max: MAX_PHOTOS })}</span>
       {problems.map((p) => (
         <Alert key={p} tone="error">
           {p}

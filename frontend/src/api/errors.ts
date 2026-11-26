@@ -1,3 +1,5 @@
+import { translate } from '../i18n/store'
+
 // The API answers errors in two shapes:
 // - handler errors: { code, message, type }            (400, 401 on login, 403, 404, 409)
 // - ProblemDetails: { title, detail, status, code, ... } (401/403 without a body, 404 route, 429, 500)
@@ -30,7 +32,7 @@ export async function toApiError(response: Response): Promise<ApiError> {
   }
 
   const code = body.code ?? `Http.${response.status}`
-  const message = body.message ?? body.detail ?? body.title ?? `Request failed with status ${response.status}.`
+  const message = body.message ?? body.detail ?? body.title ?? translate('common.requestFailed', { status: response.status })
   return new ApiError(response.status, code, message)
 }
 

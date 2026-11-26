@@ -34,7 +34,10 @@ interface CategoriesSnapshot {
 
 const FALLBACK: CategoryItem[] = CATEGORIES.map((key) => ({
   key,
-  displayName: CATEGORY_LABELS[key],
+  // A getter, so the fallback name follows the language.
+  get displayName() {
+    return CATEGORY_LABELS[key]
+  },
   description: null,
   isActive: true,
 }))

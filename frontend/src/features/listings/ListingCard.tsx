@@ -5,6 +5,7 @@ import { Badge } from '../../app/ui'
 import { formatPrice, photoSrc, type GetListingPhotosResponse, type PhotoItem } from './publicTypes'
 import { useCategories } from './categories'
 import { CONDITION_LABELS, type Category, type Condition, type SearchMatch } from './types'
+import { useT } from '../../i18n/LanguageContext'
 
 interface CardListing {
   id: string
@@ -18,6 +19,7 @@ interface CardListing {
 // A listing in a grid: the first photo (or a coloured tile with the category), title, price.
 // In the search results, a listing found only by meaning (its title does not have the words) is marked.
 export function ListingCard({ listing }: { listing: CardListing }) {
+  const t = useT()
   const { labelOf } = useCategories()
   const [cover, setCover] = useState<PhotoItem | null>(null)
 
@@ -34,7 +36,7 @@ export function ListingCard({ listing }: { listing: CardListing }) {
     <Link to={`/listings/${listing.id}`} className="lcard">
       <div className={`lcard__image lcard__image--${listing.category.toLowerCase()}`}>
         {cover ? <img src={photoSrc(cover.url)} alt="" loading="lazy" /> : <span>{labelOf(listing.category)}</span>}
-        {cover?.isGenerated && <span className="generated-badge">Imagine generată</span>}
+        {cover?.isGenerated && <span className="generated-badge">{t('listings.card.generated')}</span>}
       </div>
       <div className="lcard__body">
         <h3 className="lcard__title">{listing.title}</h3>
@@ -44,7 +46,7 @@ export function ListingCard({ listing }: { listing: CardListing }) {
         </p>
         {listing.match === 'Meaning' && (
           <p className="lcard__match">
-            <Badge tone="accent">Găsit după sens</Badge>
+            <Badge tone="accent">{t('listings.card.byMeaning')}</Badge>
           </p>
         )}
       </div>

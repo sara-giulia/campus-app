@@ -1,20 +1,22 @@
+import { translate } from '../../i18n/store'
 import type { NotificationItem } from './types'
 
 // The API writes the notification texts in English, always in the same shapes (see
 // ReserveListingHandler, ConfirmSaleHandler, ExpireReservationsHandler, ExpireListingsHandler, AddReviewHandler,
-// and Features/Offers/OfferNotifications.cs). The page shows them in Romanian; an unexpected text is shown as it came.
+// and Features/Offers/OfferNotifications.cs). The page shows them in the current language (the texts are in
+// the dictionaries, "notifications.msg.*"); an unexpected text is shown as it came.
 const PATTERNS: { type: NotificationItem['type']; match: RegExp; text: (m: RegExpMatchArray) => string }[] = [
-  { type: 'ReservationCreated', match: /^(.+) reserved (.+)$/, text: (m) => `${m[1]} a rezervat „${m[2]}”.` },
-  { type: 'ListingSold', match: /^(.+) was sold to you$/, text: (m) => `Vânzarea pentru „${m[1]}” a fost confirmată. Anunțul e al tău.` },
-  { type: 'ReservationExpired', match: /^Your reservation for (.+) expired$/, text: (m) => `Rezervarea ta pentru „${m[1]}” a expirat.` },
-  { type: 'ReviewReceived', match: /^(.+) rated (.+) ([1-5])\/5$/, text: (m) => `${m[1]} ți-a lăsat o recenzie de ${m[3]} ${m[3] === '1' ? 'stea' : 'stele'} pentru „${m[2]}”.` },
-  { type: 'ListingExpired', match: /^Your listing (.+) expired$/, text: (m) => `Anunțul tău „${m[1]}” a expirat și nu mai apare în căutare. Îl poți reînnoi din „Anunțurile mele”.` },
-  { type: 'OfferReceived', match: /^(.+?) offered ([\d.]+) lei for (.+)$/, text: (m) => `${m[1]} ți-a oferit ${m[2]} lei pentru „${m[3]}”.` },
-  { type: 'OfferCountered', match: /^(.+?) countered with ([\d.]+) lei for (.+)$/, text: (m) => `${m[1]} ți-a făcut o contraofertă de ${m[2]} lei pentru „${m[3]}”.` },
-  { type: 'OfferAccepted', match: /^You accepted the offer of ([\d.]+) lei for (.+)$/, text: (m) => `Ai acceptat oferta de ${m[1]} lei pentru „${m[2]}”. Anunțul e rezervat la acest preț.` },
-  { type: 'OfferAccepted', match: /^(.+?) accepted your offer of ([\d.]+) lei for (.+)$/, text: (m) => `${m[1]} ți-a acceptat oferta de ${m[2]} lei pentru „${m[3]}”. Anunțul e rezervat la acest preț.` },
-  { type: 'OfferRejected', match: /^The offer of ([\d.]+) lei for (.+) was closed: the listing was reserved by another buyer$/, text: (m) => `Oferta de ${m[1]} lei pentru „${m[2]}” s-a închis: anunțul a fost rezervat de alt cumpărător.` },
-  { type: 'OfferRejected', match: /^(.+?) rejected your offer of ([\d.]+) lei for (.+)$/, text: (m) => `${m[1]} ți-a refuzat oferta de ${m[2]} lei pentru „${m[3]}”.` },
+  { type: 'ReservationCreated', match: /^(.+) reserved (.+)$/, text: (m) => translate('notifications.msg.reservationCreated', { name: m[1], title: m[2] }) },
+  { type: 'ListingSold', match: /^(.+) was sold to you$/, text: (m) => translate('notifications.msg.listingSold', { title: m[1] }) },
+  { type: 'ReservationExpired', match: /^Your reservation for (.+) expired$/, text: (m) => translate('notifications.msg.reservationExpired', { title: m[1] }) },
+  { type: 'ReviewReceived', match: /^(.+) rated (.+) ([1-5])\/5$/, text: (m) => translate(m[3] === '1' ? 'notifications.msg.reviewOne' : 'notifications.msg.reviewMany', { name: m[1], title: m[2], stars: m[3] }) },
+  { type: 'ListingExpired', match: /^Your listing (.+) expired$/, text: (m) => translate('notifications.msg.listingExpired', { title: m[1] }) },
+  { type: 'OfferReceived', match: /^(.+?) offered ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerReceived', { name: m[1], amount: m[2], title: m[3] }) },
+  { type: 'OfferCountered', match: /^(.+?) countered with ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerCountered', { name: m[1], amount: m[2], title: m[3] }) },
+  { type: 'OfferAccepted', match: /^You accepted the offer of ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerAcceptedByYou', { amount: m[1], title: m[2] }) },
+  { type: 'OfferAccepted', match: /^(.+?) accepted your offer of ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerAcceptedByOther', { name: m[1], amount: m[2], title: m[3] }) },
+  { type: 'OfferRejected', match: /^The offer of ([\d.]+) lei for (.+) was closed: the listing was reserved by another buyer$/, text: (m) => translate('notifications.msg.offerClosed', { amount: m[1], title: m[2] }) },
+  { type: 'OfferRejected', match: /^(.+?) rejected your offer of ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerRejected', { name: m[1], amount: m[2], title: m[3] }) },
 ]
 
 export function messageText(notification: NotificationItem): string {

@@ -10,12 +10,14 @@ import { formatDateTime } from '../listings/publicTypes'
 import { OffersPanel } from '../offers/OffersPanel'
 import type { ConversationDetail } from './types'
 import './messages.css'
+import { useT } from '../../i18n/LanguageContext'
 
 // New messages from the other member arrive on the live stream (features/live) and the page loads
 // the conversation again at once. Only while the stream is not connected does it ask every few seconds.
 const REFRESH_MS = 5000
 
 export function ConversationPage() {
+  const t = useT()
   const { id = '' } = useParams()
   const { user } = useAuth()
   const [conversation, setConversation] = useState<ConversationDetail | null>(null)
@@ -85,11 +87,11 @@ export function ConversationPage() {
     return (
       <div className="chat">
         <Alert tone="error">{loadError}</Alert>
-        <Link to="/messages">← Toate mesajele</Link>
+        <Link to="/messages">{t('messages.allMessages')}</Link>
       </div>
     )
   }
-  if (!conversation) return <Loading text="Se încarcă conversația…" />
+  if (!conversation) return <Loading text={t('messages.loadingConversation')} />
 
   const other = user?.id === conversation.sellerId ? conversation.buyerName : conversation.sellerName
   const otherId = user?.id === conversation.sellerId ? conversation.buyerId : conversation.sellerId
@@ -98,7 +100,7 @@ export function ConversationPage() {
     <div className="chat">
       <div className="chat__head">
         <Link to="/messages" className="chat__back">
-          ← Mesaje
+          {t('messages.back')}
         </Link>
         <div>
           <h1 className="chat__title">{other}</h1>
@@ -133,7 +135,7 @@ export function ConversationPage() {
       <form className="chat__form" onSubmit={send}>
         <textarea
           className="chat__input"
-          placeholder="Scrie un mesaj…"
+          placeholder={t('messages.placeholder')}
           maxLength={1000}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -145,7 +147,7 @@ export function ConversationPage() {
           }}
         />
         <Button type="submit" loading={sending} disabled={text.trim() === ''}>
-          Trimite
+          {t('messages.send')}
         </Button>
       </form>
       {sendError && <Alert tone="error">{sendError}</Alert>}
