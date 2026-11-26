@@ -562,22 +562,6 @@ Rules for this feature:
 - Every failure test checks `ErrorType`, the exact `Error.Code` and the exact `Error.Message`. Build the messages from `Review.MinRating`, `Review.MaxRating` and `Review.MaxCommentLength`, the same way the domain does. The message of `Review.Duplicate` contains the generated Id: use `.Match("A review with id '*' already exists.")`, as for `Favorite.Duplicate`.
 - Never use real time: `Now` is fixed.
 
-## Feature: Review notification and reviewed flag (Diana)
-
-Production code (read it before generating): `Features/Reviews/AddReview/AddReviewHandler.cs` (new `INotificationRepository` parameter), `Domain/Notifications/NotificationType.cs` (new `ReviewReceived`), `Domain/Reviews/IReviewRepository.cs` (new `GetReviewedListingIdsAsync(reviewerId)`), `Features/Members/GetMyReservations/` (new `IReviewRepository` parameter, new last field `Reviewed` in `MyReservationItem`).
-
-Fakes: `FakeReviewRepository` already has `GetReviewedListingIdsAsync` (the listing ids of the reviews of that reviewer); `FakeNotificationRepository` already exists. Pass both to the handlers.
-
-Tests to add:
-- `AddReviewHandler`, success: exactly one notification added, with `Type` `ReviewReceived`, recipient = the listing's `SellerId` (not the reviewer), `ListingId` = the listing id, `CreatedAt` = the review's `CreatedAt`, unread, and the text `"{reviewer name} rated {listing title} {rating}/5"` built from the seeded member and listing (for example `"Ana rated Calculus book 4/5"`). The review and the notification are saved with one commit.
-- `AddReviewHandler`, every failure (`Listing.NotFound`, `Member.NotFound`, `Review.SaleNotCompleted`, `Review.InvalidRating`, `Review.CommentTooLong`, `Review.NotBuyer`, `Review.AlreadyExists`): no notification added, no review added, no commit.
-- `GetMyReservationsHandler`: a completed (sold) reservation of the member without a review → `Reviewed` false; after seeding `Review.Create(...)` for that listing in the fake → `Reviewed` true; a reservation of the member on a listing that is only reserved, expired or cancelled → `Reviewed` false; a review written by another member for a listing does not set `Reviewed` for this member; a reviewed and a not reviewed reservation of the member in the same response get the right flag each. Other members' reservations are still not returned.
-
-Rules for this feature:
-- Use fixed ids and a fixed `DateTimeOffset`; never real time.
-- Every failure test asserts `ErrorType`, the exact `Error.Code` and `Error.Message`, and that nothing was changed.
-- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
-
 ## Feature: Condition filter (Carina)
 
 Production code: `Features/Listings/GetListings/GetListingsHandler.cs`, the new optional `Condition` filter of `GetListingsQuery`. `Condition` is the **last** parameter of `GetListingsQuery` (after `PageSize`), so existing positional calls keep their meaning; set it with a named argument (`Condition: Condition.Good`).
@@ -1166,6 +1150,35 @@ Rules for this feature:
 - Query handlers (`GetListingById`, `GetListingPhotos`) never commit.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Search by meaning (Anca)
+
+Production code (read it before generating):
+- `Common/Search/SearchText.cs`: `Fold(text)` → lower case (invariant) and without diacritics: `"Căști"` → `"casti"`, `"ȘTIINȚIFIC"` → `"stiintific"`; both forms of ș/ț (comma `ș` U+0219 and cedilla `ş` U+015F) become `s`/`t`; other characters stay (`"Laptop-15"` → `"laptop-15"`).
+- `Common/Search/SemanticMatchSelection.cs`: `SemanticSelectionRules(MinSimilarity, MaxDistanceFromBest, MaxResults)`, `Default` = `(0.36, 0.15, 10)`. `Select(scored, rules)`: drops the matches under `MinSimilarity` (equal is kept), orders by `Similarity` descending then `ListingId`, keeps only the ones with `Similarity >= best - MaxDistanceFromBest` (equal is kept), then at most `MaxResults`. Nothing left → empty list.
+- `Features/Listings/GetListings/ListingSearch.cs`: `SearchMatch { Text, Meaning }`; `MinLengthForMeaning` = 3. `Rank(candidates, search, meaning)`: first the candidates whose folded title contains the folded, trimmed search (newest `CreatedAt` first, then `Id`) as `Text`; then the `meaning` matches in their given order as `Meaning`, skipping the ones already found by text and the ids that are not among the candidates.
+- `Features/Listings/GetListings/GetListingsHandler.cs` (changed): constructor `(IListingRepository, ISemanticSearch)`. `GetListingsQuery.AllowedSorts` is now `relevance, newest, price_asc, price_desc`; an unknown sort → `Listings.InvalidSort` with the message `Sort must be relevance, newest, price_asc or price_desc.`. Without a search (null, empty or spaces) nothing changes: every filtered Active listing, newest first, `Match` null, and `ISemanticSearch` is not called. With a search (trimmed): `ISemanticSearch.FindAsync(trimmed search)` is called only when the trimmed search has at least 3 characters, then `ListingSearch.Rank` on the filtered listings (status Active, category, condition, price range); sort null or `relevance` keeps that order, `newest` orders all of them by `CreatedAt` desc, `price_asc`/`price_desc` by price (ties by `Id`). `TotalCount` counts text and meaning matches; paging comes after the sort. Each item has `Match` (`Text`/`Meaning`), null without a search.
+- `Features/Listings/GetListings/GetListingsResponse.cs`: `GetListingsItem` has a new last field `Match` (`SearchMatch?`, default null); `From(listing, match = null)`.
+- `Infrastructure/Search/ListingEmbedding.cs`: `Create(listingId, embedding, model, textHash, now)` and `Replace(embedding, model, textHash, now)` set every field (`Embedding` is a `Pgvector.Vector` of the array); `HashOf(title, description)` = lowercase hex SHA-256 of `"{title}\n{description}"` (UTF-8), 64 characters, the same for the same text, different when the title or the description changes, and `null` description is the same as `""`.
+- `Infrastructure/Search/QueryEmbeddingCache.cs`: `GetOrAdd(query, embed)`: the key is the query in lower case with the spaces collapsed (`"  Laptop   Dell "` → `"laptop dell"`); `embed` is called with the key, only the first time for a key; another key calls it again.
+- `Infrastructure/Search/SemanticSearchOptions.cs`: defaults `Enabled` true, `ModelPath` `ml-models/semantic-search`, `Threads` 1, the three numbers of `SemanticSelectionRules.Default`; `Rules` builds the record from the three properties; `FullModelPath` is `Path.Combine(AppContext.BaseDirectory, ModelPath)` (an absolute `ModelPath` stays as it is).
+
+Files: `Common/Search/SearchTextTests.cs` (new), `Common/Search/SemanticMatchSelectionTests.cs` (new), `Features/Listings/GetListings/ListingSearchTests.cs` (new), `Features/Listings/GetListings/GetListingsHandlerTests.cs` (existing: pass the new fake to every `new GetListingsHandler(...)` and update the expected `InvalidSort` message; keep every other assertion; add the new tests in the same class), `Infrastructure/Search/ListingEmbeddingTests.cs`, `Infrastructure/Search/QueryEmbeddingCacheTests.cs`, `Infrastructure/Search/SemanticSearchOptionsTests.cs` (new).
+
+Fakes: add `Fakes/FakeSemanticSearch.cs` implementing `ISemanticSearch`: returns the `Matches` list set by the test (empty by default) and records every query it got (`Queries`). Reuse `FakeListingRepository`.
+
+Tests to add:
+- `Fold`: the examples above; an empty string stays empty.
+- `Select`: under the minimum dropped, exactly the minimum kept; order by similarity then id (two equal similarities); the distance from the best (a match exactly `best - MaxDistanceFromBest` kept, one just below dropped); `MaxResults` cuts after ordering; all under the minimum → empty; empty input → empty.
+- `Rank`: a title match with different case and diacritics (`"Casti wireless"` for search `"Căști"`) is `Text`; text matches newest first; a meaning match that is also a text match appears once, as `Text`; a meaning match whose id is not a candidate is dropped; meaning matches keep the order given; no match at all → empty.
+- `GetListingsHandler`: a search of 2 characters does not call the fake (`Queries` empty) but still finds by title; a search of 3+ characters calls it once with the trimmed search; a listing returned by the fake comes after the title matches with `Match` `Meaning`; a meaning match that is `Draft`, `Hidden`, `Reserved` or outside the category/condition/price filters is not returned; `sort=relevance` and no sort give the same order; `sort=newest`, `price_asc`, `price_desc` reorder text and meaning matches together; `TotalCount` and paging count both kinds; without a search the fake is not called and `Match` is null on every item.
+- `ListingEmbedding`, `QueryEmbeddingCache`, `SemanticSearchOptions`: the behaviour listed above.
+- `AddCampusMarketSearch` (`Infrastructure/Search/SearchServiceCollectionExtensionsTests.cs`, on a plain `ServiceCollection` with an in-memory `IConfiguration`): `SemanticSearch:Enabled` true and `ModelPath` a temp folder with three **empty** files `model_q4.onnx`, `model_q4.onnx_data`, `tokenizer.model` → one `ITextEmbedder` descriptor, Singleton, `ImplementationType` `GemmaTextEmbedder` (never resolve it); one file missing → no `ITextEmbedder`; `Enabled` false with the three files → no `ITextEmbedder`; without an embedder the scoped `ISemanticSearch` resolves to `NoSemanticSearch` and finds nothing; `ListingIndexSignal` and `QueryEmbeddingCache` are singletons; one `IHostedService` is `ListingIndexService`. This is the only test that may create files, only under `Path.GetTempPath()`, deleted at the end.
+
+Rules for this feature:
+- Use fixed ids and a fixed `DateTimeOffset`; never real time; never load the real model or touch the disk except the temp folder above (`GemmaTextEmbedder`, `ListingIndexer`, `SemanticListingSearch` and `ListingIndexService` are covered by the integration tests and by `ML.Tests`).
+- Then run the tests with coverage as this skill says: `SearchText.cs`, `SemanticMatchSelection.cs`, `ListingSearch.cs`, `GetListingsHandler.cs`, `ListingEmbedding.cs`, `QueryEmbeddingCache.cs`, `SemanticSearchOptions.cs` and `SearchServiceCollectionExtensions.cs` are at 100% for lines and branches (only the `SemanticListingSearch` branch of the `ISemanticSearch` factory may stay uncovered here: it needs the database and is covered by the integration tests).
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Listing expiry (Diana)
 
 Production code (read it before generating; commit fa16910):
@@ -1185,6 +1198,22 @@ Tests to add:
 Rules for this feature:
 - Use fixed ids (`SellerId`, `OtherMemberId`, `AdminId`) and a fixed `DateTimeOffset`; never real time.
 - Every failure test asserts `ErrorType`, the exact `Error.Code` and `Error.Message`, and that the repositories and the unit of work were not changed.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Review notification and reviewed flag (Diana)
+
+Production code (read it before generating): `Features/Reviews/AddReview/AddReviewHandler.cs` (new `INotificationRepository` parameter), `Domain/Notifications/NotificationType.cs` (new `ReviewReceived`), `Domain/Reviews/IReviewRepository.cs` (new `GetReviewedListingIdsAsync(reviewerId)`), `Features/Members/GetMyReservations/` (new `IReviewRepository` parameter, new last field `Reviewed` in `MyReservationItem`).
+
+Fakes: `FakeReviewRepository` already has `GetReviewedListingIdsAsync` (the listing ids of the reviews of that reviewer); `FakeNotificationRepository` already exists. Pass both to the handlers.
+
+Tests to add:
+- `AddReviewHandler`, success: exactly one notification added, with `Type` `ReviewReceived`, recipient = the listing's `SellerId` (not the reviewer), `ListingId` = the listing id, `CreatedAt` = the review's `CreatedAt`, unread, and the text `"{reviewer name} rated {listing title} {rating}/5"` built from the seeded member and listing (for example `"Ana rated Calculus book 4/5"`). The review and the notification are saved with one commit.
+- `AddReviewHandler`, every failure (`Listing.NotFound`, `Member.NotFound`, `Review.SaleNotCompleted`, `Review.InvalidRating`, `Review.CommentTooLong`, `Review.NotBuyer`, `Review.AlreadyExists`): no notification added, no review added, no commit.
+- `GetMyReservationsHandler`: a completed (sold) reservation of the member without a review → `Reviewed` false; after seeding `Review.Create(...)` for that listing in the fake → `Reviewed` true; a reservation of the member on a listing that is only reserved, expired or cancelled → `Reviewed` false; a review written by another member for a listing does not set `Reviewed` for this member; a reviewed and a not reviewed reservation of the member in the same response get the right flag each. Other members' reservations are still not returned.
+
+Rules for this feature:
+- Use fixed ids and a fixed `DateTimeOffset`; never real time.
+- Every failure test asserts `ErrorType`, the exact `Error.Code` and `Error.Message`, and that nothing was changed.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
 ## Feature: Price offers (Diana)

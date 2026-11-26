@@ -33,7 +33,20 @@ generate, dataset v2: 5000 de rânduri, 10% spam, seed 2026) și sunt salvate ca
   descriere” a fost aleasă pe validare. Fișa:
   [docs/ml/similar.md](docs/ml/similar.md).
 
-Alte modele în repo: nu există; `ml/models/` conține doar cele patru `.zip`.
+- **Căutare după sens** (EmbeddingGemma-300m, ONNX, **preantrenat**, nu e
+  antrenat de noi) — transformă titlul și descrierea fiecărui anunț și textul
+  căutat în vectori de 768 de numere, salvați în PostgreSQL cu pgvector;
+  `GET /listings?search=` dă întâi anunțurile cu cuvintele în titlu, apoi pe cele
+  apropiate ca sens (similaritate ≥ 0.36, cel mult 0.15 sub cel mai bun, maxim 10).
+  Rulat local cu ONNX Runtime și `Microsoft.ML.Tokenizers`. Ales dintre cinci
+  modele multilingve (cel mai bun la Hit@3 și cel mai mic consum de memorie, ~190 MB).
+  Pe căutări scrise cu alte cuvinte decât titlurile: Hit@3 0.70 pe seed-ul demo și
+  0.73 pe 966 de anunțuri din `listings.csv`, față de 0.04 cu căutarea veche pe
+  cuvinte. Nu e în git (~200 MB): `ml/scripts/download-search-model.sh`. Fișa:
+  [docs/ml/semantic-search.md](docs/ml/semantic-search.md).
+
+Alte modele în repo: nu există; `ml/models/` conține cele patru `.zip`, iar
+`ml/models/semantic-search/` (ignorat de git) modelul descărcat pentru căutare.
 
 ## Metrici
 
@@ -132,6 +145,12 @@ sau F1 scad cu mai mult de 0.02 sau dacă MAE crește cu mai mult de 5%.
 - **Anunțuri similare:** compară cuvinte, nu sens; ignoră prețul și starea; cam o
   sugestie din trei e din altă categorie; calculează vectorii pentru toate anunțurile
   active la fiecare cerere. Nu are evaluare pe setul extern.
+- **Căutare după sens:** „calculator portabil” găsește calculatorul științific, nu
+  laptopurile (în română „calculator” înseamnă ambele; „computer portabil” le
+  găsește); câteva obiecte de casă rămân sub prag („veioză”, „vase de gătit”); o
+  căutare pentru ceva ce nu se vinde poate arăta 2–4 anunțuri apropiate, marcate
+  „Găsit după sens”. Pragurile au fost alese pe aceleași două seturi pe care e
+  raportat (nu există un al treilea set), deci cifrele sunt puțin optimiste.
 
 ## De ce spam avea 1.0 pe test și ce s-a schimbat
 

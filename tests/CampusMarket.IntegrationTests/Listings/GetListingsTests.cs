@@ -366,7 +366,7 @@ public sealed class GetListingsTests : IntegrationTestBase
         var error = await response.Content.ReadFromJsonAsync<Error>(Json);
         error!.Code.Should().Be("Listings.InvalidSort");
         error.Type.Should().Be(ErrorType.Validation);
-        error.Message.Should().Be("Sort must be newest, price_asc or price_desc.");
+        error.Message.Should().Be("Sort must be relevance, newest, price_asc or price_desc.");
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(1);

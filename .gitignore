@@ -443,3 +443,6 @@ src/CampusMarket.Api/photos/
 
 # Real sales exported from /api/v1/admin/ml/price-feedback (evaluation only, never committed)
 ml/data/feedback.csv
+
+# The search-by-meaning model (~200 MB): downloaded by ml/scripts/download-search-model.sh, never committed
+ml/models/semantic-search/
