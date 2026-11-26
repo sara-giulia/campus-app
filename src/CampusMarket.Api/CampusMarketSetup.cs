@@ -29,6 +29,7 @@ using CampusMarket.Api.Features.Photos;
 using CampusMarket.Api.Features.Conversations;
 using CampusMarket.Api.Features.Favorites;
 using CampusMarket.Api.Domain.Reports;
+using CampusMarket.Api.Domain.TrainingExamples;
 using CampusMarket.Api.Features.Moderation;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Reviews;
@@ -79,6 +80,7 @@ public static class CampusMarketSetup
         services.AddScoped<IReportRepository, EfReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
+        services.AddScoped<ITrainingExampleRepository, EfTrainingExampleRepository>();
         services.AddScoped<IConversationRepository, EfConversationRepository>();
         services.AddScoped<IPasswordResetTokenRepository, EfPasswordResetTokenRepository>();
         services.AddScoped<IPhotoRepository, EfPhotoRepository>();

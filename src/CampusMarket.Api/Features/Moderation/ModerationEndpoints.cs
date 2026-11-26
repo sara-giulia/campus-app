@@ -1,3 +1,4 @@
+using CampusMarket.Api.Features.Moderation.DismissReports;
 using CampusMarket.Api.Features.Moderation.GetReportedListings;
 using CampusMarket.Api.Features.Moderation.HideListing;
 using CampusMarket.Api.Features.Moderation.ReportListing;
@@ -15,6 +16,7 @@ public static class ModerationEndpoints
         var moderation = app.MapGroup("/moderation/listings");
         GetReportedListingsEndpoint.Map(moderation);
         HideListingEndpoint.Map(moderation);
+        DismissReportsEndpoint.Map(moderation);
 
         return app;
     }

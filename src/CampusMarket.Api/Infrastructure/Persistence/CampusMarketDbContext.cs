@@ -7,6 +7,7 @@ using CampusMarket.Api.Domain.Photos;
 using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Domain.Reviews;
+using CampusMarket.Api.Domain.TrainingExamples;
 using CampusMarket.Api.Infrastructure.Search;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,6 +32,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ListingCategory> Categories => Set<ListingCategory>();
     public DbSet<ListingEmbedding> ListingEmbeddings => Set<ListingEmbedding>();
+    public DbSet<TrainingExample> TrainingExamples => Set<TrainingExample>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -18,8 +18,12 @@ public sealed class Report
     public string Reason { get; private set; } = string.Empty;
     public double? SpamProbability { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    // Every report starts Pending; an Admin confirms it (hides the listing) or dismisses it, once.
+    public ReportResolution Resolution { get; private set; } = ReportResolution.Pending;
+    public DateTimeOffset? ResolvedAt { get; private set; }
 
     public bool IsAutomatic => ReporterId is null;
+    public bool IsPending => Resolution == ReportResolution.Pending;
 
     private Report() { }
 
@@ -63,4 +67,19 @@ public sealed class Report
         SpamProbability = spamProbability,
         CreatedAt = createdAt
     };
+
+    public Result<Report> Confirm(DateTimeOffset resolvedAt) => Resolve(ReportResolution.Confirmed, resolvedAt);
+
+    public Result<Report> Dismiss(DateTimeOffset resolvedAt) => Resolve(ReportResolution.Dismissed, resolvedAt);
+
+    private Result<Report> Resolve(ReportResolution resolution, DateTimeOffset resolvedAt)
+    {
+        if (!IsPending)
+            return Result<Report>.Failure(
+                Error.Validation("Report.AlreadyResolved", "The report has already been resolved."));
+
+        Resolution = resolution;
+        ResolvedAt = resolvedAt;
+        return this;
+    }
 }
