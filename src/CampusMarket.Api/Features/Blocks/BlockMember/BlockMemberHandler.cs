@@ -19,9 +19,10 @@ public sealed class BlockMemberHandler(
 {
     public async Task<Result<Guid>> HandleAsync(BlockMemberCommand command, CancellationToken ct)
     {
-        if (command.BlockerId == command.BlockedId)
-            return Result<Guid>.Failure(
-                Error.Validation("Block.Self", "You cannot block yourself."));
+        var now = timeProvider.GetUtcNow();
+        var block = MemberBlock.Create(command.BlockerId, command.BlockedId, now);
+        if (block.IsFailure)
+            return Result<Guid>.Failure(block.Error);
 
         if (await members.GetByIdAsync(command.BlockedId, ct) is null)
             return Result<Guid>.Failure(
@@ -29,11 +30,6 @@ public sealed class BlockMemberHandler(
 
         if (await blocks.IsBlockedAsync(command.BlockerId, command.BlockedId, ct))
             return command.BlockedId;
-
-        var now = timeProvider.GetUtcNow();
-        var block = MemberBlock.Create(command.BlockerId, command.BlockedId, now);
-        if (block.IsFailure)
-            return Result<Guid>.Failure(block.Error);
 
         blocks.Add(block.Value);
 
