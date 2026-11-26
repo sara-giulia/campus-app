@@ -16,6 +16,10 @@ public sealed class Conversation
     public Guid BuyerId { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset LastMessageAt { get; private set; }
+    // The Number of the last message each side has seen; the messages of the other side after it are
+    // unread. 0 means nothing seen yet. Writing a message also counts as having read the conversation.
+    public int BuyerLastReadNumber { get; private set; }
+    public int SellerLastReadNumber { get; private set; }
     public IReadOnlyList<Message> Messages => _messages.AsReadOnly();
 
     private Conversation() { }
@@ -59,6 +63,36 @@ public sealed class Conversation
     // The other member of the conversation, seen by one of the two.
     public Guid OtherParticipant(Guid memberId) => memberId == SellerId ? BuyerId : SellerId;
 
+    // The messages of the other side that the member has not seen yet.
+    public int UnreadCountFor(Guid memberId)
+    {
+        var lastRead = LastReadNumberOf(memberId);
+        return _messages.Count(m => m.SenderId != memberId && m.Number > lastRead);
+    }
+
+    // The member opened the conversation: everything in it is read. Returns how many messages were unread.
+    public Result<int> MarkReadBy(Guid memberId)
+    {
+        if (!IsParticipant(memberId))
+            return Result<int>.Failure(
+                Error.Forbidden("Conversation.NotParticipant", "Only the buyer and the seller can read this conversation."));
+
+        var unread = UnreadCountFor(memberId);
+        if (unread > 0)
+            SetLastReadNumber(memberId, _messages.Max(m => m.Number));
+        return unread;
+    }
+
+    private int LastReadNumberOf(Guid memberId) => memberId == SellerId ? SellerLastReadNumber : BuyerLastReadNumber;
+
+    private void SetLastReadNumber(Guid memberId, int number)
+    {
+        if (memberId == SellerId)
+            SellerLastReadNumber = number;
+        else
+            BuyerLastReadNumber = number;
+    }
+
     public Result<Message> Send(Guid senderId, string? text, DateTimeOffset now)
     {
         if (!IsParticipant(senderId))
@@ -78,6 +112,8 @@ public sealed class Conversation
         var message = new Message(Id, _messages.Count + 1, senderId, trimmed, now);
         _messages.Add(message);
         LastMessageAt = now;
+        // The sender answers after what is already there, so they have seen it.
+        SetLastReadNumber(senderId, message.Number);
         return message;
     }
 }

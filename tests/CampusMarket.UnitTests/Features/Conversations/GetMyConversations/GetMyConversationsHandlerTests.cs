@@ -244,4 +244,56 @@ public class GetMyConversationsHandlerTests
         listings.Items.Should().HaveCount(2);
         members.Items.Should().HaveCount(3);
     }
+
+    [Fact]
+    public async Task Given_TwoBuyerMessages_When_SellerLists_Then_UnreadCountIsTwo()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var listing = BuildActiveListing(seller.Id, "Algebra book");
+        var conversation = Conversation.Start(buyer.Id, listing, "Mai e disponibil?", Now).Value;
+        conversation.Send(buyer.Id, "Il iau maine", Now.AddMinutes(5));
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(conversation);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        var handler = BuildHandler(conversations, listings, members);
+
+        var result = await handler.HandleAsync(new GetMyConversationsQuery(seller.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle();
+        result.Value.Items[0].UnreadCount.Should().Be(2);
+        conversation.SellerLastReadNumber.Should().Be(0);
+        conversation.BuyerLastReadNumber.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_TwoBuyerMessages_When_BuyerLists_Then_UnreadCountIsZero()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var listing = BuildActiveListing(seller.Id, "Algebra book");
+        var conversation = Conversation.Start(buyer.Id, listing, "Mai e disponibil?", Now).Value;
+        conversation.Send(buyer.Id, "Il iau maine", Now.AddMinutes(5));
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(conversation);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        var handler = BuildHandler(conversations, listings, members);
+
+        var result = await handler.HandleAsync(new GetMyConversationsQuery(buyer.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle();
+        result.Value.Items[0].UnreadCount.Should().Be(0);
+        conversation.SellerLastReadNumber.Should().Be(0);
+        conversation.BuyerLastReadNumber.Should().Be(2);
+    }
 }

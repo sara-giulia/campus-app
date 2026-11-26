@@ -47,7 +47,7 @@ public sealed class GetConversationTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var body = await response.Content.ReadFromJsonAsync<GetConversationResponse>(Json);
-        body.Should().BeEquivalentTo(ExpectedResponse(), options => options.WithStrictOrdering());
+        body.Should().BeEquivalentTo(ExpectedResponse(unreadCount: 0), options => options.WithStrictOrdering());
 
         await AssertDatabaseUnchangedAsync();
     }
@@ -66,7 +66,7 @@ public sealed class GetConversationTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var body = await response.Content.ReadFromJsonAsync<GetConversationResponse>(Json);
-        body.Should().BeEquivalentTo(ExpectedResponse(), options => options.WithStrictOrdering());
+        body.Should().BeEquivalentTo(ExpectedResponse(unreadCount: 1), options => options.WithStrictOrdering());
 
         await AssertDatabaseUnchangedAsync();
     }
@@ -134,8 +134,9 @@ public sealed class GetConversationTests : IntegrationTestBase
         await AssertDatabaseUnchangedAsync();
     }
 
-    // The seeded conversation as the API should return it, the messages in number order.
-    private GetConversationResponse ExpectedResponse() => new(
+    // The seeded conversation as the API should return it, the messages in number order. The buyer wrote
+    // the last message, so the buyer has 0 unread and the seller 1 (the buyer's third message).
+    private GetConversationResponse ExpectedResponse(int unreadCount) => new(
         _conversation.Id,
         _listing.Id,
         "Manual POO",
@@ -150,7 +151,8 @@ public sealed class GetConversationTests : IntegrationTestBase
             new ConversationMessage(_conversation.Messages[2].Id, 3, _buyer.Id, "Pot sa vin maine?", CreatedAt.AddMinutes(10), false)
         ],
         // No offers were made in this conversation.
-        []);
+        [],
+        unreadCount);
 
     // Still one conversation with its three messages, and the last message time did not move.
     private async Task AssertDatabaseUnchangedAsync()

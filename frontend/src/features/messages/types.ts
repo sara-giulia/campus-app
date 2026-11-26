@@ -14,6 +14,8 @@ export interface MyConversationItem {
   lastMessageIsSuspicious: boolean
   lastMessageAt: string
   messageCount: number
+  // The messages of the other member I have not read yet (0 = read).
+  unreadCount: number
 }
 
 export interface GetMyConversationsResponse {
@@ -43,4 +45,12 @@ export interface ConversationDetail {
   messages: ConversationMessage[]
   // The price offers between the two members on this listing, the oldest first.
   offers: Offer[]
+  // The messages of the other member not read yet; the page marks them read when it is above 0.
+  unreadCount: number
+}
+
+// GET /members/me/conversations/unread: for the red badge on "Mesaje".
+export interface UnreadMessages {
+  unreadMessages: number
+  unreadConversations: number
 }

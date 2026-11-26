@@ -3,7 +3,8 @@ import { openStream } from '../../api/client'
 // One event from GET /api/v1/members/me/events (Server-Sent Events). It only says that something
 // new is there; the page loads it again through the normal endpoints.
 export interface LiveEvent {
-  type: 'notification' | 'message' | 'ping'
+  // 'read': I read a conversation, maybe in another tab (the unread count went down).
+  type: 'notification' | 'message' | 'read' | 'ping'
   conversationId: string | null
 }
 

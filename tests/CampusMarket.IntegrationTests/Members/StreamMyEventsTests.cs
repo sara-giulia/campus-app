@@ -242,6 +242,120 @@ public sealed class StreamMyEventsTests : IntegrationTestBase
         members.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Given_SellerStreamOpenAndUnreadMessage_When_SellerMarksConversationRead_Then_SellerGetsReadEvent()
+    {
+        // Arrange
+        var (seller, _, conversation) = await SeedConversationAsync();
+        using var stream = await OpenStreamAsync(Factory, seller.Id);
+        await ReadEventAsync(stream.Reader, EventExpected);
+        AuthenticateAs(seller.Id);
+
+        // Act
+        var response = await MarkReadAsync(conversation);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var received = await ReadNonPingEventAsync(stream.Reader, EventExpected);
+        received!.Name.Should().Be("read");
+        received.Data.Type.Should().Be("read");
+        received.Data.ConversationId.Should().Be(conversation.Id);
+
+        var saved = await QueryDbAsync(db => db.Set<Conversation>().AsNoTracking().SingleAsync(c => c.Id == conversation.Id));
+        saved.SellerLastReadNumber.Should().Be(1);
+        saved.BuyerLastReadNumber.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_TwoSellerStreamsOpen_When_SellerMarksConversationRead_Then_BothGetReadEvent()
+    {
+        // Arrange
+        var (seller, _, conversation) = await SeedConversationAsync();
+        using var first = await OpenStreamAsync(Factory, seller.Id);
+        using var second = await OpenStreamAsync(Factory, seller.Id);
+        await ReadEventAsync(first.Reader, EventExpected);
+        await ReadEventAsync(second.Reader, EventExpected);
+        AuthenticateAs(seller.Id);
+
+        // Act
+        var response = await MarkReadAsync(conversation);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var onFirst = await ReadNonPingEventAsync(first.Reader, EventExpected);
+        onFirst!.Name.Should().Be("read");
+        onFirst.Data.ConversationId.Should().Be(conversation.Id);
+
+        var onSecond = await ReadNonPingEventAsync(second.Reader, EventExpected);
+        onSecond!.Name.Should().Be("read");
+        onSecond.Data.ConversationId.Should().Be(conversation.Id);
+
+        var saved = await QueryDbAsync(db => db.Set<Conversation>().AsNoTracking().SingleAsync(c => c.Id == conversation.Id));
+        saved.SellerLastReadNumber.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_SellerStreamOpenAndNothingUnread_When_SellerMarksConversationRead_Then_SellerGetsNoReadEvent()
+    {
+        // Arrange
+        var (seller, buyer, conversation) = await SeedConversationAsync(sellerAnswered: true);
+        using var stream = await OpenStreamAsync(Factory, seller.Id);
+        await ReadEventAsync(stream.Reader, EventExpected);
+        AuthenticateAs(seller.Id);
+
+        // Act
+        var response = await MarkReadAsync(conversation);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // The buyer writes afterwards: the seller's next event is that message, so no read event came before it.
+        AuthenticateAs(buyer.Id);
+        var buyerMessage = await Client.PostAsJsonAsync(
+            $"/api/v1/conversations/{conversation.Id}/messages", new SendMessageRequest("Pot sa vin maine la camin?"), Json);
+        buyerMessage.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var received = await ReadNonPingEventAsync(stream.Reader, EventExpected);
+        received!.Name.Should().Be("message");
+        received.Data.ConversationId.Should().Be(conversation.Id);
+
+        var saved = await QueryDbAsync(db => db.Set<Conversation>().AsNoTracking().SingleAsync(c => c.Id == conversation.Id));
+        saved.SellerLastReadNumber.Should().Be(2);
+        saved.BuyerLastReadNumber.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_BuyerStreamOpen_When_BuyerWritesMessage_Then_BuyerGetsNoReadEvent()
+    {
+        // Arrange
+        var (seller, buyer, conversation) = await SeedConversationAsync(sellerAnswered: true);
+        using var stream = await OpenStreamAsync(Factory, buyer.Id);
+        await ReadEventAsync(stream.Reader, EventExpected);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.PostAsJsonAsync(
+            $"/api/v1/conversations/{conversation.Id}/messages", new SendMessageRequest("Pot sa vin maine la camin?"), Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // The seller answers afterwards: the buyer's next event is that message, so no read event came before it.
+        AuthenticateAs(seller.Id);
+        var sellerMessage = await SendMessageAsync(conversation);
+        sellerMessage.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var received = await ReadNonPingEventAsync(stream.Reader, EventExpected);
+        received!.Name.Should().Be("message");
+        received.Data.ConversationId.Should().Be(conversation.Id);
+
+        var saved = await QueryDbAsync(db => db.Set<Conversation>().AsNoTracking().SingleAsync(c => c.Id == conversation.Id));
+        saved.BuyerLastReadNumber.Should().Be(3);
+        saved.SellerLastReadNumber.Should().Be(4);
+    }
+
     private WebApplicationFactory<Program> WithHeartbeat(string seconds) =>
         Factory.WithWebHostBuilder(builder => builder.UseSetting("LiveEvents:HeartbeatSeconds", seconds));
 
@@ -252,18 +366,39 @@ public sealed class StreamMyEventsTests : IntegrationTestBase
         return listing;
     }
 
-    private async Task<(Member Seller, Member Buyer, Conversation Conversation)> SeedConversationAsync()
+    // The buyer's first message; with sellerAnswered the seller's answer too, so the seller has nothing unread.
+    private async Task<(Member Seller, Member Buyer, Conversation Conversation)> SeedConversationAsync(bool sellerAnswered = false)
     {
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = PublishedListing(seller);
         var conversation = Conversation.Start(buyer.Id, listing, "Buna, mai e valabil?", CreatedAt).Value;
+        if (sellerAnswered)
+            conversation.Send(seller.Id, "Da, inca e.", CreatedAt.AddMinutes(5));
         await SeedAsync(seller, buyer, listing, conversation);
         return (seller, buyer, conversation);
     }
 
     private Task<HttpResponseMessage> SendMessageAsync(Conversation conversation) =>
         Client.PostAsJsonAsync($"/api/v1/conversations/{conversation.Id}/messages", new SendMessageRequest("Da, inca e."), Json);
+
+    private Task<HttpResponseMessage> MarkReadAsync(Conversation conversation) =>
+        Client.PostAsync($"/api/v1/conversations/{conversation.Id}/read", content: null);
+
+    // The next event that is not a ping (a ping can come at any time); null when the timeout runs out first.
+    private static async Task<ReceivedEvent?> ReadNonPingEventAsync(StreamReader reader, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        var received = await ReadEventAsync(reader, timeout);
+        while (received is { Name: "ping" })
+        {
+            var left = deadline - DateTimeOffset.UtcNow;
+            if (left <= TimeSpan.Zero)
+                return null;
+            received = await ReadEventAsync(reader, left);
+        }
+        return received;
+    }
 
     // A separate client for the stream, so the normal Client stays free for the Act.
     private static async Task<LiveStream> OpenStreamAsync(WebApplicationFactory<Program> factory, Guid memberId)

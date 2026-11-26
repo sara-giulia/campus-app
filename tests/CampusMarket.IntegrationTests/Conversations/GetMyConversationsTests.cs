@@ -54,10 +54,10 @@ public sealed class GetMyConversationsTests : IntegrationTestBase
             {
                 new MyConversationItem(
                     _firstConversation.Id, _listing.Id, "Manual POO", _firstBuyer.Id, "Ana Popescu",
-                    "Da, inca e.", _seller.Id, false, CreatedAt.AddMinutes(10), 2),
+                    "Da, inca e.", _seller.Id, false, CreatedAt.AddMinutes(10), 2, 0),
                 new MyConversationItem(
                     _secondConversation.Id, _listing.Id, "Manual POO", _secondBuyer.Id, "Mihai Popa",
-                    "Pot sa vin azi?", _secondBuyer.Id, false, CreatedAt.AddMinutes(5), 1)
+                    "Pot sa vin azi?", _secondBuyer.Id, false, CreatedAt.AddMinutes(5), 1, 1)
             },
             options => options.WithStrictOrdering());
 
@@ -82,7 +82,7 @@ public sealed class GetMyConversationsTests : IntegrationTestBase
         body.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(
             new MyConversationItem(
                 _firstConversation.Id, _listing.Id, "Manual POO", _seller.Id, "Ion Ionescu",
-                "Da, inca e.", _seller.Id, false, CreatedAt.AddMinutes(10), 2));
+                "Da, inca e.", _seller.Id, false, CreatedAt.AddMinutes(10), 2, 1));
 
         await AssertDatabaseUnchangedAsync();
     }

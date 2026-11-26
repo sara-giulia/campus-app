@@ -8,6 +8,7 @@ public sealed record LiveEvent(string Type, Guid? ConversationId)
     public const string NotificationType = "notification";
     public const string MessageType = "message";
     public const string PingType = "ping";
+    public const string ReadType = "read";
 
     // A new notification for the member (reservation, sale, expired reservation).
     public static readonly LiveEvent Notification = new(NotificationType, null);
@@ -17,4 +18,7 @@ public sealed record LiveEvent(string Type, Guid? ConversationId)
 
     // A new message in one of the member's conversations, written by the other member.
     public static LiveEvent Message(Guid conversationId) => new(MessageType, conversationId);
+
+    // The member read one of their conversations (maybe in another tab): the unread count went down.
+    public static LiveEvent Read(Guid conversationId) => new(ReadType, conversationId);
 }

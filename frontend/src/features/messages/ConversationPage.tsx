@@ -8,6 +8,7 @@ import { BlockButton } from '../blocks/BlockButton'
 import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
 import { OffersPanel } from '../offers/OffersPanel'
+import { useUnreadMessages } from './UnreadMessagesContext'
 import type { ConversationDetail } from './types'
 import './messages.css'
 import { useT } from '../../i18n/LanguageContext'
@@ -20,6 +21,7 @@ export function ConversationPage() {
   const t = useT()
   const { id = '' } = useParams()
   const { user } = useAuth()
+  const { refresh: refreshUnread } = useUnreadMessages()
   const [conversation, setConversation] = useState<ConversationDetail | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [text, setText] = useState('')
@@ -46,6 +48,15 @@ export function ConversationPage() {
         .then((result) => {
           setConversation(result)
           setLoadError(null)
+          // Open on the screen means read: on the first load and on every new message while it is open.
+          if (result.unreadCount > 0) {
+            api
+              .post(`/conversations/${id}/read`, undefined, { signal: controller.signal })
+              .then(refreshUnread)
+              .catch(() => {
+                // Not marked this time; the next load tries again.
+              })
+          }
         })
         .catch((err: unknown) => {
           if (!isAbort(err)) setLoadError(errorMessage(err))
@@ -57,7 +68,7 @@ export function ConversationPage() {
       window.clearInterval(timer)
       controller.abort()
     }
-  }, [id, version, live])
+  }, [id, version, live, refreshUnread])
 
   // Scroll to the newest message when one arrives.
   useEffect(() => {

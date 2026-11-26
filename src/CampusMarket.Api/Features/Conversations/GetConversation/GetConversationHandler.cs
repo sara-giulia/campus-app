@@ -52,6 +52,7 @@ public sealed class GetConversationHandler(
             buyer.Name,
             conversation.CreatedAt,
             messages,
-            conversationOffers);
+            conversationOffers,
+            conversation.UnreadCountFor(query.MemberId));
     }
 }

@@ -145,6 +145,23 @@
   font-weight: 600;
 }
 
+/* A conversation with messages I have not read: bold, with the count in red. */
+.conv-item--unread .conv-item__top strong,
+.conv-item--unread .conv-item__last {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.conv-item__unread {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .conv-item__warning {
   color: var(--warning);
   font-weight: 600;

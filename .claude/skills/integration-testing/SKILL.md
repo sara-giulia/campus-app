@@ -1756,3 +1756,29 @@ Rules for this feature:
 - Keep every existing test; change one only if the new behaviour requires it, and report which one and why.
 - Then run all the tests with coverage as the CI does (`dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`, all test projects merged): `DismissReportsEndpoint.cs`, `HideListingEndpoint.cs`, `TrainingExamplesEndpoint.cs`, `CreateListingEndpoint.cs`, `UpdateListingEndpoint.cs`, `EfTrainingExampleRepository.cs`, `EfReportRepository.cs`, `TrainingExampleConfiguration.cs` and `ReportConfiguration.cs` are at 100% for lines and branches.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Unread messages (Anca)
+
+Endpoints and code (branch feature/unread-messages, not committed yet; read `Domain/Conversations/Conversation.cs`, `Features/Conversations/MarkConversationRead/`, `Features/Conversations/GetUnreadMessages/`, `Common/Events/LiveEvent.cs` and `Infrastructure/Persistence/EfUnitOfWork.cs` first). Errors are `Error` bodies; 401 is a ProblemDetails `Auth.Unauthorized`.
+- Each conversation keeps `BuyerLastReadNumber` and `SellerLastReadNumber`: the `Number` of the last message that side has seen. Writing a message moves the writer's mark to it. Unread for a member = messages of the other side with a higher `Number`.
+- `GET /api/v1/members/me/conversations/unread` (login needed) → 200 `{ "unreadMessages": n, "unreadConversations": k }`; no conversations → `0, 0`.
+- `POST /api/v1/conversations/{id}/read` (login needed) → 204, no body; the reader's mark goes to the last message, the other side's mark does not change. Already read → 204 too, nothing saved. Unknown id → 404 `Conversation.NotFound`; a third member, an Admin too → 403 `Conversation.NotParticipant`; no token → 401.
+- `GET /api/v1/members/me/conversations`: each item has a new last field `unreadCount`. `GET /api/v1/conversations/{id}`: new last field `unreadCount` for the reader; reading it does NOT mark anything.
+- Live events (`GET /api/v1/members/me/events`, see "Feature: Live events (Anca)"): new type `read`, `data: {"type":"read","conversationId":"<id>"}`, sent to the member who marked the conversation read (all their open streams), only when something was unread. A new message still sends `message` to the other member only; the writer gets no `read` event for their own message.
+- Migration `AddConversationReadState` (`20261126192341`, on top of `AddTrainingExamples`): adds to `Conversations` the columns `BuyerLastReadNumber` and `SellerLastReadNumber` (integer, not null, default 0), then sets both to the conversation's highest message `Number`, so the old conversations are read on both sides. `Down` drops both.
+
+Files: new `Conversations/UnreadMessagesTests.cs` (`: IntegrationTestBase`) and `Persistence/AddConversationReadStateMigrationTests.cs`. Existing files, only these changes: `Conversations/GetConversationTests.cs` and `Conversations/GetMyConversationsTests.cs` (the expected `GetConversationResponse` / `MyConversationItem` get the new field with its real value), `Members/StreamMyEventsTests.cs` (add the `read` tests below). Seed members, a listing (`Publish`) and conversations through the domain with `SeedAsync`, and log in through the API; messages sent through the API use normal texts (e.g. `"Buna, mai este disponibil?"`) so the spam check does not flag them.
+
+Tests to add (status, body, then the database through `db.Set<Conversation>()`):
+- Buyer starts a conversation (API) → seller `unread` `1, 1`, buyer `0, 0`; buyer sends two more → seller `3, 1`; seller's list item `unreadCount` 3, buyer's 0; `GET /conversations/{id}` as seller has `unreadCount` 3 and the row's `SellerLastReadNumber` is still 0 afterwards.
+- Seller `POST .../read` → 204; then seller `0, 0`, list item 0, `SellerLastReadNumber` 3, `BuyerLastReadNumber` unchanged. Seller answers → buyer `1, 1`, seller still 0. Two conversations with unread messages for the same seller → `unreadConversations` 2, and reading one leaves the other counted.
+- Read twice → 204 both times, the row unchanged the second time. Failures: unknown id 404, third member 403, Admin 403, no token 401 for both endpoints; each failure leaves both marks unchanged.
+- Live: open the seller's stream (`OpenStreamAsync`), seller reads a conversation with unread messages → a `read` event with that `conversationId`; with nothing unread → no `read` event (send a message from the buyer afterwards and assert the next non-ping event is that `message`, not a `read`); the buyer writing → the buyer's own stream gets no `read` event (same technique: then another member's action that reaches the buyer, e.g. the seller's answer → `message`, comes first).
+- Migration (separate PostgreSQL database, never the shared one): migrate to `AddTrainingExamples`, insert three members, a listing and two conversations (3 messages and 1 message) with raw SQL, migrate to `AddConversationReadState`: both columns exist (integer, not null), each conversation has both marks = its highest `Number` (3 and 1); a new row without the columns gets 0; migrating back to `AddTrainingExamples` drops both columns and keeps the conversations and messages.
+
+Rules for this feature:
+- Read 400/403/404 bodies into `Error` and check `Code` and `Type`.
+- Never assert on the number of `ping` events; skip pings when reading the stream, wait at most 5 seconds for an event.
+- Never replace the `DbContext` in the test host.
+- Then run all the tests with coverage as the CI does: `Conversation.cs`, `MarkConversationReadEndpoint.cs`, `GetUnreadMessagesEndpoint.cs`, their handlers, `EfUnitOfWork.cs` and `LiveEvent.cs` are at 100% for lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.

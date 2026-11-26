@@ -257,6 +257,8 @@ flowchart LR
 | Answer in a conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | only the buyer and the seller |
 | Read a conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | only the buyer and the seller |
 | See my conversations | `GetMyConversations` | `GET /api/v1/members/me/conversations` | as buyer and as seller; the latest message first |
+| Count my unread messages | `GetUnreadMessages` | `GET /api/v1/members/me/conversations/unread` | only your own conversations |
+| Mark a conversation read | `MarkConversationRead` | `POST /api/v1/conversations/{id}/read` | only the buyer and the seller |
 | Offer a price | `MakeOffer` | `POST /api/v1/listings/{id}/offers` | not own listing; only `Active`; amount > 0; at most one `Pending` offer per buyer and listing |
 | Answer an offer | `AcceptOffer`, `RejectOffer`, `CounterOffer` | `POST /api/v1/offers/{id}/accept` / `reject` / `counter` | only the side that did not propose it; only `Pending`; accepting reserves the listing at that price |
 | Withdraw an offer | `WithdrawOffer` | `POST /api/v1/offers/{id}/withdraw` | only the buyer, only their own `Pending` offer |
@@ -298,6 +300,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400 (also `Message.Spam`), 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200 (messages and `offers`), 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Conversation | `GetMyConversations` | `GET /api/v1/members/me/conversations` | anyone logged in; only their own conversations | 200, 401 |
+| Conversation | `GetUnreadMessages` | `GET /api/v1/members/me/conversations/unread` | anyone logged in; only their own conversations | 200 `{ unreadMessages, unreadConversations }`, 401 |
+| Conversation | `MarkConversationRead` | `POST /api/v1/conversations/{id}/read` | the buyer or the seller | 204 (also when nothing was unread), 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Offer | `MakeOffer` | `POST /api/v1/listings/{id}/offers` (body `{ "amount": 80 }`) | anyone logged in except the seller | 201 `{ conversationId, offer }` + `Location` (the conversation), 400 `Offer.OwnListing` / `Offer.ListingNotActive` / `Offer.AmountInvalid` / `Offer.AmountTooHigh`, 401, 404 `Listing.NotFound`, 409 `Offer.AlreadyPending` |
 | Offer | `AcceptOffer` | `POST /api/v1/offers/{id}/accept` | the side that did not propose the offer | 200 `{ offer, reservation }` (`reservation.agreedPrice`), 400 `Offer.NotPending` / `Offer.ListingNotActive` / `Offer.BuyerReservationLimit`, 401, 403 `Offer.NotRecipient` / `Offer.NotParticipant`, 404 `Offer.NotFound`, 409 `Concurrency.Conflict` |
 | Offer | `RejectOffer` | `POST /api/v1/offers/{id}/reject` | the side that did not propose the offer | 200 (the offer), 400 `Offer.NotPending`, 401, 403 `Offer.NotRecipient` / `Offer.NotParticipant`, 404 `Offer.NotFound` |
@@ -318,7 +322,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200 `{ items, count }` (each item has `reviewed` and `agreedPrice`, null without an accepted offer), 401 |
 | Listing | `GetMyListings` | `GET /api/v1/members/me/listings` | anyone logged in; only their own listings, in every status, newest first | 200 `{ items, count }` (each item has `expiresAt`, null for a draft never published, and `reservedPrice`, what the buyer of the active reservation pays, null without one), 401 |
-| Member | `StreamMyEvents` | `GET /api/v1/members/me/events` | anyone logged in; only their own events | 200 `text/event-stream` (stays open: `ping`, `notification`, `message`), 401 |
+| Member | `StreamMyEvents` | `GET /api/v1/members/me/events` | anyone logged in; only their own events | 200 `text/event-stream` (stays open: `ping`, `notification`, `message`, `read`), 401 |
 | Auth | `Register` | `POST /api/v1/auth/register` | everyone, at most 5 registrations per minute per IP | 201 + `Location`, 400, 409, 429 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
 | Auth | `ChangePassword` | `POST /api/v1/auth/change-password` | anyone logged in; only their own password | 204, 400 `Auth.InvalidCredentials` / `Auth.WeakPassword` / `Auth.PasswordsDoNotMatch`, 401, 404 `Member.NotFound` |
@@ -684,10 +688,20 @@ A buyer writes to the seller about a listing; only the two of them can read or w
 
 - `POST /api/v1/listings/{id}/conversations` with `{ "text": "Mai e disponibil?" }`: 201 with the message `{ conversationId, id, number, senderId, text, sentAt, isSuspicious }` and `Location` to the conversation. The first message starts the conversation; if the buyer already has one about this listing, the message is added to it, so the "write to the seller" button always works the same way. A new conversation needs an `Active` or `Reserved` listing (400 `Conversation.ListingNotAvailable`); the seller cannot write about their own listing (400 `Conversation.OwnListing`). An existing conversation keeps working after the sale.
 - `POST /api/v1/conversations/{id}/messages` with `{ "text": "..." }`: the buyer or the seller answers, 201 with the same body.
-- `GET /api/v1/conversations/{id}`: the listing title, the two members' names and every message, in the order they were sent.
-- `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message and the number of messages.
+- `GET /api/v1/conversations/{id}`: the listing title, the two members' names and every message, in the order they were sent, and `unreadCount` for the reader.
+- `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message, the number of messages and `unreadCount`.
 
 A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Every message is checked by the spam model of the messages (see [Spam in messages](#spam-in-messages)). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `InitialPostgres`.
+
+#### Unread messages
+
+Each conversation keeps, for the buyer and for the seller, the `number` of the last message they have seen (`Conversations.BuyerLastReadNumber`, `SellerLastReadNumber`; migration `AddConversationReadState`, which marks the older conversations read on both sides). The messages of the other side after it are unread; writing a message also counts as having read the conversation.
+
+- `GET /api/v1/members/me/conversations/unread`: `{ unreadMessages, unreadConversations }`, for the red badge on "Mesaje" (separate from the notifications badge).
+- `POST /api/v1/conversations/{id}/read`: the reader has seen everything, 204. Reading with `GET /conversations/{id}` does not mark anything; the conversation page calls this when `unreadCount` is above 0, on open and on every new message while it is open.
+- Live: a new message already sends `message` to the other member, so the badge and the list reload at once; marking read sends `read` to the reader (only when something was unread), so the badge in their other tabs goes down too.
+
+In the frontend the unread conversations are bold in "Mesaje", with the number of unread messages.
 
 ### Price offers
 
@@ -760,10 +774,10 @@ event: notification
 data: {"type":"notification","conversationId":null}
 ```
 
-- `message`: a new message in one of your conversations, written by the other member (the sender gets nothing). `notification`: a new notification for you (reservation, sale, expired reservation). `ping`: right after the connection opens, then every `LiveEvents:HeartbeatSeconds` (25), so a proxy (Render) does not close an idle connection.
+- `message`: a new message in one of your conversations, written by the other member (the sender gets nothing). `notification`: a new notification for you (reservation, sale, expired reservation). `read`: you marked a conversation read, maybe in another tab (see [Unread messages](#unread-messages)). `ping`: right after the connection opens, then every `LiveEvents:HeartbeatSeconds` (25), so a proxy (Render) does not close an idle connection.
 - An event only says that something new is there; the page then loads it through the normal endpoints, so the stream never carries message texts.
-- Events are published by `EfUnitOfWork` **after** a successful save (new `Notification` and `Message` rows), so no handler had to change and a member is never told about something that was not saved. `ILiveEvents` (`Common/Events/`) is implemented by `InMemoryLiveEvents` (`Infrastructure/Events/`): one channel per open connection, so two tabs both get the event. It works because the API runs as one instance; with several instances the events would need a shared broker (Redis, Postgres `LISTEN/NOTIFY`).
-- The frontend (`frontend/src/features/live/`) reads the stream with `fetch`, not `EventSource`, because `EventSource` cannot send the `Authorization` header and a token in the URL would end up in logs. It reconnects after 2 s, then up to 30 s. The notifications badge and page and the messages pages reload on an event; the conversation page asks every 5 s only while the stream is not connected.
+- Events are published by `EfUnitOfWork` **after** a successful save (new `Notification` and `Message` rows, a conversation marked read), so no handler had to change and a member is never told about something that was not saved. `ILiveEvents` (`Common/Events/`) is implemented by `InMemoryLiveEvents` (`Infrastructure/Events/`): one channel per open connection, so two tabs both get the event. It works because the API runs as one instance; with several instances the events would need a shared broker (Redis, Postgres `LISTEN/NOTIFY`).
+- The frontend (`frontend/src/features/live/`) reads the stream with `fetch`, not `EventSource`, because `EventSource` cannot send the `Authorization` header and a token in the URL would end up in logs. It reconnects after 2 s, then up to 30 s. The notifications badge, the unread messages badge and the messages pages reload on an event; the conversation page asks every 5 s only while the stream is not connected.
 
 Why SSE and not WebSocket or SignalR: the data only goes from the server to the browser (the browser already sends with normal requests), SSE is plain HTTP (same authentication, CORS and proxies as the rest of the API, no extra package), and the format is a few text lines. ASP.NET Core has it built in (`TypedResults.ServerSentEvents`).
 

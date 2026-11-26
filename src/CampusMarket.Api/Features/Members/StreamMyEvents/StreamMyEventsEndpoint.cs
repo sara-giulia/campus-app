@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace CampusMarket.Api.Features.Members.StreamMyEvents;
 
 // GET /api/v1/members/me/events: Server-Sent Events for the logged-in member. The connection stays
-// open and the server writes "event: message", "event: notification" or "event: ping" lines on it;
+// open and the server writes "event: message", "event: notification", "event: read" or "event: ping" lines on it;
 // the browser reconnects when it drops. One way only (server to browser), plain HTTP, so no
 // WebSocket or SignalR is needed. The token goes in the Authorization header like everywhere else
 // (the frontend reads the stream with fetch, because EventSource cannot send headers).

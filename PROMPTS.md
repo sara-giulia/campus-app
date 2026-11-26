@@ -1360,6 +1360,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** f33fc61 (equivalent mutant comment), 58bbce3 (skills), a474488 (tests)
 
+### Run 56, skill v58 (Feature: Unread messages)
+
+- **Why a new version:** branch `feature/unread-messages`. `Conversation` now keeps the last message each side has seen (`BuyerLastReadNumber`, `SellerLastReadNumber`), `Send` moves the sender's mark, `UnreadCountFor` and `MarkReadBy` are new, there are two new handlers (`MarkConversationRead`, `GetUnreadMessages`) and both read responses have `UnreadCount`. The skill had no section for it.
+
+#### Change to SKILL.md (v57 → v58) and why
+
+| # | v57 (before) | v58 (after) | Why |
+|---|---|---|---|
+| 1 | No section for unread messages. | New section *"Feature: Unread messages (Anca)"*: the two marks and when they move (after `Start` buyer 1, seller 0; a failed `Send` moves nothing), `UnreadCountFor` (own messages never count), `MarkReadBy` (returns what was unread, the other side's mark never changes, `NotParticipant` for a stranger), the two handlers (commit only when something was unread), the new `UnreadCount` fields, that reading with `GetConversation` marks nothing, the files and the files that must reach 100%. | Whether writing counts as reading, and whether a read with nothing unread saves anything, are decisions of the code, not guessable. |
+
+- **Prompt:** `Run the unit-testing skill and generate the unit tests for its last section "Feature: Unread messages (Anca)". Only tests/CampusMarket.UnitTests may change, no git commands that change state; keep every existing test and assertion. If a test fails because the code behaves differently from the section, stop and report it. Run the whole project 3 times and the coverage; the files named in the section at 100% lines and branches. At the end: files, tests before/after, pass/fail, coverage, mismatches.`
+- **Skill version:** v58 (the last unit-testing version was v57, Run 55)
+- **Result:** 26 new unit tests, 1452 in total (1426 before): `ConversationReadTests` 13, `MarkConversationReadHandlerTests` 4, `GetUnreadMessagesHandlerTests` 5 (new), 2 each in `GetConversationHandlerTests` and `GetMyConversationsHandlerTests`. No existing test builds the changed records by hand, so none changed. 3 of 3 runs pass; `Conversation.cs`, `MarkConversationReadHandler.cs`, `GetUnreadMessagesHandler.cs`, `GetMyConversationsHandler.cs`, `GetConversationHandler.cs` at 100% lines and branches.
+- **Problems seen:** none in the code. `reportgenerator` is not on PATH; the cached copy from the NuGet folder was used.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** 8763f47 (skill section in 80c7058)
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2572,6 +2589,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 8997ea1 (backend), ca9cc14 (merge with main, AddTrainingExamples migration regenerated on top of AddMessageSpamCheck), e2c18c8 (skills), 952ac76 (tests), ebe3e96 (frontend)
 
+### Run 66, skill v65 (Feature: Unread messages)
+
+- **Why a new version:** branch `feature/unread-messages`. Two new endpoints (`GET /api/v1/members/me/conversations/unread`, `POST /api/v1/conversations/{id}/read`), `unreadCount` in both read answers, a new live event `read` sent by `EfUnitOfWork`, and the migration `AddConversationReadState`, which also marks the older conversations read.
+
+#### Change to SKILL.md (v64 → v65) and why
+
+| # | v64 (before) | v65 (after) | Why |
+|---|---|---|---|
+| 1 | No section for unread messages. | New section *"Feature: Unread messages (Anca)"*: the two marks, both endpoints with status and errors, `unreadCount` (reading with `GET` marks nothing), when the `read` event is sent and when not (nothing unread, the writer's own message), the migration with its data update, the files allowed to change (the two read tests that no longer compile, `StreamMyEventsTests`), how to prove a missing event (the next non-ping event is another one) and the files that must reach 100%. | A test cannot wait for "no event"; asserting the next real event proves it without a timeout. The data update of the migration would be missed without it. |
+
+- **Prompt:** `Run the integration-testing skill and generate the integration tests for its last section "Feature: Unread messages (Anca)". Only tests/CampusMarket.IntegrationTests may change, no git commands that change state. GetConversationTests.cs and GetMyConversationsTests.cs do not compile now: give the expected records the real value, keep every assertion. If a test fails because the API behaves differently from the section, stop and report it. Run the whole project 3 times and the coverage merged with the unit tests; the files named in the section at 100%. At the end: files, tests before/after, pass/fail, coverage, mismatches.`
+- **Skill version:** v65 (the last integration-testing version was v64, Run 65)
+- **Result:** 28 new integration tests, 803 in total (775 before): `Conversations/UnreadMessagesTests.cs` 21 (new), `Persistence/AddConversationReadStateMigrationTests.cs` 3 (new), 4 `read` tests in `Members/StreamMyEventsTests.cs` (a new `ReadNonPingEventAsync` helper; `SeedConversationAsync` got an optional `sellerAnswered`, the old calls are the same); `GetConversationTests.cs` and `GetMyConversationsTests.cs` only got the real `unreadCount` in the expected records. 3 of 3 full runs pass, unit and architecture tests too; with the unit tests merged `Conversation.cs`, both endpoints, both handlers, `EfUnitOfWork.cs` and `LiveEvent.cs` at 100% lines and branches.
+- **Problems seen:** none in the API. The migration test needed a second listing to insert a row without the new columns (unique index on listing + buyer). The two old `PriceSuggesterTests` fail locally only because of the Romanian number format, as before. The "Training labels" section names the migration `20261126141520_AddTrainingExamples`; the real id is `20261126150921`.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** 8763f47 (skill section in 80c7058)
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -3702,3 +3736,21 @@ Weeks 9–10, Anca's task "Spam în mesaje": the spam model applied to the chat 
 - **Checks:** build 0 warnings; `dotnet ef migrations has-pending-model-changes`: none; 10 architecture, 1315 unit, 90 ML and 746 integration tests pass (2 old `PriceSuggesterTests` fail only with the Romanian number format of this Windows and pass with the invariant culture, as on the CI); the model on test: precision 0.975, recall 0.814 at 0.60, with the rules 0.978 / 0.938, no normal message blocked at 0.95; on the hand-written messages 1.000 / 0.880 for the model alone, no normal message blocked; the new code at 100% lines and branches (unit and integration merged); on the running API: the normal, suspicious and blocked texts behave as expected and a blocked message leaves no row; the Postman collection with newman on a fresh database: 282 requests, 538 assertions, 3 failures, all in the `Blocks` folder (three "no token" requests without `noauth` inherit the collection token; not part of this task); frontend build and lint clean.
 - **Result:** new `ml/CampusMarket.ML.DatasetGenerator/MessageGenerator.cs`, `MessageTemplates.cs`, `ml/CampusMarket.ML.Training/MessageSpam.cs`, `ml/data/messages.csv`, `ml/data/messages-external.csv`, `ml/models/message-spam.zip` and `.json`, `docs/ml/message-spam.md`, `Common/Moderation/IMessageSpamDetector.cs`, `MessageSpamOptions.cs`, `Infrastructure/ML/MessageSpamDetector.cs`, `MessageSpamInput.cs`, `MessageSpamRules.cs`, `Features/Conversations/MessageSpamGuard.cs`, migration `AddMessageSpamCheck`, `tests/CampusMarket.ML.Tests/MessageSpamModelQualityTests.cs`; changed `Message`, the two send handlers, the conversation responses, `MlServiceCollectionExtensions`, `MlModelsHealthCheck`, `SpamRules` (`Normalize` shared), `appsettings.json`, `ModelMetadata` (the split text), the training and generator programs, `Dockerfile`, `ml.yml`, the frontend chat (warning on a suspicious message, `Message.Spam` in RO/EN), README, ML.md, the ML READMEs, Postman.
 - **Commits:** code 24ae023; skill sections 4e08b87; tests generated in 1f524d4 (see Run 53 of unit-testing and Run 64 of integration-testing)
+
+## unread-messages
+
+Weeks 9–10, Anca's task "Mesaje necitite": a separate red badge on "Mesaje" with the number of unread messages, the unread conversations marked, read on open, live through SSE. Written by Ancuța Ilenei with Claude Code. The tests were generated with the unit-testing (Run 56) and integration-testing (Run 66) skills.
+
+### Run 1
+
+- **Prompt:** `Task: „Mesaje necitite” din planul săptămânilor 9–10. Fă un branch nou din main actualizat. Gata înseamnă: backend + frontend, actualizare live prin SSE, teste unit și de integrare care trec. Nu face commit.`
+- **Decisions:**
+    - A read mark per side on `Conversation` (`BuyerLastReadNumber`, `SellerLastReadNumber`, the `Number` of the last message seen) instead of a flag on every message: one update to mark a conversation read, and the messages already have a `Number` in order. Writing a message moves the writer's mark, since they answer after what is there.
+    - Reading with `GET /conversations/{id}` changes nothing (a GET has no side effect); the page calls `POST /conversations/{id}/read` when `unreadCount` is above 0, on open and on every new message while it is open. Nothing is saved when nothing was unread.
+    - `GET /members/me/conversations/unread` for the badge, so the badge does not load the whole list with the names and titles.
+    - Live: a new message already sends `message` to the other member, so the badge reloads at once. A new event `read` goes to the reader (only when something was unread, not for one's own message), so the badge in their other tabs goes down too. Published by `EfUnitOfWork` after the save, like the others; no handler knows about the stream.
+    - The migration `AddConversationReadState` sets both marks to the last message of each existing conversation, so after the deploy nobody finds every old message marked as new.
+    - Frontend: `UnreadMessagesProvider` next to the notifications one, the badge on "Mesaje" in red (`--danger`), separate from the notifications badge; the unread conversations are bold with the number in red; RO/EN texts.
+- **Checks:** build 0 warnings; `dotnet ef migrations has-pending-model-changes`: none; 10 architecture, 1452 unit and 803 integration tests pass (the 2 old `PriceSuggesterTests` fail only with the Romanian number format, as on main); the new code at 100% lines and branches (unit and integration merged); on the running API: counts for seller and buyer, `GET` does not mark, read → 0, read again 204, 403/404/401, the seller's stream gets `message`, `message`, `read` and no `read` for their own answer; the Postman collection with newman on a fresh database: 299 requests, 567 assertions, 0 failures; frontend `tsc`, build and lint clean.
+- **Result:** new `Features/Conversations/MarkConversationRead/`, `Features/Conversations/GetUnreadMessages/`, migration `AddConversationReadState`, `frontend/src/features/messages/UnreadMessagesContext.ts`, `UnreadMessagesProvider.tsx`; changed `Conversation`, `LiveEvent` (`read`), `EfUnitOfWork`, `ConversationsEndpoints`, the two read handlers and responses (`UnreadCount`), the comment of `StreamMyEventsEndpoint`, the frontend layout (badge), messages list and conversation page, the live event type, RO/EN, CSS, README, Postman (9 requests).
+- **Commits:** code 359680c; skill sections 80c7058; tests generated in 8763f47 (see Run 56 of unit-testing and Run 66 of integration-testing)
