@@ -115,12 +115,32 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.review-form__legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.review-form__star-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
 }
 
 .review-form__star {
+  position: relative;
   padding: 0 2px;
-  border: 0;
-  background: none;
   color: var(--line);
   font-size: 1.7rem;
   line-height: 1;
@@ -131,7 +151,7 @@
   color: #e2a400;
 }
 
-.review-form__star:focus-visible {
+.review-form__star:has(:focus-visible) {
   outline: 2px solid var(--accent);
   border-radius: 4px;
 }
