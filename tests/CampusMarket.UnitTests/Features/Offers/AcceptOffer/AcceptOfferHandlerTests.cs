@@ -139,6 +139,24 @@ public class AcceptOfferHandlerTests
     }
 
     [Fact]
+    public async Task Given_AcceptedOfferStillPendingInStore_When_SellerAccepts_Then_AcceptedBuyerGetsNoRejectedNotification()
+    {
+        var other = Offer.Make(_listing, _otherBuyer.Id, 80m, Now.AddMinutes(1)).Value;
+        _offers.Add(other);
+
+        var result = await _handler.HandleAsync(new AcceptOfferCommand(_seller.Id, _offer.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        _offer.Status.Should().Be(OfferStatus.Accepted);
+        other.Status.Should().Be(OfferStatus.Rejected);
+        _notifications.Items.Where(n => n.Type == NotificationType.OfferRejected)
+            .Should().ContainSingle().Which.MemberId.Should().Be(_otherBuyer.Id);
+        _notifications.Items.Where(n => n.MemberId == _buyer.Id)
+            .Should().ContainSingle().Which.Type.Should().Be(NotificationType.OfferAccepted);
+        _unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Given_AnsweredOffersOfOtherBuyers_When_SellerAccepts_Then_TheyAreUntouchedWithoutNotification()
     {
         var rejected = Offer.Make(_listing, _otherBuyer.Id, 80m, Now.AddMinutes(1)).Value;

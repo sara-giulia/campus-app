@@ -44,6 +44,19 @@ public class MakeOfferHandlerTests
         _unitOfWork.SaveCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Given_AmountWithTwoDecimalDigits_When_BuyerMakesOffer_Then_FirstMessageHasNoTrailingZero()
+    {
+        var command = new MakeOfferCommand(_buyer.Id, _listing.Id, 99.50m);
+
+        var result = await _handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        _conversations.Items.Should().ContainSingle()
+            .Which.Messages.Should().ContainSingle()
+            .Which.Text.Should().Be("Am făcut o ofertă de 99.5 lei.");
+    }
+
     [Theory]
     [InlineData(120, "Am făcut o ofertă de 120 lei.", "Ana Pop offered 120 lei for Algebra book")]
     [InlineData(99.5, "Am făcut o ofertă de 99.5 lei.", "Ana Pop offered 99.5 lei for Algebra book")]

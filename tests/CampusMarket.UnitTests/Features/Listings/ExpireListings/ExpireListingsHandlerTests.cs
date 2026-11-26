@@ -5,6 +5,7 @@ using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Features.Listings.ExpireListings;
 using CampusMarket.UnitTests.Fakes;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -45,6 +46,16 @@ public class ExpireListingsHandlerTests
             Options.Create(new FrontendOptions { BaseUrl = "https://campus.example/" }),
             _time,
             NullLogger<ExpireListingsHandler>.Instance);
+
+    private ExpireListingsHandler CreateHandler(ILogger<ExpireListingsHandler> logger) =>
+        new(_listings,
+            _members,
+            _notifications,
+            _unitOfWork,
+            _emailSender,
+            Options.Create(new FrontendOptions { BaseUrl = "https://campus.example/" }),
+            _time,
+            logger);
 
     private Listing AddListing(Guid sellerId, string title, ListingStatus status, DateTimeOffset? expiresAt = null)
     {
@@ -103,6 +114,11 @@ public class ExpireListingsHandlerTests
         email.Subject.Should().Be("Your CampusMarket listing expired");
         email.Body.Should().Contain("Algebra book");
         email.Body.Should().Contain("https://campus.example/my/listings");
+        email.Body.Should().Be(
+            $"Hello {seller.Name},{Environment.NewLine}{Environment.NewLine}" +
+            $"Your listing \"Algebra book\" expired and is no longer shown in the search.{Environment.NewLine}" +
+            $"Open My listings and press \"Reînnoiește\" to publish it again:{Environment.NewLine}" +
+            "https://campus.example/my/listings");
     }
 
     [Fact]
@@ -159,6 +175,33 @@ public class ExpireListingsHandlerTests
         _unitOfWork.SaveCount.Should().Be(1);
         _notifications.Items.Should().ContainSingle();
         _emailSender.Attempts.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_EmailSenderThrows_When_Handling_Then_LogsOneWarningWithTheListingId()
+    {
+        var listing = AddListing(SellerId, "Algebra book", ListingStatus.Active);
+        _emailSender.ShouldThrow = _ => true;
+        var logger = new FakeLogger<ExpireListingsHandler>();
+
+        var result = await CreateHandler(logger).HandleAsync(new ExpireListingsCommand(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var entry = logger.Entries.Should().ContainSingle().Subject;
+        entry.Level.Should().Be(LogLevel.Warning);
+        entry.Message.Should().Be($"Listing expiry email for listing {listing.Id} could not be sent.");
+    }
+
+    [Fact]
+    public async Task Given_EmailSent_When_Handling_Then_LogsNothing()
+    {
+        AddListing(SellerId, "Algebra book", ListingStatus.Active);
+        var logger = new FakeLogger<ExpireListingsHandler>();
+
+        var result = await CreateHandler(logger).HandleAsync(new ExpireListingsCommand(), CancellationToken.None);
+
+        result.Value.Should().Be(1);
+        logger.Entries.Should().BeEmpty();
     }
 
     [Fact]

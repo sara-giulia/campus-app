@@ -90,6 +90,7 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Match("Listing '*' was not found.");
         AssertNothingSaved(s);
     }
 
@@ -103,6 +104,7 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.NotFound);
         result.Error.Code.Should().Be("Listing.NotFound");
+        result.Error.Message.Should().Be($"Listing '{s.Listing.Id}' was not found.");
         AssertNothingSaved(s);
     }
 
@@ -116,6 +118,7 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Photo.NotSeller");
+        result.Error.Message.Should().Be("Only the seller can change the photos of this listing.");
         AssertNothingSaved(s);
     }
 
@@ -129,6 +132,7 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
         result.Error.Code.Should().Be("Photo.NotSeller");
+        result.Error.Message.Should().Be("Only the seller can change the photos of this listing.");
         AssertNothingSaved(s);
     }
 
@@ -142,6 +146,7 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Photo.OrderMismatch");
+        result.Error.Message.Should().Be("The list must contain every photo of the listing exactly once.");
         AssertNothingSaved(s);
     }
 
@@ -156,6 +161,7 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Photo.OrderMismatch");
+        result.Error.Message.Should().Be("The list must contain every photo of the listing exactly once.");
         AssertNothingSaved(s);
     }
 
@@ -170,6 +176,7 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Photo.OrderMismatch");
+        result.Error.Message.Should().Be("The list must contain every photo of the listing exactly once.");
         AssertNothingSaved(s);
     }
 
@@ -183,6 +190,22 @@ public class ReorderPhotosHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Photo.OrderMismatch");
+        result.Error.Message.Should().Be("The list must contain every photo of the listing exactly once.");
+        AssertNothingSaved(s);
+    }
+
+    [Fact]
+    public async Task Given_AllPhotosPlusAnUnknownId_When_Reordering_Then_ReturnsOrderMismatchAndSavesNothing()
+    {
+        var s = BuildScenario(publish: true);
+        var ids = new List<Guid> { s.Seeded[0].Id, s.Seeded[1].Id, s.Seeded[2].Id, Guid.NewGuid() };
+
+        var result = await s.Handler.HandleAsync(new ReorderPhotosCommand(SellerId, false, s.Listing.Id, ids), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Photo.OrderMismatch");
+        result.Error.Message.Should().Be("The list must contain every photo of the listing exactly once.");
         AssertNothingSaved(s);
     }
 

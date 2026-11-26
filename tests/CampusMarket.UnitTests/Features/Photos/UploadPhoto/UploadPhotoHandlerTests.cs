@@ -348,6 +348,7 @@ public class UploadPhotoHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Photo.StorageFailed");
+        result.Error.Message.Should().Be("The photo could not be saved. Try again later.");
         photos.Items.Should().BeEmpty();
         storage.Files.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
