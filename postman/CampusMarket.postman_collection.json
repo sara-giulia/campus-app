@@ -10198,6 +10198,346 @@
       ]
     },
     {
+      "name": "Stats",
+      "item": [
+        {
+          "name": "Seller views own listing (204, not counted)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Visitor-Id",
+                "value": "3f2b8c1e-5a4d-4e7a-9c1b-2d6e8f0a1b3c"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{blockListingId}}/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{blockListingId}}",
+                "views"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anonymous visitor views listing (204)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Visitor-Id",
+                "value": "3f2b8c1e-5a4d-4e7a-9c1b-2d6e8f0a1b3c"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{blockListingId}}/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{blockListingId}}",
+                "views"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Same visitor again the same day (204, not counted twice)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Visitor-Id",
+                "value": "3f2b8c1e-5a4d-4e7a-9c1b-2d6e8f0a1b3c"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{blockListingId}}/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{blockListingId}}",
+                "views"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "View without token or visitor id (400 View.ViewerMissing)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{blockListingId}}/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{blockListingId}}",
+                "views"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Code is View.ViewerMissing\", () => pm.expect(pm.response.json().code).to.eql(\"View.ViewerMissing\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "View of an unknown listing (404)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Visitor-Id",
+                "value": "3f2b8c1e-5a4d-4e7a-9c1b-2d6e8f0a1b3c"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/00000000-0000-0000-0000-000000000000/views",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "00000000-0000-0000-0000-000000000000",
+                "views"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seller reads the stats (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{blockListingId}}/stats?days=30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{blockListingId}}",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"30 days, totals and a daily entry per day\", () => {",
+                  "  pm.expect(body.days).to.eql(30);",
+                  "  pm.expect(body.daily).to.have.lengthOf(30);",
+                  "  pm.expect(body.totals).to.have.all.keys(\"views\", \"favorites\", \"messages\", \"offers\");",
+                  "  pm.expect(body.totals.views).to.eql(body.daily.reduce((n, d) => n + d.views, 0));",
+                  "});",
+                  "pm.test(\"One unique view: the seller is not counted, the repeat the same day is not counted\", () => pm.expect(body.totals.views).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stats with days=0 (400 Stats.InvalidDays)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{blockListingId}}/stats?days=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{blockListingId}}",
+                "stats"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "0"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Code is Stats.InvalidDays\", () => pm.expect(pm.response.json().code).to.eql(\"Stats.InvalidDays\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stats without a token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{blockListingId}}/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{blockListingId}}",
+                "stats"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Photos",
       "item": [
         {

@@ -277,6 +277,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Block | `BlockMember` | `POST /api/v1/members/{id}/block` | anyone logged in | 204 (also when already blocked), 400 `Block.Self`, 401, 404 `Member.NotFound` |
 | Block | `UnblockMember` | `DELETE /api/v1/members/{id}/block` | anyone logged in | 204 (also when not blocked), 401 |
 | Block | `GetMyBlocked` | `GET /api/v1/members/me/blocked` | anyone logged in; only their own blocks | 200 `{ items: [{ memberId, name, blockedAt }] }`, the newest first, 401 |
+| Stats | `RecordView` | `POST /api/v1/listings/{id}/views` | public; the member from the token, otherwise the header `X-Visitor-Id` (a random GUID) | 204 (also when not counted), 400 `View.ViewerMissing`, 404 `Listing.NotFound` |
+| Stats | `GetListingStats` | `GET /api/v1/listings/{id}/stats?days=30` | the seller or an Admin | 200 `{ listingId, days, from, to, totals, daily }`, 400 `Stats.InvalidDays` (1-365), 401, 403 `Listing.NotOwner`, 404 `Listing.NotFound` |
 | Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form), 503 `Photo.StorageFailed` |
 | Photo | `GetListingPhotos` | `GET /api/v1/listings/{listingId}/photos` | everyone; the photos of a `Draft` only for its seller or an Admin | 200 (sorted by `position`), 404 (also a draft that is not yours) |
 | Photo | `GetPhotoFile` | `GET /api/v1/photos/{id}` | everyone | 200 (the image), 404 `Photo.NotFound` |
@@ -485,6 +487,8 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Offer.NotOwnOffer` | 400 | the buyer withdraws the seller's counter-offer (reject it instead) |
 | `Offer.BuyerReservationLimit` | 400 | accepting would give the buyer more than 3 active reservations |
 | `Block.Self` | 400 | you block yourself |
+| `View.ViewerMissing` | 400 | a view is sent without a token and without a valid `X-Visitor-Id` |
+| `Stats.InvalidDays` | 400 | `days` is not between 1 and 365 |
 | `Member.Blocked` | 403 | you make an offer or a counter-offer, start or continue a conversation, or reserve a listing, and the other member has blocked you |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
@@ -661,6 +665,12 @@ Stored in `Offers` (foreign keys to `Listings` and to `Members` for the buyer an
 - The blocker no longer sees the blocked member's listings in `GET /api/v1/listings` (the search results are output-cached for anonymous requests only; a request with a token is never cached, so the blocker always gets a fresh, filtered answer, and the cache is evicted on block and unblock so anonymous visitors see the change too), in `GET /api/v1/listings/{id}/similar` and in `GET /api/v1/members/me/favorites` (the favorites stay saved and come back after unblocking). The listing page `GET /api/v1/listings/{id}` and the public profile stay open.
 - When the block is created, every `Pending` offer between the two members (on any listing, whoever is the buyer) becomes `Rejected`, without a notification so the block stays private. Existing messages and reservations stay.
 - Stored in `MemberBlocks` (`BlockerId`, `BlockedId`, `CreatedAt`; unique index on the pair, foreign keys to `Members` with cascade delete); migration `AddMemberBlocks`, on top of `AddOffers`. In the frontend (`frontend/src/features/blocks/`) the button "Blochează" / "Deblochează" is on the public profile and in the conversation, and the profile page has the list "Utilizatori blocați" with "Deblochează".
+
+### Listing statistics
+
+- `POST /api/v1/listings/{id}/views` (204, public): the frontend calls it when the listing page opens (`GET /api/v1/listings/{id}` can be output-cached, so it cannot count). The viewer is the member id when there is a token, otherwise the random GUID in the `X-Visitor-Id` header (made by the browser and kept in `localStorage` under `campusmarket.visitorId`; no personal data). Neither: 400 `View.ViewerMissing`. A viewer counts **once per listing and day (UTC)**. Not counted (still 204): the seller's own views, `Draft` and `Hidden` listings, a repeat the same day. Unknown listing: 404.
+- `GET /api/v1/listings/{id}/stats?days=30` (the seller or an Admin, otherwise 403 `Listing.NotOwner`; `days` 1-365, default 30): `{ listingId, days, from, to, totals: { views, favorites, messages, offers }, daily: [{ date, views, favorites, messages, offers }] }`. `daily` has one entry per day of the period (UTC, the oldest first, today last, zeros included). Views are the unique views above; favorites, messages (all messages of the listing's conversations, both sides) and offers (counter-offers included) come from their existing `CreatedAt` / `SentAt` columns.
+- Stored in `ListingViews` (`ListingId`, `ViewerKey` = `m:<member id>` or `v:<visitor id>`, `Day`, `CreatedAt`; unique index on listing + viewer + day, foreign key to `Listings` with cascade delete); migration `AddListingViews`, on top of `AddListingEmbeddings`. The insert is `ON CONFLICT DO NOTHING`, so two simultaneous requests cannot duplicate or fail. In the frontend, "Anunțurile mele" has a "Statistici" button per listing: the four totals and a plain SVG bar chart per day (7, 30 or 90 days), in `frontend/src/features/listings/ListingStats.tsx`.
 
 ### Listing photos
 
