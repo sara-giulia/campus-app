@@ -2,11 +2,14 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../../app/auth/AuthContext'
 import { Loading } from '../../app/ui'
+import { useT } from '../../i18n/LanguageContext'
+
 
 // Hitting /logout logs out (POST /auth/logout + clears tokens through useAuth) and goes to /.
 // Used by the "Ieșire" link in the top menu.
 export function LogoutPage() {
   const { logout } = useAuth()
+  const t = useT()
   const navigate = useNavigate()
   const ran = useRef(false)
 
@@ -24,5 +27,5 @@ export function LogoutPage() {
     })()
   }, [logout, navigate])
 
-  return <Loading text="Se închide sesiunea…" />
+  return <Loading text={t('auth.logout.closing')} />
 }

@@ -15,7 +15,7 @@ public static class StartConversationEndpoint
             .RequireAuthorization();
     }
 
-    private static async Task<Results<CreatedAtRoute<MessageResponse>, NotFound<Error>, BadRequest<Error>>> Handle(
+    private static async Task<Results<CreatedAtRoute<MessageResponse>, NotFound<Error>, BadRequest<Error>, JsonHttpResult<Error>>> Handle(
         Guid listingId,
         SendMessageRequest request,
         ClaimsPrincipal user,
@@ -26,9 +26,12 @@ public static class StartConversationEndpoint
             new StartConversationCommand(user.GetMemberId(), listingId, request.Text), ct);
 
         if (result.IsFailure)
-            return result.Error.Type == ErrorType.NotFound
-                ? TypedResults.NotFound(result.Error)
-                : TypedResults.BadRequest(result.Error);
+            return result.Error.Type switch
+            {
+                ErrorType.NotFound => TypedResults.NotFound(result.Error),
+                ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
+                _ => TypedResults.BadRequest(result.Error)
+            };
 
         // Location points to the conversation, where the new message is listed.
         return TypedResults.CreatedAtRoute(result.Value, "GetConversation", new { id = result.Value.ConversationId });

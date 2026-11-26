@@ -1,3 +1,4 @@
+import { translate } from '../../i18n/store'
 // Shapes shared by the listings pages. They mirror the API DTOs in
 // src/CampusMarket.Api/Features/Listings and Domain/Listings; the JSON converter
 // on the API sends enums as text (see CampusMarketSetup), so the strings here are
@@ -48,10 +49,15 @@ export interface MyReservationItem {
   reservationId: string
   listingId: string
   listingTitle: string
+  // The listing's price.
   price: number
+  // The price agreed through an accepted offer (features/offers); null when reserved at the listing's price.
+  agreedPrice: number | null
   status: ReservationStatus
   createdAt: string
   expiresAt: string
+  // True once the buyer has reviewed this listing (only after a completed sale).
+  reviewed: boolean
 }
 
 export interface GetMyReservationsResponse {
@@ -95,34 +101,71 @@ export interface CreateListingResponse {
 
 // Only the fallback for the category names: the real ones come from GET /api/v1/categories
 // (an Admin can change them), through useCategories() in ./categories.ts.
+// The label maps are getters, so they always give the text of the current language.
 export const CATEGORY_LABELS: Record<Category, string> = {
-  Textbook: 'Manuale',
-  Notes: 'Notițe',
-  Electronics: 'Electronice',
-  LabEquipment: 'Echipament de laborator',
-  Other: 'Altele',
+  get Textbook() {
+    return translate('listings.category.Textbook')
+  },
+  get Notes() {
+    return translate('listings.category.Notes')
+  },
+  get Electronics() {
+    return translate('listings.category.Electronics')
+  },
+  get LabEquipment() {
+    return translate('listings.category.LabEquipment')
+  },
+  get Other() {
+    return translate('listings.category.Other')
+  },
 }
 
 export const CONDITION_LABELS: Record<Condition, string> = {
-  New: 'Nouă',
-  Good: 'Bună',
-  Worn: 'Uzată',
+  get New() {
+    return translate('listings.condition.New')
+  },
+  get Good() {
+    return translate('listings.condition.Good')
+  },
+  get Worn() {
+    return translate('listings.condition.Worn')
+  },
 }
 
 export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
-  Draft: 'Ciornă',
-  Active: 'Activ',
-  Reserved: 'Rezervat',
-  Sold: 'Vândut',
-  Hidden: 'Ascuns',
-  Expired: 'Expirat',
+  get Draft() {
+    return translate('listings.status.Draft')
+  },
+  get Active() {
+    return translate('listings.status.Active')
+  },
+  get Reserved() {
+    return translate('listings.status.Reserved')
+  },
+  get Sold() {
+    return translate('listings.status.Sold')
+  },
+  get Hidden() {
+    return translate('listings.status.Hidden')
+  },
+  get Expired() {
+    return translate('listings.status.Expired')
+  },
 }
 
 export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
-  Active: 'Activă',
-  Cancelled: 'Anulată',
-  Expired: 'Expirată',
-  Completed: 'Finalizată',
+  get Active() {
+    return translate('listings.reservation.Active')
+  },
+  get Cancelled() {
+    return translate('listings.reservation.Cancelled')
+  },
+  get Expired() {
+    return translate('listings.reservation.Expired')
+  },
+  get Completed() {
+    return translate('listings.reservation.Completed')
+  },
 }
 
 export const CATEGORIES: Category[] = ['Textbook', 'Notes', 'Electronics', 'LabEquipment', 'Other']

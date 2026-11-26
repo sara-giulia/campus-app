@@ -30,4 +30,10 @@ public sealed class FakeReviewRepository : IReviewRepository
         IReadOnlyList<Review> snapshot = Items.Where(r => r.SellerId == sellerId).ToList();
         return Task.FromResult(snapshot);
     }
+
+    public Task<IReadOnlyList<Guid>> GetReviewedListingIdsAsync(Guid reviewerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Guid> snapshot = Items.Where(r => r.ReviewerId == reviewerId).Select(r => r.ListingId).ToList();
+        return Task.FromResult(snapshot);
+    }
 }

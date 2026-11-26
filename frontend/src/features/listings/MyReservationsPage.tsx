@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import { Alert, Badge, Button, EmptyState, Loading, PageHeader } from '../../app/ui'
+import { formatDate as formatLocalDate, formatRon } from '../../i18n/format'
+import { ReviewForm } from '../reviews/ReviewForm'
 import { placeReservationError } from './errors'
 import {
   RESERVATION_STATUS_LABELS,
@@ -10,6 +12,8 @@ import {
   type ReservationStatus,
 } from './types'
 import './listings.css'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 
 // GET /api/v1/members/me/reservations returns the reservations the current user
 // MADE (buyer side). There is no endpoint that lists the reservations received
@@ -32,24 +36,26 @@ function reservationTone(status: ReservationStatus): 'neutral' | 'success' | 'wa
   }
 }
 
-const dateFormatter = new Intl.DateTimeFormat('ro-RO', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-})
-
 function formatDate(iso: string): string {
   const date = new Date(iso)
-  return Number.isNaN(date.getTime()) ? iso : dateFormatter.format(date)
+  return Number.isNaN(date.getTime())
+    ? iso
+    : formatLocalDate(date, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 export function MyReservationsPage() {
+  const t = useT()
   const [items, setItems] = useState<MyReservationItem[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState<Record<string, string | null>>({})
+  // The completed purchase whose review form is open, if any.
+  const [reviewingId, setReviewingId] = useState<string | null>(null)
+
+  function markReviewed(reservationId: string) {
+    setReviewingId(null)
+    setItems((prev) => prev?.map((r) => (r.reservationId === reservationId ? { ...r, reviewed: true } : r)) ?? null)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -59,9 +65,9 @@ export function MyReservationsPage() {
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
         if (err instanceof ApiError) {
-          setLoadError(err.code === 'Network.Unreachable' ? 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' : err.message)
+          setLoadError(err.code === 'Network.Unreachable' ? translate('common.networkUnreachable') : err.message)
         } else {
-          setLoadError('A apărut o eroare neașteptată.')
+          setLoadError(translate('common.unexpectedError'))
         }
       })
     return () => controller.abort()
@@ -73,15 +79,15 @@ export function MyReservationsPage() {
       setItems(data.items)
     } catch (err) {
       if (err instanceof ApiError) {
-        setLoadError(err.code === 'Network.Unreachable' ? 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' : err.message)
+        setLoadError(err.code === 'Network.Unreachable' ? translate('common.networkUnreachable') : err.message)
       } else {
-        setLoadError('A apărut o eroare neașteptată.')
+        setLoadError(translate('common.unexpectedError'))
       }
     }
   }
 
   async function handleCancel(reservation: MyReservationItem) {
-    if (!window.confirm(`Anulezi rezervarea pentru „${reservation.listingTitle}"?`)) return
+    if (!window.confirm(t('myReservations.confirmCancel', { title: reservation.listingTitle }))) return
     setCancellingId(reservation.reservationId)
     setRowError((prev) => ({ ...prev, [reservation.reservationId]: null }))
     try {
@@ -91,19 +97,19 @@ export function MyReservationsPage() {
       if (err instanceof ApiError) {
         setRowError((prev) => ({ ...prev, [reservation.reservationId]: placeReservationError(err) }))
       } else {
-        setRowError((prev) => ({ ...prev, [reservation.reservationId]: 'A apărut o eroare neașteptată.' }))
+        setRowError((prev) => ({ ...prev, [reservation.reservationId]: translate('common.unexpectedError') }))
       }
     } finally {
       setCancellingId(null)
     }
   }
 
-  if (items === null && loadError === null) return <Loading text="Se încarcă rezervările tale…" />
+  if (items === null && loadError === null) return <Loading text={t('myReservations.loading')} />
 
   if (loadError) {
     return (
       <div className="listings-page">
-        <PageHeader eyebrow="Contul meu" title="Rezervările mele" />
+        <PageHeader eyebrow={t('myListings.eyebrow')} title={t('myReservations.title')} />
         <Alert tone="error">{loadError}</Alert>
       </div>
     )
@@ -114,15 +120,13 @@ export function MyReservationsPage() {
   return (
     <div className="listings-page">
       <PageHeader
-        eyebrow="Contul meu"
-        title="Rezervările mele"
-        lead="Rezervările pe care le-ai făcut la anunțurile altor studenți."
+        eyebrow={t('myListings.eyebrow')}
+        title={t('myReservations.title')}
+        lead={t('myReservations.lead')}
       />
 
       {all.length === 0 ? (
-        <EmptyState title="Nu ai nicio rezervare.">
-          Rezervările pe care le faci vor apărea aici.
-        </EmptyState>
+        <EmptyState title={t('myReservations.emptyTitle')}>{t('myReservations.emptyText')}</EmptyState>
       ) : (
         <div className="listings-list">
           {all.map((reservation) => (
@@ -131,11 +135,20 @@ export function MyReservationsPage() {
                 <h2 className="listing-row__title">{reservation.listingTitle}</h2>
                 <div className="listing-row__meta">
                   <Badge tone={reservationTone(reservation.status)}>{RESERVATION_STATUS_LABELS[reservation.status]}</Badge>
-                  <span className="listing-row__price">{reservation.price} RON</span>
+                  {reservation.agreedPrice !== null && reservation.agreedPrice !== reservation.price ? (
+                    <>
+                      <span className="listing-row__price">{formatRon(reservation.agreedPrice)}</span>
+                      <span>
+                        {t('myReservations.negotiated', { price: formatRon(reservation.price) })}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="listing-row__price">{formatRon(reservation.price)}</span>
+                  )}
                   <span>·</span>
-                  <span>Rezervat: {formatDate(reservation.createdAt)}</span>
+                  <span>{t('myReservations.reservedOn', { date: formatDate(reservation.createdAt) })}</span>
                   <span>·</span>
-                  <span>Expiră: {formatDate(reservation.expiresAt)}</span>
+                  <span>{t('myReservations.expiresOn', { date: formatDate(reservation.expiresAt) })}</span>
                 </div>
               </div>
               <div className="listing-row__actions">
@@ -149,10 +162,26 @@ export function MyReservationsPage() {
                       void handleCancel(reservation)
                     }}
                   >
-                    {cancellingId === reservation.reservationId ? 'Se anulează…' : 'Anulează'}
+                    {cancellingId === reservation.reservationId ? t('myReservations.cancelling') : t('myReservations.cancel')}
                   </Button>
                 )}
+                {reservation.status === 'Completed' && !reservation.reviewed && reviewingId !== reservation.reservationId && (
+                  <Button variant="secondary" size="sm" onClick={() => setReviewingId(reservation.reservationId)}>
+                    {t('myReservations.review')}
+                  </Button>
+                )}
+                {reservation.status === 'Completed' && reservation.reviewed && <Badge tone="neutral">{t('myReservations.reviewSent')}</Badge>}
               </div>
+              {reviewingId === reservation.reservationId && (
+                <div className="listing-row__inline-error">
+                  <ReviewForm
+                    listingId={reservation.listingId}
+                    listingTitle={reservation.listingTitle}
+                    onCancel={() => setReviewingId(null)}
+                    onReviewed={() => markReviewed(reservation.reservationId)}
+                  />
+                </div>
+              )}
               {rowError[reservation.reservationId] && (
                 <div className="listing-row__inline-error">
                   <Alert tone="error">{rowError[reservation.reservationId]}</Alert>

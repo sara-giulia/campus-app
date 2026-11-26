@@ -7,12 +7,14 @@ import { formatPrice, type GetMyFavoritesResponse } from '../listings/publicType
 import { useCategories } from '../listings/categories'
 import { CONDITION_LABELS, LISTING_STATUS_LABELS } from '../listings/types'
 import '../listings/listings.css'
+import { useT } from '../../i18n/LanguageContext'
 
 const PAGE_SIZE = 10
 
 // The listings I saved, the last saved first. A listing that was reserved or sold since stays here
 // with its status, so the member sees what happened to it.
 export function MyFavoritesPage() {
+  const t = useT()
   const { labelOf } = useCategories()
   const [page, setPage] = useState(1)
   const [data, setData] = useState<GetMyFavoritesResponse | null>(null)
@@ -53,12 +55,12 @@ export function MyFavoritesPage() {
 
   return (
     <div className="listings-page">
-      <PageHeader eyebrow="Contul meu" title="Favorite" lead="Anunțurile pe care le-ai salvat." />
+      <PageHeader eyebrow={t('myListings.eyebrow')} title={t('favorites.title')} lead={t('favorites.lead')} />
       {error && <Alert tone="error">{error}</Alert>}
-      {!error && data === null && <Loading text="Se încarcă favoritele…" />}
+      {!error && data === null && <Loading text={t('favorites.loading')} />}
       {data !== null && data.totalCount === 0 && (
-        <EmptyState title="Nu ai salvat încă niciun anunț." action={<ButtonLink to="/listings">Caută anunțuri</ButtonLink>}>
-          Apasă „Salvează” pe pagina unui anunț ca să-l găsești aici.
+        <EmptyState title={t('favorites.emptyTitle')} action={<ButtonLink to="/listings">{t('messages.emptyAction')}</ButtonLink>}>
+          {t('favorites.emptyText')}
         </EmptyState>
       )}
       {data !== null && data.totalCount > 0 && (
@@ -81,7 +83,7 @@ export function MyFavoritesPage() {
                 </div>
                 <div className="listing-row__actions">
                   <Button variant="ghost" size="sm" onClick={() => remove(f.listingId)} loading={removing === f.listingId}>
-                    Scoate
+                    {t('favorites.remove')}
                   </Button>
                 </div>
               </article>

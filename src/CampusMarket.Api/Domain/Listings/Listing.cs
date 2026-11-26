@@ -119,7 +119,9 @@ public sealed class Listing
         return this;
     }
 
-    public Result<Reservation> Reserve(Guid buyerId, DateTimeOffset currentTime)
+    // agreedPrice: set when the reservation comes from an accepted offer (Domain/Offers), otherwise the
+    // buyer pays the listing's price.
+    public Result<Reservation> Reserve(Guid buyerId, DateTimeOffset currentTime, Money? agreedPrice = null)
     {
         if (Status != ListingStatus.Active)
             return Result<Reservation>.Failure(
@@ -131,7 +133,7 @@ public sealed class Listing
             return Result<Reservation>.Failure(
                 Error.Validation("Reservation.OwnListing", "A seller cannot reserve their own listing."));
 
-        var reservation = Reservation.Create(Id, buyerId, currentTime);
+        var reservation = Reservation.Create(Id, buyerId, currentTime, agreedPrice?.Amount);
         _reservations.Add(reservation);
         Status = ListingStatus.Reserved;
         Version++;

@@ -4,16 +4,20 @@ import { api } from '../../api/client'
 import { useAuth } from '../../app/auth/AuthContext'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Button, Loading } from '../../app/ui'
+import { BlockButton } from '../blocks/BlockButton'
 import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
+import { OffersPanel } from '../offers/OffersPanel'
 import type { ConversationDetail } from './types'
 import './messages.css'
+import { useT } from '../../i18n/LanguageContext'
 
 // New messages from the other member arrive on the live stream (features/live) and the page loads
 // the conversation again at once. Only while the stream is not connected does it ask every few seconds.
 const REFRESH_MS = 5000
 
 export function ConversationPage() {
+  const t = useT()
   const { id = '' } = useParams()
   const { user } = useAuth()
   const [conversation, setConversation] = useState<ConversationDetail | null>(null)
@@ -27,8 +31,10 @@ export function ConversationPage() {
   // Bumped after sending and on a live event for this conversation, to load it again at once.
   const [version, setVersion] = useState(0)
 
+  // A notification may be about an offer in this conversation (new offer, counter-offer, answer):
+  // loading it again is cheap, so any notification refreshes the page too.
   const live = useLiveEvents((event) => {
-    if (event.type === 'message' && event.conversationId === id) setVersion((v) => v + 1)
+    if ((event.type === 'message' && event.conversationId === id) || event.type === 'notification') setVersion((v) => v + 1)
   })
 
   useEffect(() => {
@@ -81,25 +87,29 @@ export function ConversationPage() {
     return (
       <div className="chat">
         <Alert tone="error">{loadError}</Alert>
-        <Link to="/messages">← Toate mesajele</Link>
+        <Link to="/messages">{t('messages.allMessages')}</Link>
       </div>
     )
   }
-  if (!conversation) return <Loading text="Se încarcă conversația…" />
+  if (!conversation) return <Loading text={t('messages.loadingConversation')} />
 
   const other = user?.id === conversation.sellerId ? conversation.buyerName : conversation.sellerName
+  const otherId = user?.id === conversation.sellerId ? conversation.buyerId : conversation.sellerId
 
   return (
     <div className="chat">
       <div className="chat__head">
         <Link to="/messages" className="chat__back">
-          ← Mesaje
+          {t('messages.back')}
         </Link>
         <div>
           <h1 className="chat__title">{other}</h1>
           <Link to={`/listings/${conversation.listingId}`} className="chat__listing">
             {conversation.listingTitle}
           </Link>
+        </div>
+        <div className="chat__actions">
+          <BlockButton memberId={otherId} name={other} />
         </div>
       </div>
 
@@ -113,10 +123,19 @@ export function ConversationPage() {
         <div ref={endRef} />
       </div>
 
+      <OffersPanel
+        listingId={conversation.listingId}
+        buyerId={conversation.buyerId}
+        currentUserId={user?.id}
+        otherName={other}
+        offers={conversation.offers}
+        onChanged={() => setVersion((v) => v + 1)}
+      />
+
       <form className="chat__form" onSubmit={send}>
         <textarea
           className="chat__input"
-          placeholder="Scrie un mesaj…"
+          placeholder={t('messages.placeholder')}
           maxLength={1000}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -128,7 +147,7 @@ export function ConversationPage() {
           }}
         />
         <Button type="submit" loading={sending} disabled={text.trim() === ''}>
-          Trimite
+          {t('messages.send')}
         </Button>
       </form>
       {sendError && <Alert tone="error">{sendError}</Alert>}

@@ -10,13 +10,16 @@ public sealed class Reservation
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset ExpiresAt { get; private set; }
     public ReservationStatus Status { get; private set; }
+    // The price agreed through an accepted offer; null when the buyer reserved at the listing's price.
+    public decimal? AgreedPrice { get; private set; }
 
     private Reservation() { }
 
     internal static Reservation Create(
         Guid listingId,
         Guid memberId,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        decimal? agreedPrice = null)
     {
         return new Reservation
         {
@@ -25,9 +28,13 @@ public sealed class Reservation
             MemberId = memberId,
             CreatedAt = createdAt,
             ExpiresAt = createdAt.AddHours(48),
-            Status = ReservationStatus.Active
+            Status = ReservationStatus.Active,
+            AgreedPrice = agreedPrice
         };
     }
+
+    // What the buyer pays: the agreed price, or the listing's price when there was no offer.
+    public decimal PriceFor(Listing listing) => AgreedPrice ?? listing.Price.Amount;
 
     // Internal: only Listing.CancelReservation may cancel, so the listing's Status and Version stay in sync.
     internal Result<Reservation> Cancel()
