@@ -1238,6 +1238,7 @@ The skill was improved three times before its run, by comparing it with the real
 - **Problems seen:** none.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code fa16910; skill section 7bafdcc; tests generated in f3913a2
+- **Follow-up:** Sonar fixes: shared base class for the expiry services, missing coverage.
 
 ### Run 49, skill v51 (Feature: Review notification and reviewed flag)
 

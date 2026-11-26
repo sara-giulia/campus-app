@@ -45,6 +45,13 @@ public sealed class ListingExpiryJobTests : IntegrationTestBase
         return await ReadStatusAsync(listingId);
     }
 
+    private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!condition() && DateTime.UtcNow < deadline)
+            await Task.Delay(50);
+    }
+
     private Task<ListingStatus> ReadStatusAsync(Guid listingId) =>
         QueryDbAsync(db => db.Set<Listing>().AsNoTracking()
             .Where(l => l.Id == listingId)
@@ -73,6 +80,8 @@ public sealed class ListingExpiryJobTests : IntegrationTestBase
         {
             withJob.CreateClient();
             finalStatus = await WaitForStatusAsync(stale.Id, ListingStatus.Expired, TimeSpan.FromSeconds(5));
+            // The status is committed before the email is tried; stopping the host now would cancel the send.
+            await WaitForAsync(() => emailSender.Attempts > 0, TimeSpan.FromSeconds(5));
         }
 
         // Assert
