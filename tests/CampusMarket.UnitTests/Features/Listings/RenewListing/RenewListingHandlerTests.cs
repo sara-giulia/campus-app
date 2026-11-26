@@ -134,6 +134,23 @@ public class RenewListingHandlerTests
     }
 
     [Fact]
+    public async Task Given_ExpiredListingWhoseCategoryIsNotFound_When_SellerRenews_Then_Renews()
+    {
+        // Arrange
+        var listing = AddExpiredListing();
+        _categories.Items.Remove(Category.Textbook);
+
+        // Act
+        var result = await CreateHandler().HandleAsync(new RenewListingCommand(listing.Id, SellerId), CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Active);
+        _repository.UpdateCount.Should().Be(1);
+        _unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Given_ActiveListingInDeactivatedCategory_When_SellerRenews_Then_ReturnsNotExpiredNotTheCategoryError()
     {
         var listing = AddActiveListing();
