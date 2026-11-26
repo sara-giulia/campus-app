@@ -32,7 +32,7 @@ public class StartConversationHandlerTests
         FakeMemberRepository members,
         FakeConversationRepository conversations,
         FakeUnitOfWork unitOfWork) =>
-        new(listings, members, conversations, unitOfWork, new FixedTimeProvider(Now));
+        new(listings, members, conversations, new FakeMemberBlockRepository(), unitOfWork, new FixedTimeProvider(Now));
 
     [Fact]
     public async Task Given_NoConversationYet_When_Handling_Then_StartsConversationAndSavesOnce()

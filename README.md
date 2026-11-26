@@ -229,6 +229,11 @@ flowchart LR
 | Answer in a conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | only the buyer and the seller |
 | Read a conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | only the buyer and the seller |
 | See my conversations | `GetMyConversations` | `GET /api/v1/members/me/conversations` | as buyer and as seller; the latest message first |
+| Offer a price | `MakeOffer` | `POST /api/v1/listings/{id}/offers` | not own listing; only `Active`; amount > 0; at most one `Pending` offer per buyer and listing |
+| Answer an offer | `AcceptOffer`, `RejectOffer`, `CounterOffer` | `POST /api/v1/offers/{id}/accept` / `reject` / `counter` | only the side that did not propose it; only `Pending`; accepting reserves the listing at that price |
+| Withdraw an offer | `WithdrawOffer` | `POST /api/v1/offers/{id}/withdraw` | only the buyer, only their own `Pending` offer |
+| Block a member | `BlockMember`, `UnblockMember` | `POST` / `DELETE /api/v1/members/{id}/block` | not yourself; idempotent (204); the blocked member can no longer write to you, make offers or reserve your listings |
+| See blocked members | `GetMyBlocked` | `GET /api/v1/members/me/blocked` | only your own blocks |
 | Add a photo | `UploadPhoto` | `POST /api/v1/listings/{id}/photos` | only the seller; JPEG, PNG or WebP; at most 2 MB; at most 5 per listing |
 | Remove a photo | `DeletePhoto` | `DELETE /api/v1/listings/{id}/photos/{photoId}` | only the seller |
 | Reorder the photos | `ReorderPhotos` | `PUT /api/v1/listings/{id}/photos/order` | only the seller; the ids must be exactly the photos of the listing |
@@ -262,8 +267,18 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
 | Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, 401, 404 |
 | Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
-| Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200 (messages and `offers`), 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Conversation | `GetMyConversations` | `GET /api/v1/members/me/conversations` | anyone logged in; only their own conversations | 200, 401 |
+| Offer | `MakeOffer` | `POST /api/v1/listings/{id}/offers` (body `{ "amount": 80 }`) | anyone logged in except the seller | 201 `{ conversationId, offer }` + `Location` (the conversation), 400 `Offer.OwnListing` / `Offer.ListingNotActive` / `Offer.AmountInvalid` / `Offer.AmountTooHigh`, 401, 404 `Listing.NotFound`, 409 `Offer.AlreadyPending` |
+| Offer | `AcceptOffer` | `POST /api/v1/offers/{id}/accept` | the side that did not propose the offer | 200 `{ offer, reservation }` (`reservation.agreedPrice`), 400 `Offer.NotPending` / `Offer.ListingNotActive` / `Offer.BuyerReservationLimit`, 401, 403 `Offer.NotRecipient` / `Offer.NotParticipant`, 404 `Offer.NotFound`, 409 `Concurrency.Conflict` |
+| Offer | `RejectOffer` | `POST /api/v1/offers/{id}/reject` | the side that did not propose the offer | 200 (the offer), 400 `Offer.NotPending`, 401, 403 `Offer.NotRecipient` / `Offer.NotParticipant`, 404 `Offer.NotFound` |
+| Offer | `CounterOffer` | `POST /api/v1/offers/{id}/counter` (body `{ "amount": 90 }`) | the side that did not propose the offer | 200 (the new `Pending` offer), 400 `Offer.NotPending` / `Offer.ListingNotActive` / `Offer.AmountInvalid` / `Offer.AmountTooHigh`, 401, 403 `Offer.NotRecipient` / `Offer.NotParticipant`, 404 `Offer.NotFound` |
+| Offer | `WithdrawOffer` | `POST /api/v1/offers/{id}/withdraw` | the buyer, on their own offer | 200 (the offer), 400 `Offer.NotPending` / `Offer.NotOwnOffer`, 401, 403 `Offer.NotBuyer` / `Offer.NotParticipant`, 404 `Offer.NotFound` |
+| Block | `BlockMember` | `POST /api/v1/members/{id}/block` | anyone logged in | 204 (also when already blocked), 400 `Block.Self`, 401, 404 `Member.NotFound` |
+| Block | `UnblockMember` | `DELETE /api/v1/members/{id}/block` | anyone logged in | 204 (also when not blocked), 401 |
+| Block | `GetMyBlocked` | `GET /api/v1/members/me/blocked` | anyone logged in; only their own blocks | 200 `{ items: [{ memberId, name, blockedAt }] }`, the newest first, 401 |
+| Stats | `RecordView` | `POST /api/v1/listings/{id}/views` | public; the member from the token, otherwise the header `X-Visitor-Id` (a random GUID) | 204 (also when not counted), 400 `View.ViewerMissing`, 404 `Listing.NotFound` |
+| Stats | `GetListingStats` | `GET /api/v1/listings/{id}/stats?days=30` | the seller or an Admin | 200 `{ listingId, days, from, to, totals, daily }`, 400 `Stats.InvalidDays` (1-365), 401, 403 `Listing.NotOwner`, 404 `Listing.NotFound` |
 | Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form), 503 `Photo.StorageFailed` |
 | Photo | `GetListingPhotos` | `GET /api/v1/listings/{listingId}/photos` | everyone; the photos of a `Draft` only for its seller or an Admin | 200 (sorted by `position`), 404 (also a draft that is not yours) |
 | Photo | `GetPhotoFile` | `GET /api/v1/photos/{id}` | everyone | 200 (the image), 404 `Photo.NotFound` |
@@ -272,8 +287,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
-| Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
-| Listing | `GetMyListings` | `GET /api/v1/members/me/listings` | anyone logged in; only their own listings, in every status, newest first | 200 `{ items, count }` (each item has `expiresAt`, null for a draft never published), 401 |
+| Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200 `{ items, count }` (each item has `reviewed` and `agreedPrice`, null without an accepted offer), 401 |
+| Listing | `GetMyListings` | `GET /api/v1/members/me/listings` | anyone logged in; only their own listings, in every status, newest first | 200 `{ items, count }` (each item has `expiresAt`, null for a draft never published, and `reservedPrice`, what the buyer of the active reservation pays, null without one), 401 |
 | Member | `StreamMyEvents` | `GET /api/v1/members/me/events` | anyone logged in; only their own events | 200 `text/event-stream` (stays open: `ping`, `notification`, `message`), 401 |
 | Auth | `Register` | `POST /api/v1/auth/register` | everyone, at most 5 registrations per minute per IP | 201 + `Location`, 400, 409, 429 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
@@ -297,7 +312,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/members/me/blocked`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
 
 ### Searching listings
 
@@ -460,6 +475,21 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Photo.StorageFailed` | 503 | the photo file could not be written to the storage; nothing was saved, try again |
 | `Photo.OrderMismatch` | 400 | the list of `PUT .../photos/order` is not exactly the photos of the listing (missing, unknown or repeated id) |
 | `Listing.CategoryInactive` | 400 | you create a listing in a deactivated category, move a listing into one, or publish a draft that is in one |
+| `Offer.NotFound` | 404 | no offer with that id |
+| `Offer.OwnListing` | 400 | the seller makes an offer on their own listing |
+| `Offer.ListingNotActive` | 400 | the listing is not `Active` when the offer is made, countered or accepted |
+| `Offer.AmountInvalid`, `Offer.AmountTooHigh` | 400 | the amount is missing, 0 or negative, or above 100000 lei |
+| `Offer.AlreadyPending` | 409 | the buyer already has a `Pending` offer (theirs or the seller's counter-offer) on this listing |
+| `Offer.NotPending` | 400 | the offer was already accepted, rejected, countered or withdrawn |
+| `Offer.NotParticipant` | 403 | you act on an offer and you are neither its buyer nor its seller |
+| `Offer.NotRecipient` | 403 | you accept, reject or counter your own offer (only the other side can) |
+| `Offer.NotBuyer` | 403 | the seller withdraws an offer (only the buyer can) |
+| `Offer.NotOwnOffer` | 400 | the buyer withdraws the seller's counter-offer (reject it instead) |
+| `Offer.BuyerReservationLimit` | 400 | accepting would give the buyer more than 3 active reservations |
+| `Block.Self` | 400 | you block yourself |
+| `View.ViewerMissing` | 400 | a view is sent without a token and without a valid `X-Visitor-Id` |
+| `Stats.InvalidDays` | 400 | `days` is not between 1 and 365 |
+| `Member.Blocked` | 403 | you make an offer or a counter-offer, start or continue a conversation, or reserve a listing, and the other member has blocked you |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
@@ -598,6 +628,8 @@ After a sale is confirmed, the buyer rates the seller once.
 
 Reviews are stored in their own table (`Reviews`, migration `InitialPostgres`), with a unique index on the listing (one sale, one review) and foreign keys to `Listings` and to `Members` for the seller and the reviewer (cascade delete).
 
+When a review is saved, the seller gets a `ReviewReceived` notification ("<buyer> rated <title> <rating>/5", same commit). `GET /api/v1/members/me/reservations` marks each item with `reviewed` (`true` once the buyer has reviewed that listing), so the buyer's page shows "Lasă o recenzie" only on completed purchases not yet reviewed. The public profile (`GET /api/v1/members/{id}/profile`) carries `averageRating` and `reviewCount`.
+
 ### Messages between buyer and seller
 
 A buyer writes to the seller about a listing; only the two of them can read or write in that conversation (anyone else, an Admin too, gets 403 `Conversation.NotParticipant`).
@@ -608,6 +640,37 @@ A buyer writes to the seller about a listing; only the two of them can read or w
 - `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message and the number of messages.
 
 A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `InitialPostgres`.
+
+### Price offers
+
+Inside a conversation, the buyer proposes a price and the seller accepts it, refuses it or answers with another amount; the two sides can go back and forth until one accepts.
+
+- `POST /api/v1/listings/{id}/offers` with `{ "amount": 80 }` (the buyer): only on an `Active` listing, not your own, amount > 0 and at most 100000. A buyer has at most one `Pending` offer per listing (409 `Offer.AlreadyPending`). If the buyer has no conversation about the listing yet, the offer starts one with the message "Am făcut o ofertă de 80 lei.". 201 with `{ conversationId, offer }` and `Location` to the conversation.
+- `POST /api/v1/offers/{id}/counter` with `{ "amount": 90 }`: the side that did not propose the offer answers with another amount. The offer becomes `Countered` and a new `Pending` offer goes the other way (`parentOfferId` = the answered offer). 200 with the new offer.
+- `POST /api/v1/offers/{id}/reject`: the side that did not propose it refuses it (`Rejected`).
+- `POST /api/v1/offers/{id}/withdraw`: the buyer takes back their own `Pending` offer (`Withdrawn`); a seller's counter-offer is rejected, not withdrawn.
+- `POST /api/v1/offers/{id}/accept`: the side that did not propose it accepts. The listing must still be `Active`; it is reserved for the buyer through the normal reservation rules (`Listing.Reserve`: 48 hours, at most 3 active reservations per buyer, 409 `Concurrency.Conflict` when two requests reserve it at the same time), with the amount saved as the reservation's `agreedPrice`. Every other `Pending` offer on the listing (other buyers) becomes `Rejected`. 200 with `{ offer, reservation }`.
+- `GET /api/v1/conversations/{id}` returns the conversation's offers (`offers`: `id, listingId, buyerId, sellerId, proposedById, amount, status, parentOfferId, createdAt, respondedAt`, the oldest first) next to its messages.
+
+Statuses: `Pending`, `Accepted`, `Rejected`, `Countered`, `Withdrawn`. The agreed price is shown in `GET /api/v1/members/me/reservations` (`agreedPrice`), in `GET /api/v1/members/me/listings` (`reservedPrice`), and a confirmed sale records it as the sold price (`SaleRecords`, the price feedback loop).
+
+Notifications, in the same unit of work: `OfferReceived` to the seller ("<buyer> offered <amount> lei for <title>"), `OfferCountered` to the other side ("<member> countered with <amount> lei for <title>"), `OfferAccepted` to both sides ("<member> accepted your offer of <amount> lei for <title>" / "You accepted the offer of <amount> lei for <title>"), `OfferRejected` to the side that proposed it ("<member> rejected your offer of <amount> lei for <title>") and to each buyer whose offer was closed by another accepted offer ("The offer of <amount> lei for <title> was closed: the listing was reserved by another buyer"). Withdrawing sends none.
+
+Stored in `Offers` (foreign keys to `Listings` and to `Members` for the buyer and the seller with cascade delete, `ParentOfferId` to the answered offer, indexes on listing + buyer and listing + status) and `Reservations.AgreedPrice` (null for a reservation at the listing's price); migration `AddOffers`, on top of `AddListingExpiry`. In the frontend (`frontend/src/features/offers/`) the conversation page shows the offers as cards, with "Fă o ofertă" for the buyer, "Acceptă" / "Refuză" / "Contraofertă" for the side that has to answer and "Retrage" for the buyer's own offer.
+
+### Blocking members
+
+- `POST /api/v1/members/{id}/block` (204): the caller blocks the member. Yourself: 400 `Block.Self`; unknown member: 404 `Member.NotFound`. Blocking twice is fine (204, nothing changes). `DELETE /api/v1/members/{id}/block` (204) removes the block, also when there was none. `GET /api/v1/members/me/blocked` lists the caller's blocks (`memberId, name, blockedAt`), the newest first.
+- A block works one way. When the **seller** (or any recipient) blocked a member, that member gets 403 `Member.Blocked` when they: make an offer on the blocker's listing, counter the blocker's offer, start a conversation about the blocker's listing, write in an existing conversation with the blocker, or reserve the blocker's listing. The blocker is not restricted.
+- The blocker no longer sees the blocked member's listings in `GET /api/v1/listings` (the search results are output-cached for anonymous requests only; a request with a token is never cached, so the blocker always gets a fresh, filtered answer, and the cache is evicted on block and unblock so anonymous visitors see the change too), in `GET /api/v1/listings/{id}/similar` and in `GET /api/v1/members/me/favorites` (the favorites stay saved and come back after unblocking). The listing page `GET /api/v1/listings/{id}` and the public profile stay open.
+- When the block is created, every `Pending` offer between the two members (on any listing, whoever is the buyer) becomes `Rejected`, without a notification so the block stays private. Existing messages and reservations stay.
+- Stored in `MemberBlocks` (`BlockerId`, `BlockedId`, `CreatedAt`; unique index on the pair, foreign keys to `Members` with cascade delete); migration `AddMemberBlocks`, on top of `AddOffers`. In the frontend (`frontend/src/features/blocks/`) the button "Blochează" / "Deblochează" is on the public profile and in the conversation, and the profile page has the list "Utilizatori blocați" with "Deblochează".
+
+### Listing statistics
+
+- `POST /api/v1/listings/{id}/views` (204, public): the frontend calls it when the listing page opens (`GET /api/v1/listings/{id}` can be output-cached, so it cannot count). The viewer is the member id when there is a token, otherwise the random GUID in the `X-Visitor-Id` header (made by the browser and kept in `localStorage` under `campusmarket.visitorId`; no personal data). Neither: 400 `View.ViewerMissing`. A viewer counts **once per listing and day (UTC)**. Not counted (still 204): the seller's own views, `Draft` and `Hidden` listings, a repeat the same day. Unknown listing: 404.
+- `GET /api/v1/listings/{id}/stats?days=30` (the seller or an Admin, otherwise 403 `Listing.NotOwner`; `days` 1-365, default 30): `{ listingId, days, from, to, totals: { views, favorites, messages, offers }, daily: [{ date, views, favorites, messages, offers }] }`. `daily` has one entry per day of the period (UTC, the oldest first, today last, zeros included). Views are the unique views above; favorites, messages (all messages of the listing's conversations, both sides) and offers (counter-offers included) come from their existing `CreatedAt` / `SentAt` columns.
+- Stored in `ListingViews` (`ListingId`, `ViewerKey` = `m:<member id>` or `v:<visitor id>`, `Day`, `CreatedAt`; unique index on listing + viewer + day, foreign key to `Listings` with cascade delete); migration `AddListingViews`, on top of `AddListingEmbeddings`. The insert is `ON CONFLICT DO NOTHING`, so two simultaneous requests cannot duplicate or fail. In the frontend, "Anunțurile mele" has a "Statistici" button per listing: the four totals and a plain SVG bar chart per day (7, 30 or 90 days), in `frontend/src/features/listings/ListingStats.tsx`.
 
 ### Listing photos
 
@@ -635,7 +698,7 @@ A listing that is published without any photo gets a picture made by the app, so
 
 ### Notifications
 
-Members are told when something relevant happens to a listing of theirs. Four kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you"), `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired") and `ListingExpired` (the seller is told when the listing expires after 30 days: "Your listing <title> expired", with an email too; see Listing expiry). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `InitialPostgres`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
+Members are told when something relevant happens to a listing of theirs. Several kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you"), `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired") and `ListingExpired` (the seller is told when the listing expires after 30 days: "Your listing <title> expired", with an email too; see Listing expiry) and `ReviewReceived` (the seller is told when the buyer reviews the sale: "<buyer> rated <title> <rating>/5"; see Seller reviews), and `OfferReceived`, `OfferCountered`, `OfferAccepted`, `OfferRejected` (see Price offers). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `InitialPostgres`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
 
 ### Live events (Server-Sent Events)
 

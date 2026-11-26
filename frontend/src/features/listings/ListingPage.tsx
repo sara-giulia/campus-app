@@ -20,6 +20,7 @@ import {
 } from './publicTypes'
 import { useCategories } from './categories'
 import { CONDITION_LABELS, LISTING_STATUS_LABELS, type ListingDetail } from './types'
+import { recordListingView } from './views'
 import './browse.css'
 
 interface MessageSent {
@@ -78,12 +79,18 @@ function ListingView({ id }: { id: string }) {
         if (!isAbort(err)) setLoadError(errorMessage(err))
       })
     api
-      .get<GetSimilarListingsResponse>(`/listings/${id}/similar`, { signal, auth: false })
+      .get<GetSimilarListingsResponse>(`/listings/${id}/similar`, { signal })
       // Four, one full row of the grid.
       .then((data) => setSimilar(data.items.slice(0, 4)))
       .catch(() => setSimilar([]))
 
     return () => controller.abort()
+  }, [id])
+
+  // One view per visit, counted by the API (unique per viewer and day; not the seller's). The listing
+  // itself may come from the cache, so the page tells the API. Never blocks or shows an error.
+  useEffect(() => {
+    recordListingView(id)
   }, [id])
 
   // Is it in my favorites? There is no single-listing check, so look in the first 100 favorites.

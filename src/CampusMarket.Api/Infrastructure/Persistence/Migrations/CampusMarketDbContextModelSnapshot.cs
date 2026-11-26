@@ -17,7 +17,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261125214900_AddListingEmbeddings";
+    public override string LastMigrationId => "20261126112225_AddListingViews";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -28,6 +28,30 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
 
         NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Blocks.MemberBlock", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("BlockedId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("BlockerId")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.HasKey("Id");
+
+                b.HasIndex("BlockedId");
+
+                b.HasIndex("BlockerId", "BlockedId")
+                    .IsUnique();
+
+                b.ToTable("MemberBlocks");
+            });
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Categories.ListingCategory", b =>
             {
@@ -221,6 +245,9 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.Property<Guid>("Id")
                     .HasColumnType("uuid");
 
+                b.Property<decimal?>("AgreedPrice")
+                    .HasColumnType("numeric");
+
                 b.Property<DateTimeOffset>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
@@ -408,6 +435,54 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("Notifications");
             });
 
+        modelBuilder.Entity("CampusMarket.Api.Domain.Offers.Offer", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid");
+
+                b.Property<decimal>("Amount")
+                    .HasColumnType("numeric");
+
+                b.Property<Guid>("BuyerId")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("ListingId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid?>("ParentOfferId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("ProposedById")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset?>("RespondedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("SellerId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.HasKey("Id");
+
+                b.HasIndex("BuyerId");
+
+                b.HasIndex("ParentOfferId");
+
+                b.HasIndex("SellerId");
+
+                b.HasIndex("ListingId", "BuyerId");
+
+                b.HasIndex("ListingId", "Status");
+
+                b.ToTable("Offers");
+            });
+
         modelBuilder.Entity("CampusMarket.Api.Domain.Photos.Photo", b =>
             {
                 b.Property<Guid>("Id")
@@ -513,6 +588,33 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("Reviews");
             });
 
+        modelBuilder.Entity("CampusMarket.Api.Domain.Views.ListingView", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<DateOnly>("Day")
+                    .HasColumnType("date");
+
+                b.Property<Guid>("ListingId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("ViewerKey")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ListingId", "ViewerKey", "Day")
+                    .IsUnique();
+
+                b.ToTable("ListingViews");
+            });
+
         modelBuilder.Entity("CampusMarket.Api.Infrastructure.Search.ListingEmbedding", b =>
             {
                 b.Property<Guid>("ListingId")
@@ -543,6 +645,21 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 NpgsqlIndexBuilderExtensions.HasOperators(index, new[] { "vector_cosine_ops" });
 
                 b.ToTable("ListingEmbeddings");
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Blocks.MemberBlock", b =>
+            {
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("BlockedId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("BlockerId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
             });
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Conversations.Conversation", b =>
@@ -599,6 +716,32 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                     .IsRequired();
             });
 
+        modelBuilder.Entity("CampusMarket.Api.Domain.Offers.Offer", b =>
+            {
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("BuyerId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
+                    .WithMany()
+                    .HasForeignKey("ListingId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("CampusMarket.Api.Domain.Offers.Offer", null)
+                    .WithMany()
+                    .HasForeignKey("ParentOfferId")
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("SellerId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
         modelBuilder.Entity("CampusMarket.Api.Domain.Photos.Photo", b =>
             {
                 b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
@@ -639,6 +782,15 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
                     .WithMany()
                     .HasForeignKey("SellerId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Views.ListingView", b =>
+            {
+                b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
+                    .WithMany()
+                    .HasForeignKey("ListingId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });

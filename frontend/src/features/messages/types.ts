@@ -1,3 +1,5 @@
+import type { Offer } from '../offers/types'
+
 // Shapes of the conversation endpoints (src/CampusMarket.Api/Features/Conversations).
 
 export interface MyConversationItem {
@@ -35,4 +37,6 @@ export interface ConversationDetail {
   buyerName: string
   createdAt: string
   messages: ConversationMessage[]
+  // The price offers between the two members on this listing, the oldest first.
+  offers: Offer[]
 }

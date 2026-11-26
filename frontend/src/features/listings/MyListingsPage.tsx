@@ -5,6 +5,7 @@ import { useAuth } from '../../app/auth/AuthContext'
 import { Alert, Badge, Button, ButtonLink, EmptyState, Loading, PageHeader, Pagination } from '../../app/ui'
 import { placeListingError } from './errors'
 import { useCategories } from './categories'
+import { ListingStats } from './ListingStats'
 import {
   CONDITION_LABELS,
   LISTING_STATUS_LABELS,
@@ -15,8 +16,10 @@ import './listings.css'
 
 const PAGE_SIZE = 10
 
-// GET /members/me/listings also sends expiresAt (null for a draft that was never published).
-type MyListingItem = ListingSummary & { expiresAt: string | null }
+// GET /members/me/listings also sends expiresAt (null for a draft that was never published) and
+// reservedPrice: what the buyer of the active reservation pays (an accepted offer's price, or the
+// listing's price), null without an active reservation.
+type MyListingItem = ListingSummary & { expiresAt: string | null; reservedPrice: number | null }
 type MyListingsResponse = { items: MyListingItem[]; count: number }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -56,6 +59,7 @@ export function MyListingsPage() {
   const [renewingId, setRenewingId] = useState<string | null>(null)
   const [rowError, setRowError] = useState<Record<string, string | null>>({})
   const [formError, setFormError] = useState<string | null>(null)
+  const [statsId, setStatsId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -201,6 +205,12 @@ export function MyListingsPage() {
                   <span>{CONDITION_LABELS[listing.condition]}</span>
                   <span>·</span>
                   <span className="listing-row__price">{listing.price} RON</span>
+                  {listing.status === 'Reserved' && listing.reservedPrice !== null && listing.reservedPrice !== listing.price && (
+                    <>
+                      <span>·</span>
+                      <span>Rezervat la {listing.reservedPrice} RON</span>
+                    </>
+                  )}
                   {listing.status === 'Active' && listing.expiresAt && (
                     <>
                       <span>·</span>
@@ -234,6 +244,14 @@ export function MyListingsPage() {
                     {renewingId === listing.id ? 'Se reînnoiește…' : 'Reînnoiește'}
                   </Button>
                 )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  aria-expanded={statsId === listing.id}
+                  onClick={() => setStatsId(statsId === listing.id ? null : listing.id)}
+                >
+                  Statistici
+                </Button>
                 <ButtonLink to={`/my/listings/${listing.id}/edit`} variant="secondary" size="sm">
                   Editează
                 </ButtonLink>
@@ -249,6 +267,11 @@ export function MyListingsPage() {
                   {deletingId === listing.id ? 'Se șterge…' : 'Șterge'}
                 </Button>
               </div>
+              {statsId === listing.id && (
+                <div className="listing-row__stats">
+                  <ListingStats listingId={listing.id} />
+                </div>
+              )}
               {rowError[listing.id] && (
                 <div className="listing-row__inline-error">
                   <Alert tone="error">{rowError[listing.id]}</Alert>

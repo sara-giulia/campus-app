@@ -358,4 +358,51 @@ public sealed class ConfirmSaleTests : IntegrationTestBase
         saved.Reservations.Should().HaveCount(1);
         saved.Reservations.Single().Status.Should().Be(ReservationStatus.Completed);
     }
+
+    [Fact]
+    public async Task Given_ReservationWithAgreedPrice_When_SellerConfirms_Then_SaleRecordHasTheAgreedPrice()
+    {
+        // Arrange
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var reservation = listing.Reserve(buyer.Id, DateTimeOffset.UtcNow, Money.Create(40m).Value).Value;
+        await SeedAsync(buyer, listing);
+        AuthenticateAs(SellerId);
+
+        // Act
+        var response = await Client.PostAsync(
+            $"/api/v1/listings/{listing.Id}/reservations/{reservation.Id}/confirm", content: null);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var record = await QueryDbAsync(db => db.Set<SaleRecord>().AsNoTracking().SingleAsync());
+        record.ListingId.Should().Be(listing.Id);
+        record.SoldPrice.Should().Be(40m);
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking()
+            .Include(l => l.Reservations).SingleAsync(l => l.Id == listing.Id));
+        saved.Status.Should().Be(ListingStatus.Sold);
+        saved.Reservations.Single().AgreedPrice.Should().Be(40m);
+    }
+
+    [Fact]
+    public async Task Given_ReservationWithoutAgreedPrice_When_SellerConfirms_Then_SaleRecordHasTheListingPrice()
+    {
+        // Arrange
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var reservation = listing.Reserve(buyer.Id, DateTimeOffset.UtcNow).Value;
+        await SeedAsync(buyer, listing);
+        AuthenticateAs(SellerId);
+
+        // Act
+        var response = await Client.PostAsync(
+            $"/api/v1/listings/{listing.Id}/reservations/{reservation.Id}/confirm", content: null);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var record = await QueryDbAsync(db => db.Set<SaleRecord>().AsNoTracking().SingleAsync());
+        record.SoldPrice.Should().Be(50m);
+    }
 }

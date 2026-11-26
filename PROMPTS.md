@@ -1240,6 +1240,74 @@ The skill was improved three times before its run, by comparing it with the real
 - **Commits:** code fa16910; skill section 7bafdcc; tests generated in f3913a2
 - **Follow-up:** Sonar fixes: shared base class for the expiry services, missing coverage.
 
+### Run 49, skill v51 (Feature: Review notification and reviewed flag)
+
+- **Why a new version:** branch `feature/listing-reviews`. Reviews themselves already existed (452f178, A2); this feature only fills the gaps. New handler rules the skill did not cover: `AddReviewHandler` now takes an `INotificationRepository` and adds one `ReviewReceived` notification (new `NotificationType`) for the seller in the same commit as the review; `IReviewRepository.GetReviewedListingIdsAsync(reviewerId)` is new; `GetMyReservationsHandler` takes an `IReviewRepository` and `MyReservationItem` has a new last field `Reviewed`. The handlers must stay at 100%, and "no notification, no review and no commit on any failure" and "reviewed only for the member's own review of a sold listing" are the parts a model would get wrong.
+
+#### Change to SKILL.md (v50 → v51) and why
+
+| # | v50 (before) | v51 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the review notification and the reviewed flag. | New section *"Feature: Review notification and reviewed flag (Diana)"*: the production code to read first, the fakes (`FakeReviewRepository` with `GetReviewedListingIdsAsync`, `FakeNotificationRepository`), the tests to add (exactly one notification with type, recipient = the seller, listing id, `CreatedAt` of the review, unread and the exact text, one commit; every failure adds no notification, no review and no commit; `Reviewed` false / true / false for a reserved, expired or cancelled reservation / not set by another member's review / per item) and the rules (fixed ids and date, `ErrorType`, `Error.Code` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model sends the notification to the reviewer, forgets the failure cases or sets `Reviewed` from any review of the listing. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Review notification and reviewed flag (Diana)": the tests to add in AddReviewHandlerTests and GetMyReservationsHandlerTests. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v51 (section written by Diana with Claude Code; the last unit-testing version was v50, Run 48)
+- **Result:** 947 unit tests in total. All pass, no production fix needed. The integration tests of the same task are in integration-testing Run 60 (530 in total).
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code c0a5be3; skill section 895354a; tests generated in 111fcc2
+
+### Run 50, skill v52 (Feature: Price offers)
+
+- **Why a new version:** branch `feature/price-offers` (code be13bc7). New domain and handler rules the skill did not cover: the `Offer` aggregate (`Make`, `CheckCanAnswer`, `Accept`, `Reject`, `Counter`, `Withdraw`, `CloseBecauseListingReserved`), `Reservation.AgreedPrice` and `PriceFor`, `Listing.Reserve(..., agreedPrice)`, and the new handlers `MakeOfferHandler`, `CounterOfferHandler`, `RejectOfferHandler`, `WithdrawOfferHandler` and `AcceptOfferHandler` (3-reservation limit, other pending offers rejected, notifications, one commit), plus `ConfirmSaleHandler`, `GetConversationHandler` and `GetMyReservationsHandler` changed. The handlers must stay at 100%, and the order of the checks, the notification recipients and texts and "nothing saved on a failure" are the parts a model would get wrong.
+
+#### Change to SKILL.md (v51 → v52) and why
+
+| # | v51 (before) | v52 (after) | Why |
+|---|---|---|---|
+| 1 | No section for price offers. | New section *"Feature: Price offers (Diana)"*: the production code to read first (every domain rule with its error code and `ErrorType`, the order of the checks in each handler, the notification texts and recipients), the files (`OfferTests.cs` new, `ListingTests` and `ReservationTests` extended, five new handler test classes, `ConfirmSaleHandlerTests`, `GetConversationHandlerTests`, `GetMyReservationsHandlerTests` extended, `FakeOfferRepository`), the tests to add (every success and failure of the domain methods with `[Theory]` over the statuses, the counter chain, the handlers with exact notification texts, one commit and nothing saved on a failure, the reservation limit, the other pending offers rejected, the agreed price on the sale) and the rules (fixed ids and date, `ErrorType`, `Error.Code` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model guesses who is the recipient, the order of `Offer.AlreadyPending` and the domain errors, and whether the 3-reservation limit lives in `Reserve` or in the handler. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Price offers (Diana)": OfferTests, the additions to ListingTests and ReservationTests, the five new handler test classes and the additions to ConfirmSaleHandlerTests, GetConversationHandlerTests and GetMyReservationsHandlerTests. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v52 (section written by Diana with Claude Code; the last unit-testing version was v51, Run 49)
+- **Result:** 1071 unit tests in total. All pass, no production fix needed. The integration tests of the same task are in integration-testing Run 61 (599 in total).
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code be13bc7; skill section 236a992; tests generated in 8421dee
+
+### Run 51, skill v53 (Feature: Member blocking)
+
+- **Why a new version:** branch `feature/member-blocking` (code f92ba3e). New rules the skill did not cover: the `MemberBlock` aggregate (`Create`, `Block.Self`, `BlockedError`), `Offer.CloseBecauseBlocked` and `IOfferRepository.GetPendingBetweenAsync`, the new handlers `BlockMemberHandler` (idempotent, pending offers rejected without a notification), `UnblockMemberHandler` and `GetMyBlockedHandler`, the `Member.Blocked` check (one way, only the blocked side) in `MakeOfferHandler`, `CounterOfferHandler`, `StartConversationHandler`, `SendMessageHandler` and `ReserveListingHandler`, and the listings of a blocked seller left out by `GetListingsHandler`, `GetSimilarListingsHandler` and `GetMyFavoritesHandler`. The handlers must stay at 100%, and the direction of the block and the place of the check in each handler are decisions of the code, not guessable.
+
+#### Change to SKILL.md (v52 → v53) and why
+
+| # | v52 (before) | v53 (after) | Why |
+|---|---|---|---|
+| 1 | No section for member blocking. | New section *"Feature: Member blocking (Diana)"*: the production code to read first (`MemberBlock` rules and `Member.Blocked`, the handlers and the exact place of each block check, `ViewerId` in the three queries), the files (`MemberBlockTests` new, `OfferBlockedTests` for `CloseBecauseBlocked`, three new handler test classes, one new `...BlockedTests` class per action handler and per query, `FakeMemberBlockRepository` and `FakeOfferRepository`), the tests to add (`Block.Self`, idempotent block and unblock, `Member.Blocked` in every action handler, the block is one way, a stranger still gets `NotParticipant`, pending offers rejected without a notification, listings hidden from the blocker only and `totalCount` without them) and the rules (fixed ids and date, `Error.Code`, `Error.Type` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model guesses which side is blocked, whether the blocker is restricted too, and whether blocking sends a notification. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Member blocking (Diana)": MemberBlockTests, the tests for Offer.CloseBecauseBlocked, the three new handler test classes in Blocks and the Member.Blocked and hidden-listings tests for MakeOfferHandler, CounterOfferHandler, StartConversationHandler, SendMessageHandler, ReserveListingHandler, GetListingsHandler, GetSimilarListingsHandler and GetMyFavoritesHandler. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v53 (section written by Diana with Claude Code; the last unit-testing version was v52, Run 50)
+- **Result:** 44 new unit tests; all four test projects pass, no production fix needed. The integration tests of the same task are in integration-testing Run 62.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code f92ba3e; skill section cbf29c5; tests generated in eabf5bd
+
+### Run 52, skill v54 (Feature: Listing statistics)
+
+- **Why a new version:** branch `feature/listing-stats` (code 1078eea). New rules the skill did not cover: the `ListingView` entity (`KeyOf` with the member winning over the visitor, `Create` with the UTC `Day`, `ViewerMissingError`), `RecordViewHandler` (one unique view per listing, viewer and day through `TryAddAsync`; the seller's own views and `Draft`/`Hidden` listings not counted; `View.ViewerMissing`) and `GetListingStatsHandler` (owner or Admin, `Stats.InvalidDays` for `Days` outside 1-365, one entry per day with zeros filled in, the four counts grouped by UTC day). The handlers must stay at 100%, and which statuses count and how the day is cut at midnight UTC are decisions of the code, not guessable.
+
+#### Change to SKILL.md (v53 → v54) and why
+
+| # | v53 (before) | v54 (after) | Why |
+|---|---|---|---|
+| 1 | No section for listing statistics. | New section *"Feature: Listing statistics (Diana)"*: the production code to read first (`ListingView.KeyOf`/`Create`/`ViewerMissingError`, `RecordViewHandler`, `GetListingStatsHandler` and its period), the files (`ListingViewTests`, `RecordViewHandlerTests`, `GetListingStatsHandlerTests`, a hand-written `FakeListingViewRepository`), the tests to add (member or visitor key, one view per viewer and day, the next day counts again, the seller and `Draft`/`Hidden` not counted, `Reserved`/`Sold`/`Expired` counted, `View.ViewerMissing`, `Stats.InvalidDays` at 0, -1 and 366, owner or Admin, zeros filled in, the four counts kept apart, events grouped by their UTC day) and the rules (fixed ids and date, `Error.Code`, `Error.Type` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model guesses which statuses are counted, whether the seller's views count and whether the day follows the offset of the time or UTC. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Listing statistics (Diana)", and the integration-testing skill, section "Feature: Listing statistics (Diana)": ListingViewTests, RecordViewHandlerTests and GetListingStatsHandlerTests with a FakeListingViewRepository, then the integration tests and the migration test, seeding real members. Run the new unit test classes and the new integration test classes with dotnet test --filter. If a test fails because the production code is wrong, do not fix the production code: report it to me. Do not commit. Do not push.`
+- **Skill version:** v54 (section written by Diana with Claude Code; the last unit-testing version was v53, Run 51)
+- **Result:** 36 new unit tests (`ListingViewTests` 6, `RecordViewHandlerTests` 16, `GetListingStatsHandlerTests` 14); all test projects pass, no production fix needed. The integration tests of the same task are in integration-testing Run 63.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 1078eea; skill section 18b1fad; tests generated in f39e8b4
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2348,6 +2416,74 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the moderation list (row 4); fixed in the skill and in the test.
 - **Change to SKILL.md after the run:** the correction of row 4 (commit 5065707).
 - **Commits:** code fa16910; skill section 7bafdcc, fix 5065707; tests generated in f3913a2
+
+### Run 60, skill v59 (Feature: Review notification and reviewed flag)
+
+- **Why a new version:** branch `feature/listing-reviews`. Reviews themselves already existed (452f178, A2: `POST /api/v1/listings/{listingId}/reviews`); this feature only fills the gaps: a `ReviewReceived` notification for the seller when a review is added (same save as the review, text `"{buyer name} rated {listing title} {rating}/5"`, visible in `GET /api/v1/members/me/notifications`) and a new last field `reviewed` (boolean) on the items of `GET /api/v1/members/me/reservations`, used by the "Lasă o recenzie" form. Without a section a model would not know the notification text, that a failed review saves no notification, or that `reviewed` is true only for the buyer's own review of a sold listing.
+
+#### Change to SKILL.md (v58 → v59) and why
+
+| # | v58 (before) | v59 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the review notification and the reviewed flag. | New section *"Feature: Review notification and reviewed flag (Diana)"*: the three endpoints, the files to read (`AddReviewHandler.cs`, `Features/Members/GetMyReservations/`), no migration (the notification type is stored as text), where to add the tests (`Reviews/AddReviewTests.cs`, the existing my-reservations test class), the tests to add (the 201 with the database check of the `ReviewReceived` notification and of the review, the seller reads it through the notifications endpoint with `unreadCount` 1, every failure saves nothing new, `reviewed` false / true / per item / not set by another member's review, database unchanged after every GET) and the rules (`Code` and `Type` of every failure, stop and report instead of changing `src/`). | The text, the recipient and the "nothing saved on a failure" rule are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Review notification and reviewed flag (Diana)": the tests to add in AddReviewTests and in the my-reservations tests. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v59 (section written by Diana with Claude Code; the last integration-testing version was v58, Run 59)
+- **Result:** 530 integration tests in total. All pass, no production fix needed. 3 new integration tests first failed because they seeded no seller (the sold listing had no seller member, so the notification could not be created); fixed in the tests. The unit tests of the same task are in unit-testing Run 47 (947 in total).
+- **Problems seen:** the missing seller in 3 tests (see Result); fixed in the tests.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code c0a5be3; skill section 895354a; tests generated in 111fcc2
+
+### Run 61, skill v60 (Feature: Price offers)
+
+- **Why a new version:** branch `feature/price-offers` (code be13bc7). A whole new API the skill did not cover: five endpoints (`POST /api/v1/listings/{id}/offers`, `POST /api/v1/offers/{id}/accept|reject|counter|withdraw`), the new `Offers` table and `Reservations.AgreedPrice` (migration `AddOffers`), `offers` in `GET /api/v1/conversations/{id}`, `agreedPrice` in `GET /api/v1/members/me/reservations`, four new notification types and the agreed price on a confirmed sale. Without a section a model would not know the error codes and statuses (`Offer.AlreadyPending` 409, `Offer.NotRecipient` 403, `Offer.BuyerReservationLimit` 400), the notification texts and recipients, that accepting rejects the other pending offers, or what the migration does to existing reservations.
+
+#### Change to SKILL.md (v59 → v60) and why
+
+| # | v59 (before) | v60 (after) | Why |
+|---|---|---|---|
+| 1 | No section for price offers. | New section *"Feature: Price offers (Diana)"*: the five endpoints with status, body and every error code, the changes to the conversation, reservations, notifications and confirm sale, the migration `AddOffers`, the files (`Offers/MakeOfferTests.cs`, `AcceptOfferTests.cs`, `RejectOfferTests.cs`, `CounterOfferTests.cs`, `WithdrawOfferTests.cs`, `OfferFlowTests.cs`, `Persistence/AddOffersMigrationTests.cs`, plus the existing conversation, my-reservations and confirm sale tests), the tests to add (every success and every error with the database check, the full flow offer → counter → counter → accept with the agreed price 92 up to the sold price, the migration up and down on a separate PostgreSQL database) and the rules (`ToMicroseconds()` for dates read from PostgreSQL, `Code` and `Type` of every failure, stop and report instead of changing `src/`). | The codes, the texts, the "nothing saved on a failure" rule and the migration behaviour are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Price offers (Diana)": the new Offers tests, the migration test and the tests to add in the conversation, my-reservations and confirm sale tests. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v60 (section written by Diana with Claude Code; the last integration-testing version was v59, Run 60)
+- **Result:** 599 integration tests in total. All pass, no production fix needed. The unit tests of the same task are in unit-testing Run 50 (1071 in total).
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code be13bc7; skill section 236a992; tests generated in 8421dee
+
+### Run 62, skill v61 (Feature: Member blocking)
+
+- **Why a new version:** branch `feature/member-blocking` (code f92ba3e). A new API the skill did not cover: `POST` and `DELETE /api/v1/members/{id}/block`, `GET /api/v1/members/me/blocked`, the 403 `Member.Blocked` on make offer, counter-offer, start conversation, send message and reserve, the listings of a blocked member hidden from the blocker in the search, the similar listings and the favorites, the search cache evicted on block and unblock, and the new table `MemberBlocks` (migration `AddMemberBlocks`). Without a section a model would not know that the block is one way, that the counter-offer case cannot be built through the API (blocking rejects the pending offer) or that authenticated requests are never output-cached.
+
+#### Change to SKILL.md (v60 → v61) and why
+
+| # | v60 (before) | v61 (after) | Why |
+|---|---|---|---|
+| 1 | No section for member blocking. | New section *"Feature: Member blocking (Diana)"*: the three routes with status, body and every error code, the 403s and the one-way rule, the offers rejected on block, the hidden listings and the cache behaviour, the migration `AddMemberBlocks`, the files (`Blocks/BlockMemberTests.cs`, `UnblockMemberTests.cs`, `GetMyBlockedTests.cs`, `BlockedActionsTests.cs`, `BlockedVisibilityTests.cs`, `Persistence/AddMemberBlocksMigrationTests.cs`), the tests to add (real seeded members, the database checked after every failure, the counter-offer 403 seeded directly, search/similar/favorites before and after block and unblock, the migration up and down on a separate PostgreSQL database) and the rules (`ToMicroseconds()`, `Code` and `Type` of every failure, stop and report instead of changing `src/`). | The direction of the block, the cache behaviour and the unreachable counter-offer case are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Member blocking (Diana)": the new Blocks tests and the migration test. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v61 (section written by Diana with Claude Code; the last integration-testing version was v60, Run 61)
+- **Result:** 36 new integration tests; all four test projects pass, no production fix needed. The unit tests of the same task are in unit-testing Run 51.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code f92ba3e; skill section cbf29c5; tests generated in eabf5bd
+
+### Run 63, skill v62 (Feature: Listing statistics)
+
+- **Why a new version:** branch `feature/listing-stats` (code 1078eea). A new API the skill did not cover: `POST /api/v1/listings/{id}/views` (public; the member from the token or the `X-Visitor-Id` header; 204 also when not counted; 400 `View.ViewerMissing`), `GET /api/v1/listings/{id}/stats?days=30` (owner or Admin; 400 `Stats.InvalidDays`, 401, 403 `Listing.NotOwner`, 404), the table `ListingViews` with its unique index and the `ON CONFLICT DO NOTHING` insert, and the migration `AddListingViews`. Without a section a model would not know that the token wins over the header, that the seller and `Draft`/`Hidden` listings answer 204 without a row, that two parallel calls must leave one row, or that the counts come from the existing `CreatedAt` and `SentAt` columns.
+
+#### Change to SKILL.md (v61 → v62) and why
+
+| # | v61 (before) | v62 (after) | Why |
+|---|---|---|---|
+| 1 | No section for listing statistics. | New section *"Feature: Listing statistics (Diana)"*: the two routes with status, body and every error code, `X-Visitor-Id`, what is counted and what is not, the daily list with zeros filled in, the table and the `ON CONFLICT DO NOTHING` insert, the migration `AddListingViews` (on top of `AddListingEmbeddings`), the files (`Views/RecordViewTests.cs`, `Views/GetListingStatsTests.cs`, `Persistence/AddListingViewsMigrationTests.cs`), the tests to add (real seeded members including an Admin, favorites, conversations, messages of both sides and offers on different days, another listing's data never counted, 10 parallel calls, the migration up and down on a separate PostgreSQL database) and the rules (`ToMicroseconds()`, `DateOnly` days and the midnight caveat, `Code` and `Type` of every failure, stop and report instead of changing `src/`). | What is counted, the parallel insert and the day boundary are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Listing statistics (Diana)": the Views tests and the migration test, seeding real members. Run the new integration test classes with dotnet test --filter. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Do not commit. Do not push.`
+- **Skill version:** v62 (section written by Diana with Claude Code; the last integration-testing version was v61, Run 62)
+- **Result:** 38 new integration tests (`RecordViewTests` 19, `GetListingStatsTests` 13, `AddListingViewsMigrationTests` 6); all test projects pass, no production fix needed. The unit tests of the same task are in unit-testing Run 52.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 1078eea; skill section 18b1fad; tests generated in f39e8b4
 
 ## code-review
 

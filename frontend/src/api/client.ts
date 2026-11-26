@@ -16,6 +16,8 @@ export interface RequestOptions {
   // false for login/register/refresh: no token, no refresh on 401.
   auth?: boolean
   signal?: AbortSignal
+  // Extra headers, e.g. X-Visitor-Id.
+  headers?: Record<string, string>
 }
 
 // Refresh this long before the token expires, so a request does not leave with a token
@@ -63,7 +65,7 @@ async function doRefresh(): Promise<boolean> {
 }
 
 async function send(method: Method, path: string, options: RequestOptions): Promise<Response> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers }
   // A FormData body (file upload) sets its own multipart Content-Type with the boundary.
   const isForm = options.body instanceof FormData
   if (options.body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
