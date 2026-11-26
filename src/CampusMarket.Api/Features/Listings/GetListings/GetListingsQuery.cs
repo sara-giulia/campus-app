@@ -18,7 +18,8 @@ public sealed record GetListingsQuery(
     public const int DefaultPage = 1;
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 100;
-    public static readonly string[] AllowedSorts = ["newest", "price_asc", "price_desc"];
+    // "relevance" (the default when there is a search) keeps the order of ListingSearch; without a search the default is "newest".
+    public static readonly string[] AllowedSorts = ["relevance", "newest", "price_asc", "price_desc"];
 }
     
 

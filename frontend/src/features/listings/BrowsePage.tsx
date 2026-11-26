@@ -10,7 +10,8 @@ import { CATEGORIES, CONDITIONS, CONDITION_LABELS, type GetListingsResponse } fr
 import './browse.css'
 
 const PAGE_SIZE = 12
-const SORTS: SortOption[] = ['newest', 'price_asc', 'price_desc']
+// With a search the default order is "relevance" (the words first, then the meaning); without one, "newest".
+const PRICE_SORTS: SortOption[] = ['price_asc', 'price_desc']
 const FILTER_KEYS = ['search', 'category', 'condition', 'minPrice', 'maxPrice', 'sort'] as const
 
 // Search and filters live in the address (?search=…&category=…&page=2), so a search can be
@@ -95,8 +96,10 @@ export function BrowsePage() {
         <TextField label="Preț minim" type="number" min={0} value={form.minPrice} onChange={(e) => setForm({ ...form, minPrice: e.target.value })} />
         <TextField label="Preț maxim" type="number" min={0} value={form.maxPrice} onChange={(e) => setForm({ ...form, maxPrice: e.target.value })} />
         <SelectField label="Ordine" value={form.sort} onChange={(v) => setForm({ ...form, sort: v })}>
-          {SORTS.map((s) => (
-            <option key={s} value={s === 'newest' ? '' : s}>
+          <option value="">{form.search.trim() ? SORT_LABELS.relevance : SORT_LABELS.newest}</option>
+          {form.search.trim() && <option value="newest">{SORT_LABELS.newest}</option>}
+          {PRICE_SORTS.map((s) => (
+            <option key={s} value={s}>
               {SORT_LABELS[s]}
             </option>
           ))}
@@ -119,6 +122,9 @@ export function BrowsePage() {
           <p className="browse__count">
             {data.totalCount === 1 ? '1 anunț' : `${data.totalCount} anunțuri`}
           </p>
+          {data.items.some((l) => l.match === 'Meaning') && (
+            <p className="browse__hint">Anunțurile „Găsit după sens” nu conțin cuvintele căutate, dar au un înțeles apropiat.</p>
+          )}
           <ListingGrid listings={data.items} />
           <Pagination page={page} totalPages={totalPages} onChange={goToPage} />
         </>

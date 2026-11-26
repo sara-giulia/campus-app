@@ -1,23 +1,31 @@
 using CampusMarket.Api.Common.Events;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
+using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Notifications;
+using CampusMarket.Api.Infrastructure.Search;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampusMarket.Api.Infrastructure.Persistence;
 
-public sealed class EfUnitOfWork(CampusMarketDbContext db, ILiveEvents liveEvents) : IUnitOfWork
+// After a save that added or changed a listing it also rings ListingIndexSignal, so the listing gets
+// (or updates) its vector for the search by meaning.
+public sealed class EfUnitOfWork(CampusMarketDbContext db, ILiveEvents liveEvents, ListingIndexSignal listingIndex) : IUnitOfWork
 {
     public async Task<int> CommitAsync(CancellationToken ct)
     {
         // Read what is new before saving (afterwards every entity is Unchanged), and publish only
         // after the save worked, so a member is never told about something that is not in the database.
         var pending = PendingEvents();
+        var listingsChanged = db.ChangeTracker.Entries<Listing>()
+            .Any(e => e.State is EntityState.Added or EntityState.Modified);
 
         var saved = await db.SaveChangesAsync(ct);
 
         foreach (var (memberId, liveEvent) in pending)
             liveEvents.Publish(memberId, liveEvent);
+        if (listingsChanged)
+            listingIndex.Notify();
 
         return saved;
     }

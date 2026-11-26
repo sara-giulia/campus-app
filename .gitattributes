@@ -1,1 +1,3 @@
 *.csv text eol=lf
+# Shell scripts run in Linux (Dockerfile, CI): LF even on a Windows checkout
+*.sh text eol=lf
