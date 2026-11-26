@@ -44,6 +44,7 @@ using CampusMarket.Api.Infrastructure.Events;
 using CampusMarket.Api.Common.Images;
 using CampusMarket.Api.Infrastructure.Images;
 using CampusMarket.Api.Common.Listings;
+using CampusMarket.Api.Infrastructure.Search;
 
 namespace CampusMarket.Api;
 
@@ -66,8 +67,9 @@ public static class CampusMarketSetup
 
         services.AddCampusMarketMl(configuration);
 
+        // UseVector: the pgvector type of the search by meaning (ListingEmbeddings.Embedding).
         services.AddDbContext<CampusMarketDbContext>((sp, options) =>
-            options.UseNpgsql(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket")));
+            options.UseNpgsql(sp.GetRequiredService<IConfiguration>().GetConnectionString("CampusMarket"), npgsql => npgsql.UseVector()));
 
         services.AddScoped<IListingRepository, EfListingRepository>();
         services.AddScoped<IMemberRepository, EfMemberRepository>();
@@ -172,6 +174,7 @@ public static class CampusMarketSetup
             services.AddHostedService<ListingExpiryService>();
 
         AddImageGeneration(services, configuration);
+        services.AddCampusMarketSearch(configuration);
 
         // Enums are sent as text in JSON ("Active"), not as numbers (1)
         services.ConfigureHttpJsonOptions(options =>

@@ -1,10 +1,14 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Search;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 
 namespace CampusMarket.Api.Features.Listings.GetListings;
 
-public sealed class GetListingsHandler(IListingRepository repository)
+// With a search, the listings found by words come first and then the ones found by meaning
+// (ListingSearch); "relevance" (the default when searching) keeps that order, the other sorts reorder
+// all of them. Without a search the default stays "newest".
+public sealed class GetListingsHandler(IListingRepository repository, ISemanticSearch semanticSearch)
     : IQueryHandler<GetListingsQuery, GetListingsResponse>
 {
     public async Task<Result<GetListingsResponse>> HandleAsync(
@@ -23,7 +27,7 @@ public sealed class GetListingsHandler(IListingRepository repository)
                     "Minimum price cannot be greater than maximum price."));
         if (query.Sort is not null && !GetListingsQuery.AllowedSorts.Contains(query.Sort))
             return Result<GetListingsResponse>.Failure(
-                Error.Validation("Listings.InvalidSort", "Sort must be newest, price_asc or price_desc."));
+                Error.Validation("Listings.InvalidSort", "Sort must be relevance, newest, price_asc or price_desc."));
 
         var listings = await repository.GetAllAsync(ct);
         IEnumerable<Listing> filtered = listings.Where(l => l.Status == ListingStatus.Active);
@@ -36,26 +40,44 @@ public sealed class GetListingsHandler(IListingRepository repository)
             filtered = filtered.Where(l => l.Price.Amount >= query.MinPrice);
         if (query.MaxPrice is not null)
             filtered = filtered.Where(l => l.Price.Amount <= query.MaxPrice);
-        if (!string.IsNullOrWhiteSpace(query.Search))
-            filtered = filtered.Where(l =>
-                l.Title.Contains(query.Search.Trim(), StringComparison.OrdinalIgnoreCase));
 
-        var ordered = (
-            // Stryker disable once String : the switch has no "newest" arm, so null, "newest" and "" all fall into the default arm and the fallback value is never observable
-            query.Sort ?? "newest") switch
+        var found = await SearchAsync(filtered, query.Search?.Trim(), ct);
+
+        var sorted = (query.Sort switch
         {
-            "price_asc" => filtered.OrderBy(l => l.Price.Amount).ThenBy(l => l.Id),
-            "price_desc" => filtered.OrderByDescending(l => l.Price.Amount).ThenBy(l => l.Id),
-            _ => filtered.OrderByDescending(l => l.CreatedAt).ThenBy(l => l.Id)
-        };
-        var sorted = ordered.ToList();
+            "price_asc" => found.OrderBy(f => f.Listing.Price.Amount).ThenBy(f => f.Listing.Id),
+            "price_desc" => found.OrderByDescending(f => f.Listing.Price.Amount).ThenBy(f => f.Listing.Id),
+            "newest" => found.OrderByDescending(f => f.Listing.CreatedAt).ThenBy(f => f.Listing.Id),
+            // relevance, or no sort: the order of SearchAsync
+            _ => found.AsEnumerable()
+        }).ToList();
 
         var items = sorted
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(GetListingsItem.From)
+            .Select(f => GetListingsItem.From(f.Listing, f.Match))
             .ToList();
 
         return new GetListingsResponse(items, items.Count, sorted.Count, query.Page, query.PageSize);
+    }
+
+    // Without a search: every filtered listing, the newest first, with no Match.
+    private async Task<IReadOnlyList<(Listing Listing, SearchMatch? Match)>> SearchAsync(
+        IEnumerable<Listing> filtered, string? search, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(search))
+            return filtered
+                .OrderByDescending(l => l.CreatedAt)
+                .ThenBy(l => l.Id)
+                .Select(l => (l, (SearchMatch?)null))
+                .ToList();
+
+        IReadOnlyList<SemanticMatch> meaning = search.Length >= ListingSearch.MinLengthForMeaning
+            ? await semanticSearch.FindAsync(search, ct)
+            : [];
+
+        return ListingSearch.Rank(filtered, search, meaning)
+            .Select(r => (r.Listing, (SearchMatch?)r.Match))
+            .ToList();
     }
 }

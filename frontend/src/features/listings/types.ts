@@ -21,6 +21,9 @@ export interface ListingDetail {
   description: string | null
 }
 
+// How the search found a listing: its title has the searched words, or only its meaning is close.
+export type SearchMatch = 'Text' | 'Meaning'
+
 export interface ListingSummary {
   id: string
   sellerId: string
@@ -29,6 +32,8 @@ export interface ListingSummary {
   condition: Condition
   price: number
   status: ListingStatus
+  // Only with a search (GET /listings?search=…).
+  match?: SearchMatch | null
 }
 
 export interface GetListingsResponse {
