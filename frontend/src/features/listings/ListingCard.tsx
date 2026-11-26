@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../../api/client'
+import { Badge } from '../../app/ui'
 import { formatPrice, photoSrc, type GetListingPhotosResponse, type PhotoItem } from './publicTypes'
 import { useCategories } from './categories'
-import { CONDITION_LABELS, type Category, type Condition } from './types'
+import { CONDITION_LABELS, type Category, type Condition, type SearchMatch } from './types'
 
 interface CardListing {
   id: string
@@ -11,9 +12,11 @@ interface CardListing {
   category: Category
   condition: Condition
   price: number
+  match?: SearchMatch | null
 }
 
 // A listing in a grid: the first photo (or a coloured tile with the category), title, price.
+// In the search results, a listing found only by meaning (its title does not have the words) is marked.
 export function ListingCard({ listing }: { listing: CardListing }) {
   const { labelOf } = useCategories()
   const [cover, setCover] = useState<PhotoItem | null>(null)
@@ -39,6 +42,11 @@ export function ListingCard({ listing }: { listing: CardListing }) {
         <p className="lcard__meta">
           {labelOf(listing.category)} · {CONDITION_LABELS[listing.condition]}
         </p>
+        {listing.match === 'Meaning' && (
+          <p className="lcard__match">
+            <Badge tone="accent">Găsit după sens</Badge>
+          </p>
+        )}
       </div>
     </Link>
   )

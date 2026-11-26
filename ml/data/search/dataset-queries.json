@@ -1,0 +1,314 @@
+{
+  "about": "Searches on ml/data/listings.csv (non-spam, the first 3 rows of every TemplateId). relevant: TemplateId patterns, * = any ending. An empty list: nothing like it is sold, the search should find (almost) nothing.",
+  "queries": [
+    {
+      "query": "calculator portabil",
+      "relevant": [
+        "elec-laptop-*"
+      ]
+    },
+    {
+      "query": "telefon mobil",
+      "relevant": [
+        "elec-phone-*"
+      ]
+    },
+    {
+      "query": "căști fără fir",
+      "relevant": [
+        "elec-headphones-bluetooth",
+        "elec-earbuds-airpods",
+        "elec-earbuds-sony"
+      ]
+    },
+    {
+      "query": "ceas inteligent",
+      "relevant": [
+        "elec-smartwatch-*"
+      ]
+    },
+    {
+      "query": "imprimantă",
+      "relevant": [
+        "elec-printer-laser"
+      ]
+    },
+    {
+      "query": "aparat foto",
+      "relevant": [
+        "elec-camera-dslr",
+        "elec-camera-mirrorless",
+        "other-aparat-foto-instant"
+      ]
+    },
+    {
+      "query": "placă video",
+      "relevant": [
+        "elec-gpu-*"
+      ]
+    },
+    {
+      "query": "baterie externă pentru telefon",
+      "relevant": [
+        "elec-powerbank"
+      ]
+    },
+    {
+      "query": "stick usb",
+      "relevant": [
+        "elec-usb-flash"
+      ]
+    },
+    {
+      "query": "cititor de cărți electronice",
+      "relevant": [
+        "elec-ebook-kindle",
+        "other-ebook-reader"
+      ]
+    },
+    {
+      "query": "ochelari de realitate virtuală",
+      "relevant": [
+        "elec-vr-headset"
+      ]
+    },
+    {
+      "query": "tabletă grafică pentru desen",
+      "relevant": [
+        "elec-tablet-wacom"
+      ]
+    },
+    {
+      "query": "microscop",
+      "relevant": [
+        "lab-microscop-optic"
+      ]
+    },
+    {
+      "query": "halat de laborator",
+      "relevant": [
+        "lab-halat-chimie",
+        "lab-halat-medicina"
+      ]
+    },
+    {
+      "query": "ciocan de lipit",
+      "relevant": [
+        "lab-letcon-30w",
+        "lab-pistol-lipit"
+      ]
+    },
+    {
+      "query": "aparat de măsurat tensiunea electrică",
+      "relevant": [
+        "lab-multimetru-*"
+      ]
+    },
+    {
+      "query": "aparat de măsurat tensiunea arterială",
+      "relevant": [
+        "lab-tensiometru"
+      ]
+    },
+    {
+      "query": "stetoscop medical",
+      "relevant": [
+        "lab-stetoscop"
+      ]
+    },
+    {
+      "query": "placă arduino",
+      "relevant": [
+        "lab-kit-arduino-*"
+      ]
+    },
+    {
+      "query": "mănuși de unică folosință",
+      "relevant": [
+        "lab-manusi-nitril"
+      ]
+    },
+    {
+      "query": "cântar digital",
+      "relevant": [
+        "lab-balanta-digitala"
+      ]
+    },
+    {
+      "query": "trusă de disecție",
+      "relevant": [
+        "lab-trusa-disectie"
+      ]
+    },
+    {
+      "query": "bicicletă",
+      "relevant": [
+        "other-bicicleta-*"
+      ]
+    },
+    {
+      "query": "încălțăminte sport",
+      "relevant": [
+        "other-adidasi-*"
+      ]
+    },
+    {
+      "query": "chitară",
+      "relevant": [
+        "other-chitara-*"
+      ]
+    },
+    {
+      "query": "aparat de cafea",
+      "relevant": [
+        "other-cafetiera",
+        "other-aparat-cafea-manual"
+      ]
+    },
+    {
+      "query": "cuptor cu microunde",
+      "relevant": [
+        "other-microunde-mic"
+      ]
+    },
+    {
+      "query": "scaun de birou",
+      "relevant": [
+        "other-scaun-ergonomic",
+        "other-scaun-gaming"
+      ]
+    },
+    {
+      "query": "veioză",
+      "relevant": [
+        "other-lampa-birou"
+      ]
+    },
+    {
+      "query": "jachetă de iarnă",
+      "relevant": [
+        "other-geaca-iarna"
+      ]
+    },
+    {
+      "query": "cizme de iarnă",
+      "relevant": [
+        "other-ghete-iarna"
+      ]
+    },
+    {
+      "query": "joc de societate",
+      "relevant": [
+        "other-joc-catan",
+        "other-joc-monopoly",
+        "other-joc-sah"
+      ]
+    },
+    {
+      "query": "echipament de schi",
+      "relevant": [
+        "other-baston-ski",
+        "other-casca-ski",
+        "other-ochelari-ski",
+        "other-sac-schi",
+        "other-mochila-schi"
+      ]
+    },
+    {
+      "query": "carte de programare java",
+      "relevant": [
+        "tb-poo-java"
+      ]
+    },
+    {
+      "query": "manual de drept",
+      "relevant": [
+        "tb-drept-*"
+      ]
+    },
+    {
+      "query": "carte de anatomie",
+      "relevant": [
+        "tb-anatomie-*",
+        "lab-atlas-anatomie",
+        "lab-manual-anatomie-lab"
+      ]
+    },
+    {
+      "query": "rețele de calculatoare",
+      "relevant": [
+        "tb-retele-tanenbaum",
+        "notes-retele"
+      ]
+    },
+    {
+      "query": "pregătire pentru admitere la medicină",
+      "relevant": [
+        "tb-admitere-medicina",
+        "notes-admitere-medicina"
+      ]
+    },
+    {
+      "query": "manual de limba engleză",
+      "relevant": [
+        "tb-engleza"
+      ]
+    },
+    {
+      "query": "telescop",
+      "relevant": [
+        "other-telescop-begiener"
+      ]
+    },
+    {
+      "query": "controller pentru consolă",
+      "relevant": [
+        "other-manette-xbox"
+      ]
+    },
+    {
+      "query": "uscător de păr",
+      "relevant": [
+        "other-uscator-par"
+      ]
+    },
+    {
+      "query": "laptop bag",
+      "relevant": [
+        "other-rucsac-laptop"
+      ]
+    },
+    {
+      "query": "electric guitar",
+      "relevant": [
+        "other-chitara-electrica"
+      ]
+    },
+    {
+      "query": "winter boots",
+      "relevant": [
+        "other-ghete-iarna"
+      ]
+    },
+    {
+      "query": "frigider",
+      "relevant": []
+    },
+    {
+      "query": "mașină de spălat",
+      "relevant": []
+    },
+    {
+      "query": "parfum",
+      "relevant": []
+    },
+    {
+      "query": "mobilă de grădină",
+      "relevant": []
+    },
+    {
+      "query": "bilet de avion",
+      "relevant": []
+    }
+  ]
+}

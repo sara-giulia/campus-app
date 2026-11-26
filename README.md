@@ -6,12 +6,12 @@ Sellers publish listings, buyers reserve them, and an AI module suggests a fair 
 ## How to run
 
 1. Start PostgreSQL: `docker compose up -d db` (port **5433** on your machine; `appsettings.Development.json` already points at it with `Host=localhost;Port=5433;Database=campusmarket;Username=campusmarket;Password=campusmarket`). Docker must be running. The API creates the tables itself at startup (EF Core migrations), and the data stays in the `campusmarket-pg` volume, so it is not lost when you restart the API or run `docker compose down` (`docker compose down -v` removes it).
-2. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`.
+2. Start the API: open `CampusMarket.sln` and run the **http** profile, or run `dotnet run --project src/CampusMarket.Api --launch-profile http`. It listens on `http://localhost:5112`. For the search by meaning, run `ml/scripts/download-search-model.sh` once before (Git Bash; ~200 MB, see [Search by meaning](#search-by-meaning)); without it the search works on words only.
 3. In Postman: **Import** (`Ctrl+O`) the file `postman/CampusMarket.postman_collection.json`.
 4. Right-click the **CampusMarket** collection → **Run collection** → **Run**. Every request has tests; the `baseUrl` collection variable is `http://localhost:5112` (change it if your port is different).
 5. API documentation (Development only): open `http://localhost:5112/scalar` in a browser to see every endpoint. The OpenAPI document is at `http://localhost:5112/openapi/v1.json`.
 
-Tests: `dotnet test` from the repository root. The integration tests start their own PostgreSQL in Docker (Testcontainers, `postgres:17`, one container for the whole run, one database per test), so **Docker must be running**; they never use the database on port 5433.
+Tests: `dotnet test` from the repository root. The integration tests start their own PostgreSQL in Docker (Testcontainers, `pgvector/pgvector:pg17`, one container for the whole run, one database per test), so **Docker must be running**; they never use the database on port 5433. The evaluation of the search model in `CampusMarket.ML.Tests` is skipped when the model was not downloaded.
 
 ### Web frontend
 
@@ -37,7 +37,8 @@ Listings that are already `Active` in a deactivated category stay visible: they 
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
 - The container runs as the non-root user of the .NET image. The API talks to the `db` service (PostgreSQL 17, `ConnectionStrings__CampusMarket` in `docker-compose.yml`), whose data is in the named volume `campusmarket-pg`; the uploaded photos are in `/app/data/photos` on the volume `campusmarket-data`. Both are kept after `docker compose down`; `docker compose down -v` removes them and starts from an empty database. `docker compose up -d db` starts only the database (port 5433), for running the API on the host.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
-- The image build fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) was not copied to `ml-models/`.
+- The image build downloads the search model (`ml/scripts/download-search-model.sh`, checked by SHA-256) and fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) or the search model was not copied to `ml-models/`.
+- The `db` service uses `pgvector/pgvector:pg17` (PostgreSQL 17 with the `vector` extension); an existing `campusmarket-pg` volume keeps working.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
 ### Deploy
@@ -308,12 +309,12 @@ GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except 
 | `condition` | `New`, `Good` or `Worn` | all conditions |
 | `minPrice` | lowest price, inclusive | no limit |
 | `maxPrice` | highest price, inclusive | no limit |
-| `search` | text in the title, upper and lower case ignored | no search |
-| `sort` | `newest`, `price_asc` or `price_desc` | `newest` |
+| `search` | text in the title (upper and lower case and diacritics ignored), and listings close in meaning (see [Search by meaning](#search-by-meaning)) | no search |
+| `sort` | `relevance`, `newest`, `price_asc` or `price_desc` | `relevance` with a search, `newest` without |
 | `page` | page number, from 1 | `1` |
 | `pageSize` | listings per page, from 1 to 100 | `20` |
 
-Listings come newest first by default (`createdAt` descending, then `id`); with `sort=price_asc` or `sort=price_desc` they are ordered by price, then `id`. The same query always returns the same pages.
+Without a search, listings come newest first by default (`createdAt` descending, then `id`). With a search, the default `relevance` gives first the listings whose title contains the text (newest first), then the ones found only by meaning (the closest first); every item has `match`: `Text` or `Meaning` (`null` without a search). `sort=newest`, `price_asc` or `price_desc` order all of them by date or by price, then `id`. The same query always returns the same pages.
 
 Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search=oop&page=1&pageSize=20`
 
@@ -326,6 +327,16 @@ Example: `GET /api/v1/listings?category=Textbook&minPrice=10&maxPrice=100&search
   "pageSize": 20
 }
 ```
+
+### Search by meaning
+
+A search also finds listings whose title has other words with the same meaning: `scooter electric` finds `Trotineta electrica pliabila`, `tabletă apple` the iPad, `aparat de măsurat tensiunea` the multimeter. Model card, evaluation and limits: [docs/ml/semantic-search.md](docs/ml/semantic-search.md).
+
+- Model: EmbeddingGemma-300m (pretrained, multilingual, ONNX 4-bit, ~200 MB), run in the API with ONNX Runtime and `Microsoft.ML.Tokenizers`; it turns the title and description of a listing, and the search, into 768 numbers. Not in git: `ml/scripts/download-search-model.sh` downloads it into `ml/models/semantic-search/` (the Dockerfile and the CI run it too).
+- The vectors are in PostgreSQL with pgvector (table `ListingEmbeddings`, `vector(768)`, HNSW index, migration `AddListingEmbeddings`, which enables the `vector` extension). `ListingIndexService` makes them in the background at start and one second after a listing is created, published or edited; the search compares the vector of the search with them in one SQL query.
+- Found by meaning: cosine similarity at least 0.36, at most 0.15 under the best one, at most 10, after the matches by words; the filters apply to them too. On the demo seed this finds a right listing among the first three for 70% of the searches written with other words, against 4% before. Searches shorter than 3 characters use the words only.
+- Settings `SemanticSearch:Enabled` (true), `ModelPath`, `Threads` (1), `MinSimilarity`, `MaxDistanceFromBest`, `MaxResults`. Without the model files the API starts, logs `Search by meaning is off` and searches by words only; an error of the model during a search is logged and the words still answer.
+- In the frontend the cards found by meaning have the label "Găsit după sens", and the order "Cele mai relevante" is the default when searching.
 
 ### Listings cache
 
@@ -354,7 +365,7 @@ A single listing (`GET /api/v1/listings/{id}`) also returns `description`:
 | 400 `Listings.InvalidPage` | `page` is less than 1 |
 | 400 `Listings.InvalidPageSize` | `pageSize` is outside 1–100 |
 | 400 `Listings.InvalidPriceRange` | `minPrice` is greater than `maxPrice` |
-| 400 `Listings.InvalidSort` | `sort` is not `newest`, `price_asc` or `price_desc` |
+| 400 `Listings.InvalidSort` | `sort` is not `relevance`, `newest`, `price_asc` or `price_desc` |
 | 400 `Request.Invalid` (ProblemDetails, from ASP.NET Core) | `category` or `condition` is not one of the values above |
 
 Listings (with their reservations) and members are stored in PostgreSQL through EF Core, behind `IListingRepository` / `IMemberRepository` and `IUnitOfWork`. Endpoints depend only on the handlers. Errors from the handlers are returned as `{ "code", "message", "type" }`; everything else as ProblemDetails (see [Error format](#error-format)).
@@ -420,7 +431,7 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Listing.Sold` | 400 | you change a listing that has already been sold |
 | `Money.TooHigh` | 400 | the price is above 100000 lei |
 | `Listings.InvalidPage`, `Listings.InvalidPageSize`, `Listings.InvalidPriceRange` | 400 | wrong search parameters (see above) |
-| `Listings.InvalidSort` | 400 | sort is not newest, price_asc or price_desc |
+| `Listings.InvalidSort` | 400 | sort is not relevance, newest, price_asc or price_desc |
 | `Favorite.OwnListing` | 400 | the seller adds their own listing to favorites |
 | `Favorite.ListingNotAvailable` | 400 | the listing is still a draft, or it was hidden by an Admin |
 | `Favorite.AlreadyExists` | 409 | the listing is already in your favorites |
@@ -1303,6 +1314,10 @@ Model card (what it does, how it is evaluated, metrics, limits): [docs/ml/simila
 - Quality gate: `CampusMarket.ML.Tests` fails if precision@5 drops below 0.6 or is less
   than 0.3 above the random pick, or if three pairs written by hand are in the wrong
   order.
+
+### Search by meaning model
+
+Model card: [docs/ml/semantic-search.md](docs/ml/semantic-search.md). Pretrained (EmbeddingGemma-300m, not trained on our data), chosen among five multilingual models on the demo seed, then evaluated by `SemanticSearchEvaluationTests` on the demo seed (31 searches) and on 966 listings of `ml/data/listings.csv` (50 searches labelled by item type): Hit@3 0.70 / 0.73 and MRR@10 0.67 / 0.70, against 0.04 for the search by words alone. The test fails under Hit@3 0.62 / 0.68.
 
 ### Spam detection model (B5)
 

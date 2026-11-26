@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Pgvector.EntityFrameworkCore;
 
 namespace CampusMarket.IntegrationTests.Infrastructure;
 
@@ -32,6 +33,8 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ListingExpiry:Enabled", "false");
         // The image generation background service must not run during tests either; GeneratedImagesTests turns it on.
         builder.UseSetting("ImageGeneration:Enabled", "false");
+        // The real embedding model is never loaded in tests; SearchByMeaningTests registers a fake embedder.
+        builder.UseSetting("SemanticSearch:Enabled", "false");
         // Tests register many members; the real limit is tested on purpose in RegisterRateLimitTests.
         builder.UseSetting("RateLimiting:RegisterPermitLimit", "1000");
         builder.ConfigureTestServices(services =>
@@ -40,7 +43,7 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<DbContextOptions<CampusMarketDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<CampusMarketDbContext>>();
             services.AddDbContext<CampusMarketDbContext>(options =>
-                options.UseNpgsql(SharedPostgres.ConnectionStringFor(_database)));
+                options.UseNpgsql(SharedPostgres.ConnectionStringFor(_database), npgsql => npgsql.UseVector()));
         });
     }
 

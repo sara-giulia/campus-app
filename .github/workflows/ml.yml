@@ -24,6 +24,16 @@ jobs:
         with:
           dotnet-version: 11.0.x
 
+      # The model of the search by meaning is not in git; the evaluation in ML.Tests needs it.
+      - name: Cache the search model
+        uses: actions/cache@v4
+        with:
+          path: ml/models/semantic-search
+          key: search-model-${{ hashFiles('ml/scripts/download-search-model.sh') }}
+
+      - name: Download the search model (checked against its SHA-256)
+        run: bash ml/scripts/download-search-model.sh
+
       - name: Restore
         run: dotnet restore CampusMarket.sln
 
