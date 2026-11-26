@@ -15,7 +15,7 @@ public static class MakeOfferEndpoint
             .RequireAuthorization();
     }
 
-    private static async Task<Results<CreatedAtRoute<MakeOfferResponse>, NotFound<Error>, BadRequest<Error>, Conflict<Error>>> Handle(
+    private static async Task<Results<CreatedAtRoute<MakeOfferResponse>, NotFound<Error>, BadRequest<Error>, Conflict<Error>, JsonHttpResult<Error>>> Handle(
         Guid id,
         OfferAmountRequest request,
         ClaimsPrincipal user,
@@ -29,6 +29,7 @@ public static class MakeOfferEndpoint
             {
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
                 ErrorType.Conflict => TypedResults.Conflict(result.Error),
+                ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };
 

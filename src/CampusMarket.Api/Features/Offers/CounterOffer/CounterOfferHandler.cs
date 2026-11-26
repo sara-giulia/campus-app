@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
@@ -14,6 +15,7 @@ public sealed class CounterOfferHandler(
     IListingRepository listings,
     IMemberRepository members,
     INotificationRepository notifications,
+    IMemberBlockRepository blocks,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<CounterOfferCommand, OfferResponse>
@@ -27,6 +29,11 @@ public sealed class CounterOfferHandler(
 
         // The listing and both members exist: deleting one of them deletes the offer (cascade).
         var listing = (await listings.GetByIdAsync(offer.ListingId, ct))!;
+
+        // The counter-offer goes to the member who proposed this offer: they may have blocked the one answering.
+        if (offer.CheckCanAnswer(command.MemberId) is null
+            && await blocks.IsBlockedAsync(offer.ProposedById, command.MemberId, ct))
+            return Result<OfferResponse>.Failure(MemberBlock.BlockedError());
 
         var now = timeProvider.GetUtcNow();
         var countered = offer.Counter(command.MemberId, listing, command.Amount, now);

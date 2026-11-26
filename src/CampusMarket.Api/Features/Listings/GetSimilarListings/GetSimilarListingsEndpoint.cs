@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,10 +16,11 @@ public static class GetSimilarListingsEndpoint
 
     private static async Task<Results<Ok<GetSimilarListingsResponse>, NotFound<Error>>> Handle(
         [AsParameters] GetSimilarListingsRequest request,
+        ClaimsPrincipal user,
         IQueryHandler<GetSimilarListingsQuery, GetSimilarListingsResponse> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new GetSimilarListingsQuery(request.Id), ct);
+        var result = await handler.HandleAsync(new GetSimilarListingsQuery(request.Id, user.GetMemberIdOrNull()), ct);
 
         if (result.IsFailure)
             return TypedResults.NotFound(result.Error);

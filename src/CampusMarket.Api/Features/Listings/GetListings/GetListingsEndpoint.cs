@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
@@ -15,6 +17,7 @@ public static class GetListingsEndpoint
     }
 
     private static async Task<Results<Ok<GetListingsResponse>, BadRequest<Error>>> Handle(
+        ClaimsPrincipal user,
         IQueryHandler<GetListingsQuery, GetListingsResponse> handler,
         Category? category,
         decimal? minPrice,
@@ -34,7 +37,8 @@ public static class GetListingsEndpoint
             page ?? GetListingsQuery.DefaultPage,
             pageSize ?? GetListingsQuery.DefaultPageSize,
             condition,
-            sort);
+            sort,
+            user.GetMemberIdOrNull());
 
         var result = await handler.HandleAsync(query, ct);
 

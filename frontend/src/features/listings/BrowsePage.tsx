@@ -30,7 +30,7 @@ export function BrowsePage() {
   useEffect(() => {
     const controller = new AbortController()
     api
-      .get<GetListingsResponse>(`/listings?${query}`, { signal: controller.signal, auth: false })
+      .get<GetListingsResponse>(`/listings?${query}`, { signal: controller.signal })
       .then((result) => {
         setData(result)
         setError(null)

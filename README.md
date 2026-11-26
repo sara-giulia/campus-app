@@ -232,6 +232,8 @@ flowchart LR
 | Offer a price | `MakeOffer` | `POST /api/v1/listings/{id}/offers` | not own listing; only `Active`; amount > 0; at most one `Pending` offer per buyer and listing |
 | Answer an offer | `AcceptOffer`, `RejectOffer`, `CounterOffer` | `POST /api/v1/offers/{id}/accept` / `reject` / `counter` | only the side that did not propose it; only `Pending`; accepting reserves the listing at that price |
 | Withdraw an offer | `WithdrawOffer` | `POST /api/v1/offers/{id}/withdraw` | only the buyer, only their own `Pending` offer |
+| Block a member | `BlockMember`, `UnblockMember` | `POST` / `DELETE /api/v1/members/{id}/block` | not yourself; idempotent (204); the blocked member can no longer write to you, make offers or reserve your listings |
+| See blocked members | `GetMyBlocked` | `GET /api/v1/members/me/blocked` | only your own blocks |
 | Add a photo | `UploadPhoto` | `POST /api/v1/listings/{id}/photos` | only the seller; JPEG, PNG or WebP; at most 2 MB; at most 5 per listing |
 | Remove a photo | `DeletePhoto` | `DELETE /api/v1/listings/{id}/photos/{photoId}` | only the seller |
 | Reorder the photos | `ReorderPhotos` | `PUT /api/v1/listings/{id}/photos/order` | only the seller; the ids must be exactly the photos of the listing |
@@ -272,6 +274,9 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Offer | `RejectOffer` | `POST /api/v1/offers/{id}/reject` | the side that did not propose the offer | 200 (the offer), 400 `Offer.NotPending`, 401, 403 `Offer.NotRecipient` / `Offer.NotParticipant`, 404 `Offer.NotFound` |
 | Offer | `CounterOffer` | `POST /api/v1/offers/{id}/counter` (body `{ "amount": 90 }`) | the side that did not propose the offer | 200 (the new `Pending` offer), 400 `Offer.NotPending` / `Offer.ListingNotActive` / `Offer.AmountInvalid` / `Offer.AmountTooHigh`, 401, 403 `Offer.NotRecipient` / `Offer.NotParticipant`, 404 `Offer.NotFound` |
 | Offer | `WithdrawOffer` | `POST /api/v1/offers/{id}/withdraw` | the buyer, on their own offer | 200 (the offer), 400 `Offer.NotPending` / `Offer.NotOwnOffer`, 401, 403 `Offer.NotBuyer` / `Offer.NotParticipant`, 404 `Offer.NotFound` |
+| Block | `BlockMember` | `POST /api/v1/members/{id}/block` | anyone logged in | 204 (also when already blocked), 400 `Block.Self`, 401, 404 `Member.NotFound` |
+| Block | `UnblockMember` | `DELETE /api/v1/members/{id}/block` | anyone logged in | 204 (also when not blocked), 401 |
+| Block | `GetMyBlocked` | `GET /api/v1/members/me/blocked` | anyone logged in; only their own blocks | 200 `{ items: [{ memberId, name, blockedAt }] }`, the newest first, 401 |
 | Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form), 503 `Photo.StorageFailed` |
 | Photo | `GetListingPhotos` | `GET /api/v1/listings/{listingId}/photos` | everyone; the photos of a `Draft` only for its seller or an Admin | 200 (sorted by `position`), 404 (also a draft that is not yours) |
 | Photo | `GetPhotoFile` | `GET /api/v1/photos/{id}` | everyone | 200 (the image), 404 `Photo.NotFound` |
@@ -305,7 +310,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/members/me/blocked`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
 
 ### Searching listings
 
@@ -479,6 +484,8 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Offer.NotBuyer` | 403 | the seller withdraws an offer (only the buyer can) |
 | `Offer.NotOwnOffer` | 400 | the buyer withdraws the seller's counter-offer (reject it instead) |
 | `Offer.BuyerReservationLimit` | 400 | accepting would give the buyer more than 3 active reservations |
+| `Block.Self` | 400 | you block yourself |
+| `Member.Blocked` | 403 | you make an offer or a counter-offer, start or continue a conversation, or reserve a listing, and the other member has blocked you |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
@@ -646,6 +653,14 @@ Statuses: `Pending`, `Accepted`, `Rejected`, `Countered`, `Withdrawn`. The agree
 Notifications, in the same unit of work: `OfferReceived` to the seller ("<buyer> offered <amount> lei for <title>"), `OfferCountered` to the other side ("<member> countered with <amount> lei for <title>"), `OfferAccepted` to both sides ("<member> accepted your offer of <amount> lei for <title>" / "You accepted the offer of <amount> lei for <title>"), `OfferRejected` to the side that proposed it ("<member> rejected your offer of <amount> lei for <title>") and to each buyer whose offer was closed by another accepted offer ("The offer of <amount> lei for <title> was closed: the listing was reserved by another buyer"). Withdrawing sends none.
 
 Stored in `Offers` (foreign keys to `Listings` and to `Members` for the buyer and the seller with cascade delete, `ParentOfferId` to the answered offer, indexes on listing + buyer and listing + status) and `Reservations.AgreedPrice` (null for a reservation at the listing's price); migration `AddOffers`, on top of `AddListingExpiry`. In the frontend (`frontend/src/features/offers/`) the conversation page shows the offers as cards, with "Fă o ofertă" for the buyer, "Acceptă" / "Refuză" / "Contraofertă" for the side that has to answer and "Retrage" for the buyer's own offer.
+
+### Blocking members
+
+- `POST /api/v1/members/{id}/block` (204): the caller blocks the member. Yourself: 400 `Block.Self`; unknown member: 404 `Member.NotFound`. Blocking twice is fine (204, nothing changes). `DELETE /api/v1/members/{id}/block` (204) removes the block, also when there was none. `GET /api/v1/members/me/blocked` lists the caller's blocks (`memberId, name, blockedAt`), the newest first.
+- A block works one way. When the **seller** (or any recipient) blocked a member, that member gets 403 `Member.Blocked` when they: make an offer on the blocker's listing, counter the blocker's offer, start a conversation about the blocker's listing, write in an existing conversation with the blocker, or reserve the blocker's listing. The blocker is not restricted.
+- The blocker no longer sees the blocked member's listings in `GET /api/v1/listings` (the search results are output-cached for anonymous requests only; a request with a token is never cached, so the blocker always gets a fresh, filtered answer, and the cache is evicted on block and unblock so anonymous visitors see the change too), in `GET /api/v1/listings/{id}/similar` and in `GET /api/v1/members/me/favorites` (the favorites stay saved and come back after unblocking). The listing page `GET /api/v1/listings/{id}` and the public profile stay open.
+- When the block is created, every `Pending` offer between the two members (on any listing, whoever is the buyer) becomes `Rejected`, without a notification so the block stays private. Existing messages and reservations stay.
+- Stored in `MemberBlocks` (`BlockerId`, `BlockedId`, `CreatedAt`; unique index on the pair, foreign keys to `Members` with cascade delete); migration `AddMemberBlocks`, on top of `AddOffers`. In the frontend (`frontend/src/features/blocks/`) the button "Blochează" / "Deblochează" is on the public profile and in the conversation, and the profile page has the list "Utilizatori blocați" with "Deblochează".
 
 ### Listing photos
 

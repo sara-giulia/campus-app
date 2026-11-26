@@ -25,4 +25,11 @@ public sealed class EfOfferRepository(CampusMarketDbContext db) : IOfferReposito
             .OrderBy(o => o.CreatedAt)
             .ThenBy(o => o.Id)
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Offer>> GetPendingBetweenAsync(Guid memberId, Guid otherId, CancellationToken ct = default) =>
+        await db.Offers
+            .Where(o => o.Status == OfferStatus.Pending
+                        && ((o.BuyerId == memberId && o.SellerId == otherId)
+                            || (o.BuyerId == otherId && o.SellerId == memberId)))
+            .ToListAsync(ct);
 }

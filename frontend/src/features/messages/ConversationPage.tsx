@@ -4,6 +4,7 @@ import { api } from '../../api/client'
 import { useAuth } from '../../app/auth/AuthContext'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Button, Loading } from '../../app/ui'
+import { BlockButton } from '../blocks/BlockButton'
 import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
 import { OffersPanel } from '../offers/OffersPanel'
@@ -91,6 +92,7 @@ export function ConversationPage() {
   if (!conversation) return <Loading text="Se încarcă conversația…" />
 
   const other = user?.id === conversation.sellerId ? conversation.buyerName : conversation.sellerName
+  const otherId = user?.id === conversation.sellerId ? conversation.buyerId : conversation.sellerId
 
   return (
     <div className="chat">
@@ -103,6 +105,9 @@ export function ConversationPage() {
           <Link to={`/listings/${conversation.listingId}`} className="chat__listing">
             {conversation.listingTitle}
           </Link>
+        </div>
+        <div className="chat__actions">
+          <BlockButton memberId={otherId} name={other} />
         </div>
       </div>
 

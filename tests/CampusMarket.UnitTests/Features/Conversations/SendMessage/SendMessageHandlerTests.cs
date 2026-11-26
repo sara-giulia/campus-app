@@ -21,7 +21,7 @@ public class SendMessageHandlerTests
     }
 
     private static SendMessageHandler BuildHandler(FakeConversationRepository conversations, FakeUnitOfWork unitOfWork) =>
-        new(conversations, unitOfWork, new FixedTimeProvider(Now));
+        new(conversations, new FakeMemberBlockRepository(), unitOfWork, new FixedTimeProvider(Now));
 
     [Fact]
     public async Task Given_Conversation_When_SellerAnswers_Then_AddsMessageAndSavesOnce()
