@@ -45,6 +45,12 @@
   color: var(--muted);
 }
 
+.browse__hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 /* ---- cards ---- */
 
 /* Four per row on a wide screen, so a page of 12 (and the 8 on the home page) fills whole rows;
@@ -139,6 +145,10 @@
   margin: 0;
   font-size: 0.82rem;
   color: var(--muted);
+}
+
+.lcard__match {
+  margin: 0.35rem 0 0;
 }
 
 /* ---- one listing ---- */

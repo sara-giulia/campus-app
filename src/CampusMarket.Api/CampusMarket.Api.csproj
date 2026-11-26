@@ -9,6 +9,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="11.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="11.0.*" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.32.0" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="3.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="11.0.*">
       <PrivateAssets>all</PrivateAssets>
@@ -18,6 +20,7 @@
     <PackageReference Include="Microsoft.ML.FastTree" Version="5.0.1" />
     <PackageReference Include="Microsoft.ML.LightGbm" Version="5.0.1" />
     <PackageReference Include="Microsoft.Extensions.ML" Version="5.0.1" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.20.0" />
   </ItemGroup>
 
@@ -33,6 +36,16 @@
   <ItemGroup>
     <_MlModels Include="..\..\ml\models\*.zip" />
     <None Include="@(_MlModels)" Link="ml-models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    The embedding model of the search by meaning is not in git (ml/scripts/download-search-model.sh
+    downloads it). When it is there it goes to ml-models/semantic-search/; without it the API still
+    starts and the search works on words only.
+  -->
+  <ItemGroup>
+    <_SearchModel Include="..\..\ml\models\semantic-search\*" />
+    <None Include="@(_SearchModel)" Link="ml-models\semantic-search\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

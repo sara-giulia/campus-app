@@ -1477,8 +1477,140 @@
                       "  const ids = pm.response.json().items.map(i => i.id);",
                       "  pm.expect(ids).to.include(pm.collectionVariables.get(\"listingId\"));",
                       "});",
-                      "pm.test(\"Every title contains the search text\", () => {",
-                      "  pm.response.json().items.forEach(i => pm.expect(i.title.toLowerCase()).to.include(\"calculus\"));",
+                      "pm.test(\"Every listing found by text has the search text in its title\", () => {",
+                      "  pm.response.json().items.filter(i => i.match === \"Text\").forEach(i => pm.expect(i.title.toLowerCase()).to.include(\"calculus\"));",
+                      "});",
+                      "pm.test(\"Every item says how it was found, the text matches first\", () => {",
+                      "  const matches = pm.response.json().items.map(i => i.match);",
+                      "  matches.forEach(m => pm.expect([\"Text\", \"Meaning\"]).to.include(m));",
+                      "  const firstMeaning = matches.indexOf(\"Meaning\");",
+                      "  if (firstMeaning >= 0) pm.expect(matches.slice(firstMeaning)).to.not.include(\"Text\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - search by meaning, other words than the title (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?search=manual de matematica",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "manual de matematica"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Every item is a match by text or by meaning, the text matches first\", () => {",
+                      "  const items = pm.response.json().items;",
+                      "  items.forEach(i => pm.expect([\"Text\", \"Meaning\"]).to.include(i.match));",
+                      "  const firstMeaning = items.findIndex(i => i.match === \"Meaning\");",
+                      "  if (firstMeaning >= 0) pm.expect(items.slice(firstMeaning).map(i => i.match)).to.not.include(\"Text\");",
+                      "});",
+                      "pm.test(\"At most 10 listings are found by meaning\", () => {",
+                      "  pm.expect(pm.response.json().items.filter(i => i.match === \"Meaning\").length).to.be.at.most(10);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - search with sort=relevance (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?search=calculus&sort=relevance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ],
+                  "query": [
+                    {
+                      "key": "search",
+                      "value": "calculus"
+                    },
+                    {
+                      "key": "sort",
+                      "value": "relevance"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"The created listing is found by its title\", () => {",
+                      "  const item = pm.response.json().items.find(i => i.id === pm.collectionVariables.get(\"listingId\"));",
+                      "  pm.expect(item).to.not.be.undefined;",
+                      "  pm.expect(item.match).to.eql(\"Text\");",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get listings - without a search, match is null (200)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/listings?pageSize=5",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "listings"
+                  ],
+                  "query": [
+                    {
+                      "key": "pageSize",
+                      "value": "5"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"No item has a match\", () => {",
+                      "  pm.response.json().items.forEach(i => pm.expect(i.match).to.be.null);",
                       "});"
                     ]
                   }
@@ -1918,6 +2050,9 @@
                       "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
                       "pm.test(\"Error code is Listings.InvalidSort\", () => {",
                       "  pm.expect(pm.response.json().code).to.eql(\"Listings.InvalidSort\");",
+                      "});",
+                      "pm.test(\"The message lists the sorts, relevance included\", () => {",
+                      "  pm.expect(pm.response.json().message).to.eql(\"Sort must be relevance, newest, price_asc or price_desc.\");",
                       "});"
                     ]
                   }

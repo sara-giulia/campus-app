@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 
 #nullable disable
 
@@ -16,7 +17,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261125102536_AddPhotoPosition";
+    public override string LastMigrationId => "20261125214900_AddListingEmbeddings";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -25,6 +26,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
             .HasAnnotation("ProductVersion", "11.0.0")
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+        NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Categories.ListingCategory", b =>
@@ -508,6 +510,38 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("Reviews");
             });
 
+        modelBuilder.Entity("CampusMarket.Api.Infrastructure.Search.ListingEmbedding", b =>
+            {
+                b.Property<Guid>("ListingId")
+                    .HasColumnType("uuid");
+
+                b.Property<Vector>("Embedding")
+                    .IsRequired()
+                    .HasColumnType("vector(768)");
+
+                b.Property<DateTimeOffset>("IndexedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("Model")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)");
+
+                b.Property<string>("TextHash")
+                    .IsRequired()
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)");
+
+                b.HasKey("ListingId");
+
+                var index = b.HasIndex("Embedding");
+
+                NpgsqlIndexBuilderExtensions.HasMethod(index, "hnsw");
+                NpgsqlIndexBuilderExtensions.HasOperators(index, new[] { "vector_cosine_ops" });
+
+                b.ToTable("ListingEmbeddings");
+            });
+
         modelBuilder.Entity("CampusMarket.Api.Domain.Conversations.Conversation", b =>
             {
                 b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
@@ -602,6 +636,15 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
                     .WithMany()
                     .HasForeignKey("SellerId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Infrastructure.Search.ListingEmbedding", b =>
+            {
+                b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
+                    .WithOne()
+                    .HasForeignKey("CampusMarket.Api.Infrastructure.Search.ListingEmbedding", "ListingId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });

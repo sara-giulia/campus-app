@@ -11,7 +11,7 @@ internal static class SharedPostgres
 
     private static PostgreSqlContainer StartContainer()
     {
-        var container = new PostgreSqlBuilder("postgres:17").Build();
+        var container = new PostgreSqlBuilder("pgvector/pgvector:pg17").Build();
         container.StartAsync().GetAwaiter().GetResult();
         return container;
     }

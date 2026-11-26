@@ -68,9 +68,10 @@ export interface ReserveListingResponse {
   status: string
 }
 
-export type SortOption = 'newest' | 'price_asc' | 'price_desc'
+export type SortOption = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
 
 export const SORT_LABELS: Record<SortOption, string> = {
+  relevance: 'Cele mai relevante',
   newest: 'Cele mai noi',
   price_asc: 'Preț crescător',
   price_desc: 'Preț descrescător',

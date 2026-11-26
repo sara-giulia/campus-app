@@ -1,0 +1,188 @@
+{
+  "about": "Searches on the demo seed (DemoListings, Active listings). relevant: exact titles. An empty list: nothing like it is sold, the search should find (almost) nothing.",
+  "queries": [
+    {
+      "query": "calculator portabil",
+      "relevant": [
+        "Laptop Lenovo ThinkPad T470 i5",
+        "Laptop Dell Latitude 5490"
+      ]
+    },
+    {
+      "query": "căști fără fir",
+      "relevant": [
+        "Casti wireless aproape noi"
+      ]
+    },
+    {
+      "query": "headphones",
+      "relevant": [
+        "Casti wireless aproape noi"
+      ]
+    },
+    {
+      "query": "difuzor portabil",
+      "relevant": [
+        "Boxe Bluetooth Anker SoundCore"
+      ]
+    },
+    {
+      "query": "carte de analiză matematică",
+      "relevant": [
+        "Manual Analiza Matematica anul I",
+        "Notite curs analiza matematica anul I"
+      ]
+    },
+    {
+      "query": "ecran pentru calculator",
+      "relevant": [
+        "Monitor LG 24 inch IPS"
+      ]
+    },
+    {
+      "query": "webcam",
+      "relevant": [
+        "Camera web Logitech C920"
+      ]
+    },
+    {
+      "query": "mechanical keyboard",
+      "relevant": [
+        "Tastatura mecanica Keychron K2"
+      ]
+    },
+    {
+      "query": "spațiu de stocare pentru laptop",
+      "relevant": [
+        "SSD Samsung 500GB NVMe"
+      ]
+    },
+    {
+      "query": "tabletă apple",
+      "relevant": [
+        "iPad generatia 9 wifi 64GB"
+      ]
+    },
+    {
+      "query": "alimentator laptop",
+      "relevant": [
+        "Incarcator laptop universal 90W"
+      ]
+    },
+    {
+      "query": "bicicletă",
+      "relevant": [
+        "Bicicleta MTB rosie pentru campus"
+      ]
+    },
+    {
+      "query": "scooter electric",
+      "relevant": [
+        "Trotineta electrica pliabila"
+      ]
+    },
+    {
+      "query": "jachetă de iarnă",
+      "relevant": [
+        "Geaca iarna marime M"
+      ]
+    },
+    {
+      "query": "winter jacket",
+      "relevant": [
+        "Geaca iarna marime M"
+      ]
+    },
+    {
+      "query": "ghiozdan pentru laptop",
+      "relevant": [
+        "Rucsac laptop 17 inch"
+      ]
+    },
+    {
+      "query": "masă de studiu",
+      "relevant": [
+        "Birou pliabil cămin studentesc"
+      ]
+    },
+    {
+      "query": "veioză",
+      "relevant": [
+        "Lampa de birou cu LED reglabil"
+      ]
+    },
+    {
+      "query": "vase de gătit",
+      "relevant": [
+        "Set de oale pentru bucataria caminului"
+      ]
+    },
+    {
+      "query": "lenjerie de pat",
+      "relevant": [
+        "Set de perne si plapuma pentru cămin"
+      ]
+    },
+    {
+      "query": "pat pentru musafiri",
+      "relevant": [
+        "Saltea gonflabila pentru oaspeti"
+      ]
+    },
+    {
+      "query": "calculator științific",
+      "relevant": [
+        "Calculator stiintific Casio FX-991"
+      ]
+    },
+    {
+      "query": "aparat de măsurat tensiunea",
+      "relevant": [
+        "Multimetru digital Uni-T"
+      ]
+    },
+    {
+      "query": "instrumente de desen tehnic",
+      "relevant": [
+        "Trusa desen tehnic facultate",
+        "Compas si rigla tehnica profesionala"
+      ]
+    },
+    {
+      "query": "componente arduino",
+      "relevant": [
+        "Breadboard plus set componente Arduino",
+        "Set rezistente laborator electronica"
+      ]
+    },
+    {
+      "query": "carte de programare java",
+      "relevant": [
+        "Manual Programare orientata pe obiecte"
+      ]
+    },
+    {
+      "query": "carte despre SQL",
+      "relevant": [
+        "Manual Baze de date relationale",
+        "Notite laborator baze de date"
+      ]
+    },
+    {
+      "query": "microscop",
+      "relevant": []
+    },
+    {
+      "query": "frigider mic",
+      "relevant": []
+    },
+    {
+      "query": "chitară",
+      "relevant": []
+    },
+    {
+      "query": "imprimantă",
+      "relevant": []
+    }
+  ]
+}
