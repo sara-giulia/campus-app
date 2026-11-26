@@ -101,6 +101,30 @@ before Render is wired up and remains idempotent afterwards.
 - **No persistent disk on the free tier.** The data is in PostgreSQL, a separate server, so it survives a redeploy or a cold start of the web service (it lasts as long as the PostgreSQL instance does; check the retention limit of the plan you use). The container's own filesystem is reset on every redeploy and every cold start, so the uploaded photos (`/app/data/photos`) are wiped whenever a new image is pulled or the instance is rebuilt; attach a disk (paid tier) if they have to survive. `Seed__DemoData=true` only adds the demo data when the database is empty.
 - **One instance, no scaling.** Fine for a student demo, not for traffic.
 
+### Database backup
+
+The `.github/workflows/db-backup.yml` workflow backs up the Neon database every night at 01:00 UTC (03:00 in Bucharest in winter, 04:00 in summer) and on demand (**Actions → Database backup → Run workflow**). It runs `pg_dump` 17 (the same major version as our PostgreSQL 17) in custom format (`-Fc`, compressed), checks that `pg_restore --list` can read the dump, and uploads it as an artifact. The connection string comes from the `NEON_DATABASE_URL` repository secret (the `postgresql://...` URL from the Neon console); it is never printed, and the job fails with a clear error when the secret is missing.
+
+- **Where:** **Actions → Database backup → a run → Artifacts**, one artifact `db-backup-<YYYY-MM-DD>-run<N>` per run, containing `campusmarket-<YYYY-MM-DD>.dump`. Download it and unzip it.
+- **How long:** 14 days (`retention-days: 14`), so the last 14 nightly backups are always there; older ones are deleted by GitHub.
+- **Restore into a local database** (the docker-compose `db`, which already has `pg_restore` 17 and pgvector), into a new empty database so nothing is overwritten:
+
+  ```
+  docker compose up -d db
+  docker compose exec db createdb -U campusmarket -T template0 campusmarket_restore
+  docker compose exec -T db pg_restore -U campusmarket --no-owner --no-acl --exit-on-error -d campusmarket_restore < campusmarket-2026-11-26.dump
+  ```
+
+  To use it, point `ConnectionStrings__CampusMarket` at `Database=campusmarket_restore`.
+- **Restore into Neon:** first create an empty target (a new branch or a new database in the Neon console), copy its `postgresql://...` URL, and type it only into your shell, never into a file (`read -rs NEON_DATABASE_URL` in Git Bash, then paste it; `export NEON_DATABASE_URL`). Then, with `pg_restore` 17 from Docker:
+
+  ```
+  docker run --rm -i -e NEON_DATABASE_URL postgres:17 sh -c 'pg_restore --dbname="$NEON_DATABASE_URL" --no-owner --no-acl --exit-on-error' < campusmarket-2026-11-26.dump
+  ```
+
+  To overwrite an existing database instead, add `--clean --if-exists` (it drops the objects first). Check the data, then change `ConnectionStrings__CampusMarket` in Render to the new branch/database.
+- **Second safety net:** Neon also has its own point-in-time restore (the branch's **Restore** option in the console, or a new branch created from an earlier moment): it brings the database back to any moment inside the plan's history window (a few hours to days on the free plan), without a dump. Use it for "undo the last hour"; use the nightly dumps when the problem is older than that window or the Neon project itself is lost.
+
 ---
 
 ## Table of contents
