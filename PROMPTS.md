@@ -1291,6 +1291,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code f92ba3e; skill section cbf29c5; tests generated in eabf5bd
 
+### Run 52, skill v54 (Feature: Listing statistics)
+
+- **Why a new version:** branch `feature/listing-stats` (code 1078eea). New rules the skill did not cover: the `ListingView` entity (`KeyOf` with the member winning over the visitor, `Create` with the UTC `Day`, `ViewerMissingError`), `RecordViewHandler` (one unique view per listing, viewer and day through `TryAddAsync`; the seller's own views and `Draft`/`Hidden` listings not counted; `View.ViewerMissing`) and `GetListingStatsHandler` (owner or Admin, `Stats.InvalidDays` for `Days` outside 1-365, one entry per day with zeros filled in, the four counts grouped by UTC day). The handlers must stay at 100%, and which statuses count and how the day is cut at midnight UTC are decisions of the code, not guessable.
+
+#### Change to SKILL.md (v53 → v54) and why
+
+| # | v53 (before) | v54 (after) | Why |
+|---|---|---|---|
+| 1 | No section for listing statistics. | New section *"Feature: Listing statistics (Diana)"*: the production code to read first (`ListingView.KeyOf`/`Create`/`ViewerMissingError`, `RecordViewHandler`, `GetListingStatsHandler` and its period), the files (`ListingViewTests`, `RecordViewHandlerTests`, `GetListingStatsHandlerTests`, a hand-written `FakeListingViewRepository`), the tests to add (member or visitor key, one view per viewer and day, the next day counts again, the seller and `Draft`/`Hidden` not counted, `Reserved`/`Sold`/`Expired` counted, `View.ViewerMissing`, `Stats.InvalidDays` at 0, -1 and 366, owner or Admin, zeros filled in, the four counts kept apart, events grouped by their UTC day) and the rules (fixed ids and date, `Error.Code`, `Error.Type` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model guesses which statuses are counted, whether the seller's views count and whether the day follows the offset of the time or UTC. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Listing statistics (Diana)", and the integration-testing skill, section "Feature: Listing statistics (Diana)": ListingViewTests, RecordViewHandlerTests and GetListingStatsHandlerTests with a FakeListingViewRepository, then the integration tests and the migration test, seeding real members. Run the new unit test classes and the new integration test classes with dotnet test --filter. If a test fails because the production code is wrong, do not fix the production code: report it to me. Do not commit. Do not push.`
+- **Skill version:** v54 (section written by Diana with Claude Code; the last unit-testing version was v53, Run 51)
+- **Result:** 36 new unit tests (`ListingViewTests` 6, `RecordViewHandlerTests` 16, `GetListingStatsHandlerTests` 14); all test projects pass, no production fix needed. The integration tests of the same task are in integration-testing Run 63.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 1078eea; skill section 18b1fad; tests generated in f39e8b4
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2450,6 +2467,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** none.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code f92ba3e; skill section cbf29c5; tests generated in eabf5bd
+
+### Run 63, skill v62 (Feature: Listing statistics)
+
+- **Why a new version:** branch `feature/listing-stats` (code 1078eea). A new API the skill did not cover: `POST /api/v1/listings/{id}/views` (public; the member from the token or the `X-Visitor-Id` header; 204 also when not counted; 400 `View.ViewerMissing`), `GET /api/v1/listings/{id}/stats?days=30` (owner or Admin; 400 `Stats.InvalidDays`, 401, 403 `Listing.NotOwner`, 404), the table `ListingViews` with its unique index and the `ON CONFLICT DO NOTHING` insert, and the migration `AddListingViews`. Without a section a model would not know that the token wins over the header, that the seller and `Draft`/`Hidden` listings answer 204 without a row, that two parallel calls must leave one row, or that the counts come from the existing `CreatedAt` and `SentAt` columns.
+
+#### Change to SKILL.md (v61 → v62) and why
+
+| # | v61 (before) | v62 (after) | Why |
+|---|---|---|---|
+| 1 | No section for listing statistics. | New section *"Feature: Listing statistics (Diana)"*: the two routes with status, body and every error code, `X-Visitor-Id`, what is counted and what is not, the daily list with zeros filled in, the table and the `ON CONFLICT DO NOTHING` insert, the migration `AddListingViews` (on top of `AddListingEmbeddings`), the files (`Views/RecordViewTests.cs`, `Views/GetListingStatsTests.cs`, `Persistence/AddListingViewsMigrationTests.cs`), the tests to add (real seeded members including an Admin, favorites, conversations, messages of both sides and offers on different days, another listing's data never counted, 10 parallel calls, the migration up and down on a separate PostgreSQL database) and the rules (`ToMicroseconds()`, `DateOnly` days and the midnight caveat, `Code` and `Type` of every failure, stop and report instead of changing `src/`). | What is counted, the parallel insert and the day boundary are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Listing statistics (Diana)": the Views tests and the migration test, seeding real members. Run the new integration test classes with dotnet test --filter. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Do not commit. Do not push.`
+- **Skill version:** v62 (section written by Diana with Claude Code; the last integration-testing version was v61, Run 62)
+- **Result:** 38 new integration tests (`RecordViewTests` 19, `GetListingStatsTests` 13, `AddListingViewsMigrationTests` 6); all test projects pass, no production fix needed. The unit tests of the same task are in unit-testing Run 52.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code 1078eea; skill section 18b1fad; tests generated in f39e8b4
 
 ## code-review
 
