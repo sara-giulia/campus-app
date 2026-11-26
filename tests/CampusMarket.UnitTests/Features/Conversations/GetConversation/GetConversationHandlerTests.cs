@@ -261,4 +261,64 @@ public class GetConversationHandlerTests
         conversations.Items.Should().ContainSingle();
         conversation.Messages.Should().HaveCount(3);
     }
+
+    private static Conversation BuildConversationWithTwoUnreadForSeller(Guid buyerId, Listing listing)
+    {
+        var conversation = Conversation.Start(buyerId, listing, "Mai e disponibil?", Now).Value;
+        conversation.Send(buyerId, "Il iau maine", Now.AddMinutes(5));
+        return conversation;
+    }
+
+    [Fact]
+    public async Task Given_TwoBuyerMessages_When_SellerReads_Then_UnreadCountIsTwoAndMarkIsUnchanged()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var listing = BuildActiveListing(seller.Id);
+        var conversation = BuildConversationWithTwoUnreadForSeller(buyer.Id, listing);
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(conversation);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        var handler = BuildHandler(conversations, listings, members);
+        var markBefore = conversation.SellerLastReadNumber;
+
+        var result = await handler.HandleAsync(new GetConversationQuery(seller.Id, conversation.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UnreadCount.Should().Be(2);
+        markBefore.Should().Be(0);
+        conversation.SellerLastReadNumber.Should().Be(markBefore);
+        conversation.BuyerLastReadNumber.Should().Be(2);
+        conversation.UnreadCountFor(seller.Id).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_TwoBuyerMessages_When_BuyerReads_Then_UnreadCountIsZeroAndMarkIsUnchanged()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var listing = BuildActiveListing(seller.Id);
+        var conversation = BuildConversationWithTwoUnreadForSeller(buyer.Id, listing);
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(conversation);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        var handler = BuildHandler(conversations, listings, members);
+        var markBefore = conversation.BuyerLastReadNumber;
+
+        var result = await handler.HandleAsync(new GetConversationQuery(buyer.Id, conversation.Id), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.UnreadCount.Should().Be(0);
+        markBefore.Should().Be(2);
+        conversation.BuyerLastReadNumber.Should().Be(markBefore);
+        conversation.SellerLastReadNumber.Should().Be(0);
+    }
 }
