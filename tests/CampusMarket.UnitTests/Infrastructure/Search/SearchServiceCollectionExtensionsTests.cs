@@ -47,7 +47,7 @@ public sealed class SearchServiceCollectionExtensionsTests : IDisposable
 
         var embedder = services.Should().ContainSingle(d => d.ServiceType == typeof(ITextEmbedder)).Subject;
         embedder.Lifetime.Should().Be(ServiceLifetime.Singleton);
-        embedder.ImplementationType.Should().Be(typeof(GemmaTextEmbedder));
+        embedder.ImplementationType.Should().Be<GemmaTextEmbedder>();
     }
 
     [Fact]
@@ -137,6 +137,6 @@ public sealed class SearchServiceCollectionExtensionsTests : IDisposable
         var services = AddSearch(enabled: false);
 
         services.Should().ContainSingle(d => d.ServiceType == typeof(IHostedService))
-            .Which.ImplementationType.Should().Be(typeof(ListingIndexService));
+            .Which.ImplementationType.Should().Be<ListingIndexService>();
     }
 }
