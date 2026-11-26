@@ -3,8 +3,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CampusMarket.Api.Common.Categories;
 using CampusMarket.Api.Common.Moderation;
+using CampusMarket.Api.Domain.Conversations;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Domain.Reports;
+using CampusMarket.Api.Features.Conversations;
 using CampusMarket.Api.Features.Listings.SuggestCategory;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
@@ -139,5 +142,75 @@ public sealed class MlThresholdsTests : IntegrationTestBase
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_DefaultHost_When_ResolvingMessageSpamOptions_Then_ReadsAppSettingsValues()
+    {
+        // Arrange
+        var services = Factory.Services;
+        var expected = AppSettings();
+
+        // Act
+        var messageSpam = services.GetRequiredService<IOptions<MessageSpamOptions>>().Value;
+
+        // Assert
+        messageSpam.Threshold.Should().Be(expected.GetValue<double>("Ml:MessageSpam:Threshold"));
+        messageSpam.BlockThreshold.Should().Be(expected.GetValue<double>("Ml:MessageSpam:BlockThreshold"));
+
+        var count = await QueryDbAsync(db => db.Set<Message>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("Ml:MessageSpam:BlockThreshold", "1.5")]
+    [InlineData("Ml:MessageSpam:Threshold", "-0.1")]
+    [InlineData("Ml:MessageSpam:BlockThreshold", "0.5")]
+    public async Task Given_InvalidMessageSpamSetting_When_StartingTheApp_Then_ThrowsOptionsValidationException(string key, string value)
+    {
+        // Arrange
+        await using var invalid = WithSetting(key, value);
+
+        // Act
+        Action act = () => invalid.CreateClient();
+
+        // Assert
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*Ml:MessageSpam:Threshold and BlockThreshold*");
+
+        var count = await QueryDbAsync(db => db.Set<Message>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_MessageSpamBlockThreshold1_When_SendingAScam_Then_Returns201Suspicious()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30));
+        await SeedAsync(seller, buyer, listing);
+
+        await using var neverBlocks = WithSetting("Ml:MessageSpam:BlockThreshold", "1");
+        var client = neverBlocks.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", TestTokens.Create(buyer.Id));
+        var request = new SendMessageRequest(
+            "Am platit prin Cargus, intra pe cargus-plati.com si introdu cardul ca sa primesti banii");
+
+        // Act
+        var response = await client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/conversations", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var body = await response.Content.ReadFromJsonAsync<MessageResponse>(Json);
+        body!.IsSuspicious.Should().BeTrue();
+
+        var saved = await QueryDbAsync(db => db.Set<Message>().AsNoTracking().SingleAsync());
+        saved.Id.Should().Be(body.Id);
+        saved.IsSuspicious.Should().BeTrue();
+        saved.SpamProbability.Should().NotBeNull();
     }
 }

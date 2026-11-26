@@ -62,7 +62,8 @@ public sealed class HealthTests : IntegrationTestBase
         result.Description.Should().Contain("price-regression.zip")
             .And.Contain("category-classification.zip")
             .And.Contain("spam-detection.zip")
-            .And.Contain("similar-listings.zip");
+            .And.Contain("similar-listings.zip")
+            .And.Contain("message-spam.zip");
         await AssertDatabaseIsEmptyAsync();
     }
 
