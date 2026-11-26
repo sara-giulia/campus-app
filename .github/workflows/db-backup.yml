@@ -1,0 +1,89 @@
+name: Database backup
+
+on:
+  # GitHub cron runs in UTC. 01:00 UTC is 03:00 in Bucharest in winter (EET)
+  # and 04:00 in summer (EEST): always at night, when nobody uses the app.
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+# The job only reads the repository; it needs no write permission at all.
+permissions:
+  contents: read
+
+# Never run two backups at the same time (a manual run during the nightly one).
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # pg_dump must be the same major version as the server (PostgreSQL 17,
+      # see docker-compose.yml), so it runs from the official postgres:17 image.
+      PG_IMAGE: postgres:17
+    steps:
+      # The connection string stays in the environment of the step. It is never
+      # echoed, and GitHub masks the secret value if it ever reaches the log.
+      - name: Check that the NEON_DATABASE_URL secret is set
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL" ]; then
+            echo "::error title=Missing secret::The NEON_DATABASE_URL repository secret is not set. Add it under Settings -> Secrets and variables -> Actions (the postgresql://... URL from the Neon console)."
+            exit 1
+          fi
+
+      - name: Pick the backup file name
+        id: name
+        run: |
+          stamp="$(date -u +%Y-%m-%d)"
+          echo "stamp=$stamp" >> "$GITHUB_OUTPUT"
+          echo "file=campusmarket-$stamp.dump" >> "$GITHUB_OUTPUT"
+
+      # Custom format (-Fc): compressed, and pg_restore can restore all of it
+      # or only some tables. --no-owner/--no-acl so the dump restores into a
+      # database with a different user (local Docker, another Neon branch).
+      # "-e NEON_DATABASE_URL" passes the variable by name, so its value never
+      # appears on the command line.
+      - name: Dump the Neon database with pg_dump 17
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          BACKUP_FILE: ${{ steps.name.outputs.file }}
+        run: |
+          mkdir -p backup
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e NEON_DATABASE_URL \
+            -v "$PWD/backup:/backup" \
+            "$PG_IMAGE" \
+            sh -c 'pg_dump --dbname="$NEON_DATABASE_URL" -Fc --no-owner --no-acl --file="/backup/'"$BACKUP_FILE"'"'
+
+      # A dump that pg_restore cannot read is no backup: list its contents
+      # (no database needed) and fail if the table of contents is empty.
+      - name: Check that the dump can be read
+        env:
+          BACKUP_FILE: ${{ steps.name.outputs.file }}
+        run: |
+          docker run --rm -v "$PWD/backup:/backup" "$PG_IMAGE" \
+            pg_restore --list "/backup/$BACKUP_FILE" > toc.txt
+          tables="$(grep -c ' TABLE DATA ' toc.txt || true)"
+          echo "Dump size: $(du -h "backup/$BACKUP_FILE" | cut -f1), tables with data: $tables"
+          if [ "$tables" -eq 0 ]; then
+            echo "::error title=Empty backup::The dump contains no table data."
+            exit 1
+          fi
+
+      # One artifact per day; GitHub deletes it after 14 days, so the last
+      # 14 nightly backups are always available.
+      - name: Upload the dump as an artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: db-backup-${{ steps.name.outputs.stamp }}-run${{ github.run_number }}
+          path: backup/${{ steps.name.outputs.file }}
+          retention-days: 14
+          if-no-files-found: error
+          # The dump is already compressed (-Fc).
+          compression-level: 0
