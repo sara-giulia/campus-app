@@ -1,5 +1,6 @@
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.TrainingExamples;
 using CampusMarket.Api.Features.Listings.UpdateListing;
 using CampusMarket.UnitTests.Fakes;
 
@@ -24,7 +25,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, listing.SellerId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -44,7 +45,7 @@ public class UpdateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var unknownId = Guid.NewGuid();
         var command = new UpdateListingCommand(unknownId, Guid.NewGuid(), false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
@@ -64,7 +65,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, listing.SellerId, false, " ", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -85,7 +86,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -109,7 +110,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, AdminId, true, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -130,7 +131,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(
             listing.Id, listing.SellerId, false,
             "Linear algebra", Category.Textbook, Condition.New, 30m, "  Second edition.  ");
@@ -149,7 +150,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(
             listing.Id, listing.SellerId, false,
             "Linear algebra", Category.Textbook, Condition.New, 30m);
@@ -167,7 +168,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var description = new string('a', 1001);
         var command = new UpdateListingCommand(
             listing.Id, listing.SellerId, false,
@@ -190,7 +191,7 @@ public class UpdateListingHandlerTests
     {
         var repository = new FakeListingRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var unknownId = Guid.NewGuid();
         var command = new UpdateListingCommand(unknownId, OtherMemberId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
@@ -212,7 +213,7 @@ public class UpdateListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var categories = new FakeCategoryRepository();
         categories.Deactivate(Category.Notes);
-        var handler = new UpdateListingHandler(repository, unitOfWork, categories);
+        var handler = new UpdateListingHandler(repository, unitOfWork, categories, new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", Category.Notes, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -239,7 +240,7 @@ public class UpdateListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var categories = new FakeCategoryRepository();
         categories.Deactivate(Category.Textbook);
-        var handler = new UpdateListingHandler(repository, unitOfWork, categories);
+        var handler = new UpdateListingHandler(repository, unitOfWork, categories, new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", Category.Notes, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -261,7 +262,7 @@ public class UpdateListingHandlerTests
         var unitOfWork = new FakeUnitOfWork();
         var categories = new FakeCategoryRepository();
         categories.Deactivate(Category.Textbook);
-        var handler = new UpdateListingHandler(repository, unitOfWork, categories);
+        var handler = new UpdateListingHandler(repository, unitOfWork, categories, new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", Category.Textbook, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -284,7 +285,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", (Category)99, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -306,7 +307,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", null, Condition.New, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -328,7 +329,7 @@ public class UpdateListingHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var unitOfWork = new FakeUnitOfWork();
-        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository());
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), new FakeTrainingExampleRepository(), new FixedTimeProvider(Now));
         var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Linear algebra", Category.Textbook, null, 30m);
 
         var result = await handler.HandleAsync(command, CancellationToken.None);
@@ -340,6 +341,207 @@ public class UpdateListingHandlerTests
         listing.Version.Should().Be(1);
         repository.AddCount.Should().Be(0);
         repository.UpdateCount.Should().Be(0);
+        unitOfWork.SaveCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_NoSuggestedCategory_When_OwnerUpdates_Then_SucceedsWithoutTrainingExample()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Algebra book", Category.Notes, Condition.Good, 25m);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Category.Should().Be(Category.Notes);
+        examples.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("Books")]
+    [InlineData("3")]
+    public async Task Given_InvalidSuggestedCategory_When_OwnerUpdates_Then_SucceedsWithoutTrainingExample(string suggested)
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Algebra book", Category.Notes, Condition.Good, 25m, null, suggested);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        examples.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("Notes")]
+    [InlineData("notes")]
+    public async Task Given_SuggestedCategorySameAsChosen_When_OwnerUpdates_Then_SucceedsWithoutTrainingExample(string suggested)
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Algebra book", Category.Notes, Condition.Good, 25m, null, suggested);
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        examples.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_SuggestedCategoryDifferentFromChosen_When_OwnerUpdates_Then_AddsOneCategoryExampleWithChosenCategory()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Lab goggles", Category.LabEquipment, Condition.Good, 25m, "Never used", "Electronics");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        examples.Items.Should().ContainSingle();
+        examples.AddCount.Should().Be(1);
+        var example = examples.Items[0];
+        example.ListingId.Should().Be(listing.Id);
+        example.Kind.Should().Be(TrainingExampleKind.Category);
+        example.Label.Should().Be("LabEquipment");
+        example.Source.Should().Be(TrainingExampleSource.SellerChoice);
+        example.Title.Should().Be("Lab goggles");
+        example.Description.Should().Be("Never used");
+        example.CreatedBy.Should().Be(OwnerId);
+        example.CreatedAt.Should().Be(Now);
+        example.UpdatedAt.Should().BeNull();
+        repository.UpdateCount.Should().Be(1);
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_AdminWithDifferentSuggestion_When_Updating_Then_SucceedsWithoutTrainingExample()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, AdminId, true, "Algebra book", Category.Notes, Condition.Good, 25m, null, "Textbook");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Category.Should().Be(Category.Notes);
+        examples.Items.Should().BeEmpty();
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_AdminWithExistingCategoryExample_When_Updating_Then_ExampleIsNotRelabelled()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var existing = TrainingExample.ForCategoryChoice(listing, "Notes", OwnerId, Now.AddDays(-1)).Value;
+        examples.Items.Add(existing);
+        var handler = new UpdateListingHandler(repository, new FakeUnitOfWork(), new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, AdminId, true, "Algebra book", Category.Electronics, Condition.Good, 25m, null, "Notes");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        examples.Items.Should().ContainSingle();
+        existing.Label.Should().Be("Textbook");
+        existing.CreatedBy.Should().Be(OwnerId);
+        existing.UpdatedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_ExistingCategoryExample_When_OwnerEditsAgain_Then_RelabelsExampleWithoutDuplicate()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var clock = new MovableTimeProvider(Now);
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, clock);
+        var first = new UpdateListingCommand(listing.Id, OwnerId, false, "Algebra book", Category.Notes, Condition.Good, 25m, null, "Textbook");
+        await handler.HandleAsync(first, CancellationToken.None);
+        var example = examples.Items.Single();
+        clock.Now = Now.AddHours(2);
+        var second = new UpdateListingCommand(listing.Id, OwnerId, false, "Calculus notes", Category.Other, Condition.Good, 25m, null, "Textbook");
+
+        var result = await handler.HandleAsync(second, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        examples.Items.Should().ContainSingle().Which.Should().BeSameAs(example);
+        examples.AddCount.Should().Be(1);
+        example.Label.Should().Be("Other");
+        example.Title.Should().Be("Calculus notes");
+        example.CreatedAt.Should().Be(Now);
+        example.UpdatedAt.Should().Be(Now.AddHours(2));
+        unitOfWork.SaveCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_ExistingCategoryExample_When_OwnerEditsWithSuggestionSameAsChosen_Then_ExampleKeepsLabelWithoutDuplicate()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var existing = TrainingExample.ForCategoryChoice(listing, "Notes", OwnerId, Now.AddDays(-1)).Value;
+        examples.Items.Add(existing);
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, "Algebra book", Category.Electronics, Condition.Good, 25m, null, "Electronics");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        examples.Items.Should().ContainSingle();
+        examples.AddCount.Should().Be(0);
+        existing.Label.Should().Be("Textbook");
+        existing.UpdatedAt.Should().BeNull();
+        unitOfWork.SaveCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_InvalidDetailsWithDifferentSuggestion_When_OwnerUpdates_Then_AddsNoTrainingExample()
+    {
+        var listing = BuildListing();
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var examples = new FakeTrainingExampleRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var handler = new UpdateListingHandler(repository, unitOfWork, new FakeCategoryRepository(), examples, new FixedTimeProvider(Now));
+        var command = new UpdateListingCommand(listing.Id, OwnerId, false, " ", Category.Notes, Condition.Good, 25m, null, "Textbook");
+
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Listing.TitleEmpty");
+        examples.Items.Should().BeEmpty();
         unitOfWork.SaveCount.Should().Be(0);
     }
 }
