@@ -13,8 +13,8 @@ using Pgvector;
 namespace CampusMarket.Api.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(CampusMarketDbContext))]
-[Migration("20261126141520_AddTrainingExamples")]
-partial class _20261126141520_AddTrainingExamples
+[Migration("20261126150921_AddTrainingExamples")]
+partial class _20261126150921_AddTrainingExamples
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -146,6 +146,9 @@ partial class _20261126141520_AddTrainingExamples
                 b.Property<Guid>("ConversationId")
                     .HasColumnType("uuid");
 
+                b.Property<bool>("IsSuspicious")
+                    .HasColumnType("boolean");
+
                 b.Property<int>("Number")
                     .HasColumnType("integer");
 
@@ -154,6 +157,9 @@ partial class _20261126141520_AddTrainingExamples
 
                 b.Property<DateTimeOffset>("SentAt")
                     .HasColumnType("timestamp with time zone");
+
+                b.Property<double?>("SpamProbability")
+                    .HasColumnType("double precision");
 
                 b.Property<string>("Text")
                     .IsRequired()

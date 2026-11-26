@@ -12,8 +12,8 @@ namespace CampusMarket.IntegrationTests.Persistence;
 // inserted between the migration before AddTrainingExamples and AddTrainingExamples itself.
 public sealed class AddTrainingExamplesMigrationTests : IAsyncLifetime
 {
-    private const string PreviousMigration = "20261126112225_AddListingViews";
-    private const string AddTrainingExamples = "20261126141520_AddTrainingExamples";
+    private const string PreviousMigration = "20261126135244_AddMessageSpamCheck";
+    private const string AddTrainingExamples = "20261126150921_AddTrainingExamples";
 
     private static readonly DateTimeOffset T0 = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
     private static readonly string[] PersonalDataWords = ["name", "email", "phone", "password"];

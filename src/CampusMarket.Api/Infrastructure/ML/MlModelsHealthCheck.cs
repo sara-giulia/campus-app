@@ -3,11 +3,11 @@ using Microsoft.Extensions.Options;
 
 namespace CampusMarket.Api.Infrastructure.ML;
 
-// Ready only when the four trained models are next to the API.
+// Ready only when the five trained models are next to the API.
 public sealed class MlModelsHealthCheck(IOptions<MlOptions> options) : IHealthCheck
 {
     public static readonly string[] ModelFiles =
-        ["price-regression.zip", "category-classification.zip", "spam-detection.zip", "similar-listings.zip"];
+        ["price-regression.zip", "category-classification.zip", "spam-detection.zip", "similar-listings.zip", "message-spam.zip"];
 
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
     {

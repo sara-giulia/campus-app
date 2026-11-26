@@ -17,7 +17,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261126141520_AddTrainingExamples";
+    public override string LastMigrationId => "20261126150921_AddTrainingExamples";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -148,6 +148,9 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.Property<Guid>("ConversationId")
                     .HasColumnType("uuid");
 
+                b.Property<bool>("IsSuspicious")
+                    .HasColumnType("boolean");
+
                 b.Property<int>("Number")
                     .HasColumnType("integer");
 
@@ -156,6 +159,9 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
 
                 b.Property<DateTimeOffset>("SentAt")
                     .HasColumnType("timestamp with time zone");
+
+                b.Property<double?>("SpamProbability")
+                    .HasColumnType("double precision");
 
                 b.Property<string>("Text")
                     .IsRequired()

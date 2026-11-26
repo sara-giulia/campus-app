@@ -30,7 +30,7 @@ public class StartConversationHandlerBlockedTests
         var members = new FakeMemberRepository();
         foreach (var member in new[] { _seller, _buyer, _otherBuyer })
             members.Items[member.Id] = member;
-        _handler = new StartConversationHandler(listings, members, _conversations, _blocks, _unitOfWork, new FixedTimeProvider(Now));
+        _handler = new StartConversationHandler(listings, members, _conversations, _blocks, new FakeMessageSpamDetector(), _unitOfWork, new FixedTimeProvider(Now));
     }
 
     private void Block(Member blocker, Member blocked) =>

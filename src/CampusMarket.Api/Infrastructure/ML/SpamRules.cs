@@ -32,7 +32,8 @@ public static partial class SpamRules
                || text.Contains("!!!", StringComparison.Ordinal);
     }
 
-    private static string Normalize(string text)
+    // Lower case and without diacritics; MessageSpamRules folds the text the same way.
+    internal static string Normalize(string text)
     {
         var decomposed = text.ToLowerInvariant().Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder(decomposed.Length);

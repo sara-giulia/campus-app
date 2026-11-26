@@ -209,4 +209,39 @@ public class GetMyConversationsHandlerTests
         listings.Items.Should().HaveCount(2);
         members.Items.Should().HaveCount(3);
     }
+
+    [Fact]
+    public async Task Given_ConversationWithSuspiciousLastMessage_When_Handling_Then_OnlyThatItemIsFlagged()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var otherBuyer = BuildOtherBuyer();
+        var algebra = BuildActiveListing(seller.Id, "Algebra book");
+        var physics = BuildActiveListing(seller.Id, "Physics book");
+        var suspicious = Conversation.Start(buyer.Id, algebra, "Intra pe www.oferta.ro", Now.AddMinutes(10)).Value;
+        suspicious.Messages[0].RecordSpamCheck(0.7, true);
+        var normal = Conversation.Start(otherBuyer.Id, physics, "Cat costa?", Now).Value;
+        normal.Messages[0].RecordSpamCheck(0.05, false);
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(suspicious);
+        conversations.Items.Add(normal);
+        var listings = new FakeListingRepository();
+        listings.Items[algebra.Id] = algebra;
+        listings.Items[physics.Id] = physics;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        members.Items[otherBuyer.Id] = otherBuyer;
+        var handler = BuildHandler(conversations, listings, members);
+        var query = new GetMyConversationsQuery(seller.Id);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(suspicious.Id, normal.Id);
+        result.Value.Items.Select(i => i.LastMessageIsSuspicious).Should().Equal(true, false);
+        conversations.Items.Should().HaveCount(2);
+        listings.Items.Should().HaveCount(2);
+        members.Items.Should().HaveCount(3);
+    }
 }

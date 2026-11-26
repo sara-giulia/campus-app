@@ -27,6 +27,12 @@ generate, dataset v2: 5000 de rânduri, 10% spam, seed 2026) și sunt salvate ca
   validare). Un anunț peste prag rămâne publicat, dar primește un raport automat
   pentru Admin. În API, peste model mai sunt și reguli fixe (`SpamRules.cs`).
   Fișa: [docs/ml/spam.md](docs/ml/spam.md).
+- **Spam în mesaje** (`message-spam.zip`) — dă probabilitatea ca un mesaj din chat
+  să fie spam sau țeapă, doar din text. SDCA logistic regression, antrenat pe
+  `ml/data/messages.csv` (5000 de mesaje generate, 15% spam, 76 de tipuri). Două
+  praguri alese prin validare încrucișată pe tipuri de mesaje: 0.60 avertisment,
+  0.95 blocat. Peste model, reguli fixe pentru chat (`MessageSpamRules.cs`).
+  Fișa: [docs/ml/message-spam.md](docs/ml/message-spam.md).
 - **Anunțuri similare** (`similar-listings.zip`) — transformă titlul și
   descrierea în vectori de text și întoarce cele 5 anunțuri active cele mai
   apropiate (similaritate cosinus). Nu prezice o etichetă; varianta „titlu și
@@ -115,10 +121,13 @@ dotnet run --project ml/CampusMarket.ML.Training
 dotnet test tests/CampusMarket.ML.Tests
 ```
 
-1. Generatorul rescrie `ml/data/listings.csv` (aceiași octeți la fiecare rulare).
-2. Antrenarea scrie cele patru `.zip` și `.json` în `ml/models/` și afișează
+1. Generatorul rescrie `ml/data/listings.csv` și `ml/data/messages.csv` (aceiași
+   octeți la fiecare rulare; mesajele au propriul `Random`, deci anunțurile nu se schimbă).
+2. Antrenarea scrie cele cinci `.zip` și `.json` în `ml/models/` și afișează
    metricile, baseline-urile, tabelele de praguri, evaluarea pe `external.csv` și
-   analiza erorilor.
+   analiza erorilor. Modelul de spam al mesajelor e antrenat la final, pe propriul
+   `MLContext`, deci nu schimbă celelalte patru; doar el:
+   `dotnet run --project ml/CampusMarket.ML.Training -- --messages`.
 3. Testele de calitate pică dacă modelele salvate scad sub pragurile din fișe.
 
 În CI (`.github/workflows/ml.yml`) se rulează și `python3 ml/scripts/check_metrics.py`,
