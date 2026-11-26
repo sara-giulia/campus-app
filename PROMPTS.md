@@ -1257,6 +1257,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code c0a5be3; skill section 895354a; tests generated in 111fcc2
 
+### Run 50, skill v52 (Feature: Price offers)
+
+- **Why a new version:** branch `feature/price-offers` (code be13bc7). New domain and handler rules the skill did not cover: the `Offer` aggregate (`Make`, `CheckCanAnswer`, `Accept`, `Reject`, `Counter`, `Withdraw`, `CloseBecauseListingReserved`), `Reservation.AgreedPrice` and `PriceFor`, `Listing.Reserve(..., agreedPrice)`, and the new handlers `MakeOfferHandler`, `CounterOfferHandler`, `RejectOfferHandler`, `WithdrawOfferHandler` and `AcceptOfferHandler` (3-reservation limit, other pending offers rejected, notifications, one commit), plus `ConfirmSaleHandler`, `GetConversationHandler` and `GetMyReservationsHandler` changed. The handlers must stay at 100%, and the order of the checks, the notification recipients and texts and "nothing saved on a failure" are the parts a model would get wrong.
+
+#### Change to SKILL.md (v51 → v52) and why
+
+| # | v51 (before) | v52 (after) | Why |
+|---|---|---|---|
+| 1 | No section for price offers. | New section *"Feature: Price offers (Diana)"*: the production code to read first (every domain rule with its error code and `ErrorType`, the order of the checks in each handler, the notification texts and recipients), the files (`OfferTests.cs` new, `ListingTests` and `ReservationTests` extended, five new handler test classes, `ConfirmSaleHandlerTests`, `GetConversationHandlerTests`, `GetMyReservationsHandlerTests` extended, `FakeOfferRepository`), the tests to add (every success and failure of the domain methods with `[Theory]` over the statuses, the counter chain, the handlers with exact notification texts, one commit and nothing saved on a failure, the reservation limit, the other pending offers rejected, the agreed price on the sale) and the rules (fixed ids and date, `ErrorType`, `Error.Code` and `Error.Message` on every failure, stop and report instead of changing `src/`). | Without it a model guesses who is the recipient, the order of `Offer.AlreadyPending` and the domain errors, and whether the 3-reservation limit lives in `Reserve` or in the handler. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Price offers (Diana)": OfferTests, the additions to ListingTests and ReservationTests, the five new handler test classes and the additions to ConfirmSaleHandlerTests, GetConversationHandlerTests and GetMyReservationsHandlerTests. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v52 (section written by Diana with Claude Code; the last unit-testing version was v51, Run 49)
+- **Result:** 1071 unit tests in total. All pass, no production fix needed. The integration tests of the same task are in integration-testing Run 61 (599 in total).
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code be13bc7; skill section 236a992; tests generated in 8421dee
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2382,6 +2399,23 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the missing seller in 3 tests (see Result); fixed in the tests.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code c0a5be3; skill section 895354a; tests generated in 111fcc2
+
+### Run 61, skill v60 (Feature: Price offers)
+
+- **Why a new version:** branch `feature/price-offers` (code be13bc7). A whole new API the skill did not cover: five endpoints (`POST /api/v1/listings/{id}/offers`, `POST /api/v1/offers/{id}/accept|reject|counter|withdraw`), the new `Offers` table and `Reservations.AgreedPrice` (migration `AddOffers`), `offers` in `GET /api/v1/conversations/{id}`, `agreedPrice` in `GET /api/v1/members/me/reservations`, four new notification types and the agreed price on a confirmed sale. Without a section a model would not know the error codes and statuses (`Offer.AlreadyPending` 409, `Offer.NotRecipient` 403, `Offer.BuyerReservationLimit` 400), the notification texts and recipients, that accepting rejects the other pending offers, or what the migration does to existing reservations.
+
+#### Change to SKILL.md (v59 → v60) and why
+
+| # | v59 (before) | v60 (after) | Why |
+|---|---|---|---|
+| 1 | No section for price offers. | New section *"Feature: Price offers (Diana)"*: the five endpoints with status, body and every error code, the changes to the conversation, reservations, notifications and confirm sale, the migration `AddOffers`, the files (`Offers/MakeOfferTests.cs`, `AcceptOfferTests.cs`, `RejectOfferTests.cs`, `CounterOfferTests.cs`, `WithdrawOfferTests.cs`, `OfferFlowTests.cs`, `Persistence/AddOffersMigrationTests.cs`, plus the existing conversation, my-reservations and confirm sale tests), the tests to add (every success and every error with the database check, the full flow offer → counter → counter → accept with the agreed price 92 up to the sold price, the migration up and down on a separate PostgreSQL database) and the rules (`ToMicroseconds()` for dates read from PostgreSQL, `Code` and `Type` of every failure, stop and report instead of changing `src/`). | The codes, the texts, the "nothing saved on a failure" rule and the migration behaviour are decisions of the API, not guessable. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Price offers (Diana)": the new Offers tests, the migration test and the tests to add in the conversation, my-reservations and confirm sale tests. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v60 (section written by Diana with Claude Code; the last integration-testing version was v59, Run 60)
+- **Result:** 599 integration tests in total. All pass, no production fix needed. The unit tests of the same task are in unit-testing Run 50 (1071 in total).
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code be13bc7; skill section 236a992; tests generated in 8421dee
 
 ## code-review
 

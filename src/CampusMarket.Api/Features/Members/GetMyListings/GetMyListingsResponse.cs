@@ -13,7 +13,10 @@ public sealed record MyListingItem(
     decimal Price,
     ListingStatus Status,
     DateTimeOffset CreatedAt,
-    DateTimeOffset? ExpiresAt)
+    DateTimeOffset? ExpiresAt,
+    // What the active reservation's buyer pays (the price agreed through an offer, or the listing's price);
+    // null when the listing has no active reservation.
+    decimal? ReservedPrice)
 {
     public static MyListingItem From(Listing listing) => new(
         listing.Id,
@@ -24,5 +27,6 @@ public sealed record MyListingItem(
         listing.Price.Amount,
         listing.Status,
         listing.CreatedAt,
-        listing.ExpiresAt);
+        listing.ExpiresAt,
+        listing.Reservations.FirstOrDefault(r => r.Status == ReservationStatus.Active)?.PriceFor(listing));
 }

@@ -139,7 +139,16 @@ export function MyReservationsPage() {
                 <h2 className="listing-row__title">{reservation.listingTitle}</h2>
                 <div className="listing-row__meta">
                   <Badge tone={reservationTone(reservation.status)}>{RESERVATION_STATUS_LABELS[reservation.status]}</Badge>
-                  <span className="listing-row__price">{reservation.price} RON</span>
+                  {reservation.agreedPrice !== null && reservation.agreedPrice !== reservation.price ? (
+                    <>
+                      <span className="listing-row__price">{reservation.agreedPrice} RON</span>
+                      <span>
+                        (preț negociat, anunțul: <s>{reservation.price} RON</s>)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="listing-row__price">{reservation.price} RON</span>
+                  )}
                   <span>·</span>
                   <span>Rezervat: {formatDate(reservation.createdAt)}</span>
                   <span>·</span>

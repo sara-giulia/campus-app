@@ -27,6 +27,7 @@ public sealed class GetMyReservationsHandler(
                     listing.Id,
                     listing.Title,
                     listing.Price.Amount,
+                    r.AgreedPrice,
                     // README: "expired reservations shown as expired". Nothing changes in the database.
                     r.IsExpired(now) ? ReservationStatus.Expired : r.Status,
                     r.CreatedAt,

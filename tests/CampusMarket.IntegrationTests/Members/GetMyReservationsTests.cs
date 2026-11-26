@@ -257,4 +257,35 @@ public sealed class GetMyReservationsTests : IntegrationTestBase
         listing.ConfirmSale(reservation.Id, createdAt);
         return listing;
     }
+
+    [Fact]
+    public async Task Given_ReservationsWithAndWithoutAgreedPrice_When_Getting_Then_ShowsAgreedPriceOrNull()
+    {
+        // Arrange
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var agreedListing = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt.AddHours(1)).Value;
+        agreedListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var agreed = agreedListing.Reserve(buyer.Id, CreatedAt.AddHours(1), Money.Create(95.5m).Value).Value;
+        var plainListing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        plainListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var plain = plainListing.Reserve(buyer.Id, CreatedAt).Value;
+        await SeedAsync(buyer, agreedListing, plainListing);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/reservations");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetMyReservationsResponse>(Json);
+        body!.Items.Select(i => i.ReservationId).Should().Equal(agreed.Id, plain.Id);
+        body.Items[0].Price.Should().Be(120m);
+        body.Items[0].AgreedPrice.Should().Be(95.5m);
+        body.Items[1].Price.Should().Be(50m);
+        body.Items[1].AgreedPrice.Should().BeNull();
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().Include(l => l.Reservations).ToListAsync());
+        saved.SelectMany(l => l.Reservations).Single(r => r.Id == agreed.Id).AgreedPrice.Should().Be(95.5m);
+        saved.SelectMany(l => l.Reservations).Single(r => r.Id == plain.Id).AgreedPrice.Should().BeNull();
+    }
 }

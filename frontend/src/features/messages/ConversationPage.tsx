@@ -6,6 +6,7 @@ import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Button, Loading } from '../../app/ui'
 import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
+import { OffersPanel } from '../offers/OffersPanel'
 import type { ConversationDetail } from './types'
 import './messages.css'
 
@@ -27,8 +28,10 @@ export function ConversationPage() {
   // Bumped after sending and on a live event for this conversation, to load it again at once.
   const [version, setVersion] = useState(0)
 
+  // A notification may be about an offer in this conversation (new offer, counter-offer, answer):
+  // loading it again is cheap, so any notification refreshes the page too.
   const live = useLiveEvents((event) => {
-    if (event.type === 'message' && event.conversationId === id) setVersion((v) => v + 1)
+    if ((event.type === 'message' && event.conversationId === id) || event.type === 'notification') setVersion((v) => v + 1)
   })
 
   useEffect(() => {
@@ -112,6 +115,15 @@ export function ConversationPage() {
         ))}
         <div ref={endRef} />
       </div>
+
+      <OffersPanel
+        listingId={conversation.listingId}
+        buyerId={conversation.buyerId}
+        currentUserId={user?.id}
+        otherName={other}
+        offers={conversation.offers}
+        onChanged={() => setVersion((v) => v + 1)}
+      />
 
       <form className="chat__form" onSubmit={send}>
         <textarea

@@ -221,6 +221,9 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.Property<Guid>("Id")
                     .HasColumnType("uuid");
 
+                b.Property<decimal?>("AgreedPrice")
+                    .HasColumnType("numeric");
+
                 b.Property<DateTimeOffset>("CreatedAt")
                     .HasColumnType("timestamp with time zone");
 
@@ -406,6 +409,54 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("MemberId", "CreatedAt");
 
                 b.ToTable("Notifications");
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Offers.Offer", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid");
+
+                b.Property<decimal>("Amount")
+                    .HasColumnType("numeric");
+
+                b.Property<Guid>("BuyerId")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("ListingId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid?>("ParentOfferId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("ProposedById")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset?>("RespondedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("SellerId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("Status")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.HasKey("Id");
+
+                b.HasIndex("BuyerId");
+
+                b.HasIndex("ParentOfferId");
+
+                b.HasIndex("SellerId");
+
+                b.HasIndex("ListingId", "BuyerId");
+
+                b.HasIndex("ListingId", "Status");
+
+                b.ToTable("Offers");
             });
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Photos.Photo", b =>
@@ -595,6 +646,32 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
                     .WithMany("Reservations")
                     .HasForeignKey("ListingId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Offers.Offer", b =>
+            {
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("BuyerId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
+                    .WithMany()
+                    .HasForeignKey("ListingId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("CampusMarket.Api.Domain.Offers.Offer", null)
+                    .WithMany()
+                    .HasForeignKey("ParentOfferId")
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("SellerId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });

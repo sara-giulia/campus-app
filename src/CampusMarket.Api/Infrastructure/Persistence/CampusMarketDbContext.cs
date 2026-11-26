@@ -5,6 +5,7 @@ using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Domain.Photos;
 using CampusMarket.Api.Domain.Notifications;
+using CampusMarket.Api.Domain.Offers;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Infrastructure.Search;
@@ -30,6 +31,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<Photo> Photos => Set<Photo>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<ListingCategory> Categories => Set<ListingCategory>();
+    public DbSet<Offer> Offers => Set<Offer>();
     public DbSet<ListingEmbedding> ListingEmbeddings => Set<ListingEmbedding>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
