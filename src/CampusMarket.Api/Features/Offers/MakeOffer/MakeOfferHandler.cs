@@ -46,10 +46,9 @@ public sealed class MakeOfferHandler(
         if (conversation is null)
         {
             var amount = command.Amount.ToString("0.##", CultureInfo.InvariantCulture);
-            var started = Conversation.Start(command.BuyerId, listing, $"Am făcut o ofertă de {amount} lei.", now);
-            if (started.IsFailure)
-                return Result<MakeOfferResponse>.Failure(started.Error);
-            conversation = started.Value;
+            // Cannot fail here: Offer.Make already checked the buyer (not empty, not the seller) and the
+            // listing (Active), and the message is fixed text.
+            conversation = Conversation.Start(command.BuyerId, listing, $"Am făcut o ofertă de {amount} lei.", now).Value;
             await conversations.AddAsync(conversation, ct);
         }
 

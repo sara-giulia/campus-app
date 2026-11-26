@@ -60,13 +60,13 @@ public sealed class Offer
         if (listing.Id != ListingId || listing.Status != ListingStatus.Active)
             return Result<Reservation>.Failure(ListingNotActive());
 
-        var reserved = listing.Reserve(BuyerId, now, Money.Create(Amount).Value);
-        if (reserved.IsFailure)
-            return reserved;
+        // Cannot fail here: the listing is Active (checked above) and the buyer is neither empty nor the
+        // seller (checked when the offer was made).
+        var reservation = listing.Reserve(BuyerId, now, Money.Create(Amount).Value).Value;
 
         Status = OfferStatus.Accepted;
         RespondedAt = now;
-        return reserved;
+        return reservation;
     }
 
     public Result<Offer> Reject(Guid memberId, DateTimeOffset now)
