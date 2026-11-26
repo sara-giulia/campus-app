@@ -25,16 +25,24 @@ jobs:
       # see docker-compose.yml), so it runs from the official postgres:17 image.
       PG_IMAGE: postgres:17
     steps:
-      # The connection string stays in the environment of the step. It is never
-      # echoed, and GitHub masks the secret value if it ever reaches the log.
-      - name: Check that the NEON_DATABASE_URL secret is set
+      # The connection string and the passphrase stay in the environment of the
+      # step. They are never echoed, and GitHub masks the secret values if they
+      # ever reach the log.
+      - name: Check that the required secrets are set
         env:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
+          missing=0
           if [ -z "$NEON_DATABASE_URL" ]; then
             echo "::error title=Missing secret::The NEON_DATABASE_URL repository secret is not set. Add it under Settings -> Secrets and variables -> Actions (the postgresql://... URL from the Neon console)."
-            exit 1
+            missing=1
           fi
+          if [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error title=Missing secret::The BACKUP_PASSPHRASE repository secret is not set. Add it under Settings -> Secrets and variables -> Actions (a long random passphrase, kept by the team in a password manager). The repository is public, so the dump is never uploaded unencrypted."
+            missing=1
+          fi
+          exit "$missing"
 
       - name: Pick the backup file name
         id: name
@@ -76,14 +84,63 @@ jobs:
             exit 1
           fi
 
+      # The repository is public: anyone signed in to GitHub can download its
+      # artifacts. So the dump is encrypted with a passphrase (AES256) and only
+      # the .gpg file is uploaded. The passphrase goes to gpg on stdin
+      # (--passphrase-fd 0) through printf, a shell builtin, so it never appears
+      # on a command line, in the process list or in the log, and it is never
+      # written to disk. A fresh GNUPGHOME and --no-symkey-cache keep gpg-agent
+      # from remembering it. The dump is already compressed (-Fc), so gpg does
+      # not compress again. The plain dump is deleted right after.
+      - name: Encrypt the dump with gpg (AES256)
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          BACKUP_FILE: ${{ steps.name.outputs.file }}
+        run: |
+          export GNUPGHOME="$(mktemp -d)"
+          printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback \
+            --no-symkey-cache --passphrase-fd 0 \
+            --symmetric --cipher-algo AES256 --compress-algo none \
+            --s2k-mode 3 --s2k-digest-algo SHA512 --s2k-count 65011712 \
+            --output "backup/$BACKUP_FILE.gpg" "backup/$BACKUP_FILE"
+          rm -rf "$GNUPGHOME"
+          rm -f "backup/$BACKUP_FILE" toc.txt
+
+      # Fail before the upload unless the only file left is really encrypted:
+      # the plain dump is gone, the file does not start with the pg_dump magic
+      # "PGDMP", pg_restore cannot read it, and gpg sees a passphrase-encrypted
+      # (symkey) packet with AES256 (cipher 9). gpg runs with an empty
+      # GNUPGHOME and no passphrase, so it can only list the packets, not
+      # decrypt them.
+      - name: Check that the backup is encrypted
+        env:
+          BACKUP_FILE: ${{ steps.name.outputs.file }}
+        run: |
+          fail() { echo "::error title=Backup not encrypted::$1"; exit 1; }
+          enc="backup/$BACKUP_FILE.gpg"
+          [ -s "$enc" ] || fail "$enc is missing or empty."
+          [ ! -e "backup/$BACKUP_FILE" ] || fail "The plain dump is still in backup/."
+          [ "$(ls -A backup)" = "$BACKUP_FILE.gpg" ] || fail "backup/ contains other files: $(ls -A backup | tr '\n' ' ')"
+          [ "$(head -c 5 "$enc")" != "PGDMP" ] || fail "$enc starts like a plain pg_dump file."
+          if docker run --rm -v "$PWD/backup:/backup" "$PG_IMAGE" \
+               pg_restore --list "/backup/$BACKUP_FILE.gpg" > /dev/null 2>&1; then
+            fail "pg_restore can read $enc, so it is not encrypted."
+          fi
+          export GNUPGHOME="$(mktemp -d)"
+          packets="$(gpg --batch --pinentry-mode loopback --list-packets "$enc" < /dev/null 2>&1 || true)"
+          rm -rf "$GNUPGHOME"
+          echo "$packets" | grep -q '^:symkey enc packet: .*cipher 9' \
+            || fail "gpg does not see an AES256 passphrase-encrypted packet in $enc."
+          echo "Encrypted backup: $(du -h "$enc" | cut -f1), AES256 symkey packet found, not readable by pg_restore."
+
       # One artifact per day; GitHub deletes it after 14 days, so the last
-      # 14 nightly backups are always available.
-      - name: Upload the dump as an artifact
+      # 14 nightly backups are always available. Only the encrypted file.
+      - name: Upload the encrypted dump as an artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: db-backup-${{ steps.name.outputs.stamp }}-run${{ github.run_number }}
-          path: backup/${{ steps.name.outputs.file }}
+          path: backup/${{ steps.name.outputs.file }}.gpg
           retention-days: 14
           if-no-files-found: error
-          # The dump is already compressed (-Fc).
+          # The dump is already compressed (-Fc) and encrypted data does not compress.
           compression-level: 0
