@@ -162,7 +162,7 @@ public sealed class AddOffersMigrationTests : IAsyncLifetime
 
     private async Task MigrateAsync(string targetMigration)
     {
-        var options = new DbContextOptionsBuilder<CampusMarketDbContext>().UseNpgsql(ConnectionString).Options;
+        var options = new DbContextOptionsBuilder<CampusMarketDbContext>().UseNpgsql(ConnectionString, npgsql => npgsql.UseVector()).Options;
         await using var db = new CampusMarketDbContext(options);
         await db.GetService<IMigrator>().MigrateAsync(targetMigration);
     }
