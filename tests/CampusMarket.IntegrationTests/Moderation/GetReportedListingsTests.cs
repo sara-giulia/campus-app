@@ -206,4 +206,35 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
         saved.Status.Should().Be(ListingStatus.Expired);
     }
+
+    [Fact]
+    public async Task Given_ListingWithOnlyDismissedReports_When_AdminGetsReportedListings_Then_OnlyPendingListingIsReturned()
+    {
+        // Arrange
+        var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var dismissedListing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        dismissedListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var pendingListing = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt).Value;
+        pendingListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var dismissed = Report.Create(ana.Id, dismissedListing, "Fake listing", CreatedAt.AddHours(1)).Value;
+        dismissed.Dismiss(CreatedAt.AddHours(2));
+        var pending = Report.Create(ana.Id, pendingListing, "Wrong price", CreatedAt.AddHours(3)).Value;
+        await SeedAsync(ana, dismissedListing, pendingListing, dismissed, pending);
+        AuthenticateAs(AdminId, "Admin");
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/moderation/listings");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetReportedListingsResponse>(Json);
+        body!.Items.Select(i => i.ListingId).Should().Equal(pendingListing.Id);
+        body.TotalCount.Should().Be(1);
+        body.Items[0].ReportCount.Should().Be(1);
+
+        var reports = await QueryDbAsync(db => db.Set<Report>().AsNoTracking().ToListAsync());
+        reports.Single(r => r.Id == dismissed.Id).Resolution.Should().Be(ReportResolution.Dismissed);
+        reports.Single(r => r.Id == pending.Id).Resolution.Should().Be(ReportResolution.Pending);
+    }
 }

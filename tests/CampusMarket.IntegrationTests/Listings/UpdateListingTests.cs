@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.TrainingExamples;
 using CampusMarket.Api.Features.Listings.UpdateListing;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
@@ -224,5 +225,122 @@ public sealed class UpdateListingTests : IntegrationTestBase
 
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(listing);
+    }
+
+    [Fact]
+    public async Task Given_SellerChoosesAnotherCategoryThanSuggested_When_UpdatingListing_Then_Returns204AndRecordsCategoryExample()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(SellerId);
+        var request = new UpdateListingRequest("Notite POO", Category.Notes, Condition.Worn, 30m, SuggestedCategory: "Textbook");
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/listings/{listing.Id}", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+
+        var example = await QueryDbAsync(db => db.Set<TrainingExample>().AsNoTracking().SingleAsync());
+        example.ListingId.Should().Be(listing.Id);
+        example.Kind.Should().Be(TrainingExampleKind.Category);
+        example.Label.Should().Be("Notes");
+        example.Source.Should().Be(TrainingExampleSource.SellerChoice);
+        example.Title.Should().Be("Notite POO");
+        example.Description.Should().BeNull();
+        example.CreatedBy.Should().Be(SellerId);
+        example.UpdatedAt.Should().BeNull();
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Category.Should().Be(Category.Notes);
+        saved.Version.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Books")]
+    [InlineData("NOTES")]
+    public async Task Given_MissingInvalidOrSameSuggestion_When_UpdatingListing_Then_Returns204AndRecordsNoExample(string? suggested)
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(SellerId);
+        var request = new UpdateListingRequest("Notite POO", Category.Notes, Condition.Worn, 30m, SuggestedCategory: suggested);
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/listings/{listing.Id}", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Title.Should().Be("Notite POO");
+        saved.Category.Should().Be(Category.Notes);
+        saved.Condition.Should().Be(Condition.Worn);
+        saved.Price.Amount.Should().Be(30m);
+        saved.Version.Should().Be(2);
+        var examples = await QueryDbAsync(db => db.Set<TrainingExample>().CountAsync());
+        examples.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ExampleFromFirstEdit_When_SellerEditsAgain_Then_RelabelsTheSameExample()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(SellerId);
+        var first = await Client.PutAsJsonAsync(
+            $"/api/v1/listings/{listing.Id}",
+            new UpdateListingRequest("Notite POO", Category.Notes, Condition.Good, 50m, SuggestedCategory: "Textbook"), Json);
+        first.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var firstExample = await QueryDbAsync(db => db.Set<TrainingExample>().AsNoTracking().SingleAsync());
+        var request = new UpdateListingRequest("Calculator POO", Category.Electronics, Condition.Good, 50m, SuggestedCategory: "Textbook");
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/listings/{listing.Id}", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+
+        var example = await QueryDbAsync(db => db.Set<TrainingExample>().AsNoTracking().SingleAsync());
+        example.Id.Should().Be(firstExample.Id);
+        example.Label.Should().Be("Electronics");
+        example.Title.Should().Be("Calculator POO");
+        example.CreatedAt.Should().Be(firstExample.CreatedAt);
+        example.UpdatedAt.Should().NotBeNull();
+        example.UpdatedAt!.Value.Should().BeOnOrAfter(firstExample.CreatedAt);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Category.Should().Be(Category.Electronics);
+        saved.Version.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_AdminEditWithSuggestion_When_UpdatingListing_Then_Returns204AndRecordsNoExample()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(AdminId, "Admin");
+        var request = new UpdateListingRequest("Notite POO", Category.Notes, Condition.Worn, 30m, SuggestedCategory: "Textbook");
+
+        // Act
+        var response = await Client.PutAsJsonAsync($"/api/v1/listings/{listing.Id}", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Category.Should().Be(Category.Notes);
+        saved.Version.Should().Be(2);
+        var examples = await QueryDbAsync(db => db.Set<TrainingExample>().CountAsync());
+        examples.Should().Be(0);
     }
 }

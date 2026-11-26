@@ -17,4 +17,10 @@ public interface IReportRepository
     /// Returns a snapshot of all reports, in no particular order.
     /// </summary>
     Task<IReadOnlyList<Report>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// The pending reports of this listing, tracked so that confirming or dismissing them
+    /// is saved by the next CommitAsync. Empty if there are none.
+    /// </summary>
+    Task<IReadOnlyList<Report>> GetPendingByListingAsync(Guid listingId, CancellationToken ct = default);
 }

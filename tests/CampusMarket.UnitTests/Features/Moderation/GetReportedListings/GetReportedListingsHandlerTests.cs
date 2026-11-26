@@ -337,4 +337,82 @@ public class GetReportedListingsHandlerTests
         reports.Items.Should().HaveCount(1);
         listings.Items.Should().HaveCount(1);
     }
+
+    [Fact]
+    public async Task Given_ListingWithOnlyResolvedReports_When_Handling_Then_ListingIsNotReturned()
+    {
+        var listing = BuildPublishedListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var reports = new FakeReportRepository();
+        var confirmed = Report.Create(ReporterId, listing, "Confirmed reason", Now.AddHours(-2)).Value;
+        confirmed.Confirm(Now.AddHours(-1));
+        var dismissed = Report.CreateAutomatic(listing.Id, 0.9, Now.AddHours(-2));
+        dismissed.Dismiss(Now.AddHours(-1));
+        reports.Items.Add(confirmed);
+        reports.Items.Add(dismissed);
+        var handler = new GetReportedListingsHandler(reports, listings);
+        var query = new GetReportedListingsQuery();
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().BeEmpty();
+        result.Value.Count.Should().Be(0);
+        result.Value.TotalCount.Should().Be(0);
+        reports.Items.Should().HaveCount(2);
+        listings.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Given_ListingWithPendingAndDismissedReports_When_Handling_Then_CountsOnlyPendingReports()
+    {
+        var listing = BuildPublishedListing();
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var reports = new FakeReportRepository();
+        var dismissed = Report.CreateAutomatic(listing.Id, 0.9, Now.AddHours(-1));
+        dismissed.Dismiss(Now.AddMinutes(-30));
+        reports.Items.Add(dismissed);
+        reports.Items.Add(Report.Create(ReporterId, listing, "Pending reason", Now.AddHours(-2)).Value);
+        var handler = new GetReportedListingsHandler(reports, listings);
+        var query = new GetReportedListingsQuery();
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle();
+        var item = result.Value.Items[0];
+        item.ListingId.Should().Be(listing.Id);
+        item.ReportCount.Should().Be(1);
+        item.FlaggedAsSpam.Should().BeFalse();
+        item.SpamProbability.Should().BeNull();
+        item.LastReportedAt.Should().Be(Now.AddHours(-2));
+        item.Reasons.Should().Equal("Pending reason");
+        result.Value.TotalCount.Should().Be(1);
+        reports.Items.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Given_OneListingResolvedAndOnePending_When_Handling_Then_ReturnsOnlyThePendingOne()
+    {
+        var resolvedListing = BuildPublishedListing("Resolved");
+        var pendingListing = BuildPublishedListing("Pending");
+        var listings = new FakeListingRepository();
+        listings.Items[resolvedListing.Id] = resolvedListing;
+        listings.Items[pendingListing.Id] = pendingListing;
+        var reports = new FakeReportRepository();
+        var dismissed = Report.Create(ReporterId, resolvedListing, "reason", Now.AddHours(-1)).Value;
+        dismissed.Dismiss(Now);
+        reports.Items.Add(dismissed);
+        reports.Items.Add(Report.Create(ReporterId, pendingListing, "reason", Now.AddHours(-1)).Value);
+        var handler = new GetReportedListingsHandler(reports, listings);
+        var query = new GetReportedListingsQuery();
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle().Which.ListingId.Should().Be(pendingListing.Id);
+        result.Value.TotalCount.Should().Be(1);
+    }
 }

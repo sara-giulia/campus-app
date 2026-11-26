@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.TrainingExamples;
 using CampusMarket.Api.Features.Listings.CreateListing;
 using CampusMarket.Api.Features.Listings.GetListingById;
 using CampusMarket.IntegrationTests.Infrastructure;
@@ -264,5 +265,69 @@ public sealed class CreateListingTests : IntegrationTestBase
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_SuggestionDifferentFromChosenCategory_When_CreatingListing_Then_Returns201AndRecordsCategoryExample()
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var request = new CreateListingRequest(
+            "Manual POO", Category.Textbook, Condition.Good, 50m, "Putin folosit.", SuggestedCategory: "Notes");
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var body = await response.Content.ReadFromJsonAsync<CreateListingResponse>(Json);
+        body!.Category.Should().Be(Category.Textbook);
+
+        var example = await QueryDbAsync(db => db.Set<TrainingExample>().AsNoTracking().SingleAsync());
+        example.ListingId.Should().Be(body.Id);
+        example.Kind.Should().Be(TrainingExampleKind.Category);
+        example.Label.Should().Be("Textbook");
+        example.Source.Should().Be(TrainingExampleSource.SellerChoice);
+        example.Title.Should().Be("Manual POO");
+        example.Description.Should().Be("Putin folosit.");
+        example.CreatedBy.Should().Be(SellerId);
+        example.UpdatedAt.Should().BeNull();
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Id.Should().Be(body.Id);
+        saved.Category.Should().Be(Category.Textbook);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("Books")]
+    [InlineData("textbook")]
+    public async Task Given_MissingInvalidOrSameSuggestion_When_CreatingListing_Then_Returns201AndRecordsNoExample(string? suggested)
+    {
+        // Arrange
+        AuthenticateAs(SellerId);
+        var request = new CreateListingRequest(
+            "Manual POO", Category.Textbook, Condition.Good, 50m, SuggestedCategory: suggested);
+
+        // Act
+        var response = await Client.PostAsJsonAsync("/api/v1/listings", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var body = await response.Content.ReadFromJsonAsync<CreateListingResponse>(Json);
+        body!.Title.Should().Be("Manual POO");
+        body.SellerId.Should().Be(SellerId);
+        body.Category.Should().Be(Category.Textbook);
+        body.Status.Should().Be(ListingStatus.Draft);
+        body.Version.Should().Be(1);
+        response.Headers.Location!.ToString().Should().EndWith($"/api/v1/listings/{body.Id}");
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Id.Should().Be(body.Id);
+        saved.Category.Should().Be(Category.Textbook);
+        var examples = await QueryDbAsync(db => db.Set<TrainingExample>().CountAsync());
+        examples.Should().Be(0);
     }
 }

@@ -19,4 +19,9 @@ public sealed class EfReportRepository(CampusMarketDbContext db) : IReportReposi
 
     public async Task<IReadOnlyList<Report>> GetAllAsync(CancellationToken ct = default) =>
         await db.Reports.AsNoTracking().ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Report>> GetPendingByListingAsync(Guid listingId, CancellationToken ct = default) =>
+        await db.Reports
+            .Where(r => r.ListingId == listingId && r.Resolution == ReportResolution.Pending)
+            .ToListAsync(ct);
 }
