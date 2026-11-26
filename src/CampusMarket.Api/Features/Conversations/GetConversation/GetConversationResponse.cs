@@ -3,7 +3,9 @@ using CampusMarket.Api.Features.Offers;
 
 namespace CampusMarket.Api.Features.Conversations.GetConversation;
 
-// The conversation with every message and every price offer, the oldest first.
+// The conversation with every message and every price offer, the oldest first. UnreadCount: the
+// messages of the other member the reader has not seen yet. Reading does not change it: the page
+// calls POST /conversations/{id}/read when it is above 0.
 public sealed record GetConversationResponse(
     Guid Id,
     Guid ListingId,
@@ -14,7 +16,8 @@ public sealed record GetConversationResponse(
     string BuyerName,
     DateTimeOffset CreatedAt,
     IReadOnlyList<ConversationMessage> Messages,
-    IReadOnlyList<OfferResponse> Offers);
+    IReadOnlyList<OfferResponse> Offers,
+    int UnreadCount);
 
 // IsSuspicious: the spam check flagged the message, the app shows it with a warning.
 public sealed record ConversationMessage(Guid Id, int Number, Guid SenderId, string Text, DateTimeOffset SentAt, bool IsSuspicious)

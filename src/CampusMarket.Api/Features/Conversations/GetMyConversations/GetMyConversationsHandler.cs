@@ -38,7 +38,8 @@ public sealed class GetMyConversationsHandler(
                     last.SenderId,
                     last.IsSuspicious,
                     c.LastMessageAt,
-                    c.Messages.Count);
+                    c.Messages.Count,
+                    c.UnreadCountFor(query.MemberId));
             })
             .OrderByDescending(i => i.LastMessageAt)
             .ThenBy(i => i.Id)

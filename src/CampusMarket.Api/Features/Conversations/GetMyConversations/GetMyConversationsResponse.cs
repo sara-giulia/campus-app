@@ -4,6 +4,7 @@ namespace CampusMarket.Api.Features.Conversations.GetMyConversations;
 public sealed record GetMyConversationsResponse(IReadOnlyList<MyConversationItem> Items, int Count);
 
 // The other member is the seller when I am the buyer, and the buyer when I am the seller.
+// UnreadCount: the messages of the other member I have not seen yet (0 = the conversation is read).
 public sealed record MyConversationItem(
     Guid Id,
     Guid ListingId,
@@ -14,4 +15,5 @@ public sealed record MyConversationItem(
     Guid LastMessageSenderId,
     bool LastMessageIsSuspicious,
     DateTimeOffset LastMessageAt,
-    int MessageCount);
+    int MessageCount,
+    int UnreadCount);

@@ -90,6 +90,11 @@
   position: relative;
 }
 
+.nav__badge--danger {
+  background: var(--danger);
+  color: #fff;
+}
+
 .nav__badge {
   display: inline-grid;
   place-items: center;

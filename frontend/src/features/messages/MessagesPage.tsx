@@ -16,11 +16,12 @@ export function MessagesPage() {
   const { user } = useAuth()
   const [data, setData] = useState<GetMyConversationsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
-  // Bumped on a live message event, so a new conversation or a new last message shows up at once.
+  // Bumped on a live message event, so a new conversation or a new last message shows up at once,
+  // and on a read event, so a conversation read in another tab stops being marked.
   const [version, setVersion] = useState(0)
 
   useLiveEvents((event) => {
-    if (event.type === 'message') setVersion((v) => v + 1)
+    if (event.type === 'message' || event.type === 'read') setVersion((v) => v + 1)
   })
 
   useEffect(() => {
@@ -48,13 +49,16 @@ export function MessagesPage() {
         <ul className="conv-list">
           {data.items.map((c) => (
             <li key={c.id}>
-              <Link to={`/messages/${c.id}`} className="conv-item">
+              <Link to={`/messages/${c.id}`} className={c.unreadCount > 0 ? 'conv-item conv-item--unread' : 'conv-item'}>
                 <span className="conv-item__avatar">{c.otherMemberName.slice(0, 1).toUpperCase()}</span>
                 <span className="conv-item__body">
                   <span className="conv-item__top">
                     <strong>{c.otherMemberName}</strong>
                     <time>{formatDateTime(c.lastMessageAt)}</time>
                   </span>
+                  {c.unreadCount > 0 && (
+                    <span className="conv-item__unread">{t('messages.unread', { count: c.unreadCount })}</span>
+                  )}
                   <span className="conv-item__listing">{c.listingTitle}</span>
                   <span className="conv-item__last">
                     {c.lastMessageIsSuspicious && c.lastMessageSenderId !== user?.id && (

@@ -6,6 +6,8 @@ import { useT } from '../i18n/LanguageContext'
 import { useNotifications } from '../features/notifications/NotificationsContext'
 import { NotificationsProvider } from '../features/notifications/NotificationsProvider'
 import { LiveEventsProvider } from '../features/live/LiveEventsProvider'
+import { useUnreadMessages } from '../features/messages/UnreadMessagesContext'
+import { UnreadMessagesProvider } from '../features/messages/UnreadMessagesProvider'
 import { useAuth } from './auth/AuthContext'
 import { menuItems, type MenuItem } from './menu'
 import { ButtonLink, CloseIcon, Logo, LogoutIcon, MenuIcon, ThemeToggle } from './ui'
@@ -30,12 +32,23 @@ function initials(email: string): string {
   return ((parts[0]?.[0] ?? '?') + (parts[1]?.[0] ?? '')).toUpperCase()
 }
 
+function countBadge(count: number | null, className: string, label: string) {
+  if (count === null || count <= 0) return null
+  return (
+    <span className={className} aria-label={label}>
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
 // The frame of every page: the top bar (logo, menu, theme, account), the page (<Outlet />), the footer.
 export function Layout() {
   return (
     <LiveEventsProvider>
       <NotificationsProvider>
-        <LayoutShell />
+        <UnreadMessagesProvider>
+          <LayoutShell />
+        </UnreadMessagesProvider>
       </NotificationsProvider>
     </LiveEventsProvider>
   )
@@ -44,6 +57,7 @@ export function Layout() {
 function LayoutShell() {
   const { user, logout } = useAuth()
   const { unreadCount } = useNotifications()
+  const { unreadMessages } = useUnreadMessages()
   const t = useT()
   const navigate = useNavigate()
   const location = useLocation()
@@ -73,14 +87,13 @@ function LayoutShell() {
   const topLinks = links.filter((item) => item.place !== 'account')
   const accountLinks = links.filter((item) => item.place === 'account')
 
-  const badge = (item: MenuItem) =>
-    item.to === '/notifications' &&
-    unreadCount !== null &&
-    unreadCount > 0 && (
-      <span className="nav__badge" aria-label={t('layout.unreadNotifications', { count: unreadCount })}>
-        {unreadCount > 99 ? '99+' : unreadCount}
-      </span>
-    )
+  // Notifications and messages each have their own badge; the one on "Mesaje" is red.
+  const badge = (item: MenuItem) => {
+    if (item.to === '/notifications') return countBadge(unreadCount, 'nav__badge', t('layout.unreadNotifications', { count: unreadCount ?? 0 }))
+    if (item.to === '/messages')
+      return countBadge(unreadMessages, 'nav__badge nav__badge--danger', t('layout.unreadMessages', { count: unreadMessages ?? 0 }))
+    return null
+  }
 
   return (
     <div className="shell">
