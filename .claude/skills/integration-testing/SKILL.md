@@ -1689,3 +1689,31 @@ Rules for this feature:
 - Send the visitor id with `request.Headers.Add("X-Visitor-Id", ...)`; use a fresh GUID per test so the tests never share a viewer.
 - Never replace the `DbContext` in the test host.
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Spam in messages (Anca)
+
+Endpoints and code (branch feature/message-spam, not committed yet). The real message spam model is used (`ml-models/message-spam.zip`, copied like the other models); never fake it here. Errors are `Error` bodies; 401 is a ProblemDetails.
+- `POST /api/v1/listings/{id}/conversations` and `POST /api/v1/conversations/{id}/messages`: every message is checked after the domain rules (empty, too long, not participant, blocked member keep their errors and come first). Three outcomes:
+  - normal → 201 as before, body has the new field `isSuspicious: false`; the row has `IsSuspicious` false and `SpamProbability` set (a number, e.g. `0`).
+  - suspicious (model ≥ `Ml:MessageSpam:Threshold` 0.6, or a rule of `MessageSpamRules`: a link, card data, an SMS/bank code, money in advance, money bait) → 201, `isSuspicious: true`, row `IsSuspicious` true with `SpamProbability`.
+  - blocked (model ≥ `Ml:MessageSpam:BlockThreshold` 0.95) → 400 `Message.Spam` (type `Validation`) and nothing is saved: no message row, no new conversation, `LastMessageAt` of an existing conversation unchanged.
+- Measured with the committed model (use these texts): normal `"Buna, mai este disponibil? Pot sa vin maine la camin."`, `"Suna-ma la 0745 123 456 cand ajungi"`, `"Codul de la interfon e 23, urci la etajul 2"`, `"Nu cer avans, platesti cand il vezi"`; suspicious by a rule `"Uite modelul pe www.casio.com, e exact ala"` (model 0.01), `"Ti-a venit un SMS cu un cod? Dicteaza-mi-l sa confirm livrarea."` (0.19); suspicious by the model alone `"Angajam studenti, lucru de acasa, 300 lei pe saptamana"` (0.77); blocked `"Am platit prin Cargus, intra pe cargus-plati.com si introdu cardul ca sa primesti banii"` (0.998), `"Investeste 500 lei in bitcoin si ii dublezi in 24 de ore, profit garantat"` (0.99), `"Castiga 500 lei pe zi de acasa, scrie-mi si iti explic metoda"` (0.98).
+- `GET /api/v1/conversations/{id}`: each message has `isSuspicious`. `GET /api/v1/members/me/conversations`: each item has `lastMessageIsSuspicious` (of the last message). A message sent before this feature (row with `SpamProbability` null) reads as `false`.
+- Settings `Ml:MessageSpam:Threshold` (0.6) and `Ml:MessageSpam:BlockThreshold` (0.95) in appsettings.json, bound to `MessageSpamOptions` and validated at start: each must be between 0 and 1 and `BlockThreshold >= Threshold`, otherwise the host does not start (`OptionsValidationException` with the one message `Ml:MessageSpam:Threshold and BlockThreshold must be between 0 and 1, and BlockThreshold not below Threshold.`). With `BlockThreshold` 1 a "blocked" text above is sent as suspicious (201, `isSuspicious` true).
+- `MlModelsHealthCheck.ModelFiles` now has five files, `message-spam.zip` last; the unhealthy description lists it too.
+- Migration `AddMessageSpamCheck` (`20261126135244`, on top of `AddListingViews`): adds to `Messages` the column `IsSuspicious` (boolean, not null, default false) and `SpamProbability` (double precision, null). `Down` drops both.
+
+Files: new `Conversations/MessageSpamTests.cs` (`: IntegrationTestBase`) and `Persistence/AddMessageSpamCheckMigrationTests.cs`. Existing files, only these changes: `Conversations/GetConversationTests.cs` and `Conversations/GetMyConversationsTests.cs` (the expected `ConversationMessage` / `MyConversationItem` get the new field, `false`), `Infrastructure/HealthTests.cs` (also expect `message-spam.zip` in the unhealthy description), `Infrastructure/MlThresholdsTests.cs` (add the `MessageSpamOptions` cases next to the other thresholds: read from appsettings, too high, negative, block under the warning threshold, block 1). Seed members, a listing (`Publish`) and conversations through the domain with `SeedAsync`, and log in through the API.
+
+Tests to add (status, body, then the database through `db.Set<Message>()`, `db.Set<Conversation>()`):
+- For both endpoints: normal, suspicious by rule, suspicious by model, blocked, as above. Blocked on start without a conversation: no `Conversation` row; blocked on an existing conversation: the message count and `LastMessageAt` are the same as before; then a normal message in the same conversation still works (201, the next `Number`).
+- Read side: a conversation with one normal and one suspicious message: `GET /conversations/{id}` gives `isSuspicious` false/true for each, for both members; `GET /members/me/conversations` gives `lastMessageIsSuspicious` true when the last one is suspicious and false after a normal message follows. A message seeded with `SpamProbability` null reads as false.
+- The earlier errors still win: an empty text 400 `Message.Empty`, a blocked member 403 `Member.Blocked`, a stranger 403 `Conversation.NotParticipant`, even when the text is a "blocked" one; no row added.
+- Migration (separate PostgreSQL database, never the shared one): migrate to `AddListingViews` (`IMigrator.MigrateAsync("<previous migration name>")`), insert two members, a listing, a conversation and a message with raw SQL, migrate to `AddMessageSpamCheck`: both columns exist with the types above, the old message has `IsSuspicious` false and `SpamProbability` null, a new row with both values can be inserted; migrating back to `AddListingViews` drops both columns and keeps the message.
+
+Rules for this feature:
+- Compare times read from PostgreSQL with `ToMicroseconds()`.
+- Read 400/403 bodies into `Error` and check `Code` and `Type`; check that the database did not change after every failure.
+- An existing test whose message text is now flagged or blocked: stop and report it (text and test), do not change it or `src/`.
+- Never replace the `DbContext` in the test host.
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
