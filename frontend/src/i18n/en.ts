@@ -21,6 +21,7 @@ export const en: Record<TKey, string> = {
   'error.Report.ListingNotAvailable': 'The listing can no longer be reported.',
   'error.Report.ReasonEmpty': 'Write the reason for the report.',
   'error.Report.ReasonTooLong': 'The reason is too long.',
+  'error.Report.NoPendingReports': 'The listing has no pending reports.',
   'error.Reservation.LimitReached': 'You have reached the maximum number of active reservations.',
   'error.Listing.AlreadyHidden': 'The listing is already hidden.',
   'error.Listing.CannotHide': 'Only active or reserved listings can be hidden.',
@@ -466,6 +467,8 @@ export const en: Record<TKey, string> = {
   'moderation.spam': 'Spam {percent}',
   'moderation.last': 'latest: {date}',
   'moderation.hide': 'Hide',
+  'moderation.dismiss': 'Dismiss reports',
+  'moderation.confirmDismiss': 'Dismiss the reports for the listing "{title}"? The listing stays visible.',
   // --- notifications ---
   'notifications.type.ReservationCreated': 'New reservation',
   'notifications.type.ListingSold': 'Listing sold',

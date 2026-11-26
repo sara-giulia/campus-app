@@ -25,6 +25,8 @@ export interface ListingFormValues {
   category: Category
   condition: Condition
   price: number
+  // The category the suggestion showed to the seller (not the chosen one), only when one was shown.
+  suggestedCategory?: Category
 }
 
 // What a submit button asks for: "save" keeps (or makes) the listing as it is, "publish" also publishes it.
@@ -227,6 +229,7 @@ export function ListingForm({
         category,
         condition,
         price: priceValue,
+        ...(suggestedCategory?.category ? { suggestedCategory: suggestedCategory.category } : {}),
       },
       intent,
     )
