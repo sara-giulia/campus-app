@@ -17,6 +17,7 @@ const TYPE_LABELS: Record<NotificationItem['type'], string> = {
   ReservationCreated: 'Rezervare nouă',
   ListingSold: 'Anunț vândut',
   ReservationExpired: 'Rezervare expirată',
+  ListingExpired: 'Anunț expirat',
 }
 
 // The newest-first notifications of the logged-in member, with mark-one-as-read,
@@ -110,10 +111,16 @@ export function NotificationsPage() {
                     </time>
                   </div>
                   <p className="notif-item__message">{messageText(n)}</p>
-                  {n.listingId && (
+                  {n.type === 'ListingExpired' ? (
                     <p className="notif-item__link">
-                      <Link to={`/listings/${n.listingId}`}>Vezi anunțul</Link>
+                      <Link to="/my/listings">Reînnoiește</Link>
                     </p>
+                  ) : (
+                    n.listingId && (
+                      <p className="notif-item__link">
+                        <Link to={`/listings/${n.listingId}`}>Vezi anunțul</Link>
+                      </p>
+                    )
                   )}
                 </div>
                 {!n.readAt && (

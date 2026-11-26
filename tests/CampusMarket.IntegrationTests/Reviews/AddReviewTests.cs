@@ -110,7 +110,7 @@ public sealed class AddReviewTests : IntegrationTestBase
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         listing.Reserve(buyer.Id, CreatedAt);
         await SeedAsync(seller, buyer, listing);
         AuthenticateAs(buyer.Id);
@@ -313,7 +313,7 @@ public sealed class AddReviewTests : IntegrationTestBase
     private static Listing SoldListing(Member seller, Member buyer)
     {
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         listing.ConfirmSale(reservation.Id, CreatedAt);
         return listing;

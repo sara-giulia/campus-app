@@ -20,7 +20,7 @@ public class GetMemberReviewsHandlerTests
     private static Listing BuildSoldListing(Guid sellerId)
     {
         var listing = Listing.Create(sellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         var reservation = listing.Reserve(BuyerId, Now).Value;
         listing.ConfirmSale(reservation.Id, Now);
         return listing;

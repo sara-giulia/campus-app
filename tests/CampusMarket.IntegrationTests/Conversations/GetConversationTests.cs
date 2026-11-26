@@ -24,7 +24,7 @@ public sealed class GetConversationTests : IntegrationTestBase
     public GetConversationTests()
     {
         _listing = Listing.Create(_seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        _listing.Publish();
+        _listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
 
         // Three messages: buyer, seller, buyer.
         _conversation = Conversation.Start(_buyer.Id, _listing, "Mai e disponibil?", CreatedAt).Value;

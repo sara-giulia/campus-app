@@ -16,7 +16,7 @@ public class SendMessageHandlerTests
     private static Conversation BuildConversation()
     {
         var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return Conversation.Start(BuyerId, listing, "Mai e disponibil?", Now.AddMinutes(-10)).Value;
     }
 

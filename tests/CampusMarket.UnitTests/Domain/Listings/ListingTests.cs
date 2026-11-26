@@ -15,7 +15,7 @@ public class ListingTests
     private static Listing ActiveListing()
     {
         var listing = DraftListing();
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 
@@ -346,7 +346,7 @@ public class ListingTests
     {
         var listing = DraftListing();
 
-        var result = listing.Publish();
+        var result = listing.Publish(Now.AddDays(30));
 
         result.IsSuccess.Should().BeTrue();
         listing.Status.Should().Be(ListingStatus.Active);
@@ -358,7 +358,7 @@ public class ListingTests
     {
         var listing = ActiveListing();
 
-        var result = listing.Publish();
+        var result = listing.Publish(Now.AddDays(30));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
@@ -613,7 +613,7 @@ public class ListingTests
         var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
         listing.ConfirmSale(reservation.Id, Now.AddHours(1));
 
-        var result = listing.Publish();
+        var result = listing.Publish(Now.AddDays(30));
 
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
@@ -900,8 +900,154 @@ public class ListingTests
     public void Given_ActiveListing_When_AnonymousAsks_Then_IsVisible()
     {
         var listing = DraftOf(VisibilitySellerId);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
 
         listing.IsVisibleTo(null, false).Should().BeTrue();
+    }
+
+    // ---- Listing expiry ----
+
+    private static readonly DateTimeOffset ExpiryDate = Now.AddDays(30);
+
+    private static Listing ListingIn(ListingStatus status)
+    {
+        var listing = DraftListing();
+        switch (status)
+        {
+            case ListingStatus.Draft:
+                break;
+            case ListingStatus.Active:
+                listing.Publish(ExpiryDate);
+                break;
+            case ListingStatus.Reserved:
+                listing.Publish(ExpiryDate);
+                listing.Reserve(Guid.NewGuid(), Now);
+                break;
+            case ListingStatus.Sold:
+                listing.Publish(ExpiryDate);
+                var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+                listing.ConfirmSale(reservation.Id, Now);
+                break;
+            case ListingStatus.Hidden:
+                listing.Publish(ExpiryDate);
+                listing.Hide();
+                break;
+            case ListingStatus.Expired:
+                listing.Publish(ExpiryDate);
+                listing.Expire(ExpiryDate);
+                break;
+        }
+
+        listing.Status.Should().Be(status);
+        return listing;
+    }
+
+    [Fact]
+    public void Given_DraftListing_When_Publishing_Then_SetsExpiresAtAndIncrementsVersion()
+    {
+        var listing = DraftListing();
+        listing.ExpiresAt.Should().BeNull();
+
+        var result = listing.Publish(ExpiryDate);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.ExpiresAt.Should().Be(ExpiryDate);
+        listing.Version.Should().Be(2);
+    }
+
+    [Fact]
+    public void Given_ActiveListing_When_ExpiringOneSecondBeforeExpiresAt_Then_ReturnsFalseAndNothingChanges()
+    {
+        var listing = ListingIn(ListingStatus.Active);
+
+        var expired = listing.Expire(ExpiryDate.AddSeconds(-1));
+
+        expired.Should().BeFalse();
+        listing.Status.Should().Be(ListingStatus.Active);
+        listing.Version.Should().Be(2);
+        listing.ExpiresAt.Should().Be(ExpiryDate);
+    }
+
+    [Fact]
+    public void Given_ActiveListing_When_ExpiringExactlyAtExpiresAt_Then_BecomesExpiredAndIncrementsVersion()
+    {
+        var listing = ListingIn(ListingStatus.Active);
+
+        var expired = listing.Expire(ExpiryDate);
+
+        expired.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Expired);
+        listing.Version.Should().Be(3);
+        listing.ExpiresAt.Should().Be(ExpiryDate);
+    }
+
+    [Theory]
+    [InlineData(ListingStatus.Draft)]
+    [InlineData(ListingStatus.Reserved)]
+    [InlineData(ListingStatus.Sold)]
+    [InlineData(ListingStatus.Hidden)]
+    [InlineData(ListingStatus.Expired)]
+    public void Given_ListingThatIsNotActive_When_ExpiringAfterExpiresAt_Then_ReturnsFalseAndNothingChanges(ListingStatus status)
+    {
+        var listing = ListingIn(status);
+        var versionBefore = listing.Version;
+
+        var expired = listing.Expire(ExpiryDate.AddDays(5));
+
+        expired.Should().BeFalse();
+        listing.Status.Should().Be(status);
+        listing.Version.Should().Be(versionBefore);
+    }
+
+    [Fact]
+    public void Given_ExpiredListing_When_ExpiringAgain_Then_ReturnsFalseAndVersionDoesNotChange()
+    {
+        var listing = ListingIn(ListingStatus.Active);
+        listing.Expire(ExpiryDate).Should().BeTrue();
+
+        var second = listing.Expire(ExpiryDate.AddDays(1));
+
+        second.Should().BeFalse();
+        listing.Status.Should().Be(ListingStatus.Expired);
+        listing.Version.Should().Be(3);
+    }
+
+    [Fact]
+    public void Given_ExpiredListing_When_Renewing_Then_BecomesActiveWithNewExpiresAtAndIncrementsVersion()
+    {
+        var listing = ListingIn(ListingStatus.Expired);
+        var newExpiresAt = ExpiryDate.AddDays(30);
+        var versionBefore = listing.Version;
+
+        var result = listing.Renew(newExpiresAt);
+
+        result.IsSuccess.Should().BeTrue();
+        listing.Status.Should().Be(ListingStatus.Active);
+        listing.ExpiresAt.Should().Be(newExpiresAt);
+        listing.ExpiresAt.Should().NotBe(ExpiryDate);
+        listing.Version.Should().Be(versionBefore + 1);
+    }
+
+    [Theory]
+    [InlineData(ListingStatus.Draft)]
+    [InlineData(ListingStatus.Active)]
+    [InlineData(ListingStatus.Reserved)]
+    [InlineData(ListingStatus.Sold)]
+    [InlineData(ListingStatus.Hidden)]
+    public void Given_ListingThatIsNotExpired_When_Renewing_Then_ReturnsNotExpiredAndNothingChanges(ListingStatus status)
+    {
+        var listing = ListingIn(status);
+        var versionBefore = listing.Version;
+        var expiresAtBefore = listing.ExpiresAt;
+
+        var result = listing.Renew(ExpiryDate.AddDays(30));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.NotExpired");
+        result.Error.Message.Should().Be("Only an expired listing can be renewed.");
+        listing.Status.Should().Be(status);
+        listing.Version.Should().Be(versionBefore);
+        listing.ExpiresAt.Should().Be(expiresAtBefore);
     }
 }

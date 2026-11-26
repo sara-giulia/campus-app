@@ -1,3 +1,4 @@
+using CampusMarket.Api.Common.Listings;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 
@@ -139,7 +140,8 @@ public static class DemoListings
                 continue;
 
             var listing = created.Value;
-            listing.Publish();
+            // Every demo listing stays in the search for a full period from the seed, whatever its age.
+            listing.Publish(now.AddDays(ListingOptions.DefaultExpiryDays));
 
             ApplyFinalStatus(listing, template.FinalStatus, sellerIds, template.SellerIndex, now);
 

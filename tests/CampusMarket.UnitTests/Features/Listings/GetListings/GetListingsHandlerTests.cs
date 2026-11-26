@@ -30,8 +30,8 @@ public class GetListingsHandlerTests
     {
         var first = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
         var second = Listing.Create(Guid.NewGuid(), "Lab coat", Category.LabEquipment, Condition.New, 60m, Now).Value;
-        first.Publish();
-        second.Publish();
+        first.Publish(Now.AddDays(30));
+        second.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
@@ -56,9 +56,9 @@ public class GetListingsHandlerTests
         var buyerId = Guid.NewGuid();
         var draft = Listing.Create(sellerId, "Draft book", Category.Textbook, Condition.Good, 10m, Now).Value;
         var active = Listing.Create(sellerId, "Active book", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        active.Publish();
+        active.Publish(Now.AddDays(30));
         var reserved = Listing.Create(sellerId, "Reserved book", Category.Textbook, Condition.Good, 30m, Now.AddHours(2)).Value;
-        reserved.Publish();
+        reserved.Publish(Now.AddDays(30));
         reserved.Reserve(buyerId, Now.AddHours(3));
         var repository = new FakeListingRepository();
         repository.Items[draft.Id] = draft;
@@ -188,9 +188,9 @@ public class GetListingsHandlerTests
     public async Task Given_CategoryFilter_When_Handling_Then_ReturnsOnlyThatCategory()
     {
         var textbook = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        textbook.Publish();
+        textbook.Publish(Now.AddDays(30));
         var electronics = Listing.Create(Guid.NewGuid(), "Calculator", Category.Electronics, Condition.New, 40m, Now.AddHours(1)).Value;
-        electronics.Publish();
+        electronics.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[textbook.Id] = textbook;
         repository.Items[electronics.Id] = electronics;
@@ -210,9 +210,9 @@ public class GetListingsHandlerTests
     public async Task Given_MinPriceFilter_When_Handling_Then_IsInclusive()
     {
         var below = Listing.Create(Guid.NewGuid(), "Cheap book", Category.Textbook, Condition.Good, 9m, Now).Value;
-        below.Publish();
+        below.Publish(Now.AddDays(30));
         var atLimit = Listing.Create(Guid.NewGuid(), "Limit book", Category.Textbook, Condition.Good, 10m, Now.AddHours(1)).Value;
-        atLimit.Publish();
+        atLimit.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[below.Id] = below;
         repository.Items[atLimit.Id] = atLimit;
@@ -232,9 +232,9 @@ public class GetListingsHandlerTests
     public async Task Given_MaxPriceFilter_When_Handling_Then_IsInclusive()
     {
         var atLimit = Listing.Create(Guid.NewGuid(), "Limit book", Category.Textbook, Condition.Good, 50m, Now).Value;
-        atLimit.Publish();
+        atLimit.Publish(Now.AddDays(30));
         var above = Listing.Create(Guid.NewGuid(), "Pricey book", Category.Textbook, Condition.Good, 51m, Now.AddHours(1)).Value;
-        above.Publish();
+        above.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[atLimit.Id] = atLimit;
         repository.Items[above.Id] = above;
@@ -254,9 +254,9 @@ public class GetListingsHandlerTests
     public async Task Given_SearchPartialAndDifferentCase_When_Handling_Then_Matches()
     {
         var listing = Listing.Create(Guid.NewGuid(), "OOP textbook", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         var other = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 15m, Now.AddHours(1)).Value;
-        other.Publish();
+        other.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         repository.Items[other.Id] = other;
@@ -276,7 +276,7 @@ public class GetListingsHandlerTests
     public async Task Given_SearchWithSurroundingSpaces_When_Handling_Then_StillMatches()
     {
         var listing = Listing.Create(Guid.NewGuid(), "OOP textbook", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
@@ -296,9 +296,9 @@ public class GetListingsHandlerTests
     public async Task Given_SearchEmptyOrWhitespace_When_Handling_Then_DoesNotFilter(string search)
     {
         var first = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        first.Publish();
+        first.Publish(Now.AddDays(30));
         var second = Listing.Create(Guid.NewGuid(), "Lab coat", Category.LabEquipment, Condition.New, 60m, Now.AddHours(1)).Value;
-        second.Publish();
+        second.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
@@ -317,7 +317,7 @@ public class GetListingsHandlerTests
     public async Task Given_SearchMatchesNothing_When_Handling_Then_ReturnsEmpty()
     {
         var listing = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
         var handler = new GetListingsHandler(repository, new FakeSemanticSearch());
@@ -336,11 +336,11 @@ public class GetListingsHandlerTests
     public async Task Given_CategoryAndSearchTogether_When_Handling_Then_ReturnsOnlyMatchesBoth()
     {
         var textbookMatch = Listing.Create(Guid.NewGuid(), "OOP textbook", Category.Textbook, Condition.Good, 25m, Now).Value;
-        textbookMatch.Publish();
+        textbookMatch.Publish(Now.AddDays(30));
         var textbookNoMatch = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        textbookNoMatch.Publish();
+        textbookNoMatch.Publish(Now.AddDays(30));
         var electronicsMatch = Listing.Create(Guid.NewGuid(), "OOP calculator", Category.Electronics, Condition.New, 40m, Now.AddHours(2)).Value;
-        electronicsMatch.Publish();
+        electronicsMatch.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[textbookMatch.Id] = textbookMatch;
         repository.Items[textbookNoMatch.Id] = textbookNoMatch;
@@ -361,11 +361,11 @@ public class GetListingsHandlerTests
     public async Task Given_ListingsWithDifferentCreatedAt_When_Handling_Then_OrdersNewestFirst()
     {
         var oldest = Listing.Create(Guid.NewGuid(), "Oldest", Category.Textbook, Condition.Good, 10m, Now).Value;
-        oldest.Publish();
+        oldest.Publish(Now.AddDays(30));
         var middle = Listing.Create(Guid.NewGuid(), "Middle", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        middle.Publish();
+        middle.Publish(Now.AddDays(30));
         var newest = Listing.Create(Guid.NewGuid(), "Newest", Category.Textbook, Condition.Good, 30m, Now.AddHours(2)).Value;
-        newest.Publish();
+        newest.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
@@ -384,11 +384,11 @@ public class GetListingsHandlerTests
     public async Task Given_ListingsWithSameCreatedAt_When_Handling_Then_OrdersByIdAscending()
     {
         var first = Listing.Create(Guid.NewGuid(), "First", Category.Textbook, Condition.Good, 10m, Now).Value;
-        first.Publish();
+        first.Publish(Now.AddDays(30));
         var second = Listing.Create(Guid.NewGuid(), "Second", Category.Textbook, Condition.Good, 20m, Now).Value;
-        second.Publish();
+        second.Publish(Now.AddDays(30));
         var third = Listing.Create(Guid.NewGuid(), "Third", Category.Textbook, Condition.Good, 30m, Now).Value;
-        third.Publish();
+        third.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[first.Id] = first;
         repository.Items[second.Id] = second;
@@ -407,11 +407,11 @@ public class GetListingsHandlerTests
     public async Task Given_ThreeListings_When_PageOneSizeTwo_Then_ReturnsTwoNewest()
     {
         var oldest = Listing.Create(Guid.NewGuid(), "Oldest", Category.Textbook, Condition.Good, 10m, Now).Value;
-        oldest.Publish();
+        oldest.Publish(Now.AddDays(30));
         var middle = Listing.Create(Guid.NewGuid(), "Middle", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        middle.Publish();
+        middle.Publish(Now.AddDays(30));
         var newest = Listing.Create(Guid.NewGuid(), "Newest", Category.Textbook, Condition.Good, 30m, Now.AddHours(2)).Value;
-        newest.Publish();
+        newest.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
@@ -434,11 +434,11 @@ public class GetListingsHandlerTests
     public async Task Given_ThreeListings_When_PageTwoSizeTwo_Then_ReturnsOldest()
     {
         var oldest = Listing.Create(Guid.NewGuid(), "Oldest", Category.Textbook, Condition.Good, 10m, Now).Value;
-        oldest.Publish();
+        oldest.Publish(Now.AddDays(30));
         var middle = Listing.Create(Guid.NewGuid(), "Middle", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        middle.Publish();
+        middle.Publish(Now.AddDays(30));
         var newest = Listing.Create(Guid.NewGuid(), "Newest", Category.Textbook, Condition.Good, 30m, Now.AddHours(2)).Value;
-        newest.Publish();
+        newest.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
@@ -460,11 +460,11 @@ public class GetListingsHandlerTests
     public async Task Given_ThreeListings_When_PageBeyondEnd_Then_ReturnsEmptyItemsButKeepsTotalCount()
     {
         var oldest = Listing.Create(Guid.NewGuid(), "Oldest", Category.Textbook, Condition.Good, 10m, Now).Value;
-        oldest.Publish();
+        oldest.Publish(Now.AddDays(30));
         var middle = Listing.Create(Guid.NewGuid(), "Middle", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        middle.Publish();
+        middle.Publish(Now.AddDays(30));
         var newest = Listing.Create(Guid.NewGuid(), "Newest", Category.Textbook, Condition.Good, 30m, Now.AddHours(2)).Value;
-        newest.Publish();
+        newest.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[oldest.Id] = oldest;
         repository.Items[middle.Id] = middle;
@@ -500,13 +500,13 @@ public class GetListingsHandlerTests
     public async Task Given_FilterAndPagingTogether_When_Handling_Then_TotalCountReflectsFilter()
     {
         var textbookOne = Listing.Create(Guid.NewGuid(), "Textbook one", Category.Textbook, Condition.Good, 10m, Now).Value;
-        textbookOne.Publish();
+        textbookOne.Publish(Now.AddDays(30));
         var textbookTwo = Listing.Create(Guid.NewGuid(), "Textbook two", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        textbookTwo.Publish();
+        textbookTwo.Publish(Now.AddDays(30));
         var textbookThree = Listing.Create(Guid.NewGuid(), "Textbook three", Category.Textbook, Condition.Good, 30m, Now.AddHours(2)).Value;
-        textbookThree.Publish();
+        textbookThree.Publish(Now.AddDays(30));
         var electronics = Listing.Create(Guid.NewGuid(), "Calculator", Category.Electronics, Condition.New, 40m, Now.AddHours(3)).Value;
-        electronics.Publish();
+        electronics.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[textbookOne.Id] = textbookOne;
         repository.Items[textbookTwo.Id] = textbookTwo;
@@ -528,11 +528,11 @@ public class GetListingsHandlerTests
     public async Task Given_ListingsWithDifferentConditions_When_FilteringByCondition_Then_ReturnsOnlyThatCondition()
     {
         var newBook = Listing.Create(Guid.NewGuid(), "New book", Category.Textbook, Condition.New, 10m, Now).Value;
-        newBook.Publish();
+        newBook.Publish(Now.AddDays(30));
         var goodBook = Listing.Create(Guid.NewGuid(), "Good book", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        goodBook.Publish();
+        goodBook.Publish(Now.AddDays(30));
         var wornBook = Listing.Create(Guid.NewGuid(), "Worn book", Category.Textbook, Condition.Worn, 30m, Now.AddHours(2)).Value;
-        wornBook.Publish();
+        wornBook.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[newBook.Id] = newBook;
         repository.Items[goodBook.Id] = goodBook;
@@ -552,11 +552,11 @@ public class GetListingsHandlerTests
     public async Task Given_CategoryAndConditionTogether_When_Handling_Then_ReturnsOnlyMatchesBoth()
     {
         var goodTextbook = Listing.Create(Guid.NewGuid(), "Good textbook", Category.Textbook, Condition.Good, 10m, Now).Value;
-        goodTextbook.Publish();
+        goodTextbook.Publish(Now.AddDays(30));
         var wornTextbook = Listing.Create(Guid.NewGuid(), "Worn textbook", Category.Textbook, Condition.Worn, 20m, Now.AddHours(1)).Value;
-        wornTextbook.Publish();
+        wornTextbook.Publish(Now.AddDays(30));
         var goodCalculator = Listing.Create(Guid.NewGuid(), "Good calculator", Category.Electronics, Condition.Good, 30m, Now.AddHours(2)).Value;
-        goodCalculator.Publish();
+        goodCalculator.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[goodTextbook.Id] = goodTextbook;
         repository.Items[wornTextbook.Id] = wornTextbook;
@@ -576,11 +576,11 @@ public class GetListingsHandlerTests
     public async Task Given_NoConditionFilter_When_Handling_Then_ReturnsEveryActiveListing()
     {
         var newBook = Listing.Create(Guid.NewGuid(), "New book", Category.Textbook, Condition.New, 10m, Now).Value;
-        newBook.Publish();
+        newBook.Publish(Now.AddDays(30));
         var goodBook = Listing.Create(Guid.NewGuid(), "Good book", Category.Textbook, Condition.Good, 20m, Now.AddHours(1)).Value;
-        goodBook.Publish();
+        goodBook.Publish(Now.AddDays(30));
         var wornBook = Listing.Create(Guid.NewGuid(), "Worn book", Category.Textbook, Condition.Worn, 30m, Now.AddHours(2)).Value;
-        wornBook.Publish();
+        wornBook.Publish(Now.AddDays(30));
         var repository = new FakeListingRepository();
         repository.Items[newBook.Id] = newBook;
         repository.Items[goodBook.Id] = goodBook;
@@ -601,7 +601,7 @@ public class GetListingsHandlerTests
         var repository = new FakeListingRepository();
         foreach (var listing in listings)
         {
-            listing.Publish();
+            listing.Publish(Now.AddDays(30));
             repository.Items[listing.Id] = listing;
         }
 
@@ -705,7 +705,7 @@ public class GetListingsHandlerTests
         Category category = Category.Electronics, Condition condition = Condition.Good)
     {
         var listing = Listing.Create(SearchSellerId, title, category, condition, price, createdAt).Value;
-        listing.Publish();
+        listing.Publish(createdAt.AddDays(30));
         return listing;
     }
 

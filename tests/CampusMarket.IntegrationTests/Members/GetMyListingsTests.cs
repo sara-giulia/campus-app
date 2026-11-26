@@ -121,11 +121,11 @@ public sealed class GetMyListingsTests : IntegrationTestBase
     {
         // Arrange
         var hidden = BuildDraft(SellerId, "Manual POO", CreatedAt);
-        hidden.Publish();
+        hidden.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         hidden.Hide();
 
         var reserved = BuildDraft(SellerId, "Calculator stiintific", CreatedAt.AddHours(1));
-        reserved.Publish();
+        reserved.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         reserved.Reserve(BuyerId, CreatedAt.AddHours(1));
 
         await SeedAsync(hidden, reserved);
@@ -169,5 +169,31 @@ public sealed class GetMyListingsTests : IntegrationTestBase
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_ExpiredListing_When_SellerGetsMyListings_Then_ItIsReturnedWithStatusExpiredAndExpiresAt()
+    {
+        // Arrange
+        var expired = ExpiryListings.Expired(SellerId, "Manual POO");
+        var active = ExpiryListings.Active(SellerId, "Calculator stiintific", Category.Electronics, CreatedAt.AddHours(1));
+        await SeedAsync(expired, active);
+        AuthenticateAs(SellerId);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/listings");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyListingsResponse>(Json);
+        body!.Count.Should().Be(2);
+        body.Items.Select(i => i.Id).Should().Equal(active.Id, expired.Id);
+        var item = body.Items.Single(i => i.Id == expired.Id);
+        item.Status.Should().Be(ListingStatus.Expired);
+        item.ExpiresAt.Should().Be(expired.ExpiresAt.ToMicroseconds());
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync(l => l.Id == expired.Id));
+        saved.Status.Should().Be(ListingStatus.Expired);
     }
 }

@@ -20,8 +20,8 @@ public sealed class GetListingsTests : IntegrationTestBase
         // Arrange
         var manual = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         var calculator = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt).Value;
-        manual.Publish();
-        calculator.Publish();
+        manual.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        calculator.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(manual, calculator);
 
         // Act
@@ -63,7 +63,7 @@ public sealed class GetListingsTests : IntegrationTestBase
         // Arrange
         var draft = Listing.Create(SellerId, "Draft listing", Category.Textbook, Condition.Good, 30m, CreatedAt).Value;
         var published = Listing.Create(SellerId, "Published listing", Category.Textbook, Condition.Good, 40m, CreatedAt.AddHours(1)).Value;
-        published.Publish();
+        published.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(draft, published);
 
         // Act
@@ -305,8 +305,8 @@ public sealed class GetListingsTests : IntegrationTestBase
     {
         var good = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         var worn = Listing.Create(SellerId, "Culegere analiza", Category.Textbook, Condition.Worn, 20m, CreatedAt.AddHours(1)).Value;
-        good.Publish();
-        worn.Publish();
+        good.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        worn.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(good, worn);
         return (good, worn);
     }
@@ -316,9 +316,9 @@ public sealed class GetListingsTests : IntegrationTestBase
         var oopTextbook = Listing.Create(SellerId, "OOP textbook", Category.Textbook, Condition.Good, 40m, CreatedAt).Value;
         var oopProblemSet = Listing.Create(SellerId, "oop problem set", Category.Textbook, Condition.Good, 15m, CreatedAt.AddHours(1)).Value;
         var calculator = Listing.Create(SellerId, "Scientific calculator", Category.Electronics, Condition.New, 120m, CreatedAt.AddHours(2)).Value;
-        oopTextbook.Publish();
-        oopProblemSet.Publish();
-        calculator.Publish();
+        oopTextbook.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        oopProblemSet.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        calculator.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(oopTextbook, oopProblemSet, calculator);
         return (oopTextbook, oopProblemSet, calculator);
     }
@@ -330,9 +330,9 @@ public sealed class GetListingsTests : IntegrationTestBase
         var expensive = Listing.Create(SellerId, "Expensive book", Category.Textbook, Condition.Good, 90m, CreatedAt).Value;
         var cheap = Listing.Create(SellerId, "Cheap book", Category.Textbook, Condition.Good, 10m, CreatedAt.AddHours(1)).Value;
         var medium = Listing.Create(SellerId, "Medium book", Category.Textbook, Condition.Good, 40m, CreatedAt.AddHours(2)).Value;
-        expensive.Publish();
-        cheap.Publish();
-        medium.Publish();
+        expensive.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        cheap.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        medium.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(expensive, cheap, medium);
 
         // Act
@@ -354,7 +354,7 @@ public sealed class GetListingsTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
 
         // Act
@@ -370,5 +370,54 @@ public sealed class GetListingsTests : IntegrationTestBase
 
         var count = await QueryDbAsync(db => db.Set<Listing>().CountAsync());
         count.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("/api/v1/listings")]
+    [InlineData("/api/v1/listings?category=Textbook")]
+    [InlineData("/api/v1/listings?search=Manual")]
+    [InlineData("/api/v1/listings?category=Textbook&search=Manual")]
+    public async Task Given_ExpiredAndActiveListing_When_GettingListings_Then_Returns200WithOnlyTheActiveOne(string url)
+    {
+        // Arrange
+        var expired = ExpiryListings.Expired(SellerId, "Manual POO");
+        var active = ExpiryListings.Active(SellerId, "Manual Algebra", createdAt: CreatedAt.AddHours(1));
+        await SeedAsync(expired, active);
+
+        // Act
+        var response = await Client.GetAsync(url);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetListingsResponse>(Json);
+        body!.Items.Select(i => i.Id).Should().Equal(active.Id);
+        body.Count.Should().Be(1);
+        body.TotalCount.Should().Be(1);
+
+        var statuses = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().Select(l => l.Status).ToListAsync());
+        statuses.Should().BeEquivalentTo(new[] { ListingStatus.Expired, ListingStatus.Active });
+    }
+
+    [Fact]
+    public async Task Given_ExpiredListing_When_GettingItById_Then_Returns200WithStatusExpired()
+    {
+        // Arrange
+        var expired = ExpiryListings.Expired(SellerId, "Manual POO");
+        await SeedAsync(expired);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{expired.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<CampusMarket.Api.Features.Listings.GetListingById.GetListingByIdResponse>(Json);
+        body!.Id.Should().Be(expired.Id);
+        body.Status.Should().Be(ListingStatus.Expired);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Status.Should().Be(ListingStatus.Expired);
+        saved.Version.Should().Be(expired.Version);
     }
 }

@@ -45,9 +45,9 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var textbook = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        textbook.Publish();
+        textbook.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var calculator = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt).Value;
-        calculator.Publish();
+        calculator.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var olderFavorite = Favorite.Create(member.Id, textbook, CreatedAt.AddHours(1)).Value;
         var newerFavorite = Favorite.Create(member.Id, calculator, CreatedAt.AddHours(2)).Value;
         await SeedAsync(member, textbook, calculator, olderFavorite, newerFavorite);
@@ -81,9 +81,9 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var otherMember = Member.Create("Maria Ionescu", "maria@student.ro", CreatedAt).Value;
         var textbook = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        textbook.Publish();
+        textbook.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var calculator = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt).Value;
-        calculator.Publish();
+        calculator.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var myFavorite = Favorite.Create(member.Id, textbook, CreatedAt.AddHours(1)).Value;
         var otherFavorite = Favorite.Create(otherMember.Id, calculator, CreatedAt.AddHours(2)).Value;
         await SeedAsync(member, otherMember, textbook, calculator, myFavorite, otherFavorite);
@@ -110,7 +110,7 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var favorite = Favorite.Create(member.Id, listing, CreatedAt.AddHours(1)).Value;
         listing.Hide();
         await SeedAsync(member, listing, favorite);
@@ -137,11 +137,11 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var textbook = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        textbook.Publish();
+        textbook.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var notes = Listing.Create(SellerId, "Notite Analiza", Category.Notes, Condition.Worn, 15m, CreatedAt).Value;
-        notes.Publish();
+        notes.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var calculator = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt).Value;
-        calculator.Publish();
+        calculator.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var oldest = Favorite.Create(member.Id, textbook, CreatedAt.AddHours(1)).Value;
         var middle = Favorite.Create(member.Id, notes, CreatedAt.AddHours(2)).Value;
         var newest = Favorite.Create(member.Id, calculator, CreatedAt.AddHours(3)).Value;
@@ -173,7 +173,7 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var favorite = Favorite.Create(member.Id, listing, CreatedAt.AddHours(1)).Value;
         await SeedAsync(member, listing, favorite);
         AuthenticateAs(member.Id);
@@ -198,7 +198,7 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var favorite = Favorite.Create(member.Id, listing, CreatedAt.AddHours(1)).Value;
         await SeedAsync(member, listing, favorite);
 
@@ -217,5 +217,61 @@ public sealed class GetMyFavoritesTests : IntegrationTestBase
 
         var saved = await QueryDbAsync(db => db.Set<Favorite>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(favorite);
+    }
+
+    [Fact]
+    public async Task Given_FavoriteOfExpiredListing_When_GettingMyFavorites_Then_ItIsNotReturnedAndNotCounted()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var expired = ExpiryListings.ActivePastExpiry(SellerId, "Manual POO");
+        var favorite = Favorite.Create(member.Id, expired, CreatedAt.AddHours(1)).Value;
+        expired.Expire(DateTimeOffset.UtcNow).Should().BeTrue();
+        await SeedAsync(member, expired, favorite);
+        AuthenticateAs(member.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/favorites");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyFavoritesResponse>(Json);
+        body!.Items.Should().BeEmpty();
+        body.Count.Should().Be(0);
+        body.TotalCount.Should().Be(0);
+
+        var saved = await QueryDbAsync(db => db.Set<Favorite>().AsNoTracking().SingleAsync());
+        saved.Should().BeEquivalentTo(favorite);
+    }
+
+    [Fact]
+    public async Task Given_FavoriteOfExpiredListing_When_SellerRenewsIt_Then_FavoriteIsBackInMyFavorites()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var expired = ExpiryListings.ActivePastExpiry(SellerId, "Manual POO");
+        var favorite = Favorite.Create(member.Id, expired, CreatedAt.AddHours(1)).Value;
+        expired.Expire(DateTimeOffset.UtcNow).Should().BeTrue();
+        await SeedAsync(member, expired, favorite);
+        AuthenticateAs(SellerId);
+        var renewed = await Client.PostAsync($"/api/v1/listings/{expired.Id}/renew", content: null);
+        renewed.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        AuthenticateAs(member.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/favorites");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetMyFavoritesResponse>(Json);
+        body!.Items.Select(i => i.ListingId).Should().Equal(expired.Id);
+        body.Items.Single().Status.Should().Be(ListingStatus.Active);
+        body.Count.Should().Be(1);
+        body.TotalCount.Should().Be(1);
+
+        var count = await QueryDbAsync(db => db.Set<Favorite>().CountAsync());
+        count.Should().Be(1);
     }
 }

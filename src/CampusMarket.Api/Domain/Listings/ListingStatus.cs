@@ -1,3 +1,3 @@
 namespace CampusMarket.Api.Domain.Listings;
 
-public enum ListingStatus { Draft, Active, Reserved, Sold, Hidden }
+public enum ListingStatus { Draft, Active, Reserved, Sold, Hidden, Expired }

@@ -21,7 +21,7 @@ public sealed class PublicProfileTests : IntegrationTestBase
         // Arrange
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var active = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        active.Publish();
+        active.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var draft = Listing.Create(seller.Id, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt.AddHours(1)).Value;
         await SeedAsync(seller, active, draft);
 
@@ -55,7 +55,7 @@ public sealed class PublicProfileTests : IntegrationTestBase
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var sold = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        sold.Publish();
+        sold.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = sold.Reserve(buyer.Id, CreatedAt).Value;
         sold.ConfirmSale(reservation.Id, CreatedAt);
         var review = Review.Create(buyer.Id, sold, 4, null, CreatedAt).Value;
@@ -87,7 +87,7 @@ public sealed class PublicProfileTests : IntegrationTestBase
         // Arrange
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var active = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        active.Publish();
+        active.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(seller, active);
 
         // Act
@@ -121,5 +121,30 @@ public sealed class PublicProfileTests : IntegrationTestBase
 
         var savedMember = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync());
         savedMember.Should().BeEquivalentTo(seller);
+    }
+
+    [Fact]
+    public async Task Given_SellerWithActiveAndExpiredListing_When_GettingProfile_Then_Returns200WithOnlyActiveListing()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var active = ExpiryListings.Active(seller.Id, "Manual POO");
+        var expired = ExpiryListings.Expired(seller.Id, "Calculator stiintific", Category.Electronics, CreatedAt.AddHours(1));
+        await SeedAsync(seller, active, expired);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/members/{seller.Id}/profile");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetPublicProfileResponse>(Json);
+        body!.ActiveListings.Should().HaveCount(1);
+        body.ActiveListings.Should().Equal(new PublicListingItem(active.Id, "Manual POO", 50m));
+        body.ActiveListings.Select(l => l.Id).Should().NotContain(expired.Id);
+
+        var savedListings = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().ToListAsync());
+        savedListings.Should().HaveCount(2);
+        savedListings.Single(l => l.Id == expired.Id).Status.Should().Be(ListingStatus.Expired);
     }
 }

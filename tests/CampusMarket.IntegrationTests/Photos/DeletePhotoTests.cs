@@ -96,7 +96,7 @@ public sealed class DeletePhotoTests : IntegrationTestBase
         // Arrange
         var (seller, listing) = await SeedSellerAndListingAsync();
         var otherListing = Listing.Create(seller.Id, "Calculator stiintific", Category.Electronics, Condition.Good, 120m, CreatedAt).Value;
-        otherListing.Publish();
+        otherListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(otherListing);
         var otherPhoto = await UploadAsSellerAsync(otherListing, PngImage, "image/png");
         AuthenticateAs(seller.Id);
@@ -224,7 +224,7 @@ public sealed class DeletePhotoTests : IntegrationTestBase
     {
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(seller, listing);
         return (seller, listing);
     }

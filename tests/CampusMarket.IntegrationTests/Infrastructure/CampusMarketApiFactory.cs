@@ -29,6 +29,8 @@ public sealed class CampusMarketApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:CampusMarket", SharedPostgres.ConnectionStringFor(_database));
         // The reservation expiry background service must not run during tests.
         builder.UseSetting("ReservationExpiry:Enabled", "false");
+        // Nor the listing expiry background service.
+        builder.UseSetting("ListingExpiry:Enabled", "false");
         // The image generation background service must not run during tests either; GeneratedImagesTests turns it on.
         builder.UseSetting("ImageGeneration:Enabled", "false");
         // The real embedding model is never loaded in tests; SearchByMeaningTests registers a fake embedder.

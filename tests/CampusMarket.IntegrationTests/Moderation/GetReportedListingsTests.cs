@@ -25,9 +25,9 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
         var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var ion = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var textbook = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        textbook.Publish();
+        textbook.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var spam = Listing.Create(SellerId, "BANI RAPIZI", Category.Other, Condition.Good, 1m, CreatedAt).Value;
-        spam.Publish();
+        spam.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var olderReport = Report.Create(ana.Id, textbook, "Fake listing", CreatedAt.AddHours(1)).Value;
         var newerReport = Report.Create(ion.Id, textbook, "Wrong price", CreatedAt.AddHours(2)).Value;
         var automatic = Report.CreateAutomatic(spam.Id, 0.9, CreatedAt.AddHours(3));
@@ -73,9 +73,9 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
         // Arrange
         var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var visible = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        visible.Publish();
+        visible.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var hidden = Listing.Create(SellerId, "BANI RAPIZI", Category.Other, Condition.Good, 1m, CreatedAt).Value;
-        hidden.Publish();
+        hidden.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var visibleReport = Report.Create(ana.Id, visible, "Fake listing", CreatedAt.AddHours(1)).Value;
         var hiddenReport = Report.Create(ana.Id, hidden, "Spam", CreatedAt.AddHours(2)).Value;
         hidden.Hide();
@@ -105,7 +105,7 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
         // Arrange
         var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var report = Report.Create(ana.Id, listing, "Fake listing", CreatedAt.AddHours(1)).Value;
         await SeedAsync(ana, listing, report);
         AuthenticateAs(AdminId, "Admin");
@@ -130,7 +130,7 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
         // Arrange
         var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var report = Report.Create(ana.Id, listing, "Fake listing", CreatedAt.AddHours(1)).Value;
         await SeedAsync(ana, listing, report);
         AuthenticateAs(OtherStudentId);
@@ -158,7 +158,7 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
         // Arrange
         var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var report = Report.Create(ana.Id, listing, "Fake listing", CreatedAt.AddHours(1)).Value;
         await SeedAsync(ana, listing, report);
 
@@ -177,5 +177,33 @@ public sealed class GetReportedListingsTests : IntegrationTestBase
 
         var saved = await QueryDbAsync(db => db.Set<Report>().AsNoTracking().SingleAsync());
         saved.Should().BeEquivalentTo(report);
+    }
+
+    [Fact]
+    public async Task Given_ExpiredReportedListing_When_AdminGetsReportedListings_Then_ItIsNotReturned()
+    {
+        // Arrange
+        var ana = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var expired = ExpiryListings.ActivePastExpiry(SellerId, "Manual POO");
+        var report = Report.Create(ana.Id, expired, "Fake listing", CreatedAt.AddHours(1)).Value;
+        expired.Expire(DateTimeOffset.UtcNow).Should().BeTrue();
+        await SeedAsync(ana, expired, report);
+        AuthenticateAs(AdminId, "Admin");
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/moderation/listings");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetReportedListingsResponse>(Json);
+        body!.Items.Should().BeEmpty();
+        body.Count.Should().Be(0);
+        body.TotalCount.Should().Be(0);
+
+        var count = await QueryDbAsync(db => db.Set<Report>().CountAsync());
+        count.Should().Be(1);
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Status.Should().Be(ListingStatus.Expired);
     }
 }

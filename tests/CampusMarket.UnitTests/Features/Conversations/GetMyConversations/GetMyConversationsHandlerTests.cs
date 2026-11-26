@@ -25,7 +25,7 @@ public class GetMyConversationsHandlerTests
     private static Listing BuildActiveListing(Guid sellerId, string title)
     {
         var listing = Listing.Create(sellerId, title, Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

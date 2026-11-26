@@ -23,7 +23,7 @@ public class StartConversationHandlerTests
     private static Listing BuildActiveListing(Guid sellerId)
     {
         var listing = BuildDraftListing(sellerId);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

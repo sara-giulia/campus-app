@@ -32,7 +32,7 @@ public class GetSimilarListingsHandlerTests
         decimal price = 25m)
     {
         var listing = BuildDraftListing(title, createdAt, description, category, condition, price);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

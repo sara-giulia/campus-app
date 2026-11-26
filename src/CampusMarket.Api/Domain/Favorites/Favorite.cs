@@ -24,8 +24,9 @@ public sealed class Favorite
             return Result<Favorite>.Failure(
                 Error.Validation("Favorite.OwnListing", "A seller cannot add their own listing to favorites."));
 
-        // A draft is not public yet and a hidden listing was taken down by an Admin, so neither can be saved.
-        if (listing.Status is ListingStatus.Draft or ListingStatus.Hidden)
+        // A draft is not public yet, a hidden listing was taken down by an Admin and an expired one left
+        // the search until its seller renews it, so none of them can be saved.
+        if (listing.Status is ListingStatus.Draft or ListingStatus.Hidden or ListingStatus.Expired)
             return Result<Favorite>.Failure(
                 Error.Validation("Favorite.ListingNotAvailable", "Only a published listing can be added to favorites."));
 

@@ -23,7 +23,7 @@ public class UploadPhotoHandlerTests
     private static Listing BuildActiveListing()
     {
         var listing = BuildListing();
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

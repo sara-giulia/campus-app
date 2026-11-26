@@ -21,7 +21,7 @@ public sealed class HideListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(AdminId, "Admin");
 
@@ -43,7 +43,7 @@ public sealed class HideListingTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         listing.Reserve(buyer.Id, CreatedAt);
         await SeedAsync(buyer, listing);
         AuthenticateAs(AdminId, "Admin");
@@ -65,7 +65,7 @@ public sealed class HideListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         listing.Hide();
         await SeedAsync(listing);
         AuthenticateAs(AdminId, "Admin");
@@ -113,7 +113,7 @@ public sealed class HideListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(AdminId, "Admin");
         var unknownId = Guid.NewGuid();
@@ -138,7 +138,7 @@ public sealed class HideListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(SellerId);
 
@@ -165,7 +165,7 @@ public sealed class HideListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
 
         // Act
@@ -191,9 +191,9 @@ public sealed class HideListingTests : IntegrationTestBase
     {
         // Arrange
         var visible = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        visible.Publish();
+        visible.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var hidden = Listing.Create(SellerId, "Calculator stiintific", Category.Electronics, Condition.New, 120m, CreatedAt.AddHours(1)).Value;
-        hidden.Publish();
+        hidden.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         hidden.Hide();
         await SeedAsync(visible, hidden);
 

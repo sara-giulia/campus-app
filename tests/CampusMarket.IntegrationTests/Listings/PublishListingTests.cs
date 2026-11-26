@@ -105,7 +105,7 @@ public sealed class PublishListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(SellerId);
 
@@ -147,5 +147,26 @@ public sealed class PublishListingTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
         saved.Status.Should().Be(ListingStatus.Draft);
         saved.Version.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_Seller_When_PublishingListing_Then_SavesExpiresAtThirtyDaysAhead()
+    {
+        // Arrange
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        await SeedAsync(listing);
+        AuthenticateAs(SellerId);
+        var before = DateTimeOffset.UtcNow;
+
+        // Act
+        var response = await Client.PostAsync($"/api/v1/listings/{listing.Id}/publish", content: null);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().SingleAsync());
+        saved.Status.Should().Be(ListingStatus.Active);
+        saved.ExpiresAt.Should().NotBeNull();
+        saved.ExpiresAt!.Value.Should().BeCloseTo(before.AddDays(30), TimeSpan.FromMinutes(5));
     }
 }

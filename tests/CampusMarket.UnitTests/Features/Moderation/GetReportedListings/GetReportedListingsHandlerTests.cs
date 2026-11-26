@@ -16,7 +16,7 @@ public class GetReportedListingsHandlerTests
     private static Listing BuildPublishedListing(string title = "Algebra book")
     {
         var listing = Listing.Create(SellerId, title, Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

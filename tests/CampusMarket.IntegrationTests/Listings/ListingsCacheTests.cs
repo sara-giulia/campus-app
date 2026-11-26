@@ -28,7 +28,7 @@ public sealed class ListingsCacheTests : IntegrationTestBase
         // Arrange
         await EmptyCacheAsync();
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         using var anonymous = Factory.CreateClient();
         var before = await anonymous.GetFromJsonAsync<GetListingsResponse>("/api/v1/listings", Json);
@@ -77,7 +77,7 @@ public sealed class ListingsCacheTests : IntegrationTestBase
         // Arrange
         await EmptyCacheAsync();
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         using var anonymous = Factory.CreateClient();
         var before = await anonymous.GetFromJsonAsync<GetListingsResponse>("/api/v1/listings", Json);
@@ -103,7 +103,7 @@ public sealed class ListingsCacheTests : IntegrationTestBase
         await EmptyCacheAsync();
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(buyer, listing);
         using var anonymous = Factory.CreateClient();
         var before = await anonymous.GetFromJsonAsync<GetListingsResponse>("/api/v1/listings", Json);

@@ -19,7 +19,7 @@ public class ConfirmSaleHandlerTests
     private static (Listing Listing, Reservation Reservation) BuildReservedListing()
     {
         var listing = Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         var reservation = listing.Reserve(BuyerId, Now).Value;
         return (listing, reservation);
     }

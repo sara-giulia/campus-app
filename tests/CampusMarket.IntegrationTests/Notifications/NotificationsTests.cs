@@ -80,7 +80,7 @@ public sealed class NotificationsTests : IntegrationTestBase
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, DateTimeOffset.UtcNow).Value;
         await SeedAsync(seller, buyer, listing);
 
@@ -377,7 +377,7 @@ public sealed class NotificationsTests : IntegrationTestBase
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(seller, buyer, listing);
         return (seller, buyer, listing);
     }
@@ -387,7 +387,7 @@ public sealed class NotificationsTests : IntegrationTestBase
     {
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var older = Notification.Create(seller.Id, NotificationType.ReservationCreated,
             "Ana Popescu reserved Manual POO", listing.Id, CreatedAt.AddHours(1)).Value;
         var newer = Notification.Create(seller.Id, NotificationType.ReservationCreated,

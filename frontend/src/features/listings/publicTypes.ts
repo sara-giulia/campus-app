@@ -47,7 +47,7 @@ export interface MyFavoriteItem {
   category: Category
   condition: Condition
   price: number
-  status: 'Draft' | 'Active' | 'Reserved' | 'Sold' | 'Hidden'
+  status: 'Draft' | 'Active' | 'Reserved' | 'Sold' | 'Hidden' | 'Expired'
   favoritedAt: string
 }
 

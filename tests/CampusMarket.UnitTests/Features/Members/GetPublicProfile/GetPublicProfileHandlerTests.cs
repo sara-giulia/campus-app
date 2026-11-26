@@ -30,7 +30,7 @@ public class GetPublicProfileHandlerTests
     private static Listing BuildActiveListing(Guid sellerId, string title, decimal price, DateTimeOffset createdAt)
     {
         var listing = BuildDraftListing(sellerId, title, price, createdAt);
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

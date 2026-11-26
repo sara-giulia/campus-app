@@ -1222,6 +1222,24 @@ The skill was improved three times before its run, by comparing it with the real
 - **Result:** the two lines changed, no other `Be(typeof(` in `tests/`; 973 unit tests pass, build 0 warnings.
 - **Commits:** 1d3cae1
 
+### Run 48, skill v50 (Feature: Listing expiry)
+
+- **Why a new version:** branch `feature/listing-expiry` (code fa16910). New domain and handler rules the skill did not cover: `Listing.Publish(expiresAt)`, `Listing.Expire(currentTime)` and `Listing.Renew(expiresAt)`; the new `ExpireListingsHandler` (system job: expiry, one notification per listing, one commit, emails only after the commit, a failing email swallowed) and `RenewListingHandler` (order of the checks: `Listing.NotFound`, `Listing.NotOwner`, category of an `Expired` listing, then `Listing.NotExpired`). The handlers must stay at 100%, and the order of the checks and of commit and email is the part a model would get wrong.
+
+#### Change to SKILL.md (v49 → v50) and why
+
+| # | v49 (before) | v50 (after) | Why |
+|---|---|---|---|
+| 1 | No section for listing expiry. | New section *"Feature: Listing expiry (Diana)"*: the production code to read first, the files (`ListingTests` extended, new `ExpireListingsHandlerTests.cs` and `RenewListingHandlerTests.cs`, `PublishListingHandlerTests` updated for `ExpiresAt`; a fake `TimeProvider` that can be moved, a fake `IEmailSender` that records and can throw, a notification fake that counts `Add`), the tests to add (`Publish`, `Expire` at the boundary and for every other status, `Renew` for every other status, expiry with notifications, one commit and emails after it, a throwing email, a missing seller, renew with its failures and the deactivated category) and the rules (fixed ids and date, error code and `ErrorType` on every failure, nothing saved on a failure, stop and report instead of changing `src/`). | Without it a model guesses the boundary (`ExpiresAt <= now`), the order of commit and email, and which error a renew gives in a deactivated category. |
+
+- **Prompt:** `Write the tests following the unit-testing skill, section "Feature: Listing expiry (Diana)": ListingTests, PublishListingHandlerTests, the new ExpireListingsHandlerTests and the new RenewListingHandlerTests. Run them. If a test fails because the production code is wrong, do not fix the production code: report it to me. Then run the full unit test project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v50 (section written by Diana with Claude Code; the last unit-testing version was v49, Run 47)
+- **Result:** 31 new unit tests, 917 in total (886 before). All pass, no production fix needed.
+- **Problems seen:** none.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** code fa16910; skill section 7bafdcc; tests generated in f3913a2
+- **Follow-up:** Sonar fixes: shared base class for the expiry services, missing coverage.
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2310,6 +2328,26 @@ saved.Should().BeEquivalentTo(listing);
 - **Problems seen:** the first run found a real bug: in Development (the test host) every registration is checked at start, and `ListingIndexer` needed an `ITextEmbedder` that is not registered when the model is off, so the API did not start without the model. Fixed in `src/` (registered through a factory, like `ISemanticSearch`); it had not shown up before because the model was downloaded on the machine. The normal end of the service loop could not be reached: the service now closes the signal when the app stops (like `ImageGenerationService` with its queue). One of eight full runs had 3 failures in old tests (confirm sale, upload, notifications) after a 4-minute stall of the container; the next runs passed.
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 28d2802; skill section 1c83bc0; tests generated in 4e479ce
+
+### Run 59, skill v58 (Feature: Listing expiry)
+
+- **Why a new version:** branch `feature/listing-expiry` (code fa16910). The API changed in several places the skill did not cover: the new status `Expired`; `POST /api/v1/listings/{id}/renew` (204, 401, 404 `Listing.NotFound`, 403 `Listing.NotOwner`, 400 `Listing.NotExpired`); `ExpiresAt` set on publish; the background `ListingExpiryService` (expiry, `ListingExpired` notification, email); an `Expired` listing hidden from search, similar listings, the public profile, favorites and the moderation list; the migration `AddListingExpiry`. Without a section a model would not know which lists hide an expired listing, that the job needs a second copy of the API, or that the migration needs its own PostgreSQL database.
+
+#### Change to SKILL.md (v57 → v58) and why
+
+| # | v57 (before) | v58 (after) | Why |
+|---|---|---|---|
+| 1 | No section for listing expiry. | New section *"Feature: Listing expiry (Diana)"*: the endpoint and its codes, `Publish` and `ExpiresAt`, where an `Expired` listing is hidden or shown, the job and the migration, the files (new `RenewListingTests`, `ListingExpiryJobTests` and `AddListingExpiryMigrationTests`, plus the existing classes for publish, search, similar listings, favorites, public profile, moderation and my listings), the tests to add and the rules (status code and ProblemDetails code of every failure, database unchanged, never change the factory or `IntegrationTestBase`, never replace the `DbContext`, stop and report instead of changing `src/`). | The codes and the lists that hide an expired listing are decisions of the API, not guessable. |
+| 2 | The job: no rule. | The job runs in a second copy of the API (`Factory.WithWebHostBuilder`, `ListingExpiry:Enabled` true, a short `ListingExpiry:Interval`), polling the database for at most 5 seconds; leave the `await using` block before the assertions; the email sender is replaced by a recording one. | The factory keeps the job off; a tick after the Act could change the data. |
+| 3 | The migration: no rule. | A separate PostgreSQL database, `IMigrator.MigrateAsync("<previous migration name>")`, raw SQL inserts, `ExpiresAt` of `Active` and `Reserved` between start + 30 days and end + 30 days, `NULL` for the others, down migration turns `Expired` into `Active`; compare `ExpiresAt` with `ToMicroseconds()`. | The shared database is already at the last migration; PostgreSQL keeps microseconds, .NET ticks are finer. |
+| 4 | Correction (5065707): the section said the moderation list of reported listings still shows an `Expired` listing. | An `Expired` listing is not in the moderation list of reported listings (like a `Hidden` one). | The first text was wrong: the spec hides it. The integration test of the moderation list had been written from the wrong text and was corrected to match the spec; the production code was right. |
+
+- **Prompt:** `Write the tests following the integration-testing skill, section "Feature: Listing expiry (Diana)": RenewListingTests, ListingExpiryJobTests, AddListingExpiryMigrationTests, and the tests to add in PublishListingTests, GetListingsTests, GetSimilarListingsTests, GetMyFavoritesTests, AddFavoriteTests, the public profile tests, the moderation tests and GetMyListingsTests. Run them. If a test fails because the API behaves differently from the skill, do not fix the production code: report it to me. Then run the full integration project. Do not touch PROMPTS.md yet. At the end show me: the number of new tests per file, pass/fail and git status. Do not commit. Do not push.`
+- **Skill version:** v58 (section written by Diana with Claude Code; the last integration-testing version was v57, Run 58)
+- **Result:** 29 new integration tests, 511 in total (482 before). All pass, no production fix needed. The integration test for the moderation list was corrected to match the spec (row 4). The unit tests of the same task are in unit-testing Run 48 (917 in total, 31 new).
+- **Problems seen:** the moderation list (row 4); fixed in the skill and in the test.
+- **Change to SKILL.md after the run:** the correction of row 4 (commit 5065707).
+- **Commits:** code fa16910; skill section 7bafdcc, fix 5065707; tests generated in f3913a2
 
 ## code-review
 

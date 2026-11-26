@@ -139,8 +139,9 @@ Architecture diagrams (Mermaid, in Romanian): [docs/architecture.md](docs/archit
 
 ### Business rules
 
-- A listing has a title, category, condition (`New`, `Good`, `Worn`), asking price, an optional description (at most 1000 characters), status (`Draft`, `Active`, `Reserved`, `Sold`) and a `Version` for optimistic concurrency.
+- A listing has a title, category, condition (`New`, `Good`, `Worn`), asking price, an optional description (at most 1000 characters), status (`Draft`, `Active`, `Reserved`, `Sold`, `Hidden`, `Expired`) and a `Version` for optimistic concurrency.
 - A reservation **expires after 48h** (computed with `TimeProvider`).
+- A published listing **expires after 30 days** (`Listings:ExpiryDays`) if it is still `Active`; the seller renews it with one click.
 - A buyer can hold **at most 3 active reservations**.
 - A seller **cannot reserve their own listing**.
 - A **sold** listing cannot be reserved.
@@ -205,6 +206,7 @@ flowchart LR
 | Register as member | `CreateMember` | `POST /api/v1/members` | unique email |
 | Create listing draft | `CreateListing` | `POST /api/v1/listings` | title, category and condition are required (a draft needs the same fields as a published listing); price > 0 |
 | Publish listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | only the owner or an Admin; only from `Draft` |
+| Renew expired listing | `RenewListing` | `POST /api/v1/listings/{id}/renew` | only the owner; only from `Expired`; the category must be active |
 | Browse and filter listings | `GetListings` | `GET /api/v1/listings?category=&minPrice=&maxPrice=&page=&pageSize=` | only `Active` listings; paging |
 | View listing details | `GetListingById` | `GET /api/v1/listings/{id}` | 404 if missing; a `Draft` is seen only by its seller or an Admin (404 for everyone else) |
 | Reserve listing | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | not own listing; only `Active` (so not sold); max 3 active; **409 on concurrent reservation** (`Concurrency.Conflict`, see [Error format](#error-format)) |
@@ -249,6 +251,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Member | `UpdateMember` | `PUT /api/v1/members/{id}` | the member or an Admin | 204, 400, 401, 403 `Member.NotOwner`, 404, 409 |
 | Member | `DeleteMember` | `DELETE /api/v1/members/{id}` | the member or an Admin | 204, 401, 403 `Member.NotOwner`, 404 |
 | Listing | `PublishListing` | `POST /api/v1/listings/{id}/publish` | the seller or an Admin | 204, 400 `Listing.NotDraft`, 401, 403 `Listing.NotOwner`, 404 |
+| Listing | `RenewListing` | `POST /api/v1/listings/{id}/renew` | the seller only (not an Admin) | 204 (back to `Active`, new `expiresAt`), 400 `Listing.NotExpired` / `Listing.CategoryInactive`, 401, 403 `Listing.NotOwner`, 404 `Listing.NotFound` |
 | Listing | `SuggestPrice` | `POST /api/v1/listings/price-suggestion` | anyone logged in | 200 `{ suggestedPrice }` (whole lei, ≥ 1), 400 (also `Listing.CategoryRequired`, `Listing.ConditionRequired`), 401 |
 | Listing | `SuggestCategory` | `POST /api/v1/listings/category-suggestion` | anyone logged in | 200 `{ category, confidence }` (confidence 0–1; `category` is null when the confidence is below `Ml:Category:MinConfidence`, 0.6, chosen on validation data), 400, 401 |
 | Listing | `GetSimilarListings` | `GET /api/v1/listings/{id}/similar` | everyone | 200 `{ items: [{ id, title, category, condition, price, similarity }] }` (at most 5 Active listings, never the listing itself, most similar first, similarity 0–1), 404 `Listing.NotFound` |
@@ -270,7 +273,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Reservation | `CancelReservation` | `DELETE /api/v1/listings/{id}/reservations/{reservationId}` | the buyer, the seller or an Admin | 204, 400 `Reservation.NotActive`, 401, 403 `Reservation.NotAllowed`, 404 |
 | Reservation | `ConfirmSale` | `POST /api/v1/listings/{id}/reservations/{reservationId}/confirm` | the seller or an Admin | 204, 400 `Reservation.NotActive` / `Reservation.Expired` / `Listing.Sold`, 401, 403 `Listing.NotOwner`, 404 |
 | Reservation | `GetMyReservations` | `GET /api/v1/members/me/reservations` | anyone logged in; only their own reservations | 200, 401 |
-| Listing | `GetMyListings` | `GET /api/v1/members/me/listings` | anyone logged in; only their own listings, in every status, newest first | 200 `{ items, count }`, 401 |
+| Listing | `GetMyListings` | `GET /api/v1/members/me/listings` | anyone logged in; only their own listings, in every status, newest first | 200 `{ items, count }` (each item has `expiresAt`, null for a draft never published), 401 |
 | Member | `StreamMyEvents` | `GET /api/v1/members/me/events` | anyone logged in; only their own events | 200 `text/event-stream` (stays open: `ping`, `notification`, `message`), 401 |
 | Auth | `Register` | `POST /api/v1/auth/register` | everyone, at most 5 registrations per minute per IP | 201 + `Location`, 400, 409, 429 |
 | Auth | `Login` | `POST /api/v1/auth/login` | everyone, at most 5 attempts per minute per IP | 200, 401, 429 |
@@ -294,7 +297,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
 
-GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check.
+GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
 
 ### Searching listings
 
@@ -415,8 +418,9 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Member.NotFound` | 404 | no member with that id, also when the buyer of a reservation does not exist |
 | `Member.NotOwner` | 403 | you change or delete a profile that is not yours |
 | `Listing.NotFound` | 404 | no listing with that id |
-| `Listing.NotOwner` | 403 | you change, delete or publish a listing that is not yours |
+| `Listing.NotOwner` | 403 | you change, delete, publish or renew a listing that is not yours |
 | `Listing.NotDraft` | 400 | you publish a listing that is not a draft |
+| `Listing.NotExpired` | 400 | you renew a listing that is not `Expired` |
 | `Listing.NotActive` | 400 | you reserve a listing that is not `Active` (draft, reserved or sold) |
 | `Reservation.OwnListing` | 400 | the seller reserves their own listing |
 | `Reservation.LimitReached` | 400 | the buyer already has 3 active reservations |
@@ -512,6 +516,22 @@ Two settings under `ReservationExpiry` in `appsettings.json` control the job:
 |---|---|---|
 | `Enabled` | `true` | Register the background service. Integration tests set it to `false` so the job never runs during the other tests. |
 | `Interval` | `00:05:00` | How often the sweep runs (any `TimeSpan`). |
+
+### Listing expiry
+
+A published listing stays in the search for `Listings:ExpiryDays` days (default 30). `PublishListing` and `RenewListing` set `Listing.ExpiresAt` to now + that many days. `ListingExpiryService` (a background service built like `ReservationExpiryService`: `TimeProvider`, `PeriodicTimer`, a scope per run, source-generated logs) runs `ExpireListingsHandler`, which moves every `Active` listing whose `ExpiresAt` has passed to `Expired`. `Reserved`, `Sold`, `Draft` and `Hidden` listings never expire; a reserved listing that goes back to `Active` after its `ExpiresAt` (reservation cancelled or expired) expires on the next run.
+
+For each expired listing the seller gets a `ListingExpired` notification ("Your listing <title> expired", saved in the same commit) and, after the commit, an email with a link to `{Frontend:BaseUrl}/my/listings`. A failed email is logged and does not undo the expiry. The run also clears the listings cache.
+
+An `Expired` listing is treated like a `Hidden` one: it is not in the search, the similar listings, the seller's public profile, the favorites lists or the moderation list, and it cannot be reserved, reported, saved to favorites or start a conversation. The seller still sees it in My listings, marked "Expirat", with a "Reînnoiește" button (`POST /api/v1/listings/{id}/renew`); an active listing shows "Expiră în X zile". Renewing checks the category like publishing does (`Listing.CategoryInactive`).
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Listings:ExpiryDays` | `30` | How long a published or renewed listing stays `Active` (at least 1, checked at start). |
+| `ListingExpiry:Enabled` | `true` | Register the background service. Integration tests set it to `false`. |
+| `ListingExpiry:Interval` | `01:00:00` | How often the sweep runs. |
+
+Migration `AddListingExpiry` (on top of `AddPhotoPosition`) adds the nullable `ExpiresAt` column and gives every existing `Active` and `Reserved` listing `ExpiresAt` = migration time + 30 days, so nothing expires right after the deploy.
 
 ### Favorites
 
@@ -615,7 +635,7 @@ A listing that is published without any photo gets a picture made by the app, so
 
 ### Notifications
 
-Members are told when something relevant happens to a listing of theirs. Three kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you") and `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired"). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `InitialPostgres`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
+Members are told when something relevant happens to a listing of theirs. Four kinds of event write a notification, in the same unit of work as the action: `ReservationCreated` (the seller is told when the listing is reserved: "<buyer> reserved <title>"), `ListingSold` (the buyer is told when the sale is confirmed: "<title> was sold to you"), `ReservationExpired` (the buyer is told when the 48-hour reservation window elapses: "your reservation for <title> expired") and `ListingExpired` (the seller is told when the listing expires after 30 days: "Your listing <title> expired", with an email too; see Listing expiry). `GET /api/v1/members/me/notifications` returns the member's notifications newest first, with `unreadCount` across all of them regardless of paging or `unreadOnly`. `POST /api/v1/members/me/notifications/{id}/read` marks one as read (idempotent: calling it again keeps the first `readAt`); `POST /api/v1/members/me/notifications/read-all` marks every unread one of the current member as read. A notification that does not exist or belongs to another member is a `404` either way, so an id lookup cannot reveal whose notification it is. Notifications are stored in their own table (`Notifications`, migration `InitialPostgres`), with an index on `(MemberId, CreatedAt)` and a cascade foreign key to `Members`.
 
 ### Live events (Server-Sent Events)
 
@@ -657,7 +677,10 @@ classDiagram
         ListingStatus Status
         int Version
         DateTimeOffset CreatedAt
-        Publish() Result
+        DateTimeOffset? ExpiresAt
+        Publish(expiresAt) Result
+        Expire(now) bool
+        Renew(expiresAt) Result
         Reserve(buyerId, now) Result
         ConfirmSale(sellerId) Result
     }
@@ -680,6 +703,7 @@ classDiagram
         Reserved
         Sold
         Hidden
+        Expired
     }
 
     class Condition {
@@ -720,6 +744,8 @@ stateDiagram-v2
     Reserved --> Sold : ConfirmSale
     Active --> Hidden : HideListing (Admin)
     Reserved --> Hidden : HideListing (Admin)
+    Active --> Expired : ListingExpiryService (ExpiresAt passed)
+    Expired --> Active : RenewListing (seller)
     Sold --> [*]
 ```
 

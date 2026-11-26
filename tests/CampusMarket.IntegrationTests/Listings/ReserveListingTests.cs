@@ -21,7 +21,7 @@ public sealed class ReserveListingTests : IntegrationTestBase
         // Arrange
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(buyer, listing);
         AuthenticateAs(buyer.Id);
 
@@ -54,7 +54,7 @@ public sealed class ReserveListingTests : IntegrationTestBase
         // we need the Member in the database with Id == SellerId. Use a listing whose seller
         // is the seeded member instead.
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(seller, listing);
         AuthenticateAs(seller.Id);
 
@@ -102,7 +102,7 @@ public sealed class ReserveListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(Guid.Parse("44444444-4444-4444-4444-444444444444"));
 
@@ -149,19 +149,19 @@ public sealed class ReserveListingTests : IntegrationTestBase
         var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
 
         var reserved1 = Listing.Create(SellerId, "Listing 1", Category.Textbook, Condition.Good, 10m, CreatedAt).Value;
-        reserved1.Publish();
+        reserved1.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         reserved1.Reserve(buyer.Id, CreatedAt);
 
         var reserved2 = Listing.Create(SellerId, "Listing 2", Category.Textbook, Condition.Good, 20m, CreatedAt.AddHours(1)).Value;
-        reserved2.Publish();
+        reserved2.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         reserved2.Reserve(buyer.Id, CreatedAt.AddHours(1));
 
         var reserved3 = Listing.Create(SellerId, "Listing 3", Category.Textbook, Condition.Good, 30m, CreatedAt.AddHours(2)).Value;
-        reserved3.Publish();
+        reserved3.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         reserved3.Reserve(buyer.Id, CreatedAt.AddHours(2));
 
         var fourth = Listing.Create(SellerId, "Listing 4", Category.Textbook, Condition.Good, 40m, CreatedAt.AddHours(3)).Value;
-        fourth.Publish();
+        fourth.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
 
         await SeedAsync(buyer, reserved1, reserved2, reserved3, fourth);
         AuthenticateAs(buyer.Id);
@@ -186,7 +186,7 @@ public sealed class ReserveListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
 
         // Act

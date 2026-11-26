@@ -23,7 +23,7 @@ public sealed class ReportListingTests : IntegrationTestBase
         // Arrange
         var reporter = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(reporter, listing);
         AuthenticateAs(reporter.Id);
         var request = new ReportListingRequest("  Fake listing, the book does not exist  ");
@@ -53,7 +53,7 @@ public sealed class ReportListingTests : IntegrationTestBase
         // Arrange
         var reporter = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var report = Report.Create(reporter.Id, listing, "Fake listing", CreatedAt.AddHours(1)).Value;
         await SeedAsync(reporter, listing, report);
         AuthenticateAs(reporter.Id);
@@ -79,7 +79,7 @@ public sealed class ReportListingTests : IntegrationTestBase
         // Arrange
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(seller, listing);
         AuthenticateAs(seller.Id);
 
@@ -128,7 +128,7 @@ public sealed class ReportListingTests : IntegrationTestBase
         // Arrange
         var reporter = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(reporter, listing);
         AuthenticateAs(reporter.Id);
 
@@ -153,7 +153,7 @@ public sealed class ReportListingTests : IntegrationTestBase
         // Arrange
         var reporter = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(reporter, listing);
         AuthenticateAs(reporter.Id);
         var unknownId = Guid.NewGuid();
@@ -178,7 +178,7 @@ public sealed class ReportListingTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(OtherStudentId);
 
@@ -203,7 +203,7 @@ public sealed class ReportListingTests : IntegrationTestBase
         // Arrange
         var reporter = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(reporter, listing);
 
         // Act

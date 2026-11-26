@@ -21,6 +21,8 @@ public sealed class Listing
     public ListingStatus Status { get; private set; }
     public int Version { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    // Set when the listing is published or renewed; null for a draft that was never published.
+    public DateTimeOffset? ExpiresAt { get; private set; }
 
     private Listing() { }
 
@@ -75,13 +77,43 @@ public sealed class Listing
         return this;
     }
 
-    public Result<Listing> Publish()
+    // expiresAt is computed by the caller (now + Listings:ExpiryDays).
+    public Result<Listing> Publish(DateTimeOffset expiresAt)
     {
         if (Status != ListingStatus.Draft)
             return Result<Listing>.Failure(
                 Error.Validation("Listing.NotDraft", "Only a draft listing can be published."));
 
         Status = ListingStatus.Active;
+        ExpiresAt = expiresAt;
+        Version++;
+
+        return this;
+    }
+
+    // Only an Active listing expires (Reserved, Sold, Draft and Hidden do not). Called by the background
+    // job (Features/Listings/ExpireListings). Returns false when nothing changed.
+    public bool Expire(DateTimeOffset currentTime)
+    {
+        // A listing without ExpiresAt never expires (treated as expiring at the end of time).
+        if (Status != ListingStatus.Active || ExpiresAt.GetValueOrDefault(DateTimeOffset.MaxValue) > currentTime)
+            return false;
+
+        Status = ListingStatus.Expired;
+        Version++;
+
+        return true;
+    }
+
+    // The seller puts an expired listing back in the search for another period.
+    public Result<Listing> Renew(DateTimeOffset expiresAt)
+    {
+        if (Status != ListingStatus.Expired)
+            return Result<Listing>.Failure(
+                Error.Validation("Listing.NotExpired", "Only an expired listing can be renewed."));
+
+        Status = ListingStatus.Active;
+        ExpiresAt = expiresAt;
         Version++;
 
         return this;

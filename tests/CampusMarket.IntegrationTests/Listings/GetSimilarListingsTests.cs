@@ -163,7 +163,7 @@ public sealed class GetSimilarListingsTests : IntegrationTestBase
         string title, Category category, decimal price, DateTimeOffset createdAt, string? description = null)
     {
         var listing = Listing.Create(SellerId, title, category, Condition.Good, price, createdAt, description).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         return listing;
     }
 
@@ -181,4 +181,26 @@ public sealed class GetSimilarListingsTests : IntegrationTestBase
         Listing Notes,
         Listing Bicycle,
         Listing DraftTextbook);
+
+    [Fact]
+    public async Task Given_ExpiredListingSimilarToTarget_When_GettingSimilarListings_Then_ItIsNotReturned()
+    {
+        // Arrange
+        var target = Published("Manual Analiza matematica, editia 2", Category.Textbook, 40m, CreatedAt);
+        var active = Published("Culegere Analiza matematica, exercitii rezolvate", Category.Textbook, 30m, CreatedAt.AddHours(1));
+        var expired = ExpiryListings.Expired(
+            SellerId, "Manual Analiza matematica, editia 1", Category.Textbook, CreatedAt.AddHours(2));
+        await SeedAsync(target, active, expired);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/listings/{target.Id}/similar");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var body = await response.Content.ReadFromJsonAsync<GetSimilarListingsResponse>(Json);
+        body!.Items.Select(i => i.Id).Should().Contain(active.Id).And.NotContain(expired.Id);
+
+        await AssertListingCountAsync(3);
+    }
 }

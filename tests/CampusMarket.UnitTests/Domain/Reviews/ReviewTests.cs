@@ -17,7 +17,7 @@ public class ReviewTests
     private static Listing BuildActiveListing()
     {
         var listing = BuildDraftListing();
-        listing.Publish();
+        listing.Publish(Now.AddDays(30));
         return listing;
     }
 

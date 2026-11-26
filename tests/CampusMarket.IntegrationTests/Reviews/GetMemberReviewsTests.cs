@@ -208,7 +208,7 @@ public sealed class GetMemberReviewsTests : IntegrationTestBase
     private static Listing SoldListing(Member seller, Member buyer, string title)
     {
         var listing = Listing.Create(seller.Id, title, Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var reservation = listing.Reserve(buyer.Id, CreatedAt).Value;
         listing.ConfirmSale(reservation.Id, CreatedAt);
         return listing;

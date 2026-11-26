@@ -35,6 +35,7 @@ const MESSAGES: Record<string, string> = {
   'Listings.InvalidSort': 'Ordinea aleasă nu e validă.',
   'Member.NotFound': 'Membrul nu există.',
   'Listing.CategoryInactive': 'Categoria anunțului nu mai este activă.',
+  'Listing.NotExpired': 'Doar un anunț expirat poate fi reînnoit.',
 }
 
 export function errorMessage(error: unknown): string {

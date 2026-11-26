@@ -23,7 +23,7 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(member, listing);
         AuthenticateAs(member.Id);
 
@@ -50,7 +50,7 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var favorite = Favorite.Create(member.Id, listing, CreatedAt.AddHours(1)).Value;
         await SeedAsync(member, listing, favorite);
         AuthenticateAs(member.Id);
@@ -98,7 +98,7 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         listing.Hide();
         await SeedAsync(member, listing);
         AuthenticateAs(member.Id);
@@ -123,7 +123,7 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         // Arrange
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(seller, listing);
         AuthenticateAs(seller.Id);
 
@@ -147,7 +147,7 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(member, listing);
         AuthenticateAs(member.Id);
         var unknownId = Guid.NewGuid();
@@ -171,7 +171,7 @@ public sealed class AddFavoriteTests : IntegrationTestBase
     {
         // Arrange
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(listing);
         AuthenticateAs(OtherStudentId);
 
@@ -195,7 +195,7 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         // Arrange
         var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
         var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         await SeedAsync(member, listing);
 
         // Act
@@ -210,6 +210,29 @@ public sealed class AddFavoriteTests : IntegrationTestBase
         problem.Code.Should().Be("Auth.Unauthorized");
         problem.Instance.Should().Be($"/api/v1/members/me/favorites/{listing.Id}");
         problem.TraceId.Should().NotBeEmpty();
+
+        var count = await QueryDbAsync(db => db.Set<Favorite>().CountAsync());
+        count.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ExpiredListing_When_AddingFavorite_Then_Returns400AndSavesNothing()
+    {
+        // Arrange
+        var member = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = ExpiryListings.Expired(SellerId, "Manual POO");
+        await SeedAsync(member, listing);
+        AuthenticateAs(member.Id);
+
+        // Act
+        var response = await Client.PostAsync($"/api/v1/members/me/favorites/{listing.Id}", null);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Favorite.ListingNotAvailable");
+        error.Type.Should().Be(ErrorType.Validation);
 
         var count = await QueryDbAsync(db => db.Set<Favorite>().CountAsync());
         count.Should().Be(0);

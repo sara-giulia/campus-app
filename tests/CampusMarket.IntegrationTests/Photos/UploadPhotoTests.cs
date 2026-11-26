@@ -212,7 +212,7 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         // Arrange
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        listing.Publish();
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var existing = Enumerable.Range(0, 5)
             .Select(i => (object)Photo.Create(seller.Id, listing, i, PngImage, CreatedAt.AddMinutes(i)).Value)
             .ToArray();
@@ -330,7 +330,7 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         if (published)
-            listing.Publish();
+            listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
 
         await SeedAsync(seller, listing);
         return (seller, listing);
