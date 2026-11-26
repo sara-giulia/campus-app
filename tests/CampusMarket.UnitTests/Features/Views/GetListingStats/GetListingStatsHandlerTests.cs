@@ -136,6 +136,20 @@ public class GetListingStatsHandlerTests
     }
 
     [Fact]
+    public async Task Given_EveryKindOfEventOnSeveralDays_When_Getting_Then_TotalsAreTheSumOfAllDays()
+    {
+        _views.ViewDays.AddRange([new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 8)]);
+        _views.FavoriteTimes.AddRange([At(3, 10, 8), At(3, 10, 11), At(3, 8)]);
+        _views.MessageTimes.AddRange([At(3, 9, 8), At(3, 9, 20), At(3, 5)]);
+        _views.OfferTimes.AddRange([At(3, 9), At(3, 7, 8), At(3, 7, 15)]);
+
+        var result = await Get(SellerId, false, 7);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Totals.Should().Be(new ListingStatsCounts(3, 3, 3, 3));
+    }
+
+    [Fact]
     public async Task Given_EventAtAnOffsetThatIsAlreadyTheNextUtcDay_When_Getting_Then_CountsOnTheUtcDay()
     {
         // 23:30 at -02:00 on 8 March is 01:30 UTC on 9 March.

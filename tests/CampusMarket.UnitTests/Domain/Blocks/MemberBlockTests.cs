@@ -28,6 +28,7 @@ public class MemberBlockTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Block.Self");
+        result.Error.Message.Should().Be("You cannot block yourself.");
         result.Error.Type.Should().Be(ErrorType.Validation);
     }
 

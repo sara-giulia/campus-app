@@ -12,6 +12,7 @@ public sealed class ListingView
     public Guid Id { get; private set; }
     public Guid ListingId { get; private set; }
     // "m:<member id>" for a logged-in member, "v:<visitor id>" for a visitor.
+    // Stryker disable once String : Create always sets ViewerKey and EF Core overwrites it, so the default value is never observable
     public string ViewerKey { get; private set; } = string.Empty;
     // The UTC day of the view.
     public DateOnly Day { get; private set; }

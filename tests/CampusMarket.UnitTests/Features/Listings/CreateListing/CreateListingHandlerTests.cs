@@ -209,6 +209,7 @@ public class CreateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.CategoryRequired");
+        result.Error.Message.Should().Be("Category is required.");
         repository.Items.Should().BeEmpty();
         repository.AddCount.Should().Be(0);
         repository.UpdateCount.Should().Be(0);
@@ -228,6 +229,7 @@ public class CreateListingHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.ConditionRequired");
+        result.Error.Message.Should().Be("Condition is required.");
         repository.Items.Should().BeEmpty();
         repository.AddCount.Should().Be(0);
         repository.UpdateCount.Should().Be(0);

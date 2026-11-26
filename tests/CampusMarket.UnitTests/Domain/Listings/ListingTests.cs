@@ -843,6 +843,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.CategoryRequired");
+        result.Error.Message.Should().Be("Category is required.");
     }
 
     [Fact]
@@ -853,6 +854,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.ConditionRequired");
+        result.Error.Message.Should().Be("Condition is required.");
     }
 
     [Fact]
@@ -863,6 +865,7 @@ public class ListingTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Validation);
         result.Error.Code.Should().Be("Listing.CategoryRequired");
+        result.Error.Message.Should().Be("Category is required.");
     }
 
     private static readonly Guid VisibilitySellerId = new("11111111-1111-1111-1111-111111111111");

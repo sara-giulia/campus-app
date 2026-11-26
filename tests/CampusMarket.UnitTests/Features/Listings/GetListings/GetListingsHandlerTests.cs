@@ -681,6 +681,24 @@ public class GetListingsHandlerTests
     }
 
     [Fact]
+    public async Task Given_ListingsWithSameCreatedAt_When_SortingByNewest_Then_OrdersByIdAscending()
+    {
+        var first = Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 10m, Now).Value;
+        var second = Listing.Create(Guid.NewGuid(), "Book B", Category.Textbook, Condition.Good, 20m, Now).Value;
+        var third = Listing.Create(Guid.NewGuid(), "Book C", Category.Textbook, Condition.Good, 30m, Now).Value;
+        var repository = RepositoryWithActiveListings(first, second, third);
+        var expected = new[] { first.Id, second.Id, third.Id }.OrderBy(id => id).ToList();
+        var handler = new GetListingsHandler(repository, new FakeSemanticSearch(), new FakeMemberBlockRepository());
+        var query = new GetListingsQuery(Sort: "newest");
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Select(i => i.Id).Should().Equal(expected);
+        repository.Items.Should().HaveCount(3);
+    }
+
+    [Fact]
     public async Task Given_UnknownSort_When_Handling_Then_ReturnsValidationErrorAndLeavesRepositoryUnchanged()
     {
         var listing = Listing.Create(Guid.NewGuid(), "Book A", Category.Textbook, Condition.Good, 20m, Now).Value;

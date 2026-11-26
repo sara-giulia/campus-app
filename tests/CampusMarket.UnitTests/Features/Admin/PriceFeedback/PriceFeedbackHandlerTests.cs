@@ -230,6 +230,21 @@ public class PriceFeedbackHandlerTests
     }
 
     [Fact]
+    public async Task Given_SoldPriceWithTwoDecimalDigits_When_Handling_Then_WritesItWithoutTrailingZero()
+    {
+        var records = new FakeSaleRecordRepository();
+        var listings = new FakeListingRepository();
+        var listing = SeedListing(listings, "Calculator", null);
+        SeedRecord(records, listing.Id, 99.50m, Now);
+        var handler = new PriceFeedbackHandler(records, listings);
+
+        var result = await handler.HandleAsync(new PriceFeedbackQuery(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        Lines(result.Value.Csv)[1].Should().Be("\"Calculator\",\"\",Electronics,Good,99.5,false,\"feedback\"");
+    }
+
+    [Fact]
     public async Task Given_Sales_When_Handling_Then_RepositoriesAreUnchanged()
     {
         var records = new FakeSaleRecordRepository();

@@ -56,6 +56,7 @@ public class BlockMemberHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Block.Self");
+        result.Error.Message.Should().Be("You cannot block yourself.");
         result.Error.Type.Should().Be(ErrorType.Validation);
         _blocks.Items.Should().BeEmpty();
         _unitOfWork.SaveCount.Should().Be(0);
@@ -68,6 +69,7 @@ public class BlockMemberHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Member.NotFound");
+        result.Error.Message.Should().Match("Member '*' was not found.");
         result.Error.Type.Should().Be(ErrorType.NotFound);
         _blocks.Items.Should().BeEmpty();
         _unitOfWork.SaveCount.Should().Be(0);
