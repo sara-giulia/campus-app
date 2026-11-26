@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Features.Listings;
@@ -17,11 +19,12 @@ public static class HideListingEndpoint
 
     private static async Task<Results<NoContent, NotFound<Error>, BadRequest<Error>>> Handle(
         Guid listingId,
+        ClaimsPrincipal user,
         ICommandHandler<HideListingCommand, Guid> handler,
         IOutputCacheStore cache,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new HideListingCommand(listingId), ct);
+        var result = await handler.HandleAsync(new HideListingCommand(listingId, user.GetMemberId()), ct);
 
         if (result.IsFailure)
             return result.Error.Type == ErrorType.NotFound

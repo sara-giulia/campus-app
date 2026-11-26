@@ -1,5 +1,6 @@
 using CampusMarket.Api.Features.Admin.PriceAccuracy;
 using CampusMarket.Api.Features.Admin.PriceFeedback;
+using CampusMarket.Api.Features.Admin.TrainingExamples;
 
 namespace CampusMarket.Api.Features.Admin;
 
@@ -11,6 +12,7 @@ public static class AdminEndpoints
         var ml = app.MapGroup("/admin/ml");
         PriceAccuracyEndpoint.Map(ml);
         PriceFeedbackEndpoint.Map(ml);
+        TrainingExamplesEndpoint.Map(ml);
 
         return app;
     }

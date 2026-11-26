@@ -17,6 +17,15 @@ public sealed class ReportConfiguration : IEntityTypeConfiguration<Report>
 
         builder.Property(r => r.Reason).IsRequired().HasMaxLength(Report.MaxReasonLength);
 
+        // Stored as text, like the other enums. The existing rows get Pending (the column default).
+        builder.Property(r => r.Resolution)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(ReportResolution.Pending);
+
+        // The moderation queue reads the pending reports of a listing.
+        builder.HasIndex(r => new { r.ListingId, r.Resolution });
+
         // A member reports a listing at most once. Automatic reports have no reporter (NULL),
         // and NULLs never clash in a unique index.
         builder.HasIndex(r => new { r.ListingId, r.ReporterId }).IsUnique();

@@ -17,7 +17,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261126135244_AddMessageSpamCheck";
+    public override string LastMigrationId => "20261126150921_AddTrainingExamples";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -545,6 +545,16 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.Property<Guid?>("ReporterId")
                     .HasColumnType("uuid");
 
+                b.Property<string>("Resolution")
+                    .IsRequired()
+                    .ValueGeneratedOnAdd()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasDefaultValue("Pending");
+
+                b.Property<DateTimeOffset?>("ResolvedAt")
+                    .HasColumnType("timestamp with time zone");
+
                 b.Property<double?>("SpamProbability")
                     .HasColumnType("double precision");
 
@@ -554,6 +564,8 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
 
                 b.HasIndex("ListingId", "ReporterId")
                     .IsUnique();
+
+                b.HasIndex("ListingId", "Resolution");
 
                 b.ToTable("Reports");
             });
@@ -592,6 +604,57 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("SellerId");
 
                 b.ToTable("Reviews");
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.TrainingExamples.TrainingExample", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid>("CreatedBy")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("Description")
+                    .HasMaxLength(1000)
+                    .HasColumnType("character varying(1000)");
+
+                b.Property<string>("Kind")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)");
+
+                b.Property<string>("Label")
+                    .IsRequired()
+                    .HasMaxLength(32)
+                    .HasColumnType("character varying(32)");
+
+                b.Property<Guid>("ListingId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("Source")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)");
+
+                b.Property<string>("Title")
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasColumnType("character varying(100)");
+
+                b.Property<DateTimeOffset?>("UpdatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.HasKey("Id");
+
+                b.HasIndex("CreatedAt");
+
+                b.HasIndex("ListingId", "Kind")
+                    .IsUnique();
+
+                b.ToTable("TrainingExamples");
             });
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Views.ListingView", b =>

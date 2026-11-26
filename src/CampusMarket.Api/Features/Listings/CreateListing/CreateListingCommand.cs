@@ -9,4 +9,5 @@ public sealed record CreateListingCommand(
     Category? Category,
     Condition? Condition,
     decimal Price,
-    string? Description = null) : ICommand<CreateListingResponse>;
+    string? Description = null,
+    string? SuggestedCategory = null) : ICommand<CreateListingResponse>;

@@ -31,4 +31,10 @@ public sealed class FakeReportRepository : IReportRepository
         IReadOnlyList<Report> snapshot = Items.ToList();
         return Task.FromResult(snapshot);
     }
+
+    public Task<IReadOnlyList<Report>> GetPendingByListingAsync(Guid listingId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Report> pending = Items.Where(r => r.ListingId == listingId && r.IsPending).ToList();
+        return Task.FromResult(pending);
+    }
 }

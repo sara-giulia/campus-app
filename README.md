@@ -101,6 +101,34 @@ before Render is wired up and remains idempotent afterwards.
 - **No persistent disk on the free tier.** The data is in PostgreSQL, a separate server, so it survives a redeploy or a cold start of the web service (it lasts as long as the PostgreSQL instance does; check the retention limit of the plan you use). The container's own filesystem is reset on every redeploy and every cold start, so the uploaded photos (`/app/data/photos`) are wiped whenever a new image is pulled or the instance is rebuilt; attach a disk (paid tier) if they have to survive. `Seed__DemoData=true` only adds the demo data when the database is empty.
 - **One instance, no scaling.** Fine for a student demo, not for traffic.
 
+### Database backup
+
+The `.github/workflows/db-backup.yml` workflow backs up the Neon database every night at 01:00 UTC (03:00 in Bucharest in winter, 04:00 in summer) and on demand (**Actions → Database backup → Run workflow**). It runs `pg_dump` 17 (the same major version as our PostgreSQL 17) in custom format (`-Fc`, compressed), checks that `pg_restore --list` can read the dump, encrypts it with `gpg --symmetric` (AES256), deletes the unencrypted dump and uploads only the encrypted `.dump.gpg` file as an artifact. **The dumps are encrypted because the repository is public:** anyone signed in to GitHub can download its artifacts, so a plain dump would give them the whole database. Before the upload the job checks that the file is really encrypted (it is not a valid `pg_dump` file and gpg sees an AES256 passphrase packet). The connection string comes from the `NEON_DATABASE_URL` repository secret (the `postgresql://...` URL from the Neon console) and the passphrase from the `BACKUP_PASSPHRASE` secret; neither is ever printed, and the job fails with a clear error when one of them is missing.
+
+- **The passphrase:** the team keeps `BACKUP_PASSPHRASE` safely outside GitHub (in a shared password manager); GitHub does not show a secret again after it is saved. **Without the passphrase the backups cannot be restored**, so never change the secret without saving the new passphrase first (older backups still need the old one).
+- **Where:** **Actions → Database backup → a run → Artifacts**, one artifact `db-backup-<YYYY-MM-DD>-run<N>` per run, containing `campusmarket-<YYYY-MM-DD>.dump.gpg`. Download it and unzip it.
+- **How long:** 14 days (`retention-days: 14`), so the last 14 nightly backups are always there; older ones are deleted by GitHub.
+- **Decrypt first:** type the passphrase only into your shell, never into a file: `read -rs BACKUP_PASSPHRASE` in Git Bash (it is not echoed and `read` keeps it out of the shell history), paste it, then `export BACKUP_PASSPHRASE`. `gpg -d` below decrypts straight into `pg_restore`, so the plain dump is never written to disk either. Run `unset BACKUP_PASSPHRASE` when you are done.
+- **Restore into a local database** (the docker-compose `db`, which already has `pg_restore` 17 and pgvector), into a new empty database so nothing is overwritten:
+
+  ```
+  docker compose up -d db
+  docker compose exec db createdb -U campusmarket -T template0 campusmarket_restore
+  printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --pinentry-mode loopback --no-symkey-cache --passphrase-fd 0 -d campusmarket-2026-11-26.dump.gpg \
+    | docker compose exec -T db pg_restore -U campusmarket --no-owner --no-acl --exit-on-error -d campusmarket_restore
+  ```
+
+  To use it, point `ConnectionStrings__CampusMarket` at `Database=campusmarket_restore`.
+- **Restore into Neon:** first create an empty target (a new branch or a new database in the Neon console), copy its `postgresql://...` URL, and (like the passphrase) type it only into your shell, never into a file (`read -rs NEON_DATABASE_URL` in Git Bash, then paste it; `export NEON_DATABASE_URL`). Then, with `pg_restore` 17 from Docker:
+
+  ```
+  printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --pinentry-mode loopback --no-symkey-cache --passphrase-fd 0 -d campusmarket-2026-11-26.dump.gpg \
+    | docker run --rm -i -e NEON_DATABASE_URL postgres:17 sh -c 'pg_restore --dbname="$NEON_DATABASE_URL" --no-owner --no-acl --exit-on-error'
+  ```
+
+  To overwrite an existing database instead, add `--clean --if-exists` (it drops the objects first). Check the data, then change `ConnectionStrings__CampusMarket` in Render to the new branch/database.
+- **Second safety net:** Neon also has its own point-in-time restore (the branch's **Restore** option in the console, or a new branch created from an earlier moment): it brings the database back to any moment inside the plan's history window (a few hours to days on the free plan), without a dump. Use it for "undo the last hour"; use the nightly dumps when the problem is older than that window or the Neon project itself is lost.
+
 ---
 
 ## Table of contents
@@ -263,6 +291,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
+| Moderation | `DismissReports` | `POST /api/v1/moderation/listings/{id}/dismiss-reports` | Admins only | 204, 400 `Report.NoPendingReports`, 401, 403, 404 |
 | Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
 | Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, `Message.Spam`, 401, 404 |
@@ -302,6 +331,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Admin | `GetPriceFeedback` | `GET /api/v1/admin/ml/price-feedback` | Admins only | 200 `text/csv` file `feedback.csv` (header `Title,Description,Category,Condition,Price,IsSpam,TemplateId`, one row per `SaleRecord` whose listing still exists; header only when there are none), 401, 403 |
+| Admin | `GetTrainingExamples` | `GET /api/v1/admin/ml/training-examples` | Admins only | 200 `{ count, perLabel: [{ kind, label, count }], latest }` (the 20 newest examples; `count` 0 and empty lists when there are none), 401, 403 |
 | Admin | `GetAdminMetrics` | `GET /api/v1/admin/metrics` | Admins only | 200 `{ endpoints: [{ route, requests, errors, averageMs, p95Ms, statusCodes }], mlPredictions: [{ model, count, averageMs }] }`, 401, 403 |
 | Category | `GetCategories` | `GET /api/v1/categories` | everyone | 200 `{ items: [{ key, displayName, description, isActive }], count }` (all 5 base categories, active or not) |
 | Category | `UpdateCategory` | `PUT /api/v1/categories/{category}` (`{ displayName, description, isActive }`) | Admins only | 204, 400 `Category.IsActiveRequired` / `Category.DisplayNameEmpty` / `Category.DisplayNameTooLong` / `Category.DescriptionTooLong`, 401, 403, 404 `Category.NotFound`, 409 `Category.LastActive` |
@@ -311,6 +341,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 5 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`, `message-spam.zip`) are present, 503 `Unhealthy` otherwise |
+
+`POST /api/v1/listings` and `PUT /api/v1/listings/{id}` also take an optional `suggestedCategory` (text): the category that `POST /api/v1/listings/category-suggestion` showed to the seller, not the one they chose. The frontend sends it only when a suggestion was shown. A missing or unknown value never fails the request; it only feeds the [training labels](#training-labels).
 
 GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/members/me/blocked`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
 
@@ -456,6 +488,7 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Report.ListingNotAvailable` | 400 | the listing is a draft, sold or hidden |
 | `Report.ReasonEmpty`, `Report.ReasonTooLong` | 400 | the reason is empty or longer than 500 characters |
 | `Report.AlreadyExists` | 409 | you have already reported this listing |
+| `Report.NoPendingReports` | 400 | an Admin dismisses the reports of a listing that has no pending report |
 | `Listing.AlreadyHidden` | 400 | an Admin hides a listing that is already hidden |
 | `Listing.CannotHide` | 400 | an Admin hides a draft or a sold listing |
 | `Moderation.InvalidPage`, `Moderation.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/moderation/listings` |
@@ -614,8 +647,13 @@ Members report listings, the spam model reports suspicious ones on its own, and 
 ```
 
 - `POST /api/v1/moderation/listings/{id}/hide` (Admins only): 204. The listing becomes `Hidden`: it leaves the search, the moderation list and the favorites lists, and it cannot be reserved, reported or saved. A reserved listing loses its active reservation. Only `Active` and `Reserved` listings can be hidden.
+- `POST /api/v1/moderation/listings/{id}/dismiss-reports` (Admins only): 204. The pending reports of the listing are dismissed and it leaves the moderation list; the listing itself does not change. 400 `Report.NoPendingReports` when it has none, 404 for an unknown listing.
 
 Reports are stored in their own table (`Reports`, migration `InitialPostgres`), with a unique index on listing + reporter and foreign keys to `Listings` and `Members` (cascade delete).
+
+### Training labels
+
+The decisions of the sellers and the Admins are kept as labelled examples (`TrainingExamples` table, migration `AddTrainingExamples`), so the category and spam models can later be retrained on real data. Hiding a listing that has pending reports records a **spam** example; dismissing its reports records a **not spam** example (one spam example per listing, a later decision relabels it). When the seller saves a listing with a `suggestedCategory` different from the category they chose, a **category** example is recorded with the chosen category (one per listing, a later edit relabels it; an edit by an Admin does not count). An example keeps only the listing id, its title and description, the label, the source and the member id of who decided: no names, emails or other personal data. `GET /api/v1/admin/ml/training-examples` (Admins only) shows the counts per label and the latest examples.
 
 ### Seller reviews
 

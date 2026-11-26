@@ -2,13 +2,16 @@ using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Categories;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.TrainingExamples;
 
 namespace CampusMarket.Api.Features.Listings.UpdateListing;
 
 public sealed class UpdateListingHandler(
     IListingRepository repository,
     IUnitOfWork unitOfWork,
-    ICategoryRepository categories)
+    ICategoryRepository categories,
+    ITrainingExampleRepository trainingExamples,
+    TimeProvider timeProvider)
     : ICommandHandler<UpdateListingCommand, Guid>
 {
     public async Task<Result<Guid>> HandleAsync(
@@ -45,9 +48,32 @@ public sealed class UpdateListingHandler(
         if (updated.IsFailure)
             return Result<Guid>.Failure(updated.Error);
 
+        await RecordCategoryChoiceAsync(listing, command, ct);
+
         repository.Update(listing);
         await unitOfWork.CommitAsync(ct);
 
         return listing.Id;
+    }
+
+    // Only the seller's own choice counts (an Admin editing the listing is not a seller choice).
+    // One example per listing: a later edit relabels it. A missing or unknown suggestion, or the
+    // suggested category itself, records nothing and never fails the request.
+    private async Task RecordCategoryChoiceAsync(Listing listing, UpdateListingCommand command, CancellationToken ct)
+    {
+        if (command.RequesterId != listing.SellerId)
+            return;
+
+        var now = timeProvider.GetUtcNow();
+        var existing = await trainingExamples.GetAsync(listing.Id, TrainingExampleKind.Category, ct);
+        if (existing is not null)
+        {
+            existing.RelabelCategory(listing, command.SuggestedCategory, command.RequesterId, now);
+            return;
+        }
+
+        var created = TrainingExample.ForCategoryChoice(listing, command.SuggestedCategory, command.RequesterId, now);
+        if (created.IsSuccess)
+            trainingExamples.Add(created.Value);
     }
 }

@@ -20,6 +20,7 @@ export const ro = {
   'error.Report.ListingNotAvailable': 'Anunțul nu mai poate fi raportat.',
   'error.Report.ReasonEmpty': 'Scrie motivul raportării.',
   'error.Report.ReasonTooLong': 'Motivul e prea lung.',
+  'error.Report.NoPendingReports': 'Anunțul nu are rapoarte în așteptare.',
   'error.Reservation.LimitReached': 'Ai atins numărul maxim de rezervări active.',
   'error.Listing.AlreadyHidden': 'Anunțul e deja ascuns.',
   'error.Listing.CannotHide': 'Doar anunțurile active sau rezervate pot fi ascunse.',
@@ -469,6 +470,8 @@ export const ro = {
   'moderation.spam': 'Spam {percent}',
   'moderation.last': 'ultima: {date}',
   'moderation.hide': 'Ascunde',
+  'moderation.dismiss': 'Respinge rapoartele',
+  'moderation.confirmDismiss': 'Respingi rapoartele pentru anunțul „{title}”? Anunțul rămâne vizibil.',
   // --- notifications ---
   'notifications.type.ReservationCreated': 'Rezervare nouă',
   'notifications.type.ListingSold': 'Anunț vândut',

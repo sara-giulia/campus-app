@@ -239,4 +239,102 @@ public class ReportTests
 
         first.Id.Should().NotBe(second.Id);
     }
+
+    [Fact]
+    public void Given_NewUserReport_When_Created_Then_IsPendingWithoutResolvedAt()
+    {
+        var listing = BuildPublishedListing();
+
+        var report = Report.Create(ReporterId, listing, "Fake photos", Now).Value;
+
+        report.Resolution.Should().Be(ReportResolution.Pending);
+        report.IsPending.Should().BeTrue();
+        report.ResolvedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void Given_NewAutomaticReport_When_Created_Then_IsPendingWithoutResolvedAt()
+    {
+        var report = Report.CreateAutomatic(Guid.NewGuid(), 0.9, Now);
+
+        report.Resolution.Should().Be(ReportResolution.Pending);
+        report.IsPending.Should().BeTrue();
+        report.ResolvedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void Given_PendingReport_When_Confirming_Then_ReportIsConfirmedWithResolvedAt()
+    {
+        var report = Report.Create(ReporterId, BuildPublishedListing(), "Fake photos", Now).Value;
+        var resolvedAt = Now.AddHours(3);
+
+        var result = report.Confirm(resolvedAt);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeSameAs(report);
+        report.Resolution.Should().Be(ReportResolution.Confirmed);
+        report.IsPending.Should().BeFalse();
+        report.ResolvedAt.Should().Be(resolvedAt);
+    }
+
+    [Fact]
+    public void Given_PendingReport_When_Dismissing_Then_ReportIsDismissedWithResolvedAt()
+    {
+        var report = Report.Create(ReporterId, BuildPublishedListing(), "Fake photos", Now).Value;
+        var resolvedAt = Now.AddHours(3);
+
+        var result = report.Dismiss(resolvedAt);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeSameAs(report);
+        report.Resolution.Should().Be(ReportResolution.Dismissed);
+        report.IsPending.Should().BeFalse();
+        report.ResolvedAt.Should().Be(resolvedAt);
+    }
+
+    [Fact]
+    public void Given_ConfirmedReport_When_DismissingIt_Then_ReturnsAlreadyResolvedAndKeepsConfirmation()
+    {
+        var report = Report.Create(ReporterId, BuildPublishedListing(), "Fake photos", Now).Value;
+        report.Confirm(Now.AddHours(1));
+
+        var result = report.Dismiss(Now.AddHours(2));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Report.AlreadyResolved");
+        result.Error.Message.Should().Be("The report has already been resolved.");
+        report.Resolution.Should().Be(ReportResolution.Confirmed);
+        report.ResolvedAt.Should().Be(Now.AddHours(1));
+    }
+
+    [Fact]
+    public void Given_DismissedReport_When_ConfirmingIt_Then_ReturnsAlreadyResolvedAndKeepsDismissal()
+    {
+        var report = Report.Create(ReporterId, BuildPublishedListing(), "Fake photos", Now).Value;
+        report.Dismiss(Now.AddHours(1));
+
+        var result = report.Confirm(Now.AddHours(2));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Report.AlreadyResolved");
+        result.Error.Message.Should().Be("The report has already been resolved.");
+        report.Resolution.Should().Be(ReportResolution.Dismissed);
+        report.ResolvedAt.Should().Be(Now.AddHours(1));
+    }
+
+    [Fact]
+    public void Given_ConfirmedReport_When_ConfirmingAgain_Then_ReturnsAlreadyResolvedAndKeepsFirstTime()
+    {
+        var report = Report.CreateAutomatic(Guid.NewGuid(), 0.9, Now);
+        report.Confirm(Now.AddHours(1));
+
+        var result = report.Confirm(Now.AddHours(2));
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Report.AlreadyResolved");
+        result.Error.Message.Should().Be("The report has already been resolved.");
+        report.ResolvedAt.Should().Be(Now.AddHours(1));
+    }
 }

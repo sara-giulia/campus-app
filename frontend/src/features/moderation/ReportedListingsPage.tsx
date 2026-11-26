@@ -39,6 +39,7 @@ export function ReportedListingsPage() {
   const [data, setData] = useState<GetReportedListingsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hiding, setHiding] = useState<string | null>(null)
+  const [dismissing, setDismissing] = useState<string | null>(null)
 
   // Bumped after a change, to load the page again.
   const [version, setVersion] = useState(0)
@@ -69,6 +70,24 @@ export function ReportedListingsPage() {
     } finally {
       setHiding(null)
     }
+  }
+
+  // Returns nothing: errors are handled inside, so the button can just call it.
+  function dismissReports(item: ReportedListingItem) {
+    if (!window.confirm(t('moderation.confirmDismiss', { title: item.title }))) return
+    setDismissing(item.listingId)
+    api
+      .post(`/moderation/listings/${item.listingId}/dismiss-reports`)
+      .then(() => {
+        if (data && data.items.length === 1 && page > 1) setPage(page - 1)
+        else setVersion((v) => v + 1)
+      })
+      .catch((err: unknown) => {
+        setError(errorMessage(err))
+      })
+      .finally(() => {
+        setDismissing(null)
+      })
   }
 
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / PAGE_SIZE)) : 1
@@ -108,6 +127,9 @@ export function ReportedListingsPage() {
                   </ul>
                 </div>
                 <div className="listing-row__actions">
+                  <Button variant="secondary" size="sm" onClick={() => dismissReports(item)} loading={dismissing === item.listingId}>
+                    {t('moderation.dismiss')}
+                  </Button>
                   <Button variant="danger" size="sm" onClick={() => hide(item)} loading={hiding === item.listingId}>
                     {t('moderation.hide')}
                   </Button>

@@ -26,7 +26,8 @@ public static class UpdateListingEndpoint
     {
         var command = new UpdateListingCommand(
             id, user.GetMemberId(), user.IsAdmin(),
-            request.Title, request.Category, request.Condition, request.Price, request.Description);
+            request.Title, request.Category, request.Condition, request.Price, request.Description,
+            request.SuggestedCategory);
 
         var result = await handler.HandleAsync(command, ct);
 

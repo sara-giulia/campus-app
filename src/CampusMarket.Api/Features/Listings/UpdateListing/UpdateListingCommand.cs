@@ -11,4 +11,5 @@ public sealed record UpdateListingCommand(
     Category? Category,
     Condition? Condition,
     decimal Price,
-    string? Description = null) : ICommand<Guid>;
+    string? Description = null,
+    string? SuggestedCategory = null) : ICommand<Guid>;
