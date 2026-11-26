@@ -103,23 +103,27 @@ before Render is wired up and remains idempotent afterwards.
 
 ### Database backup
 
-The `.github/workflows/db-backup.yml` workflow backs up the Neon database every night at 01:00 UTC (03:00 in Bucharest in winter, 04:00 in summer) and on demand (**Actions → Database backup → Run workflow**). It runs `pg_dump` 17 (the same major version as our PostgreSQL 17) in custom format (`-Fc`, compressed), checks that `pg_restore --list` can read the dump, and uploads it as an artifact. The connection string comes from the `NEON_DATABASE_URL` repository secret (the `postgresql://...` URL from the Neon console); it is never printed, and the job fails with a clear error when the secret is missing.
+The `.github/workflows/db-backup.yml` workflow backs up the Neon database every night at 01:00 UTC (03:00 in Bucharest in winter, 04:00 in summer) and on demand (**Actions → Database backup → Run workflow**). It runs `pg_dump` 17 (the same major version as our PostgreSQL 17) in custom format (`-Fc`, compressed), checks that `pg_restore --list` can read the dump, encrypts it with `gpg --symmetric` (AES256), deletes the unencrypted dump and uploads only the encrypted `.dump.gpg` file as an artifact. **The dumps are encrypted because the repository is public:** anyone signed in to GitHub can download its artifacts, so a plain dump would give them the whole database. Before the upload the job checks that the file is really encrypted (it is not a valid `pg_dump` file and gpg sees an AES256 passphrase packet). The connection string comes from the `NEON_DATABASE_URL` repository secret (the `postgresql://...` URL from the Neon console) and the passphrase from the `BACKUP_PASSPHRASE` secret; neither is ever printed, and the job fails with a clear error when one of them is missing.
 
-- **Where:** **Actions → Database backup → a run → Artifacts**, one artifact `db-backup-<YYYY-MM-DD>-run<N>` per run, containing `campusmarket-<YYYY-MM-DD>.dump`. Download it and unzip it.
+- **The passphrase:** the team keeps `BACKUP_PASSPHRASE` safely outside GitHub (in a shared password manager); GitHub does not show a secret again after it is saved. **Without the passphrase the backups cannot be restored**, so never change the secret without saving the new passphrase first (older backups still need the old one).
+- **Where:** **Actions → Database backup → a run → Artifacts**, one artifact `db-backup-<YYYY-MM-DD>-run<N>` per run, containing `campusmarket-<YYYY-MM-DD>.dump.gpg`. Download it and unzip it.
 - **How long:** 14 days (`retention-days: 14`), so the last 14 nightly backups are always there; older ones are deleted by GitHub.
+- **Decrypt first:** type the passphrase only into your shell, never into a file: `read -rs BACKUP_PASSPHRASE` in Git Bash (it is not echoed and `read` keeps it out of the shell history), paste it, then `export BACKUP_PASSPHRASE`. `gpg -d` below decrypts straight into `pg_restore`, so the plain dump is never written to disk either. Run `unset BACKUP_PASSPHRASE` when you are done.
 - **Restore into a local database** (the docker-compose `db`, which already has `pg_restore` 17 and pgvector), into a new empty database so nothing is overwritten:
 
   ```
   docker compose up -d db
   docker compose exec db createdb -U campusmarket -T template0 campusmarket_restore
-  docker compose exec -T db pg_restore -U campusmarket --no-owner --no-acl --exit-on-error -d campusmarket_restore < campusmarket-2026-11-26.dump
+  printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --pinentry-mode loopback --no-symkey-cache --passphrase-fd 0 -d campusmarket-2026-11-26.dump.gpg \
+    | docker compose exec -T db pg_restore -U campusmarket --no-owner --no-acl --exit-on-error -d campusmarket_restore
   ```
 
   To use it, point `ConnectionStrings__CampusMarket` at `Database=campusmarket_restore`.
-- **Restore into Neon:** first create an empty target (a new branch or a new database in the Neon console), copy its `postgresql://...` URL, and type it only into your shell, never into a file (`read -rs NEON_DATABASE_URL` in Git Bash, then paste it; `export NEON_DATABASE_URL`). Then, with `pg_restore` 17 from Docker:
+- **Restore into Neon:** first create an empty target (a new branch or a new database in the Neon console), copy its `postgresql://...` URL, and (like the passphrase) type it only into your shell, never into a file (`read -rs NEON_DATABASE_URL` in Git Bash, then paste it; `export NEON_DATABASE_URL`). Then, with `pg_restore` 17 from Docker:
 
   ```
-  docker run --rm -i -e NEON_DATABASE_URL postgres:17 sh -c 'pg_restore --dbname="$NEON_DATABASE_URL" --no-owner --no-acl --exit-on-error' < campusmarket-2026-11-26.dump
+  printf '%s' "$BACKUP_PASSPHRASE" | gpg --batch --pinentry-mode loopback --no-symkey-cache --passphrase-fd 0 -d campusmarket-2026-11-26.dump.gpg \
+    | docker run --rm -i -e NEON_DATABASE_URL postgres:17 sh -c 'pg_restore --dbname="$NEON_DATABASE_URL" --no-owner --no-acl --exit-on-error'
   ```
 
   To overwrite an existing database instead, add `--clean --if-exists` (it drops the objects first). Check the data, then change `ConnectionStrings__CampusMarket` in Render to the new branch/database.
