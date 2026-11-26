@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<NotificationItem['type'], string> = {
   ListingSold: 'Anunț vândut',
   ReservationExpired: 'Rezervare expirată',
   ListingExpired: 'Anunț expirat',
+  ReviewReceived: 'Recenzie nouă',
 }
 
 // The newest-first notifications of the logged-in member, with mark-one-as-read,

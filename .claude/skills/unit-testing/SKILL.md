@@ -1199,3 +1199,20 @@ Rules for this feature:
 - Use fixed ids (`SellerId`, `OtherMemberId`, `AdminId`) and a fixed `DateTimeOffset`; never real time.
 - Every failure test asserts `ErrorType`, the exact `Error.Code` and `Error.Message`, and that the repositories and the unit of work were not changed.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
+## Feature: Review notification and reviewed flag (Diana)
+
+Production code (read it before generating): `Features/Reviews/AddReview/AddReviewHandler.cs` (new `INotificationRepository` parameter), `Domain/Notifications/NotificationType.cs` (new `ReviewReceived`), `Domain/Reviews/IReviewRepository.cs` (new `GetReviewedListingIdsAsync(reviewerId)`), `Features/Members/GetMyReservations/` (new `IReviewRepository` parameter, new last field `Reviewed` in `MyReservationItem`).
+
+Fakes: `FakeReviewRepository` already has `GetReviewedListingIdsAsync` (the listing ids of the reviews of that reviewer); `FakeNotificationRepository` already exists. Pass both to the handlers.
+
+Tests to add:
+- `AddReviewHandler`, success: exactly one notification added, with `Type` `ReviewReceived`, recipient = the listing's `SellerId` (not the reviewer), `ListingId` = the listing id, `CreatedAt` = the review's `CreatedAt`, unread, and the text `"{reviewer name} rated {listing title} {rating}/5"` built from the seeded member and listing (for example `"Ana rated Calculus book 4/5"`). The review and the notification are saved with one commit.
+- `AddReviewHandler`, every failure (`Listing.NotFound`, `Member.NotFound`, `Review.SaleNotCompleted`, `Review.InvalidRating`, `Review.CommentTooLong`, `Review.NotBuyer`, `Review.AlreadyExists`): no notification added, no review added, no commit.
+- `GetMyReservationsHandler`: a completed (sold) reservation of the member without a review → `Reviewed` false; after seeding `Review.Create(...)` for that listing in the fake → `Reviewed` true; a reservation of the member on a listing that is only reserved, expired or cancelled → `Reviewed` false; a review written by another member for a listing does not set `Reviewed` for this member; a reviewed and a not reviewed reservation of the member in the same response get the right flag each. Other members' reservations are still not returned.
+
+Rules for this feature:
+- Use fixed ids and a fixed `DateTimeOffset`; never real time.
+- Every failure test asserts `ErrorType`, the exact `Error.Code` and `Error.Message`, and that nothing was changed.
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+

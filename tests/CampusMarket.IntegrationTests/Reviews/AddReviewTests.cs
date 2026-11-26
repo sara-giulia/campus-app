@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Domain.Notifications;
 using CampusMarket.Api.Domain.Reviews;
+using CampusMarket.Api.Features.Notifications.GetMyNotifications;
 using CampusMarket.Api.Features.Reviews.AddReview;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
@@ -307,6 +309,220 @@ public sealed class AddReviewTests : IntegrationTestBase
 
         var reviewExists = await QueryDbAsync(db => db.Set<Review>().AnyAsync(r => r.Id == review.Id));
         reviewExists.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Given_BuyerOfSoldListing_When_AddingReview_Then_SellerGetsOneUnreadReviewReceivedNotification()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing(seller, buyer);
+        await SeedAsync(seller, buyer, listing);
+        AuthenticateAs(buyer.Id);
+        var request = new AddReviewRequest(4);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", request, Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await response.Content.ReadFromJsonAsync<AddReviewResponse>(Json);
+
+        var review = await QueryDbAsync(db => db.Set<Review>().AsNoTracking().SingleAsync());
+        review.Id.Should().Be(body!.Id);
+
+        var notifications = await QueryDbAsync(db => db.Set<Notification>().AsNoTracking().ToListAsync());
+        var notification = notifications.Should().ContainSingle().Subject;
+        notification.Type.Should().Be(NotificationType.ReviewReceived);
+        notification.MemberId.Should().Be(seller.Id);
+        notification.ListingId.Should().Be(listing.Id);
+        notification.ReadAt.Should().BeNull();
+        notification.CreatedAt.Should().Be(review.CreatedAt);
+        notification.Message.Should().Be("Ana Popescu rated Manual POO 4/5");
+        notifications.Should().NotContain(n => n.MemberId == buyer.Id);
+
+        // The seller sees it through the API.
+        AuthenticateAs(seller.Id);
+        var listResponse = await Client.GetAsync("/api/v1/members/me/notifications");
+
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var list = await listResponse.Content.ReadFromJsonAsync<GetMyNotificationsResponse>(Json);
+        list!.UnreadCount.Should().Be(1);
+        var item = list.Items.Should().ContainSingle().Subject;
+        item.Id.Should().Be(notification.Id);
+        item.Type.Should().Be(NotificationType.ReviewReceived);
+        item.Message.Should().Be("Ana Popescu rated Manual POO 4/5");
+        item.ListingId.Should().Be(listing.Id);
+        item.ReadAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_BuyerOfSoldListing_When_AddingReview_Then_BuyerHasNoNotifications()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing(seller, buyer);
+        await SeedAsync(seller, buyer, listing);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(5), Json);
+        var buyerList = await Client.GetAsync("/api/v1/members/me/notifications");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        buyerList.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await buyerList.Content.ReadFromJsonAsync<GetMyNotificationsResponse>(Json);
+        body!.Items.Should().BeEmpty();
+        body.UnreadCount.Should().Be(0);
+
+        var forBuyer = await QueryDbAsync(db => db.Set<Notification>().CountAsync(n => n.MemberId == buyer.Id));
+        forBuyer.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ListingReviewedTwice_When_AddingReview_Then_Returns409AndKeepsFirstNotification()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing(seller, buyer);
+        await SeedAsync(seller, buyer, listing);
+        AuthenticateAs(buyer.Id);
+        var first = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(4), Json);
+        first.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(1), Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Review.AlreadyExists");
+        error.Type.Should().Be(ErrorType.Conflict);
+
+        var notification = await QueryDbAsync(db => db.Set<Notification>().AsNoTracking().SingleAsync());
+        notification.Message.Should().Be("Ana Popescu rated Manual POO 4/5");
+        var reviews = await QueryDbAsync(db => db.Set<Review>().CountAsync());
+        reviews.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_RatingZero_When_AddingReview_Then_SavesNoNotification()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing(seller, buyer);
+        await SeedAsync(seller, buyer, listing);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(0), Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Review.InvalidRating");
+        error.Type.Should().Be(ErrorType.Validation);
+        await AssertNoReviewAndNoReviewReceivedAsync();
+    }
+
+    [Fact]
+    public async Task Given_ReservedListing_When_AddingReview_Then_SavesNoNotification()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        listing.Reserve(buyer.Id, CreatedAt);
+        await SeedAsync(seller, buyer, listing);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(5), Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Review.SaleNotCompleted");
+        error.Type.Should().Be(ErrorType.Validation);
+        await AssertNoReviewAndNoReviewReceivedAsync();
+    }
+
+    [Fact]
+    public async Task Given_AnotherMember_When_AddingReview_Then_SavesNoNotification()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var otherMember = Member.Create("Maria Ionescu", "maria@student.ro", CreatedAt).Value;
+        var listing = SoldListing(seller, buyer);
+        await SeedAsync(seller, buyer, otherMember, listing);
+        AuthenticateAs(otherMember.Id);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(1), Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Review.NotBuyer");
+        error.Type.Should().Be(ErrorType.Forbidden);
+        await AssertNoReviewAndNoReviewReceivedAsync();
+    }
+
+    [Fact]
+    public async Task Given_UnknownListing_When_AddingReview_Then_SavesNoNotification()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing(seller, buyer);
+        await SeedAsync(seller, buyer, listing);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{Guid.NewGuid()}/reviews", new AddReviewRequest(5), Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Code.Should().Be("Listing.NotFound");
+        error.Type.Should().Be(ErrorType.NotFound);
+        await AssertNoReviewAndNoReviewReceivedAsync();
+    }
+
+    [Fact]
+    public async Task Given_NoToken_When_AddingReview_Then_Returns401AndSavesNoNotification()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing(seller, buyer);
+        await SeedAsync(seller, buyer, listing);
+
+        // Act
+        var response = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(5), Json);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(Json);
+        problem!.Code.Should().Be("Auth.Unauthorized");
+        await AssertNoReviewAndNoReviewReceivedAsync();
+    }
+
+    private async Task AssertNoReviewAndNoReviewReceivedAsync()
+    {
+        var reviews = await QueryDbAsync(db => db.Set<Review>().CountAsync());
+        reviews.Should().Be(0);
+        var notifications = await QueryDbAsync(db =>
+            db.Set<Notification>().CountAsync(n => n.Type == NotificationType.ReviewReceived));
+        notifications.Should().Be(0);
     }
 
     // A listing of this seller, published, reserved by the buyer and sold to them.

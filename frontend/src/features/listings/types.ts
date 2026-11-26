@@ -52,6 +52,8 @@ export interface MyReservationItem {
   status: ReservationStatus
   createdAt: string
   expiresAt: string
+  // True once the buyer has reviewed this listing (only after a completed sale).
+  reviewed: boolean
 }
 
 export interface GetMyReservationsResponse {

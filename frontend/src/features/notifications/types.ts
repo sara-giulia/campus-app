@@ -1,7 +1,7 @@
 // Shapes of the notifications API. Mirrors
 // src/CampusMarket.Api/Features/Notifications/GetMyNotifications/GetMyNotificationsResponse.cs.
 
-export type NotificationType = 'ReservationCreated' | 'ListingSold' | 'ReservationExpired' | 'ListingExpired'
+export type NotificationType = 'ReservationCreated' | 'ListingSold' | 'ReservationExpired' | 'ListingExpired' | 'ReviewReceived'
 
 export interface NotificationItem {
   id: string

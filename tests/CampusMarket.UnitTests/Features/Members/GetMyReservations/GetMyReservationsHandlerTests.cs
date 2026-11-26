@@ -1,4 +1,5 @@
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Members.GetMyReservations;
 using CampusMarket.UnitTests.Fakes;
 
@@ -22,7 +23,7 @@ public class GetMyReservationsHandlerTests
     public async Task Given_MemberWithNoReservations_When_Handling_Then_ReturnsEmptyList()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -45,7 +46,7 @@ public class GetMyReservationsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[newerListing.Id] = newerListing;
         repository.Items[olderListing.Id] = olderListing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -73,7 +74,7 @@ public class GetMyReservationsHandlerTests
         listing.Reserve(OtherMemberId, Now);
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -92,7 +93,7 @@ public class GetMyReservationsHandlerTests
         listing.CancelReservation(reservation.Id);
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -112,7 +113,7 @@ public class GetMyReservationsHandlerTests
         var reservation = listing.Reserve(BuyerId, createdAt).Value;
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -134,7 +135,7 @@ public class GetMyReservationsHandlerTests
         var repository = new FakeListingRepository();
         repository.Items[firstListing.Id] = firstListing;
         repository.Items[secondListing.Id] = secondListing;
-        var handler = new GetMyReservationsHandler(repository, new FixedTimeProvider(Now));
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
         var query = new GetMyReservationsQuery(BuyerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -144,5 +145,143 @@ public class GetMyReservationsHandlerTests
         result.Value.Items.Should().BeInAscendingOrder(i => i.ReservationId);
         result.Value.Items.Select(i => i.ReservationId).Should()
             .Contain(new[] { firstReservation.Id, secondReservation.Id });
+    }
+
+    private static Listing BuildSoldListing(string title, Guid buyerId, DateTimeOffset createdAt)
+    {
+        var listing = BuildActiveListing(title, 25m, createdAt);
+        var reservation = listing.Reserve(buyerId, createdAt).Value;
+        listing.ConfirmSale(reservation.Id, createdAt);
+        return listing;
+    }
+
+    [Fact]
+    public async Task Given_SoldListingWithoutReview_When_Handling_Then_ReviewedIsFalse()
+    {
+        var listing = BuildSoldListing("Algebra book", BuyerId, Now);
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var reviews = new FakeReviewRepository();
+        var handler = new GetMyReservationsHandler(repository, reviews, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle().Which.Reviewed.Should().BeFalse();
+        reviews.Items.Should().BeEmpty();
+        repository.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Given_SoldListingReviewedByMember_When_Handling_Then_ReviewedIsTrue()
+    {
+        var listing = BuildSoldListing("Algebra book", BuyerId, Now);
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var reviews = new FakeReviewRepository();
+        reviews.Items.Add(Review.Create(BuyerId, listing, 5, null, Now).Value);
+        var handler = new GetMyReservationsHandler(repository, reviews, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var item = result.Value.Items.Should().ContainSingle().Subject;
+        item.ListingId.Should().Be(listing.Id);
+        item.ListingTitle.Should().Be("Algebra book");
+        item.Price.Should().Be(25m);
+        item.Reviewed.Should().BeTrue();
+        reviews.Items.Should().HaveCount(1);
+        repository.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Given_ReservedListing_When_Handling_Then_ReviewedIsFalse()
+    {
+        var listing = BuildActiveListing("Algebra book", 25m, Now);
+        listing.Reserve(BuyerId, Now);
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        result.Value.Items.Should().ContainSingle().Which.Reviewed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Given_ExpiredReservation_When_Handling_Then_ReviewedIsFalse()
+    {
+        var createdAt = Now.AddHours(-72);
+        var listing = BuildActiveListing("Algebra book", 25m, createdAt);
+        listing.Reserve(BuyerId, createdAt);
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        var item = result.Value.Items.Should().ContainSingle().Subject;
+        item.Status.Should().Be(ReservationStatus.Expired);
+        item.Reviewed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Given_CancelledReservation_When_Handling_Then_ReviewedIsFalse()
+    {
+        var listing = BuildActiveListing("Algebra book", 25m, Now);
+        var reservation = listing.Reserve(BuyerId, Now).Value;
+        listing.CancelReservation(reservation.Id);
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var handler = new GetMyReservationsHandler(repository, new FakeReviewRepository(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        var item = result.Value.Items.Should().ContainSingle().Subject;
+        item.Status.Should().Be(ReservationStatus.Cancelled);
+        item.Reviewed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Given_ReviewWrittenByAnotherMember_When_Handling_Then_ReviewedIsFalseForThisMember()
+    {
+        // The member reserved and cancelled; somebody else bought the listing and reviewed it.
+        var listing = BuildActiveListing("Algebra book", 25m, Now);
+        var cancelled = listing.Reserve(BuyerId, Now).Value;
+        listing.CancelReservation(cancelled.Id);
+        var otherReservation = listing.Reserve(OtherMemberId, Now).Value;
+        listing.ConfirmSale(otherReservation.Id, Now);
+        var repository = new FakeListingRepository();
+        repository.Items[listing.Id] = listing;
+        var reviews = new FakeReviewRepository();
+        reviews.Items.Add(Review.Create(OtherMemberId, listing, 5, null, Now).Value);
+        var handler = new GetMyReservationsHandler(repository, reviews, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var item = result.Value.Items.Should().ContainSingle().Subject;
+        item.ReservationId.Should().Be(cancelled.Id);
+        item.Reviewed.Should().BeFalse();
+        reviews.Items.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Given_OneReviewedAndOneNotReviewedSale_When_Handling_Then_EachItemHasItsOwnFlag()
+    {
+        var reviewedListing = BuildSoldListing("Linear algebra", BuyerId, Now.AddHours(-1));
+        var plainListing = BuildSoldListing("Calculus", BuyerId, Now.AddHours(-2));
+        var repository = new FakeListingRepository();
+        repository.Items[reviewedListing.Id] = reviewedListing;
+        repository.Items[plainListing.Id] = plainListing;
+        var reviews = new FakeReviewRepository();
+        reviews.Items.Add(Review.Create(BuyerId, reviewedListing, 4, null, Now).Value);
+        var handler = new GetMyReservationsHandler(repository, reviews, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new GetMyReservationsQuery(BuyerId), CancellationToken.None);
+
+        result.Value.Items.Should().HaveCount(2);
+        result.Value.Items.Single(i => i.ListingId == reviewedListing.Id).Reviewed.Should().BeTrue();
+        result.Value.Items.Single(i => i.ListingId == plainListing.Id).Reviewed.Should().BeFalse();
     }
 }

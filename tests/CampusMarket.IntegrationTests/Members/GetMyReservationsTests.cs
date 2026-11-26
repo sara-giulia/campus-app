@@ -2,7 +2,10 @@ using System.Net;
 using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
+using CampusMarket.Api.Domain.Notifications;
+using CampusMarket.Api.Domain.Reviews;
 using CampusMarket.Api.Features.Members.GetMyReservations;
+using CampusMarket.Api.Features.Reviews.AddReview;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -113,5 +116,145 @@ public sealed class GetMyReservationsTests : IntegrationTestBase
         var saved = await QueryDbAsync(db => db.Set<Listing>().AsNoTracking().Include(l => l.Reservations).SingleAsync(l => l.Id == listing.Id));
         saved.Reservations.Single().Id.Should().Be(reservation.Id);
         saved.Reservations.Single().Status.Should().Be(ReservationStatus.Active);
+    }
+
+    [Fact]
+    public async Task Given_SoldListingWithoutReview_When_Getting_Then_ReviewedIsFalse()
+    {
+        // Arrange
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing("Manual POO", buyer, CreatedAt);
+        await SeedAsync(buyer, listing);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/reservations");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetMyReservationsResponse>(Json);
+        var item = body!.Items.Should().ContainSingle().Subject;
+        item.ListingId.Should().Be(listing.Id);
+        item.Reviewed.Should().BeFalse();
+        await AssertDatabaseUnchangedAsync(expectedReviews: 0);
+    }
+
+    [Fact]
+    public async Task Given_SoldListingReviewedByPost_When_Getting_Then_ReviewedIsTrueAndOtherFieldsUnchanged()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = SoldListing("Manual POO", buyer, CreatedAt, seller.Id);
+        await SeedAsync(seller, buyer, listing);
+        AuthenticateAs(buyer.Id);
+        var before = await Client.GetFromJsonAsync<GetMyReservationsResponse>("/api/v1/members/me/reservations", Json);
+        var post = await Client.PostAsJsonAsync($"/api/v1/listings/{listing.Id}/reviews", new AddReviewRequest(5), Json);
+        post.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/reservations");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetMyReservationsResponse>(Json);
+        var item = body!.Items.Should().ContainSingle().Subject;
+        item.Reviewed.Should().BeTrue();
+        item.Should().BeEquivalentTo(before!.Items.Single(), o => o.Excluding(i => i.Reviewed));
+        await AssertDatabaseUnchangedAsync(expectedReviews: 1, expectedNotifications: 1);
+    }
+
+    [Fact]
+    public async Task Given_ReservedListing_When_Getting_Then_ReviewedIsFalse()
+    {
+        // Arrange
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(SellerId, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        listing.Reserve(buyer.Id, DateTimeOffset.UtcNow.ToMicroseconds());
+        await SeedAsync(buyer, listing);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/reservations");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetMyReservationsResponse>(Json);
+        var item = body!.Items.Should().ContainSingle().Subject;
+        item.Status.Should().Be(ReservationStatus.Active);
+        item.Reviewed.Should().BeFalse();
+        await AssertDatabaseUnchangedAsync(expectedReviews: 0);
+    }
+
+    [Fact]
+    public async Task Given_TwoSoldListingsOneReviewed_When_Getting_Then_EachItemHasItsOwnFlag()
+    {
+        // Arrange
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var reviewedListing = SoldListing("Manual POO", buyer, CreatedAt, seller.Id);
+        var plainListing = SoldListing("Calculator stiintific", buyer, CreatedAt.AddHours(1), seller.Id);
+        var review = Review.Create(buyer.Id, reviewedListing, 4, null, CreatedAt.AddHours(2)).Value;
+        await SeedAsync(seller, buyer, reviewedListing, plainListing, review);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/reservations");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetMyReservationsResponse>(Json);
+        body!.Items.Should().HaveCount(2);
+        body.Items.Single(i => i.ListingId == reviewedListing.Id).Reviewed.Should().BeTrue();
+        body.Items.Single(i => i.ListingId == plainListing.Id).Reviewed.Should().BeFalse();
+        await AssertDatabaseUnchangedAsync(expectedReviews: 1);
+    }
+
+    [Fact]
+    public async Task Given_ReviewOfAnotherMember_When_Getting_Then_ReviewedIsFalseForThisBuyer()
+    {
+        // Arrange: this buyer reserved and cancelled; another member bought the listing and reviewed it.
+        var buyer = Member.Create("Ana Popescu", "ana@student.ro", CreatedAt).Value;
+        var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
+        var other = Member.Create("Maria Ionescu", "maria@student.ro", CreatedAt).Value;
+        var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var cancelled = listing.Reserve(buyer.Id, CreatedAt).Value;
+        listing.CancelReservation(cancelled.Id);
+        var sold = listing.Reserve(other.Id, CreatedAt.AddHours(1)).Value;
+        listing.ConfirmSale(sold.Id, CreatedAt.AddHours(1));
+        var review = Review.Create(other.Id, listing, 5, null, CreatedAt.AddHours(2)).Value;
+        await SeedAsync(seller, buyer, other, listing, review);
+        AuthenticateAs(buyer.Id);
+
+        // Act
+        var response = await Client.GetAsync("/api/v1/members/me/reservations");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetMyReservationsResponse>(Json);
+        var item = body!.Items.Should().ContainSingle().Subject;
+        item.ReservationId.Should().Be(cancelled.Id);
+        item.Reviewed.Should().BeFalse();
+        await AssertDatabaseUnchangedAsync(expectedReviews: 1);
+    }
+
+    private async Task AssertDatabaseUnchangedAsync(int expectedReviews, int expectedNotifications = 0)
+    {
+        var reviews = await QueryDbAsync(db => db.Set<Review>().CountAsync());
+        reviews.Should().Be(expectedReviews);
+        var notifications = await QueryDbAsync(db => db.Set<Notification>().CountAsync(n => n.Type == NotificationType.ReviewReceived));
+        notifications.Should().Be(expectedNotifications);
+    }
+
+    // A listing of the fixed seller, published, reserved by the buyer and sold to them.
+    private static Listing SoldListing(string title, Member buyer, DateTimeOffset createdAt, Guid? sellerId = null)
+    {
+        var listing = Listing.Create(sellerId ?? SellerId, title, Category.Textbook, Condition.Good, 50m, createdAt).Value;
+        listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var reservation = listing.Reserve(buyer.Id, createdAt).Value;
+        listing.ConfirmSale(reservation.Id, createdAt);
+        return listing;
     }
 }
