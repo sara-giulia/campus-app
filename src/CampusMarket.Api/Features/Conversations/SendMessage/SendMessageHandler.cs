@@ -1,14 +1,17 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
 
 namespace CampusMarket.Api.Features.Conversations.SendMessage;
 
-// The buyer or the seller answers in a conversation they are part of.
+// The buyer or the seller answers in a conversation they are part of. The spam model checks every
+// message: a suspicious one is sent with a warning, a blocked one is not sent (MessageSpamGuard).
 public sealed class SendMessageHandler(
     IConversationRepository conversations,
     IMemberBlockRepository blocks,
+    IMessageSpamDetector spamDetector,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<SendMessageCommand, MessageResponse>
@@ -29,8 +32,13 @@ public sealed class SendMessageHandler(
         if (sent.IsFailure)
             return Result<MessageResponse>.Failure(sent.Error);
 
+        // A blocked message is not saved: nothing is committed.
+        var checkedMessage = MessageSpamGuard.Check(spamDetector, sent.Value);
+        if (checkedMessage.IsFailure)
+            return Result<MessageResponse>.Failure(checkedMessage.Error);
+
         await unitOfWork.CommitAsync(ct);
 
-        return MessageResponse.From(sent.Value);
+        return MessageResponse.From(checkedMessage.Value);
     }
 }

@@ -57,6 +57,9 @@ export function MessagesPage() {
                   </span>
                   <span className="conv-item__listing">{c.listingTitle}</span>
                   <span className="conv-item__last">
+                    {c.lastMessageIsSuspicious && c.lastMessageSenderId !== user?.id && (
+                      <span className="conv-item__warning">{t('messages.suspiciousShort')} </span>
+                    )}
                     {c.lastMessageSenderId === user?.id ? t('messages.you') : ''}
                     {c.lastMessage}
                   </span>

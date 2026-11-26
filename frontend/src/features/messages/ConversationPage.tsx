@@ -116,6 +116,11 @@ export function ConversationPage() {
       <div className="chat__messages">
         {conversation.messages.map((m) => (
           <div key={m.id} className={m.senderId === user?.id ? 'bubble bubble--mine' : 'bubble'}>
+            {m.isSuspicious && (
+              <p className="bubble__warning" role="note">
+                {m.senderId === user?.id ? t('messages.suspiciousMine') : t('messages.suspicious')}
+              </p>
+            )}
             <p>{m.text}</p>
             <time>{formatDateTime(m.sentAt)}</time>
           </div>

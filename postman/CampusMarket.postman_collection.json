@@ -7377,7 +7377,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
-                  "pm.test(\"Third message\", () => pm.expect(pm.response.json().number).to.eql(3));"
+                  "pm.test(\"Third message\", () => pm.expect(pm.response.json().number).to.eql(3));",
+                  "pm.test(\"Not suspicious\", () => pm.expect(pm.response.json().isSuspicious).to.eql(false));"
                 ]
               }
             }
@@ -7696,6 +7697,210 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send message - a link is sent with a warning (201, isSuspicious)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/conversations/{{conversationId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "conversations",
+                "{{conversationId}}",
+                "messages"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Uite modelul pe www.lenovo.com, e exact ala\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Fourth message, flagged as suspicious\", () => {",
+                  "  pm.expect(pm.response.json().number).to.eql(4);",
+                  "  pm.expect(pm.response.json().isSuspicious).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send message - a clear scam is blocked (400 Message.Spam)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/conversations/{{conversationId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "conversations",
+                "{{conversationId}}",
+                "messages"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Am platit prin Cargus, intra pe cargus-plati.com si introdu cardul ca sa primesti banii\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error code is Message.Spam\", () => pm.expect(pm.response.json().code).to.eql(\"Message.Spam\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get conversation - the suspicious message is flagged, the blocked one was not saved (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/conversations/{{conversationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "conversations",
+                "{{conversationId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{otherToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "const messages = pm.response.json().messages;",
+                  "pm.test(\"Four messages, the blocked one is not there\", () => pm.expect(messages.map(m => m.number)).to.eql([1, 2, 3, 4]));",
+                  "pm.test(\"Only the last one is suspicious\", () => pm.expect(messages.map(m => m.isSuspicious)).to.eql([false, false, false, true]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My conversations - the last message is suspicious (200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/members/me/conversations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "members",
+                "me",
+                "conversations"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"lastMessageIsSuspicious is true\", () => {",
+                  "  const item = pm.response.json().items.find(i => i.id === pm.collectionVariables.get(\"conversationId\"));",
+                  "  pm.expect(item.lastMessageIsSuspicious).to.eql(true);",
+                  "  pm.expect(item.messageCount).to.eql(4);",
+                  "});"
                 ]
               }
             }

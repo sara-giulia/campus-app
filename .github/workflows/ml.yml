@@ -44,14 +44,14 @@ jobs:
           mkdir -p .ci/reference-models
           cp ml/models/*.json .ci/reference-models/
 
-      # Reproducibility gate: regenerate the dataset with the same seed and
-      # fail if the bytes of ml/data/listings.csv changed. If this step
-      # reports a diff, either the generator is no longer deterministic or
-      # the committed CSV is out of date.
-      - name: Regenerate the dataset and fail if listings.csv changed
+      # Reproducibility gate: regenerate the datasets with the same seeds and
+      # fail if the bytes of ml/data/listings.csv or ml/data/messages.csv
+      # changed. If this step reports a diff, either the generator is no
+      # longer deterministic or a committed CSV is out of date.
+      - name: Regenerate the datasets and fail if listings.csv or messages.csv changed
         run: |
           dotnet run --project ml/CampusMarket.ML.DatasetGenerator --configuration Release
-          git diff --exit-code -- ml/data/listings.csv
+          git diff --exit-code -- ml/data/listings.csv ml/data/messages.csv
 
       - name: Train the models
         run: dotnet run --project ml/CampusMarket.ML.Training --configuration Release

@@ -19,6 +19,15 @@ evaluated reproducibly without touching real accounts.
   - `priceMin` / `priceMax` — realistic price range in lei.
 - `listings.csv` — UTF-8 (no BOM), LF line endings, standard CSV quoting:
   text fields are wrapped in `"…"` and an embedded `"` is escaped as `""`.
+- `messages.csv` — the chat messages of the message spam model, also generated
+  (`MessageGenerator.cs` and `MessageTemplates.cs`, its own `Random(2028)`, so
+  `listings.csv` does not change): 5000 rows, 750 spam, columns `Text,IsSpam,TemplateId`.
+  76 templates (47 normal kinds of messages, 29 spam patterns), each with a few phrasings
+  and slots (item, price, place, phone, link…), plus the noise of real chat (no
+  diacritics, lower case, short forms, typos, emoji). Phone numbers, WhatsApp and
+  e-mail addresses are in normal messages on purpose. See `docs/ml/message-spam.md`.
+- `messages-external.csv` — 70 chat messages written by hand (45 normal, 25 spam),
+  not made by the generator, columns `Text,IsSpam,Note`; only for evaluation.
 - `feedback.csv` — optional, not committed: real sales exported from `GET /api/v1/admin/ml/price-feedback` (same columns, `TemplateId = feedback`), used only to evaluate the price model; see `docs/ml/price.md`, "Feedback loop data".
 
 ## CSV columns

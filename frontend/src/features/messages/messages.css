@@ -133,6 +133,23 @@
   word-break: break-word;
 }
 
+/* A message flagged by the spam check: the warning above its text. */
+.bubble__warning {
+  margin: 0 0 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--warning);
+  background: var(--surface);
+  color: var(--warning);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.conv-item__warning {
+  color: var(--warning);
+  font-weight: 600;
+}
+
 .bubble time {
   display: block;
   margin-top: 4px;

@@ -12,5 +12,6 @@ public sealed record MyConversationItem(
     string OtherMemberName,
     string LastMessage,
     Guid LastMessageSenderId,
+    bool LastMessageIsSuspicious,
     DateTimeOffset LastMessageAt,
     int MessageCount);
