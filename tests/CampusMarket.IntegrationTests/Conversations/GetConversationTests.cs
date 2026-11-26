@@ -145,9 +145,9 @@ public sealed class GetConversationTests : IntegrationTestBase
         "Ana Popescu",
         CreatedAt,
         [
-            new ConversationMessage(_conversation.Messages[0].Id, 1, _buyer.Id, "Mai e disponibil?", CreatedAt),
-            new ConversationMessage(_conversation.Messages[1].Id, 2, _seller.Id, "Da, inca e.", CreatedAt.AddMinutes(5)),
-            new ConversationMessage(_conversation.Messages[2].Id, 3, _buyer.Id, "Pot sa vin maine?", CreatedAt.AddMinutes(10))
+            new ConversationMessage(_conversation.Messages[0].Id, 1, _buyer.Id, "Mai e disponibil?", CreatedAt, false),
+            new ConversationMessage(_conversation.Messages[1].Id, 2, _seller.Id, "Da, inca e.", CreatedAt.AddMinutes(5), false),
+            new ConversationMessage(_conversation.Messages[2].Id, 3, _buyer.Id, "Pot sa vin maine?", CreatedAt.AddMinutes(10), false)
         ],
         // No offers were made in this conversation.
         []);

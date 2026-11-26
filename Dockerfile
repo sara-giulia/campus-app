@@ -19,7 +19,7 @@ RUN dotnet publish src/CampusMarket.Api/CampusMarket.Api.csproj -c Release -o /a
 RUN test -f /app/ml-models/price-regression.zip \
     && test -f /app/ml-models/category-classification.zip \
     && test -f /app/ml-models/spam-detection.zip \
-    && test -f /app/ml-models/similar-listings.zip \
+    && test -f /app/ml-models/similar-listings.zip     && test -f /app/ml-models/message-spam.zip \
     && test -f /app/ml-models/semantic-search/model_q4.onnx \
     && test -f /app/ml-models/semantic-search/model_q4.onnx_data \
     && test -f /app/ml-models/semantic-search/tokenizer.model

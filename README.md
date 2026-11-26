@@ -37,7 +37,7 @@ Listings that are already `Active` in a deactivated category stay visible: they 
 - `docker-compose.yml` sets `ASPNETCORE_ENVIRONMENT=Development`, so the container uses the development JWT key and the seeded Admin from `appsettings.Development.json`. It is a local demo, not a production setup.
 - The container runs as the non-root user of the .NET image. The API talks to the `db` service (PostgreSQL 17, `ConnectionStrings__CampusMarket` in `docker-compose.yml`), whose data is in the named volume `campusmarket-pg`; the uploaded photos are in `/app/data/photos` on the volume `campusmarket-data`. Both are kept after `docker compose down`; `docker compose down -v` removes them and starts from an empty database. `docker compose up -d db` starts only the database (port 5433), for running the API on the host.
 - The image has a Docker health check on `/health` (every 30 s). `docker compose ps` shows the container as `healthy` once the API answers and can reach the database, and `unhealthy` after three failed checks.
-- The image build downloads the search model (`ml/scripts/download-search-model.sh`, checked by SHA-256) and fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) or the search model was not copied to `ml-models/`.
+- The image build downloads the search model (`ml/scripts/download-search-model.sh`, checked by SHA-256) and fails if one of the trained models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`, `message-spam.zip`) or the search model was not copied to `ml-models/`.
 - The `db` service uses `pgvector/pgvector:pg17` (PostgreSQL 17 with the `vector` extension); an existing `campusmarket-pg` volume keeps working.
 - CI has a `docker` job that builds the image, starts it with `docker compose up --wait` (it waits for `healthy`) and calls `/health`.
 
@@ -265,8 +265,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
 | Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
-| Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, 401, 404 |
-| Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400, 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
+| Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, `Message.Spam`, 401, 404 |
+| Conversation | `SendMessage` | `POST /api/v1/conversations/{id}/messages` | the buyer or the seller | 201 + `Location`, 400 (also `Message.Spam`), 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Conversation | `GetConversation` | `GET /api/v1/conversations/{id}` | the buyer or the seller | 200 (messages and `offers`), 401, 403 `Conversation.NotParticipant`, 404 `Conversation.NotFound` |
 | Conversation | `GetMyConversations` | `GET /api/v1/members/me/conversations` | anyone logged in; only their own conversations | 200, 401 |
 | Offer | `MakeOffer` | `POST /api/v1/listings/{id}/offers` (body `{ "amount": 80 }`) | anyone logged in except the seller | 201 `{ conversationId, offer }` + `Location` (the conversation), 400 `Offer.OwnListing` / `Offer.ListingNotActive` / `Offer.AmountInvalid` / `Offer.AmountTooHigh`, 401, 404 `Listing.NotFound`, 409 `Offer.AlreadyPending` |
@@ -310,7 +310,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Notification | `MarkAllNotificationsRead` | `POST /api/v1/members/me/notifications/read-all` | anyone logged in; only their own notifications | 204, 401 |
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
-| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
+| Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 5 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`, `message-spam.zip`) are present, 503 `Unhealthy` otherwise |
 
 GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/members/me/blocked`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
 
@@ -585,6 +585,16 @@ Favorites are stored in their own table (`Favorites`, migration `InitialPostgres
 
 A listing hidden by an Admin cannot be saved (400 `Favorite.ListingNotAvailable`) and is left out of the list while it is hidden.
 
+### Spam in messages
+
+Every chat message is checked by its own spam model (`message-spam.zip`, trained on chat messages, not on listings; model card [docs/ml/message-spam.md](docs/ml/message-spam.md)) and by a few fixed rules (`MessageSpamRules.cs`), after the usual checks (empty, too long, not a participant, blocked member):
+
+- **Normal**: sent as before, `isSuspicious: false`.
+- **Suspicious**: the model gives at least `Ml:MessageSpam:Threshold` (0.6), or a rule matches (a link, card data or a CVV, a code from an SMS or from the bank, money asked in advance, easy money, crypto, loans, gift cards). The message is sent with `isSuspicious: true`; the app shows it with a warning ("do not pay in advance, do not share your card, do not open unknown links"). A phone number, a WhatsApp or an e-mail address is **not** a sign here: two students who meet on campus share them all the time.
+- **Blocked**: the model gives at least `Ml:MessageSpam:BlockThreshold` (0.95). Nothing is saved and the sender gets 400 `Message.Spam`. At 0.95 no normal message was blocked in cross-validation nor among the hand-written test messages.
+
+Both thresholds are chosen when the model is trained (`settings` in `ml/models/message-spam.json`) and validated at start (between 0 and 1, block not under the warning). `isSuspicious` is in the answer of both send endpoints and in every message of `GET /api/v1/conversations/{id}`; `GET /api/v1/members/me/conversations` has `lastMessageIsSuspicious`. Stored in `Messages.IsSuspicious` and `Messages.SpamProbability` (null for the messages sent before the check); migration `AddMessageSpamCheck`.
+
 ### Moderation
 
 Members report listings, the spam model reports suspicious ones on its own, and Admins decide.
@@ -634,12 +644,12 @@ When a review is saved, the seller gets a `ReviewReceived` notification ("<buyer
 
 A buyer writes to the seller about a listing; only the two of them can read or write in that conversation (anyone else, an Admin too, gets 403 `Conversation.NotParticipant`).
 
-- `POST /api/v1/listings/{id}/conversations` with `{ "text": "Mai e disponibil?" }`: 201 with the message `{ conversationId, id, number, senderId, text, sentAt }` and `Location` to the conversation. The first message starts the conversation; if the buyer already has one about this listing, the message is added to it, so the "write to the seller" button always works the same way. A new conversation needs an `Active` or `Reserved` listing (400 `Conversation.ListingNotAvailable`); the seller cannot write about their own listing (400 `Conversation.OwnListing`). An existing conversation keeps working after the sale.
+- `POST /api/v1/listings/{id}/conversations` with `{ "text": "Mai e disponibil?" }`: 201 with the message `{ conversationId, id, number, senderId, text, sentAt, isSuspicious }` and `Location` to the conversation. The first message starts the conversation; if the buyer already has one about this listing, the message is added to it, so the "write to the seller" button always works the same way. A new conversation needs an `Active` or `Reserved` listing (400 `Conversation.ListingNotAvailable`); the seller cannot write about their own listing (400 `Conversation.OwnListing`). An existing conversation keeps working after the sale.
 - `POST /api/v1/conversations/{id}/messages` with `{ "text": "..." }`: the buyer or the seller answers, 201 with the same body.
 - `GET /api/v1/conversations/{id}`: the listing title, the two members' names and every message, in the order they were sent.
 - `GET /api/v1/members/me/conversations`: the member's conversations as buyer and as seller, the one with the latest message first, each with the other member's name, the last message and the number of messages.
 
-A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `InitialPostgres`.
+A message is 1 to 1000 characters after trimming (400 `Message.Empty`, `Message.TooLong`). Every message is checked by the spam model of the messages (see [Spam in messages](#spam-in-messages)). Each message has a `number` (1, 2, 3…) so the order is the same even when two messages have the same time. Stored in `Conversations` (unique index on listing + buyer, foreign keys to `Listings` and to `Members` for the seller and the buyer) and `Messages` (foreign key to the conversation), all with cascade delete; migration `InitialPostgres`.
 
 ### Price offers
 
@@ -994,7 +1004,7 @@ The API ships with two in-memory, thread-safe aggregators that answer "is the AP
 **What is measured:**
 
 - **HTTP requests**, per **route template** (`GET /api/v1/listings/{id}` is one bucket, not one per id) and status code: the number of requests, the number of errors (status `>= 500`), and the response time (**average** and **p95**, since start). `/health`, `/health/live`, `/health/ready` and `/api/v1/admin/metrics` itself are excluded on purpose — they are polled constantly and would drown out the real traffic. Recorded by `MetricsMiddleware`, which times every request and reads the final status after `UseExceptionHandler`, so a thrown exception is still counted as a 500.
-- **ML predictions**, per model (`price`, `category`, `spam`): the number of predictions and the average duration. One line in each ML service (`PriceSuggester`, `CategorySuggester`, `SpamDetector`) wraps the `pool.Predict(...)` call in `MetricsRegistry.MeasurePrediction(...)`.
+- **ML predictions**, per model (`price`, `category`, `spam`, `message-spam`): the number of predictions and the average duration. One line in each ML service (`PriceSuggester`, `CategorySuggester`, `SpamDetector`, `MessageSpamDetector`) wraps the `pool.Predict(...)` call in `MetricsRegistry.MeasurePrediction(...)`.
 
 **Endpoint:** `GET /api/v1/admin/metrics` (Admin policy, 401 without a token, 403 with a non-admin one). Returns a point-in-time snapshot of the two aggregators as JSON:
 

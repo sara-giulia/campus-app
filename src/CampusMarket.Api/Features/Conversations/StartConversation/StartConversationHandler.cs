@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
@@ -15,6 +16,7 @@ public sealed class StartConversationHandler(
     IMemberRepository members,
     IConversationRepository conversations,
     IMemberBlockRepository blocks,
+    IMessageSpamDetector spamDetector,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
     : ICommandHandler<StartConversationCommand, MessageResponse>
@@ -35,27 +37,36 @@ public sealed class StartConversationHandler(
             return Result<MessageResponse>.Failure(MemberBlock.BlockedError());
 
         var now = timeProvider.GetUtcNow();
-        Message message;
 
         var existing = await conversations.GetByListingAndBuyerAsync(command.ListingId, command.BuyerId, ct);
+        Conversation? started = null;
+        Result<Message> written;
         if (existing is not null)
         {
-            var sent = existing.Send(command.BuyerId, command.Text, now);
-            if (sent.IsFailure)
-                return Result<MessageResponse>.Failure(sent.Error);
-            message = sent.Value;
+            written = existing.Send(command.BuyerId, command.Text, now);
         }
         else
         {
-            var started = Conversation.Start(command.BuyerId, listing, command.Text, now);
-            if (started.IsFailure)
-                return Result<MessageResponse>.Failure(started.Error);
-            await conversations.AddAsync(started.Value, ct);
-            message = started.Value.Messages[0];
+            var start = Conversation.Start(command.BuyerId, listing, command.Text, now);
+            if (start.IsFailure)
+                return Result<MessageResponse>.Failure(start.Error);
+            started = start.Value;
+            written = started.Messages[0];
         }
+
+        if (written.IsFailure)
+            return Result<MessageResponse>.Failure(written.Error);
+
+        // A blocked message is not saved: nothing is committed and a new conversation is not added.
+        var message = MessageSpamGuard.Check(spamDetector, written.Value);
+        if (message.IsFailure)
+            return Result<MessageResponse>.Failure(message.Error);
+
+        if (started is not null)
+            await conversations.AddAsync(started, ct);
 
         await unitOfWork.CommitAsync(ct);
 
-        return MessageResponse.From(message);
+        return MessageResponse.From(message.Value);
     }
 }

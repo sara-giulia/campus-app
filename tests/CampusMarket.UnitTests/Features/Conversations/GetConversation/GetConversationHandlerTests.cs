@@ -235,4 +235,30 @@ public class GetConversationHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Offers.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task Given_SuspiciousMessage_When_Handling_Then_OnlyThatMessageIsSuspicious()
+    {
+        var seller = BuildSeller();
+        var buyer = BuildBuyer();
+        var listing = BuildActiveListing(seller.Id);
+        var conversation = BuildConversationWithThreeMessages(buyer.Id, seller.Id, listing);
+        conversation.Messages[1].RecordSpamCheck(0.7, true);
+        var conversations = new FakeConversationRepository();
+        conversations.Items.Add(conversation);
+        var listings = new FakeListingRepository();
+        listings.Items[listing.Id] = listing;
+        var members = new FakeMemberRepository();
+        members.Items[seller.Id] = seller;
+        members.Items[buyer.Id] = buyer;
+        var handler = BuildHandler(conversations, listings, members);
+        var query = new GetConversationQuery(buyer.Id, conversation.Id);
+
+        var result = await handler.HandleAsync(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Messages.Select(m => m.IsSuspicious).Should().Equal(false, true, false);
+        conversations.Items.Should().ContainSingle();
+        conversation.Messages.Should().HaveCount(3);
+    }
 }

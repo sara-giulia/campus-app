@@ -1,0 +1,31 @@
+{
+  "algorithm": "SDCA logistic regression",
+  "dataset": {
+    "rowCountTest": 734,
+    "rowCountTrain": 4266,
+    "rowCountValidation": 0,
+    "sha256": "105b58845c1d0e2d6bc87cf102d27cfb3c20518933f5da1ce0fa60435a21852e"
+  },
+  "gitCommit": null,
+  "modelFileName": "message-spam.zip",
+  "modelName": "Message spam detection (SDCA logistic regression)",
+  "seed": 2026,
+  "settings": {
+    "blockThreshold": 0.950000,
+    "threshold": 0.600000
+  },
+  "split": "85/15 grouped by TemplateId, thresholds by 5-fold grouped cross-validation on the 85%",
+  "testMetrics": {
+    "accuracy": 0.967302,
+    "auc": 0.994222,
+    "cvF1AtThreshold": 0.675768,
+    "ece": 0.067822,
+    "f1": 0.877551,
+    "f1AtThreshold": 0.887640,
+    "prAuc": 0.971135,
+    "precision": 0.868687,
+    "recall": 0.886598,
+    "recallAtBlock": 0.216495
+  },
+  "trainedAt": "2026-11-26T14:06:01Z"
+}

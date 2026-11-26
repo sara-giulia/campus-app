@@ -10,6 +10,14 @@ var csvPath = Path.Combine(mlDir, "data", "listings.csv");
 var modelsDir = Path.Combine(mlDir, "models");
 Directory.CreateDirectory(modelsDir);
 
+// "--messages" trains only the spam model of the chat messages, so the four listing models and their
+// .json files are not rewritten when only that one changes.
+if (args.Contains("--messages"))
+{
+    MessageSpamTraining.Run(mlDir, modelsDir);
+    return;
+}
+
 Console.WriteLine($"Loading dataset from {csvPath}");
 
 var data = mlContext.Data.LoadFromTextFile<ListingRow>(
@@ -157,6 +165,8 @@ foreach (var (part, rows) in new[] { ("test part", testRows), ("external set", e
     Console.WriteLine($"Spam mistakes on the {part}:");
     Console.WriteLine(ErrorAnalysis.ToMarkdown(ErrorAnalysis.SpamMistakesOf(mlContext, spamModel, rows, spamThreshold), spamThreshold));
 }
+
+MessageSpamTraining.Run(mlDir, modelsDir);
 
 static string F3(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
 static string F2(double value) => value.ToString("0.00", CultureInfo.InvariantCulture);

@@ -10,6 +10,8 @@ export interface MyConversationItem {
   otherMemberName: string
   lastMessage: string
   lastMessageSenderId: string
+  // The spam check flagged the last message (see ConversationMessage.isSuspicious).
+  lastMessageIsSuspicious: boolean
   lastMessageAt: string
   messageCount: number
 }
@@ -25,6 +27,8 @@ export interface ConversationMessage {
   senderId: string
   text: string
   sentAt: string
+  // The spam check flagged it (a link, money or card data asked for…): shown with a warning.
+  isSuspicious: boolean
 }
 
 export interface ConversationDetail {

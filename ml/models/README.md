@@ -5,6 +5,9 @@ This folder holds the trained ML.NET models used by the CampusMarket API:
 - `price-regression.zip` - predicts the asking price of a listing (B3).
 - `category-classification.zip` - predicts the category of a listing (B4).
 - `spam-detection.zip` - flags a listing as spam (B5).
+- `similar-listings.zip` - turns a listing into a text vector for the similar listings.
+- `message-spam.zip` - flags a chat message as spam or a scam (`ml/data/messages.csv`,
+  see `docs/ml/message-spam.md`). Only this one: `dotnet run --project ml/CampusMarket.ML.Training -- --messages`.
 
 The `.zip` files are committed so the API works out of the box without training
 anything. The API loads them through `PredictionEnginePool` on startup.

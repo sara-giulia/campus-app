@@ -52,6 +52,25 @@ Console.WriteLine($"SHA256: {hash}");
 
 PrintStats(generator, rows);
 
+// The chat messages of the message spam model: their own file and their own Random, generated after the
+// listings, so listings.csv does not change.
+var messagesPath = Path.Combine(Path.GetDirectoryName(outputPath)!, "messages.csv");
+var messageRng = new Random(Seed + 2); // NOSONAR: fixed seed on purpose, the dataset must be reproducible
+var messages = new MessageGenerator(messageRng).Generate().ToList();
+await using (var writer = new StreamWriter(messagesPath, append: false, utf8NoBom))
+{
+    writer.NewLine = "\n";
+    await writer.WriteLineAsync("Text,IsSpam,TemplateId");
+    foreach (var message in messages)
+        await writer.WriteAsync($"{Quote(message.Text)},{(message.IsSpam ? "true" : "false")},{Quote(message.TemplateId)}\n");
+}
+
+var messageBytes = await File.ReadAllBytesAsync(messagesPath);
+Console.WriteLine();
+Console.WriteLine($"Wrote {messages.Count} messages to {messagesPath}");
+Console.WriteLine($"SHA256: {Convert.ToHexString(SHA256.HashData(messageBytes)).ToLowerInvariant()}");
+Console.WriteLine($"Spam messages: {messages.Count(m => m.IsSpam)}, templates: {messages.Select(m => m.TemplateId).Distinct().Count()}");
+
 static string Quote(string value)
 {
     var escaped = value.Replace("\"", "\"\"");

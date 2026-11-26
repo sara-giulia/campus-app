@@ -13,6 +13,10 @@ public sealed class Message
     // Stryker disable once String : the internal constructor always sets Text and EF Core overwrites it, so the default value is never observable
     public string Text { get; private set; } = string.Empty;
     public DateTimeOffset SentAt { get; private set; }
+    // What the message spam model said when the message was sent; null for the messages sent before it.
+    public double? SpamProbability { get; private set; }
+    // Sent, but shown with a warning: the model or one of the scam rules flagged it.
+    public bool IsSuspicious { get; private set; }
 
     private Message() { }
 
@@ -24,5 +28,11 @@ public sealed class Message
         SenderId = senderId;
         Text = text;
         SentAt = sentAt;
+    }
+
+    public void RecordSpamCheck(double probability, bool isSuspicious)
+    {
+        SpamProbability = probability;
+        IsSuspicious = isSuspicious;
     }
 }

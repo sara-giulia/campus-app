@@ -16,8 +16,9 @@ public sealed record GetConversationResponse(
     IReadOnlyList<ConversationMessage> Messages,
     IReadOnlyList<OfferResponse> Offers);
 
-public sealed record ConversationMessage(Guid Id, int Number, Guid SenderId, string Text, DateTimeOffset SentAt)
+// IsSuspicious: the spam check flagged the message, the app shows it with a warning.
+public sealed record ConversationMessage(Guid Id, int Number, Guid SenderId, string Text, DateTimeOffset SentAt, bool IsSuspicious)
 {
     public static ConversationMessage From(Message message) => new(
-        message.Id, message.Number, message.SenderId, message.Text, message.SentAt);
+        message.Id, message.Number, message.SenderId, message.Text, message.SentAt, message.IsSuspicious);
 }

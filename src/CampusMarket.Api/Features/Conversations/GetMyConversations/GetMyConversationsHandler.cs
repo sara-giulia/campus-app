@@ -36,6 +36,7 @@ public sealed class GetMyConversationsHandler(
                     names[other],
                     last.Text,
                     last.SenderId,
+                    last.IsSuspicious,
                     c.LastMessageAt,
                     c.Messages.Count);
             })

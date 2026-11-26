@@ -23,7 +23,8 @@ public static class ModelMetadata
         int trainRowCount,
         int validationRowCount,
         int testRowCount,
-        IReadOnlyDictionary<string, double>? settings = null)
+        IReadOnlyDictionary<string, double>? settings = null,
+        string split = SplitDescription)
     {
         var json = Build(
             modelName,
@@ -35,7 +36,8 @@ public static class ModelMetadata
             validationRowCount,
             testRowCount,
             DateTimeOffset.UtcNow,
-            settings);
+            settings,
+            split);
 
         var jsonPath = Path.ChangeExtension(modelFilePath, ".json");
         File.WriteAllText(jsonPath, json);
@@ -51,7 +53,8 @@ public static class ModelMetadata
         int validationRowCount,
         int testRowCount,
         DateTimeOffset trainedAt,
-        IReadOnlyDictionary<string, double>? settings = null)
+        IReadOnlyDictionary<string, double>? settings = null,
+        string split = SplitDescription)
     {
         var sha = ComputeSha256(csvPath);
         var trainedAtText = trainedAt.ToUniversalTime().ToString(DateFormat, CultureInfo.InvariantCulture);
@@ -78,7 +81,7 @@ public static class ModelMetadata
         if (settings is { Count: > 0 })
             AppendDoubles(sb, "settings", settings);
 
-        AppendString(sb, 1, "split", SplitDescription, comma: true);
+        AppendString(sb, 1, "split", split, comma: true);
 
         AppendDoubles(sb, "testMetrics", testMetrics);
 
