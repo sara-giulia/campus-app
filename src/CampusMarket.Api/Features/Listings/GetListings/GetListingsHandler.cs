@@ -1,5 +1,6 @@
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Common.Search;
+using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 
@@ -8,7 +9,8 @@ namespace CampusMarket.Api.Features.Listings.GetListings;
 // With a search, the listings found by words come first and then the ones found by meaning
 // (ListingSearch); "relevance" (the default when searching) keeps that order, the other sorts reorder
 // all of them. Without a search the default stays "newest".
-public sealed class GetListingsHandler(IListingRepository repository, ISemanticSearch semanticSearch)
+public sealed class GetListingsHandler(
+    IListingRepository repository, ISemanticSearch semanticSearch, IMemberBlockRepository blocks)
     : IQueryHandler<GetListingsQuery, GetListingsResponse>
 {
     public async Task<Result<GetListingsResponse>> HandleAsync(
@@ -31,6 +33,12 @@ public sealed class GetListingsHandler(IListingRepository repository, ISemanticS
 
         var listings = await repository.GetAllAsync(ct);
         IEnumerable<Listing> filtered = listings.Where(l => l.Status == ListingStatus.Active);
+
+        if (query.ViewerId is { } viewerId)
+        {
+            var blockedIds = await blocks.GetBlockedIdsAsync(viewerId, ct);
+            filtered = filtered.Where(l => !blockedIds.Contains(l.SellerId));
+        }
 
         if (query.Category is not null)
             filtered = filtered.Where(l => l.Category == query.Category);

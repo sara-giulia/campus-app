@@ -11,7 +11,9 @@ public sealed record GetListingsQuery(
     int Page = GetListingsQuery.DefaultPage,
     int PageSize = GetListingsQuery.DefaultPageSize,
     Condition? Condition = null,
-    string? Sort = null) : IQuery<GetListingsResponse>
+    string? Sort = null,
+    // The logged-in member, when there is one: the listings of the members they blocked are left out.
+    Guid? ViewerId = null) : IQuery<GetListingsResponse>
 {
     public const int DefaultPage = 1;
     public const int DefaultPageSize = 20;

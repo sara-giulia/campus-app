@@ -8,6 +8,7 @@ import { SORT_LABELS, type SortOption } from './publicTypes'
 import { useCategories } from './categories'
 import { CATEGORIES, CONDITIONS, CONDITION_LABELS, type GetListingsResponse } from './types'
 import './browse.css'
+import { useT } from '../../i18n/LanguageContext'
 
 const PAGE_SIZE = 12
 // With a search the default order is "relevance" (the words first, then the meaning); without one, "newest".
@@ -17,6 +18,7 @@ const FILTER_KEYS = ['search', 'category', 'condition', 'minPrice', 'maxPrice', 
 // Search and filters live in the address (?search=…&category=…&page=2), so a search can be
 // shared, the back button works and a refresh keeps it. GET /api/v1/listings returns only Active listings.
 export function BrowsePage() {
+  const t = useT()
   const { labelOf } = useCategories()
   const [params, setParams] = useSearchParams()
   const page = Math.max(1, Number(params.get('page')) || 1)
@@ -30,7 +32,7 @@ export function BrowsePage() {
   useEffect(() => {
     const controller = new AbortController()
     api
-      .get<GetListingsResponse>(`/listings?${query}`, { signal: controller.signal, auth: false })
+      .get<GetListingsResponse>(`/listings?${query}`, { signal: controller.signal })
       .then((result) => {
         setData(result)
         setError(null)
@@ -67,35 +69,35 @@ export function BrowsePage() {
 
   return (
     <div className="browse">
-      <PageHeader eyebrow="Anunțuri" title="Caută în campus" lead="Manuale, notițe, electronice și echipament de laborator de la colegi." />
+      <PageHeader eyebrow={t('listings.browse.eyebrow')} title={t('listings.browse.title')} lead={t('listings.browse.lead')} />
 
       <form className="browse__filters" onSubmit={apply}>
         <TextField
-          label="Caută"
-          placeholder="ex. analiză matematică"
+          label={t('listings.browse.search')}
+          placeholder={t('listings.browse.searchPlaceholder')}
           value={form.search}
           onChange={(e) => setForm({ ...form, search: e.target.value })}
           className="browse__search"
         />
-        <SelectField label="Categorie" value={form.category} onChange={(v) => setForm({ ...form, category: v })}>
-          <option value="">Toate</option>
+        <SelectField label={t('listings.browse.category')} value={form.category} onChange={(v) => setForm({ ...form, category: v })}>
+          <option value="">{t('listings.browse.all')}</option>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {labelOf(c)}
             </option>
           ))}
         </SelectField>
-        <SelectField label="Stare" value={form.condition} onChange={(v) => setForm({ ...form, condition: v })}>
-          <option value="">Oricare</option>
+        <SelectField label={t('listings.browse.condition')} value={form.condition} onChange={(v) => setForm({ ...form, condition: v })}>
+          <option value="">{t('listings.browse.any')}</option>
           {CONDITIONS.map((c) => (
             <option key={c} value={c}>
               {CONDITION_LABELS[c]}
             </option>
           ))}
         </SelectField>
-        <TextField label="Preț minim" type="number" min={0} value={form.minPrice} onChange={(e) => setForm({ ...form, minPrice: e.target.value })} />
-        <TextField label="Preț maxim" type="number" min={0} value={form.maxPrice} onChange={(e) => setForm({ ...form, maxPrice: e.target.value })} />
-        <SelectField label="Ordine" value={form.sort} onChange={(v) => setForm({ ...form, sort: v })}>
+        <TextField label={t('listings.browse.minPrice')} type="number" min={0} value={form.minPrice} onChange={(e) => setForm({ ...form, minPrice: e.target.value })} />
+        <TextField label={t('listings.browse.maxPrice')} type="number" min={0} value={form.maxPrice} onChange={(e) => setForm({ ...form, maxPrice: e.target.value })} />
+        <SelectField label={t('listings.browse.order')} value={form.sort} onChange={(v) => setForm({ ...form, sort: v })}>
           <option value="">{form.search.trim() ? SORT_LABELS.relevance : SORT_LABELS.newest}</option>
           {form.search.trim() && <option value="newest">{SORT_LABELS.newest}</option>}
           {PRICE_SORTS.map((s) => (
@@ -105,25 +107,25 @@ export function BrowsePage() {
           ))}
         </SelectField>
         <div className="browse__filter-actions">
-          <Button type="submit">Caută</Button>
+          <Button type="submit">{t('listings.browse.search')}</Button>
           <Button variant="ghost" onClick={reset}>
-            Resetează
+            {t('listings.browse.reset')}
           </Button>
         </div>
       </form>
 
       {error && <Alert tone="error">{error}</Alert>}
-      {!error && data === null && <Loading text="Se încarcă anunțurile…" />}
+      {!error && data === null && <Loading text={t('listings.browse.loading')} />}
       {!error && data !== null && data.totalCount === 0 && (
-        <EmptyState title="Niciun anunț nu se potrivește.">Încearcă alte cuvinte sau scoate o parte din filtre.</EmptyState>
+        <EmptyState title={t('listings.browse.noneTitle')}>{t('listings.browse.noneText')}</EmptyState>
       )}
       {!error && data !== null && data.totalCount > 0 && (
         <>
           <p className="browse__count">
-            {data.totalCount === 1 ? '1 anunț' : `${data.totalCount} anunțuri`}
+            {data.totalCount === 1 ? t('listings.browse.countOne') : t('listings.browse.countMany', { count: data.totalCount })}
           </p>
           {data.items.some((l) => l.match === 'Meaning') && (
-            <p className="browse__hint">Anunțurile „Găsit după sens” nu conțin cuvintele căutate, dar au un înțeles apropiat.</p>
+            <p className="browse__hint">{t('listings.browse.meaningHint')}</p>
           )}
           <ListingGrid listings={data.items} />
           <Pagination page={page} totalPages={totalPages} onChange={goToPage} />

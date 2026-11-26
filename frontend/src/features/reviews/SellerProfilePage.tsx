@@ -3,8 +3,10 @@ import { Link, useParams } from 'react-router'
 import { api } from '../../api/client'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Card, EmptyState, Loading, Pagination } from '../../app/ui'
+import { BlockButton } from '../blocks/BlockButton'
 import { formatDate, formatPrice, type PublicProfile } from '../listings/publicTypes'
 import './reviews.css'
+import { useT } from '../../i18n/LanguageContext'
 
 interface MemberReview {
   id: string
@@ -34,6 +36,7 @@ export function SellerProfilePage() {
 }
 
 function SellerProfile({ id }: { id: string }) {
+  const t = useT()
   const [profile, setProfile] = useState<PublicProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -60,7 +63,7 @@ function SellerProfile({ id }: { id: string }) {
   }, [id, page])
 
   if (error) return <Alert tone="error">{error}</Alert>
-  if (!profile) return <Loading text="Se încarcă profilul…" />
+  if (!profile) return <Loading text={t('reviews.seller.loading')} />
 
   const totalPages = reviews ? Math.max(1, Math.ceil(reviews.reviewCount / PAGE_SIZE)) : 1
 
@@ -71,17 +74,20 @@ function SellerProfile({ id }: { id: string }) {
         <div>
           <h1 className="seller__name">{profile.name}</h1>
           <p className="seller__meta">
-            Membru din {formatDate(profile.memberSince)}
+            {t('reviews.seller.memberSince', { date: formatDate(profile.memberSince) })}
             {' · '}
-            {profile.averageRating === null ? 'fără review-uri încă' : <Stars value={profile.averageRating} label={`${profile.averageRating.toFixed(1)} din ${profile.reviewCount} review-uri`} />}
+            {profile.averageRating === null ? t('reviews.seller.noReviews') : <Stars value={profile.averageRating} label={t('reviews.seller.average', { average: profile.averageRating.toFixed(1), count: profile.reviewCount })} />}
           </p>
+        </div>
+        <div className="seller__actions">
+          <BlockButton memberId={id} name={profile.name} />
         </div>
       </header>
 
       <Card>
-        <h2 className="seller__section-title">Anunțuri active</h2>
+        <h2 className="seller__section-title">{t('reviews.seller.activeListings')}</h2>
         {profile.activeListings.length === 0 ? (
-          <p className="seller__muted">Nu are anunțuri active acum.</p>
+          <p className="seller__muted">{t('reviews.seller.noActive')}</p>
         ) : (
           <ul className="seller__listings">
             {profile.activeListings.map((l) => (
@@ -95,16 +101,16 @@ function SellerProfile({ id }: { id: string }) {
       </Card>
 
       <Card>
-        <h2 className="seller__section-title">Review-uri</h2>
+        <h2 className="seller__section-title">{t('reviews.seller.reviews')}</h2>
         {reviews === null || reviews.reviewCount === 0 ? (
-          <EmptyState title="Niciun review încă.">Review-urile apar după ce un cumpărător confirmă o vânzare.</EmptyState>
+          <EmptyState title={t('reviews.seller.noneTitle')}>{t('reviews.seller.noneText')}</EmptyState>
         ) : (
           <>
             <ul className="seller__reviews">
               {reviews.items.map((r) => (
                 <li key={r.id}>
                   <div className="seller__review-top">
-                    <Stars value={r.rating} label={`${r.rating} din 5`} />
+                    <Stars value={r.rating} label={t('reviews.seller.ratingOf5', { rating: r.rating })} />
                     <time>{formatDate(r.createdAt)}</time>
                   </div>
                   {r.comment && <p>{r.comment}</p>}

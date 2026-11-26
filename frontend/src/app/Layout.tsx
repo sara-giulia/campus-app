@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import type { CurrentUser } from '../api/jwt'
+import { LanguageSwitch } from '../i18n/LanguageSwitch'
+import { useT } from '../i18n/LanguageContext'
 import { useNotifications } from '../features/notifications/NotificationsContext'
 import { NotificationsProvider } from '../features/notifications/NotificationsProvider'
 import { LiveEventsProvider } from '../features/live/LiveEventsProvider'
@@ -42,6 +44,7 @@ export function Layout() {
 function LayoutShell() {
   const { user, logout } = useAuth()
   const { unreadCount } = useNotifications()
+  const t = useT()
   const navigate = useNavigate()
   const location = useLocation()
   // The phone menu stays open only on the page where it was opened, so it closes on navigation.
@@ -74,7 +77,7 @@ function LayoutShell() {
     item.to === '/notifications' &&
     unreadCount !== null &&
     unreadCount > 0 && (
-      <span className="nav__badge" aria-label={`${unreadCount} notificări necitite`}>
+      <span className="nav__badge" aria-label={t('layout.unreadNotifications', { count: unreadCount })}>
         {unreadCount > 99 ? '99+' : unreadCount}
       </span>
     )
@@ -83,26 +86,27 @@ function LayoutShell() {
     <div className="shell">
       <header className="topbar">
         <div className="topbar__inner">
-          <NavLink to="/" className="topbar__brand" aria-label="CampusMarket, pagina principală">
+          <NavLink to="/" className="topbar__brand" aria-label={t('layout.homeLink')}>
             <Logo />
           </NavLink>
 
-          <nav className={menuOpen ? 'nav nav--open' : 'nav'} aria-label="Meniu principal">
+          <nav className={menuOpen ? 'nav nav--open' : 'nav'} aria-label={t('layout.mainMenu')}>
             {topLinks.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.to === '/'} className="nav__link">
-                {item.label}
+                {t(item.label)}
                 {badge(item)}
               </NavLink>
             ))}
             {/* On the phone the account links are part of this menu too. */}
             {accountLinks.map((item) => (
               <NavLink key={item.to} to={item.to} className="nav__link nav__link--account">
-                {item.label}
+                {t(item.label)}
               </NavLink>
             ))}
           </nav>
 
           <div className="topbar__actions">
+            <LanguageSwitch />
             <ThemeToggle />
             {user ? (
               <div className="account" ref={accountRef}>
@@ -110,7 +114,7 @@ function LayoutShell() {
                   type="button"
                   className="account__avatar"
                   title={user.email}
-                  aria-label={`Contul meu (${user.email})`}
+                  aria-label={t('layout.myAccount', { email: user.email })}
                   aria-expanded={accountOpen}
                   onClick={() => setAccountOpenOn(accountOpen ? null : location.pathname)}
                 >
@@ -121,11 +125,11 @@ function LayoutShell() {
                     <p className="account__email">{user.email}</p>
                     {accountLinks.map((item) => (
                       <NavLink key={item.to} to={item.to} className="account__link" role="menuitem">
-                        {item.label}
+                        {t(item.label)}
                       </NavLink>
                     ))}
                     <button type="button" className="account__link account__logout" role="menuitem" onClick={handleLogout}>
-                      <LogoutIcon size={16} /> Ieșire
+                      <LogoutIcon size={16} /> {t('layout.logout')}
                     </button>
                   </div>
                 )}
@@ -133,7 +137,7 @@ function LayoutShell() {
             ) : (
               location.pathname !== '/login' && (
                 <ButtonLink to="/login" size="sm">
-                  Intră în cont
+                  {t('layout.login')}
                 </ButtonLink>
               )
             )}
@@ -142,7 +146,7 @@ function LayoutShell() {
               className="icon-button topbar__burger"
               onClick={() => setMenuOpenOn(menuOpen ? null : location.pathname)}
               aria-expanded={menuOpen}
-              aria-label={menuOpen ? 'Închide meniul' : 'Deschide meniul'}
+              aria-label={menuOpen ? t('layout.closeMenu') : t('layout.openMenu')}
             >
               {menuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
@@ -156,7 +160,7 @@ function LayoutShell() {
 
       <footer className="footer">
         <div className="footer__inner">
-          <span>campusmarket · piața studenților</span>
+          <span>{t('layout.footer')}</span>
         </div>
       </footer>
     </div>

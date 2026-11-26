@@ -31,14 +31,16 @@ public sealed partial class ConfirmSaleHandler(
 
         var now = timeProvider.GetUtcNow();
         // The buyer of the confirmed sale is the member on the matching reservation.
-        var buyerId = listing.Reservations.FirstOrDefault(r => r.Id == command.ReservationId)?.MemberId;
+        var reservation = listing.Reservations.FirstOrDefault(r => r.Id == command.ReservationId);
+        var buyerId = reservation?.MemberId;
         var confirmed = listing.ConfirmSale(command.ReservationId, now);
 
         if (confirmed.IsFailure)
             return Result<Guid>.Failure(confirmed.Error);
 
         repository.Update(listing);
-        TryAddSaleRecord(listing, now);
+        // ConfirmSale succeeded, so the reservation exists; the sold price is the one agreed through an offer, if any.
+        TryAddSaleRecord(listing, reservation!.PriceFor(listing), now);
 
         // Notify the buyer, in the same unit of work.
         if (buyerId is not null)
@@ -62,7 +64,7 @@ public sealed partial class ConfirmSaleHandler(
     // it with what the seller actually got, and add a SaleRecord. The sale itself
     // is already confirmed above — a suggester throw or a missing suggestion
     // (<= 0) only means we skip this feedback row, never that we lose the sale.
-    private void TryAddSaleRecord(Listing listing, DateTimeOffset now)
+    private void TryAddSaleRecord(Listing listing, decimal soldPrice, DateTimeOffset now)
     {
         int suggested;
         try
@@ -84,7 +86,7 @@ public sealed partial class ConfirmSaleHandler(
         var record = SaleRecord.Create(
             listing.Id, listing.Category, listing.Condition,
             suggestedPrice: suggested,
-            soldPrice: listing.Price.Amount,
+            soldPrice: soldPrice,
             soldAt: now);
 
         saleRecords.Add(record.Value);

@@ -1,4 +1,5 @@
 import type { ApiError } from '../../api/errors'
+import { translate } from '../../i18n/store'
 
 // Maps API error codes to field-level and form-level messages for the listing
 // forms. Codes come from Listing.Create / UpdateDetails in the domain and from
@@ -21,38 +22,38 @@ export interface PlacedError {
 export function placeListingError(error: ApiError): PlacedError {
   switch (error.code) {
     case 'Listing.TitleEmpty':
-      return { fields: { title: 'Titlul este obligatoriu.' }, form: null }
+      return { fields: { title: translate('listings.error.TitleEmpty') }, form: null }
     case 'Listing.TitleTooLong':
-      return { fields: { title: 'Titlul poate avea maxim 100 de caractere.' }, form: null }
+      return { fields: { title: translate('listings.error.TitleTooLong') }, form: null }
     case 'Listing.DescriptionTooLong':
-      return { fields: { description: 'Descrierea poate avea maxim 1000 de caractere.' }, form: null }
+      return { fields: { description: translate('listings.error.DescriptionTooLong') }, form: null }
     case 'Listing.CategoryInvalid':
-      return { fields: { category: 'Alege o categorie validă.' }, form: null }
+      return { fields: { category: translate('listings.error.CategoryInvalid') }, form: null }
     case 'Listing.CategoryInactive':
-      return { fields: { category: 'Categoria aleasă nu mai este activă. Alege altă categorie.' }, form: null }
+      return { fields: { category: translate('listings.error.CategoryInactive') }, form: null }
     case 'Listing.CategoryRequired':
-      return { fields: { category: 'Alege categoria.' }, form: null }
+      return { fields: { category: translate('listings.error.CategoryRequired') }, form: null }
     case 'Listing.ConditionRequired':
-      return { fields: { condition: 'Alege starea.' }, form: null }
+      return { fields: { condition: translate('listings.error.ConditionRequired') }, form: null }
     case 'Listing.ConditionInvalid':
-      return { fields: { condition: 'Alege o stare validă.' }, form: null }
+      return { fields: { condition: translate('listings.error.ConditionInvalid') }, form: null }
     case 'Money.Negative':
     case 'Money.TooManyDecimals':
     case 'Money.OutOfRange':
     case 'Money.Invalid':
-      return { fields: { price: 'Introdu un preț valid (număr pozitiv, maxim 2 zecimale).' }, form: null }
+      return { fields: { price: translate('listings.error.Money') }, form: null }
     case 'Listing.NotExpired':
-      return { fields: {}, form: 'Doar un anunț expirat poate fi reînnoit.' }
+      return { fields: {}, form: translate('listings.error.NotExpired') }
     case 'Listing.Sold':
-      return { fields: {}, form: 'Un anunț vândut nu mai poate fi modificat.' }
+      return { fields: {}, form: translate('listings.error.Sold') }
     case 'Listing.NotFound':
-      return { fields: {}, form: 'Anunțul nu a fost găsit.' }
+      return { fields: {}, form: translate('listings.error.NotFound') }
     case 'Listing.NotDraft':
-      return { fields: {}, form: 'Anunțul nu mai este o ciornă.' }
+      return { fields: {}, form: translate('listings.error.NotDraft') }
     case 'Listing.NotOwner':
-      return { fields: {}, form: 'Doar autorul anunțului poate face această acțiune.' }
+      return { fields: {}, form: translate('listings.error.NotOwner') }
     case 'Network.Unreachable':
-      return { fields: {}, form: 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' }
+      return { fields: {}, form: translate('common.networkUnreachable') }
     default:
       return { fields: {}, form: error.message }
   }
@@ -61,19 +62,19 @@ export function placeListingError(error: ApiError): PlacedError {
 export function placeReservationError(error: ApiError): string {
   switch (error.code) {
     case 'Reservation.NotFound':
-      return 'Rezervarea nu a fost găsită.'
+      return translate('listings.error.ReservationNotFound')
     case 'Listing.NotFound':
-      return 'Anunțul nu a fost găsit.'
+      return translate('listings.error.NotFound')
     case 'Reservation.NotAllowed':
-      return 'Nu ai voie să faci această acțiune pe rezervarea aceasta.'
+      return translate('listings.error.ReservationNotAllowed')
     case 'Reservation.NotActive':
-      return 'Rezervarea nu mai este activă.'
+      return translate('listings.error.ReservationNotActive')
     case 'Reservation.Expired':
-      return 'Rezervarea a expirat.'
+      return translate('listings.error.ReservationExpired')
     case 'Listing.NotOwner':
-      return 'Doar vânzătorul poate confirma vânzarea.'
+      return translate('listings.error.NotSeller')
     case 'Network.Unreachable':
-      return 'Serverul nu răspunde. Verifică dacă API-ul este pornit.'
+      return translate('common.networkUnreachable')
     default:
       return error.message
   }

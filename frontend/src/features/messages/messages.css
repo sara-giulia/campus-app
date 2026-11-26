@@ -158,3 +158,11 @@
   color: var(--ink);
   font: inherit;
 }
+
+.chat__actions {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}

@@ -14,6 +14,7 @@ import {
 import { syncPhotos, type PhotoEntry } from './photoEntries'
 import type { CreateListingResponse } from './types'
 import './listings.css'
+import { useT } from '../../i18n/LanguageContext'
 
 // POST /api/v1/listings creates a draft (Title, Category, Condition and Price are required, the seller
 // comes from the JWT). Then the draft is synced with the form (removed photos deleted, missing ones uploaded one by one,
@@ -22,11 +23,12 @@ import './listings.css'
 // photos that are not up yet and goes on. A second listing is never created.
 
 const ACTIONS: ListingFormAction[] = [
-  { intent: 'save', label: 'Salvează ca ciornă', submittingLabel: 'Se salvează…' },
-  { intent: 'publish', label: 'Publică', submittingLabel: 'Se publică…' },
+  { intent: 'save', label: 'listings.action.saveDraft', submittingLabel: 'listings.action.saving' },
+  { intent: 'publish', label: 'listings.action.publish', submittingLabel: 'listings.action.publishing' },
 ]
 
 export function CreateListingPage() {
+  const t = useT()
   const navigate = useNavigate()
   const [photos, setPhotos] = useState<PhotoEntry[]>([])
   const draftId = useRef<string | null>(null)
@@ -47,7 +49,7 @@ export function CreateListingPage() {
       if (uploadError) {
         return {
           ok: false,
-          formError: `Anunțul a fost salvat ca ciornă, dar ${uploadError} Apasă din nou ca să continui cu aceeași ciornă.`,
+          formError: t('listings.create.savedButUpload', { error: uploadError }),
         }
       }
 
@@ -61,10 +63,10 @@ export function CreateListingPage() {
             return {
               ok: false,
               fieldErrors: placed.fields,
-              formError: `Anunțul a fost salvat ca ciornă, dar publicarea a eșuat: ${placed.form ?? placed.fields.category ?? publishError.message}`,
+              formError: t('listings.create.publishFailedWith', { reason: placed.form ?? placed.fields.category ?? publishError.message }),
             }
           }
-          return { ok: false, formError: 'Anunțul a fost salvat ca ciornă, dar publicarea a eșuat.' }
+          return { ok: false, formError: t('listings.create.publishFailed') }
         }
       }
 
@@ -75,13 +77,13 @@ export function CreateListingPage() {
         const placed = placeListingError(err)
         return { ok: false, fieldErrors: placed.fields, formError: placed.form }
       }
-      return { ok: false, formError: 'A apărut o eroare neașteptată.' }
+      return { ok: false, formError: t('common.unexpectedError') }
     }
   }
 
   return (
     <div className="listings-page">
-      <PageHeader eyebrow="Anunțuri" title="Publică un anunț" lead="Completează detaliile anunțului și adaugă poze. Îți putem sugera un preț sau o categorie." />
+      <PageHeader eyebrow={t('listings.browse.eyebrow')} title={t('listings.create.title')} lead={t('listings.create.lead')} />
 
       <Card className="listings-card">
         <ListingForm

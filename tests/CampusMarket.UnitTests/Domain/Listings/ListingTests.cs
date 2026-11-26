@@ -1050,4 +1050,45 @@ public class ListingTests
         listing.Version.Should().Be(versionBefore);
         listing.ExpiresAt.Should().Be(expiresAtBefore);
     }
+
+    [Fact]
+    public void Given_ActiveListing_When_ReservingWithAgreedPrice_Then_ReservationKeepsAgreedPrice()
+    {
+        var listing = ActiveListing();
+        var buyerId = Guid.NewGuid();
+
+        var result = listing.Reserve(buyerId, Now, Money.Create(18m).Value);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AgreedPrice.Should().Be(18m);
+        result.Value.PriceFor(listing).Should().Be(18m);
+        result.Value.MemberId.Should().Be(buyerId);
+        listing.Status.Should().Be(ListingStatus.Reserved);
+        listing.Price.Amount.Should().Be(25m);
+    }
+
+    [Fact]
+    public void Given_ActiveListing_When_ReservingWithoutAgreedPrice_Then_AgreedPriceIsNull()
+    {
+        var listing = ActiveListing();
+
+        var result = listing.Reserve(Guid.NewGuid(), Now);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AgreedPrice.Should().BeNull();
+    }
+
+    [Fact]
+    public void Given_DraftListing_When_ReservingWithAgreedPrice_Then_ReturnsNotActiveAndNoReservation()
+    {
+        var listing = DraftListing();
+
+        var result = listing.Reserve(Guid.NewGuid(), Now, Money.Create(18m).Value);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Validation);
+        result.Error.Code.Should().Be("Listing.NotActive");
+        listing.Reservations.Should().BeEmpty();
+        listing.Status.Should().Be(ListingStatus.Draft);
+    }
 }

@@ -1,20 +1,22 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/errors'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 import { useAuth } from '../auth/AuthContext'
 import { Alert, Button, TextField } from '../ui'
 import './login.css'
 
 // Messages for the error codes POST /auth/login can return.
 function loginErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) return 'A apărut o eroare neașteptată.'
+  if (!(error instanceof ApiError)) return translate('common.unexpectedError')
   switch (error.code) {
     case 'Auth.InvalidCredentials':
-      return 'Email sau parolă greșită.'
+      return translate('login.error.InvalidCredentials')
     case 'Request.TooManyRequests':
-      return 'Prea multe încercări. Încearcă din nou peste un minut.'
+      return translate('login.error.TooManyRequests')
     case 'Network.Unreachable':
-      return 'Serverul nu răspunde. Verifică dacă API-ul este pornit.'
+      return translate('common.networkUnreachable')
     default:
       return error.message
   }
@@ -22,6 +24,7 @@ function loginErrorMessage(error: unknown): string {
 
 export function LoginPage() {
   const { user, login } = useAuth()
+  const t = useT()
   const navigate = useNavigate()
   const location = useLocation()
   // RequireAuth sends the page the user wanted to open; go back there after login.
@@ -51,26 +54,26 @@ export function LoginPage() {
   return (
     <div className="login">
       <div className="login__form-side">
-        <h1 className="login__title">Bine ai revenit</h1>
-        <p className="login__subtitle">Intră în contul tău CampusMarket.</p>
+        <h1 className="login__title">{t('login.title')}</h1>
+        <p className="login__subtitle">{t('login.subtitle')}</p>
 
         <form onSubmit={handleSubmit} className="login__form">
-          <TextField label="Email" type="email" autoComplete="email" placeholder="nume@student.ro" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
-          <TextField label="Parolă" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <TextField label={t('login.email')} type="email" autoComplete="email" placeholder={t('login.emailPlaceholder')} value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <TextField label={t('login.password')} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           <p className="login__forgot">
-            <Link to="/forgot-password">Ai uitat parola?</Link>
+            <Link to="/forgot-password">{t('login.forgot')}</Link>
           </p>
           {error && <Alert tone="error">{error}</Alert>}
           <Button type="submit" size="lg" block loading={submitting}>
-            {submitting ? 'Se verifică…' : 'Intră în cont'}
+            {submitting ? t('login.checking') : t('login.submit')}
           </Button>
         </form>
       </div>
 
       <div className="login__picture" aria-hidden="true">
         <p className="login__quote">
-          Cumperi și vinzi între colegi, direct în campus.
-          <small>campusmarket · piața studenților</small>
+          {t('home.title')}
+          <small>{t('layout.footer')}</small>
         </p>
       </div>
     </div>

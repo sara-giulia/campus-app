@@ -1,3 +1,4 @@
+using CampusMarket.Api.Domain.Offers;
 using System.Net;
 using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Common;
@@ -147,7 +148,9 @@ public sealed class GetConversationTests : IntegrationTestBase
             new ConversationMessage(_conversation.Messages[0].Id, 1, _buyer.Id, "Mai e disponibil?", CreatedAt),
             new ConversationMessage(_conversation.Messages[1].Id, 2, _seller.Id, "Da, inca e.", CreatedAt.AddMinutes(5)),
             new ConversationMessage(_conversation.Messages[2].Id, 3, _buyer.Id, "Pot sa vin maine?", CreatedAt.AddMinutes(10))
-        ]);
+        ],
+        // No offers were made in this conversation.
+        []);
 
     // Still one conversation with its three messages, and the last message time did not move.
     private async Task AssertDatabaseUnchangedAsync()
@@ -158,5 +161,72 @@ public sealed class GetConversationTests : IntegrationTestBase
 
         var messageCount = await QueryDbAsync(db => db.Set<Message>().CountAsync());
         messageCount.Should().Be(3);
+    }
+
+    // The offers of this listing and buyer (a buyer offer and the seller's counter-offer) come with the messages,
+    // the oldest first; the offers of another buyer and of another listing are not in this conversation.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Given_OffersInTheConversation_When_BuyerOrSellerGetsIt_Then_ReturnsOnlyItsOffersOldestFirst(bool asBuyer)
+    {
+        // Arrange
+        var first = Offer.Make(_listing, _buyer.Id, 40m, CreatedAt.AddMinutes(1)).Value;
+        var counter = first.Counter(_seller.Id, _listing, 45m, CreatedAt.AddMinutes(2)).Value;
+        var otherBuyersOffer = Offer.Make(_listing, _otherMember.Id, 30m, CreatedAt.AddMinutes(3)).Value;
+        var otherListing = Listing.Create(_seller.Id, "Calculator", Category.Electronics, Condition.Good, 80m, CreatedAt).Value;
+        otherListing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
+        var offerOnOtherListing = Offer.Make(otherListing, _buyer.Id, 60m, CreatedAt.AddMinutes(4)).Value;
+        await SeedAsync(_seller, _buyer, _otherMember, _listing, otherListing, _conversation,
+            counter, first, otherBuyersOffer, offerOnOtherListing);
+        AuthenticateAs(asBuyer ? _buyer.Id : _seller.Id);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/conversations/{_conversation.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetConversationResponse>(Json);
+        body!.Messages.Should().HaveCount(3);
+        body.Offers.Should().HaveCount(2);
+        body.Offers[0].Id.Should().Be(first.Id);
+        body.Offers[0].ListingId.Should().Be(_listing.Id);
+        body.Offers[0].BuyerId.Should().Be(_buyer.Id);
+        body.Offers[0].SellerId.Should().Be(_seller.Id);
+        body.Offers[0].ProposedById.Should().Be(_buyer.Id);
+        body.Offers[0].Amount.Should().Be(40m);
+        body.Offers[0].Status.Should().Be(OfferStatus.Countered);
+        body.Offers[0].ParentOfferId.Should().BeNull();
+        body.Offers[0].CreatedAt.Should().Be(CreatedAt.AddMinutes(1));
+        body.Offers[0].RespondedAt.Should().Be(CreatedAt.AddMinutes(2));
+        body.Offers[1].Id.Should().Be(counter.Id);
+        body.Offers[1].ProposedById.Should().Be(_seller.Id);
+        body.Offers[1].Amount.Should().Be(45m);
+        body.Offers[1].Status.Should().Be(OfferStatus.Pending);
+        body.Offers[1].ParentOfferId.Should().Be(first.Id);
+        body.Offers[1].CreatedAt.Should().Be(CreatedAt.AddMinutes(2));
+        body.Offers[1].RespondedAt.Should().BeNull();
+
+        (await QueryDbAsync(db => db.Set<Offer>().CountAsync())).Should().Be(4);
+        await AssertDatabaseUnchangedAsync();
+    }
+
+    [Fact]
+    public async Task Given_OffersInTheConversation_When_AnotherMemberGetsIt_Then_Returns403WithoutOffers()
+    {
+        // Arrange
+        var offer = Offer.Make(_listing, _buyer.Id, 40m, CreatedAt.AddMinutes(1)).Value;
+        await SeedAsync(_seller, _buyer, _otherMember, _listing, _conversation, offer);
+        AuthenticateAs(_otherMember.Id);
+
+        // Act
+        var response = await Client.GetAsync($"/api/v1/conversations/{_conversation.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var error = await response.Content.ReadFromJsonAsync<Error>(Json);
+        error!.Type.Should().Be(ErrorType.Forbidden);
+        (await response.Content.ReadAsStringAsync()).Should().NotContain(offer.Id.ToString());
+        await AssertDatabaseUnchangedAsync();
     }
 }

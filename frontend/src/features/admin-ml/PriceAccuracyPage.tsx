@@ -3,12 +3,14 @@ import { Link } from 'react-router'
 import { api } from '../../api/client'
 import { isAbort } from '../../app/errorMessage'
 import { Alert, Card, EmptyState, Loading, PageHeader } from '../../app/ui'
+import { formatNumber } from '../../i18n/format'
 import { useCategories } from '../listings/categories'
 import { formatDateTime, formatPrice } from '../listings/publicTypes'
 import { CONDITION_LABELS, type Category, type Condition } from '../listings/types'
 import { priceAccuracyError } from './errors'
 import '../listings/listings.css'
 import './admin-ml.css'
+import { useT } from '../../i18n/LanguageContext'
 
 // GET /api/v1/admin/ml/price-accuracy (Features/Admin/PriceAccuracy/PriceAccuracyResponse.cs).
 // count 0 → mae and mape are null, perCategory and lastRecords are empty.
@@ -37,6 +39,7 @@ interface PriceAccuracyResponse {
 
 // Admin: how close the price model's suggestions were to the prices the listings really sold for.
 export function PriceAccuracyPage() {
+  const t = useT()
   const [data, setData] = useState<PriceAccuracyResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { labelOf } = useCategories()
@@ -58,35 +61,33 @@ export function PriceAccuracyPage() {
   return (
     <div className="listings-page admin-ml">
       <PageHeader
-        eyebrow="Administrare"
-        title="Acuratețea prețurilor"
-        lead="Cât de aproape a fost prețul sugerat de model de prețul cu care s-a vândut anunțul, la vânzările confirmate."
+        eyebrow={t('priceAccuracy.eyebrow')}
+        title={t('priceAccuracy.title')}
+        lead={t('priceAccuracy.lead')}
       />
       {error && <Alert tone="error">{error}</Alert>}
-      {!error && data === null && <Loading text="Se încarcă statisticile…" />}
+      {!error && data === null && <Loading text={t('priceAccuracy.loading')} />}
       {data?.count === 0 && (
-        <EmptyState title="Nu există încă vânzări confirmate.">
-          Când un vânzător confirmă o vânzare, ea apare aici, împreună cu prețul sugerat.
-        </EmptyState>
+        <EmptyState title={t('priceAccuracy.emptyTitle')}>{t('priceAccuracy.emptyText')}</EmptyState>
       )}
       {data !== null && data.count > 0 && (
         <>
           <div className="admin-ml__stats">
-            <Stat label="Vânzări confirmate" value={String(data.count)} />
-            <Stat label="Eroare medie (MAE)" value={data.mae === null ? '–' : formatPrice(data.mae)} />
-            <Stat label="Eroare medie procentuală (MAPE)" value={data.mape === null ? '–' : formatPercent(data.mape)} />
+            <Stat label={t('priceAccuracy.confirmedSales')} value={String(data.count)} />
+            <Stat label={t('priceAccuracy.mae')} value={data.mae === null ? '–' : formatPrice(data.mae)} />
+            <Stat label={t('priceAccuracy.mape')} value={data.mape === null ? '–' : formatPercent(data.mape)} />
           </div>
 
           {data.perCategory.length > 0 && (
             <Card className="listings-card">
-              <h2 className="admin-ml__section-title">Pe categorii</h2>
+              <h2 className="admin-ml__section-title">{t('priceAccuracy.perCategory')}</h2>
               <div className="admin-ml__table-wrap">
                 <table className="admin-ml__table">
                   <thead>
                     <tr>
-                      <th scope="col">Categorie</th>
-                      <th scope="col" className="admin-ml__num">Vânzări</th>
-                      <th scope="col" className="admin-ml__num">Eroare medie</th>
+                      <th scope="col">{t('priceAccuracy.category')}</th>
+                      <th scope="col" className="admin-ml__num">{t('priceAccuracy.sales')}</th>
+                      <th scope="col" className="admin-ml__num">{t('priceAccuracy.meanError')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -104,18 +105,18 @@ export function PriceAccuracyPage() {
           )}
 
           <Card className="listings-card">
-            <h2 className="admin-ml__section-title">Ultimele vânzări</h2>
+            <h2 className="admin-ml__section-title">{t('priceAccuracy.lastSales')}</h2>
             <div className="admin-ml__table-wrap">
               <table className="admin-ml__table">
                 <thead>
                   <tr>
-                    <th scope="col">Data</th>
-                    <th scope="col">Categorie</th>
-                    <th scope="col">Stare</th>
-                    <th scope="col" className="admin-ml__num">Preț sugerat</th>
-                    <th scope="col" className="admin-ml__num">Preț vândut</th>
-                    <th scope="col" className="admin-ml__num">Diferență</th>
-                    <th scope="col">Anunț</th>
+                    <th scope="col">{t('priceAccuracy.date')}</th>
+                    <th scope="col">{t('priceAccuracy.category')}</th>
+                    <th scope="col">{t('priceAccuracy.condition')}</th>
+                    <th scope="col" className="admin-ml__num">{t('priceAccuracy.suggested')}</th>
+                    <th scope="col" className="admin-ml__num">{t('priceAccuracy.sold')}</th>
+                    <th scope="col" className="admin-ml__num">{t('priceAccuracy.difference')}</th>
+                    <th scope="col">{t('priceAccuracy.listing')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -130,7 +131,7 @@ export function PriceAccuracyPage() {
                         <Difference suggested={record.suggestedPrice} sold={record.soldPrice} />
                       </td>
                       <td>
-                        <Link to={`/listings/${record.listingId}`}>Vezi</Link>
+                        <Link to={`/listings/${record.listingId}`}>{t('priceAccuracy.see')}</Link>
                       </td>
                     </tr>
                   ))}
@@ -155,12 +156,13 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 // Positive: the model suggested more than the item sold for; negative: less.
 function Difference({ suggested, sold }: { suggested: number; sold: number }) {
+  const t = useT()
   const diff = Math.round((suggested - sold) * 100) / 100
-  if (diff === 0) return <span>0 lei</span>
+  if (diff === 0) return <span>{t('priceAccuracy.zero')}</span>
   const className = diff > 0 ? 'admin-ml__over' : 'admin-ml__under'
   const sign = diff > 0 ? '+' : '−'
   return (
-    <span className={className} title={diff > 0 ? 'Sugerat peste prețul de vânzare' : 'Sugerat sub prețul de vânzare'}>
+    <span className={className} title={diff > 0 ? t('priceAccuracy.over') : t('priceAccuracy.under')}>
       {sign}
       {formatPrice(Math.abs(diff))}
     </span>
@@ -168,5 +170,5 @@ function Difference({ suggested, sold }: { suggested: number; sold: number }) {
 }
 
 function formatPercent(value: number): string {
-  return `${value.toLocaleString('ro-RO', { maximumFractionDigits: 2 })}%`
+  return `${formatNumber(value, { maximumFractionDigits: 2 })}%`
 }

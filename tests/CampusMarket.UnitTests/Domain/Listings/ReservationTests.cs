@@ -135,4 +135,26 @@ public class ReservationTests
         result.Error.Message.Should().Be("Only an active reservation can expire.");
         reservation.Status.Should().Be(ReservationStatus.Cancelled);
     }
+
+    [Fact]
+    public void Given_ReservationWithAgreedPrice_When_AskingPriceFor_Then_ReturnsAgreedPrice()
+    {
+        var listing = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 100m, Now).Value;
+        listing.Publish(Now.AddDays(30));
+        var reservation = listing.Reserve(Guid.NewGuid(), Now, Money.Create(80m).Value).Value;
+
+        reservation.AgreedPrice.Should().Be(80m);
+        reservation.PriceFor(listing).Should().Be(80m);
+    }
+
+    [Fact]
+    public void Given_ReservationWithoutAgreedPrice_When_AskingPriceFor_Then_ReturnsListingPrice()
+    {
+        var listing = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 100m, Now).Value;
+        listing.Publish(Now.AddDays(30));
+        var reservation = listing.Reserve(Guid.NewGuid(), Now).Value;
+
+        reservation.AgreedPrice.Should().BeNull();
+        reservation.PriceFor(listing).Should().Be(100m);
+    }
 }

@@ -7,23 +7,26 @@ import { reloadCategories, useCategories, type CategoryItem } from '../listings/
 import { placeCategoryError, type CategoryFieldErrors } from './errors'
 import '../listings/listings.css'
 import './admin-categories.css'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 
 // Admin: the 5 base categories (the ML models use them, so they cannot be added or deleted).
 // An Admin changes the display name, the description and whether new listings can use the
 // category. Listings already in a deactivated category stay as they are.
 export function AdminCategoriesPage() {
+  const t = useT()
   const { categories, loaded, error } = useCategories({ fresh: true })
   const activeCount = categories.filter((c) => c.isActive).length
 
   return (
     <div className="listings-page admin-categories">
       <PageHeader
-        eyebrow="Administrare"
-        title="Categorii"
-        lead="Numele de aici apar peste tot în aplicație: în căutare, pe carduri și în formularul de publicare. Dezactivează o categorie când nu mai vrei anunțuri noi în ea (cele existente rămân). Cele 5 categorii sunt fixe, pentru că modelele ML le folosesc la sugestii."
+        eyebrow={t('adminCategories.eyebrow')}
+        title={t('adminCategories.title')}
+        lead={t('adminCategories.lead')}
       />
       {error !== null && <Alert tone="error">{errorMessage(error)}</Alert>}
-      {!loaded && error === null && <Loading text="Se încarcă categoriile…" />}
+      {!loaded && error === null && <Loading text={t('adminCategories.loading')} />}
       {loaded &&
         categories.map((category) => (
           <CategoryEditor key={category.key} category={category} isLastActive={category.isActive && activeCount === 1} />
@@ -33,6 +36,7 @@ export function AdminCategoriesPage() {
 }
 
 function CategoryEditor({ category, isLastActive }: { category: CategoryItem; isLastActive: boolean }) {
+  const t = useT()
   const [displayName, setDisplayName] = useState(category.displayName)
   const [description, setDescription] = useState(category.description ?? '')
   const [isActive, setIsActive] = useState(category.isActive)
@@ -67,7 +71,7 @@ function CategoryEditor({ category, isLastActive }: { category: CategoryItem; is
         setFieldErrors(placed.fields)
         setFormError(placed.form)
       } else {
-        setFormError('A apărut o eroare neașteptată.')
+        setFormError(translate('common.unexpectedError'))
       }
     } finally {
       setSaving(false)
@@ -80,7 +84,7 @@ function CategoryEditor({ category, isLastActive }: { category: CategoryItem; is
     setFieldErrors({})
     setFormError(null)
     setSaved(false)
-    save().catch(() => setFormError('A apărut o eroare neașteptată.'))
+    save().catch(() => setFormError(translate('common.unexpectedError')))
   }
 
   function edited<T>(setter: (value: T) => void) {
@@ -97,11 +101,11 @@ function CategoryEditor({ category, isLastActive }: { category: CategoryItem; is
           <h2 className="admin-categories__title">
             {category.displayName} <span className="admin-categories__key">({category.key})</span>
           </h2>
-          <Badge tone={category.isActive ? 'success' : 'warning'}>{category.isActive ? 'Activă' : 'Inactivă'}</Badge>
+          <Badge tone={category.isActive ? 'success' : 'warning'}>{category.isActive ? t('adminCategories.active') : t('adminCategories.inactive')}</Badge>
         </div>
 
         <TextField
-          label="Nume afișat"
+          label={t('adminCategories.displayName')}
           value={displayName}
           onChange={(e: ChangeEvent<HTMLInputElement>) => edited(setDisplayName)(e.target.value)}
           error={fieldErrors.displayName}
@@ -110,7 +114,7 @@ function CategoryEditor({ category, isLastActive }: { category: CategoryItem; is
         />
 
         <div className={fieldErrors.description ? 'field field--error' : 'field'}>
-          <label className="field__label" htmlFor={descriptionId}>Descriere</label>
+          <label className="field__label" htmlFor={descriptionId}>{t('adminCategories.description')}</label>
           <textarea
             id={descriptionId}
             className="listings-form__textarea admin-categories__textarea"
@@ -120,7 +124,7 @@ function CategoryEditor({ category, isLastActive }: { category: CategoryItem; is
             aria-invalid={fieldErrors.description ? true : undefined}
             aria-describedby={fieldErrors.description ? `${descriptionId}-error` : undefined}
           />
-          {!fieldErrors.description && <span className="field__hint">Opțional. Maxim 500 de caractere.</span>}
+          {!fieldErrors.description && <span className="field__hint">{t('adminCategories.descriptionHint')}</span>}
           {fieldErrors.description && (
             <span id={`${descriptionId}-error`} className="field__error">
               {fieldErrors.description}
@@ -136,17 +140,17 @@ function CategoryEditor({ category, isLastActive }: { category: CategoryItem; is
               checked={isActive}
               onChange={(e: ChangeEvent<HTMLInputElement>) => edited(setIsActive)(e.target.checked)}
             />
-            Activă (se pot publica anunțuri noi în ea)
+            {t('adminCategories.activeCheckbox')}
           </label>
-          {isLastActive && <span className="field__hint">Este singura categorie activă, nu poate fi dezactivată.</span>}
+          {isLastActive && <span className="field__hint">{t('adminCategories.lastActiveHint')}</span>}
         </div>
 
         {formError && <Alert tone="error">{formError}</Alert>}
-        {saved && <Alert tone="success">Categoria a fost salvată.</Alert>}
+        {saved && <Alert tone="success">{t('adminCategories.saved')}</Alert>}
 
         <div className="admin-categories__actions">
           <Button type="submit" loading={saving} disabled={!changed || saving}>
-            {saving ? 'Se salvează…' : 'Salvează'}
+            {saving ? t('adminCategories.saving') : t('adminCategories.save')}
           </Button>
         </div>
       </form>

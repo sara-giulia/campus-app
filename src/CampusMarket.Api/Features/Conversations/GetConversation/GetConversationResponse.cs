@@ -1,8 +1,9 @@
 using CampusMarket.Api.Domain.Conversations;
+using CampusMarket.Api.Features.Offers;
 
 namespace CampusMarket.Api.Features.Conversations.GetConversation;
 
-// The conversation with every message, the oldest first.
+// The conversation with every message and every price offer, the oldest first.
 public sealed record GetConversationResponse(
     Guid Id,
     Guid ListingId,
@@ -12,7 +13,8 @@ public sealed record GetConversationResponse(
     Guid BuyerId,
     string BuyerName,
     DateTimeOffset CreatedAt,
-    IReadOnlyList<ConversationMessage> Messages);
+    IReadOnlyList<ConversationMessage> Messages,
+    IReadOnlyList<OfferResponse> Offers);
 
 public sealed record ConversationMessage(Guid Id, int Number, Guid SenderId, string Text, DateTimeOffset SentAt)
 {

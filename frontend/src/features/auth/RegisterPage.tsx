@@ -5,6 +5,8 @@ import { ApiError } from '../../api/errors'
 import { useAuth } from '../../app/auth/AuthContext'
 import { Alert, Button, ButtonLink, TextField } from '../../app/ui'
 import './register.css'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 
 interface FieldErrors {
   name?: string
@@ -23,22 +25,22 @@ interface RegisterWithTokens extends RegisterResponse {
 function placeError(error: ApiError): { fields: FieldErrors; form: string | null } {
   switch (error.code) {
     case 'Auth.WeakPassword':
-      return { fields: { password: 'Parola trebuie să aibă cel puțin 8 caractere.' }, form: null }
+      return { fields: { password: translate('auth.error.WeakPassword') }, form: null }
     case 'Auth.PasswordsDoNotMatch':
-      return { fields: { confirmPassword: 'Cele două parole nu coincid.' }, form: null }
+      return { fields: { confirmPassword: translate('auth.error.PasswordsDoNotMatch') }, form: null }
     case 'Member.EmailTaken':
-      return { fields: { email: 'Există deja un cont cu acest email.' }, form: null }
+      return { fields: { email: translate('auth.error.EmailTaken') }, form: null }
     case 'Email.Empty':
     case 'Email.Invalid':
-      return { fields: { email: 'Introdu un email valid (ex. nume@student.ro).' }, form: null }
+      return { fields: { email: translate('auth.error.EmailInvalid') }, form: null }
     case 'Member.InvalidName':
-      return { fields: { name: 'Numele trebuie să aibă între 2 și 100 de caractere.' }, form: null }
+      return { fields: { name: translate('auth.error.InvalidName') }, form: null }
     case 'Member.PasswordRequired':
-      return { fields: { password: 'Parola este obligatorie.' }, form: null }
+      return { fields: { password: translate('auth.error.PasswordRequired') }, form: null }
     case 'Network.Unreachable':
-      return { fields: {}, form: 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' }
+      return { fields: {}, form: translate('common.networkUnreachable') }
     case 'Request.TooManyRequests':
-      return { fields: {}, form: 'Prea multe încercări. Încearcă din nou peste un minut.' }
+      return { fields: {}, form: translate('login.error.TooManyRequests') }
     default:
       return { fields: {}, form: error.message }
   }
@@ -46,6 +48,7 @@ function placeError(error: ApiError): { fields: FieldErrors; form: string | null
 
 export function RegisterPage() {
   const { user } = useAuth()
+  const t = useT()
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
@@ -79,7 +82,7 @@ export function RegisterPage() {
         setFieldErrors(placed.fields)
         setFormError(placed.form)
       } else {
-        setFormError('A apărut o eroare neașteptată.')
+        setFormError(translate('common.unexpectedError'))
       }
     } finally {
       setSubmitting(false)
@@ -90,21 +93,21 @@ export function RegisterPage() {
     return (
       <div className="register">
         <div className="register__form-side">
-          <h1 className="register__title">Contul a fost creat</h1>
+          <h1 className="register__title">{t('auth.register.createdTitle')}</h1>
           <p className="register__subtitle">
-            Bine ai venit, <strong>{registeredEmail}</strong>. Intră în cont pentru a continua.
+            {t('auth.register.welcomeBefore')}<strong>{registeredEmail}</strong>{t('auth.register.welcomeAfter')}
           </p>
-          <Alert tone="success">Contul tău a fost creat. Poți acum să intri în cont cu emailul și parola alese.</Alert>
+          <Alert tone="success">{t('auth.register.createdAlert')}</Alert>
           <div className="register__success-actions">
             <ButtonLink to="/login" size="lg" block>
-              Intră în cont
+              {t('layout.login')}
             </ButtonLink>
           </div>
         </div>
         <div className="register__picture" aria-hidden="true">
           <p className="register__quote">
-            Alătură-te comunității studenților.
-            <small>campusmarket · piața studenților</small>
+            {t('auth.register.quote')}
+            <small>{t('layout.footer')}</small>
           </p>
         </div>
       </div>
@@ -114,14 +117,14 @@ export function RegisterPage() {
   return (
     <div className="register">
       <div className="register__form-side">
-        <h1 className="register__title">Fă-ți cont</h1>
-        <p className="register__subtitle">Ai nevoie de un cont CampusMarket pentru a publica și cumpăra.</p>
+        <h1 className="register__title">{t('auth.register.title')}</h1>
+        <p className="register__subtitle">{t('auth.register.subtitle')}</p>
 
         <form onSubmit={handleSubmit} className="register__form" noValidate>
           <TextField
-            label="Nume"
+            label={t('auth.register.name')}
             autoComplete="name"
-            placeholder="Ana Popescu"
+            placeholder={t('auth.register.namePlaceholder')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             error={fieldErrors.name}
@@ -129,27 +132,27 @@ export function RegisterPage() {
             autoFocus
           />
           <TextField
-            label="Email"
+            label={t('login.email')}
             type="email"
             autoComplete="email"
-            placeholder="nume@student.ro"
+            placeholder={t('login.emailPlaceholder')}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             error={fieldErrors.email}
             required
           />
           <TextField
-            label="Parolă"
+            label={t('login.password')}
             type="password"
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             error={fieldErrors.password}
-            hint="Minim 8 caractere."
+            hint={t('auth.passwordHint')}
             required
           />
           <TextField
-            label="Confirmă parola"
+            label={t('auth.confirmPassword')}
             type="password"
             autoComplete="new-password"
             value={confirmPassword}
@@ -159,15 +162,15 @@ export function RegisterPage() {
           />
           {formError && <Alert tone="error">{formError}</Alert>}
           <Button type="submit" size="lg" block loading={submitting}>
-            {submitting ? 'Se creează contul…' : 'Creează cont'}
+            {submitting ? t('auth.register.creating') : t('auth.register.submit')}
           </Button>
         </form>
       </div>
 
       <div className="register__picture" aria-hidden="true">
         <p className="register__quote">
-          Alătură-te comunității studenților.
-          <small>campusmarket · piața studenților</small>
+          {t('auth.register.quote')}
+          <small>{t('layout.footer')}</small>
         </p>
       </div>
     </div>

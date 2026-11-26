@@ -7,6 +7,7 @@ import { formatDateTime } from '../listings/publicTypes'
 import { LISTING_STATUS_LABELS, type ListingStatus } from '../listings/types'
 import '../listings/listings.css'
 import './moderation.css'
+import { useT } from '../../i18n/LanguageContext'
 
 interface ReportedListingItem {
   listingId: string
@@ -33,6 +34,7 @@ const PAGE_SIZE = 20
 // Admin: listings reported by members or flagged by the spam model when they were published.
 // Hiding one takes it out of the search; hidden listings leave this list.
 export function ReportedListingsPage() {
+  const t = useT()
   const [page, setPage] = useState(1)
   const [data, setData] = useState<GetReportedListingsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +58,7 @@ export function ReportedListingsPage() {
   }, [page, version])
 
   async function hide(item: ReportedListingItem) {
-    if (!window.confirm(`Ascunzi anunțul „${item.title}”? Nu va mai apărea în căutare.`)) return
+    if (!window.confirm(t('moderation.confirmHide', { title: item.title }))) return
     setHiding(item.listingId)
     try {
       await api.post(`/moderation/listings/${item.listingId}/hide`)
@@ -73,10 +75,10 @@ export function ReportedListingsPage() {
 
   return (
     <div className="listings-page moderation">
-      <PageHeader eyebrow="Administrare" title="Anunțuri raportate" lead="Raportate de membri sau marcate de modelul de spam la publicare." />
+      <PageHeader eyebrow={t('moderation.eyebrow')} title={t('moderation.title')} lead={t('moderation.lead')} />
       {error && <Alert tone="error">{error}</Alert>}
-      {!error && data === null && <Loading text="Se încarcă rapoartele…" />}
-      {data !== null && data.totalCount === 0 && <EmptyState title="Niciun anunț raportat.">Când cineva raportează un anunț, apare aici.</EmptyState>}
+      {!error && data === null && <Loading text={t('moderation.loading')} />}
+      {data !== null && data.totalCount === 0 && <EmptyState title={t('moderation.emptyTitle')}>{t('moderation.emptyText')}</EmptyState>}
       {data !== null && data.totalCount > 0 && (
         <>
           <div className="listings-list">
@@ -88,13 +90,13 @@ export function ReportedListingsPage() {
                   </h2>
                   <div className="listing-row__meta">
                     <Badge>{LISTING_STATUS_LABELS[item.status]}</Badge>
-                    <span>{item.reportCount === 1 ? '1 raportare' : `${item.reportCount} raportări`}</span>
+                    <span>{item.reportCount === 1 ? t('moderation.reportOne') : t('moderation.reportMany', { count: item.reportCount })}</span>
                     {item.flaggedAsSpam && (
                       <Badge tone="danger">
-                        Spam {item.spamProbability === null ? '' : `${Math.round(item.spamProbability * 100)}%`}
+                        {t('moderation.spam', { percent: item.spamProbability === null ? '' : `${Math.round(item.spamProbability * 100)}%` })}
                       </Badge>
                     )}
-                    <span>ultima: {formatDateTime(item.lastReportedAt)}</span>
+                    <span>{t('moderation.last', { date: formatDateTime(item.lastReportedAt) })}</span>
                   </div>
                   <ul className="moderation__reasons">
                     {groupReasons(item.reasons).map(([reason, times]) => (
@@ -107,7 +109,7 @@ export function ReportedListingsPage() {
                 </div>
                 <div className="listing-row__actions">
                   <Button variant="danger" size="sm" onClick={() => hide(item)} loading={hiding === item.listingId}>
-                    Ascunde
+                    {t('moderation.hide')}
                   </Button>
                 </div>
               </article>

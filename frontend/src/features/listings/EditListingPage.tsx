@@ -15,6 +15,8 @@ import {
 import { loadServerPhotos, syncPhotos, type PhotoEntry } from './photoEntries'
 import type { ListingDetail, ListingStatus } from './types'
 import './listings.css'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 
 // PUT /api/v1/listings/{id}. The seller comes from the token; the handler
 // refuses the change for anyone but the owner (Listing.NotOwner) and for sold
@@ -22,10 +24,11 @@ import './listings.css'
 // The photos are saved with the form: the removed ones are deleted, the new ones are uploaded one by one,
 // then the order is sent (PUT /listings/{id}/photos/order). A draft also has "Publică".
 
-const ACTIONS: ListingFormAction[] = [{ intent: 'save', label: 'Salvează modificările', submittingLabel: 'Se salvează…' }]
-const DRAFT_ACTIONS: ListingFormAction[] = [...ACTIONS, { intent: 'publish', label: 'Publică', submittingLabel: 'Se publică…' }]
+const ACTIONS: ListingFormAction[] = [{ intent: 'save', label: 'listings.action.saveChanges', submittingLabel: 'listings.action.saving' }]
+const DRAFT_ACTIONS: ListingFormAction[] = [...ACTIONS, { intent: 'publish', label: 'listings.action.publish', submittingLabel: 'listings.action.publishing' }]
 
 export function EditListingPage() {
+  const t = useT()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -58,7 +61,7 @@ export function EditListingPage() {
         if (err instanceof ApiError) {
           setLoadError(placeListingError(err).form ?? err.message)
         } else {
-          setLoadError('A apărut o eroare neașteptată.')
+          setLoadError(translate('common.unexpectedError'))
         }
       })
       .finally(() => setLoading(false))
@@ -66,13 +69,13 @@ export function EditListingPage() {
   }, [id])
 
   async function handleSubmit(values: ListingFormValues, intent: ListingFormIntent): Promise<ListingFormSubmitResult> {
-    if (!id) return { ok: false, formError: 'Anunțul nu a fost găsit.' }
+    if (!id) return { ok: false, formError: t('listings.error.NotFound') }
     try {
       await api.put<void>(`/listings/${id}`, values)
 
       const uploadError = await syncPhotos(id, photos, serverIds, setPhotos)
       if (uploadError) {
-        return { ok: false, formError: `Modificările au fost salvate, dar ${uploadError} Apasă din nou ca să continui.` }
+        return { ok: false, formError: t('listings.edit.savedButUpload', { error: uploadError }) }
       }
 
       if (intent === 'publish') await api.post<void>(`/listings/${id}/publish`)
@@ -84,20 +87,20 @@ export function EditListingPage() {
         const placed = placeListingError(err)
         return { ok: false, fieldErrors: placed.fields, formError: placed.form }
       }
-      return { ok: false, formError: 'A apărut o eroare neașteptată.' }
+      return { ok: false, formError: t('common.unexpectedError') }
     }
   }
 
-  if (loading) return <Loading text="Se încarcă anunțul…" />
+  if (loading) return <Loading text={t('listings.edit.loading')} />
 
   if (loadError || !initialValues) {
     return (
       <div className="listings-page">
-        <PageHeader eyebrow="Anunțurile mele" title="Editează anunțul" />
-        <Alert tone="error">{loadError ?? 'Anunțul nu a fost găsit.'}</Alert>
+        <PageHeader eyebrow={t('listings.edit.eyebrow')} title={t('listings.edit.title')} />
+        <Alert tone="error">{loadError ?? t('listings.error.NotFound')}</Alert>
         <div>
           <ButtonLink to="/my/listings" variant="secondary">
-            Înapoi la anunțurile mele
+            {t('listings.edit.back')}
           </ButtonLink>
         </div>
       </div>
@@ -106,7 +109,7 @@ export function EditListingPage() {
 
   return (
     <div className="listings-page">
-      <PageHeader eyebrow="Anunțurile mele" title="Editează anunțul" />
+      <PageHeader eyebrow={t('listings.edit.eyebrow')} title={t('listings.edit.title')} />
 
       <Card className="listings-card">
         <ListingForm

@@ -1,6 +1,7 @@
 import { api } from '../../api/client'
 import { errorMessage } from '../../app/errorMessage'
 import { photoSrc, type GetListingPhotosResponse, type PhotoItem } from './publicTypes'
+import { translate } from '../../i18n/store'
 
 // The photos of the listing form: the ones the server already has and the ones the user picked
 // and that are not uploaded yet (shown from a local object URL).
@@ -29,8 +30,8 @@ export function releasePreview(entry: PhotoEntry): void {
 
 // The same checks as the API (it checks again); here they only spare a useless upload.
 export function checkPhotoFile(file: File): string | null {
-  if (!PHOTO_TYPES.includes(file.type)) return `„${file.name}": sunt acceptate doar poze JPEG, PNG sau WebP.`
-  if (file.size > MAX_PHOTO_BYTES) return `„${file.name}": poza poate avea cel mult 2 MB.`
+  if (!PHOTO_TYPES.includes(file.type)) return translate('listings.photo.invalidType', { name: file.name })
+  if (file.size > MAX_PHOTO_BYTES) return translate('listings.photo.tooLarge', { name: file.name })
   return null
 }
 
@@ -64,7 +65,7 @@ export async function uploadPending(
       const message = errorMessage(err)
       current[i] = { ...entry, error: message }
       setPhotos([...current])
-      return { photos: current, error: `Poza ${i + 1} (${entry.file.name}) nu a fost încărcată: ${message}` }
+      return { photos: current, error: translate('listings.photo.uploadFailed', { number: i + 1, name: entry.file.name, message }) }
     }
   }
   return { photos: current, error: null }

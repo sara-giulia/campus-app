@@ -1,6 +1,9 @@
 // Shapes of the public listing pages (browse, listing page, similar listings, photos). They mirror
 // the API answers in src/CampusMarket.Api/Features/Listings and Features/Photos.
+import { formatDate as formatLocalDate, formatNumber } from '../../i18n/format'
+import { translate } from '../../i18n/store'
 import type { Category, Condition } from './types'
+
 
 export interface PhotoItem {
   id: string
@@ -71,26 +74,31 @@ export interface ReserveListingResponse {
 export type SortOption = 'relevance' | 'newest' | 'price_asc' | 'price_desc'
 
 export const SORT_LABELS: Record<SortOption, string> = {
-  relevance: 'Cele mai relevante',
-  newest: 'Cele mai noi',
-  price_asc: 'Preț crescător',
-  price_desc: 'Preț descrescător',
+  get relevance() {
+    return translate('listings.sort.relevance')
+  },
+  get newest() {
+    return translate('listings.sort.newest')
+  },
+  get price_asc() {
+    return translate('listings.sort.price_asc')
+  },
+  get price_desc() {
+    return translate('listings.sort.price_desc')
+  },
 }
 
 // "/api/v1/photos/{id}" from the API, made absolute when the API runs on another origin.
 export { photoSrc } from './photoSrc'
 
-const dateFormatter = new Intl.DateTimeFormat('ro-RO', { year: 'numeric', month: 'long', day: 'numeric' })
-const dateTimeFormatter = new Intl.DateTimeFormat('ro-RO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-
 export function formatDate(iso: string): string {
-  return dateFormatter.format(new Date(iso))
+  return formatLocalDate(iso, { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 export function formatDateTime(iso: string): string {
-  return dateTimeFormatter.format(new Date(iso))
+  return formatLocalDate(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 export function formatPrice(price: number): string {
-  return `${price.toLocaleString('ro-RO')} lei`
+  return translate('listings.price', { amount: formatNumber(price) })
 }
