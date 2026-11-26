@@ -8,9 +8,11 @@ import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
 import type { GetMyConversationsResponse } from './types'
 import './messages.css'
+import { useT } from '../../i18n/LanguageContext'
 
 // My conversations, as buyer and as seller, the one with the latest message first.
 export function MessagesPage() {
+  const t = useT()
   const { user } = useAuth()
   const [data, setData] = useState<GetMyConversationsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -34,12 +36,12 @@ export function MessagesPage() {
 
   return (
     <div className="messages">
-      <PageHeader eyebrow="Contul meu" title="Mesaje" lead="Conversațiile tale despre anunțuri, ca vânzător și ca cumpărător." />
+      <PageHeader eyebrow={t('myListings.eyebrow')} title={t('messages.title')} lead={t('messages.lead')} />
       {error && <Alert tone="error">{error}</Alert>}
-      {!error && data === null && <Loading text="Se încarcă mesajele…" />}
+      {!error && data === null && <Loading text={t('messages.loading')} />}
       {data !== null && data.count === 0 && (
-        <EmptyState title="Nu ai încă nicio conversație." action={<ButtonLink to="/listings">Caută anunțuri</ButtonLink>}>
-          Scrie-i unui vânzător de pe pagina unui anunț.
+        <EmptyState title={t('messages.emptyTitle')} action={<ButtonLink to="/listings">{t('messages.emptyAction')}</ButtonLink>}>
+          {t('messages.emptyText')}
         </EmptyState>
       )}
       {data !== null && data.count > 0 && (
@@ -55,7 +57,7 @@ export function MessagesPage() {
                   </span>
                   <span className="conv-item__listing">{c.listingTitle}</span>
                   <span className="conv-item__last">
-                    {c.lastMessageSenderId === user?.id ? 'Tu: ' : ''}
+                    {c.lastMessageSenderId === user?.id ? t('messages.you') : ''}
                     {c.lastMessage}
                   </span>
                 </span>

@@ -1,14 +1,16 @@
+import { useT } from '../../i18n/LanguageContext'
 import { ButtonLink } from '../ui'
 import './not-found.css'
 
 export function NotFoundPage() {
+  const t = useT()
   return (
     <div className="not-found">
       <p className="not-found__code">404</p>
-      <h1>Pagina nu există</h1>
-      <p className="muted">Linkul poate fi greșit sau pagina a fost ștearsă.</p>
+      <h1>{t('notFound.title')}</h1>
+      <p className="muted">{t('notFound.text')}</p>
       <ButtonLink to="/" variant="secondary">
-        Înapoi la pagina principală
+        {t('notFound.back')}
       </ButtonLink>
     </div>
   )

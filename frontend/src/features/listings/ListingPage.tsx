@@ -22,6 +22,7 @@ import { useCategories } from './categories'
 import { CONDITION_LABELS, LISTING_STATUS_LABELS, type ListingDetail } from './types'
 import { recordListingView } from './views'
 import './browse.css'
+import { useT } from '../../i18n/LanguageContext'
 
 interface MessageSent {
   conversationId: string
@@ -35,6 +36,7 @@ export function ListingPage() {
 }
 
 function ListingView({ id }: { id: string }) {
+  const t = useT()
   const { labelOf } = useCategories()
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -128,7 +130,7 @@ function ListingView({ id }: { id: string }) {
     run('reserve', async () => {
       const r = await api.post<ReserveListingResponse>(`/listings/${id}/reservations`)
       setListing(await api.get<ListingDetail>(`/listings/${id}`))
-      setNotice(`Ai rezervat anunțul până la ${formatDateTime(r.expiresAt)}. Îl găsești la „Rezervările mele”.`)
+      setNotice(t('listingPage.reserved', { date: formatDateTime(r.expiresAt) }))
     })
 
   const sendMessage = (event: FormEvent<HTMLFormElement>) => {
@@ -145,7 +147,7 @@ function ListingView({ id }: { id: string }) {
       await api.post(`/listings/${id}/reports`, { reason })
       setReportOpen(false)
       setReason('')
-      setNotice('Mulțumim! Un administrator va verifica anunțul.')
+      setNotice(t('listingPage.reportThanks'))
     })
   }
 
@@ -154,12 +156,12 @@ function ListingView({ id }: { id: string }) {
       <div className="listing-page">
         <Alert tone="error">{loadError}</Alert>
         <ButtonLink to="/listings" variant="secondary">
-          Înapoi la anunțuri
+          {t('listingPage.backToListings')}
         </ButtonLink>
       </div>
     )
   }
-  if (!listing) return <Loading text="Se încarcă anunțul…" />
+  if (!listing) return <Loading text={t('listingPage.loading')} />
 
   const canBuy = listing.status === 'Active'
   const canWrite = listing.status === 'Active' || listing.status === 'Reserved'
@@ -170,7 +172,7 @@ function ListingView({ id }: { id: string }) {
   return (
     <div className="listing-page">
       <Link to="/listings" className="listing-page__back">
-        ← Toate anunțurile
+        {t('listingPage.all')}
       </Link>
 
       <div className="listing-page__top">
@@ -178,15 +180,15 @@ function ListingView({ id }: { id: string }) {
           <div className={`gallery__main lcard__image--${listing.category.toLowerCase()}`}>
             {photo ? <img src={photoSrc(photo.url)} alt={listing.title} /> : <span>{labelOf(listing.category)}</span>}
             {photo?.isGenerated && (
-              <span className="generated-badge" title="Anunțul nu are încă poze; imaginea e făcută din titlu și categorie.">
-                Imagine generată
+              <span className="generated-badge" title={t('listingPage.generatedHint')}>
+                {t('listings.card.generated')}
               </span>
             )}
           </div>
           {photos.length > 1 && (
             <div className="gallery__thumbs">
               {photos.map((p, i) => (
-                <button key={p.id} type="button" className={i === shown ? 'gallery__thumb is-current' : 'gallery__thumb'} onClick={() => setCurrent(i)} aria-label={`Poza ${i + 1}`}>
+                <button key={p.id} type="button" className={i === shown ? 'gallery__thumb is-current' : 'gallery__thumb'} onClick={() => setCurrent(i)} aria-label={t('listingPage.photoNumber', { number: i + 1 })}>
                   <img src={photoSrc(p.url)} alt="" />
                 </button>
               ))}
@@ -202,14 +204,14 @@ function ListingView({ id }: { id: string }) {
           </div>
           <h1 className="listing-page__title">{listing.title}</h1>
           <p className="listing-page__price">{formatPrice(listing.price)}</p>
-          <p className="listing-page__date">Publicat pe {formatDate(listing.createdAt)}</p>
+          <p className="listing-page__date">{t('listingPage.publishedOn', { date: formatDate(listing.createdAt) })}</p>
 
           {seller && (
             <Link to={`/members/${seller.id}`} className="seller-chip">
               <span className="seller-chip__avatar">{seller.name.slice(0, 1).toUpperCase()}</span>
               <span>
                 <strong>{seller.name}</strong>
-                <small>{seller.averageRating === null ? 'Fără review-uri încă' : `★ ${seller.averageRating.toFixed(1)} · ${seller.reviewCount} review-uri`}</small>
+                <small>{seller.averageRating === null ? t('listingPage.noReviews') : t('listingPage.reviews', { rating: seller.averageRating.toFixed(1), count: seller.reviewCount })}</small>
               </span>
             </Link>
           )}
@@ -219,16 +221,16 @@ function ListingView({ id }: { id: string }) {
 
           {!user && (
             <Card className="listing-page__actions">
-              <p>Intră în cont ca să rezervi, să salvezi anunțul sau să-i scrii vânzătorului.</p>
-              <ButtonLink to="/login">Intră în cont</ButtonLink>
+              <p>{t('listingPage.loginPrompt')}</p>
+              <ButtonLink to="/login">{t('layout.login')}</ButtonLink>
             </Card>
           )}
 
           {user && isSeller && (
             <Card className="listing-page__actions">
-              <p>Acesta este anunțul tău.</p>
+              <p>{t('listingPage.yours')}</p>
               <ButtonLink to={`/my/listings/${listing.id}/edit`} variant="secondary">
-                Editează anunțul
+                {t('listingPage.edit')}
               </ButtonLink>
             </Card>
           )}
@@ -238,50 +240,50 @@ function ListingView({ id }: { id: string }) {
               <div className="listing-page__buttons">
                 {canBuy && (
                   <Button onClick={reserve} loading={busy === 'reserve'}>
-                    Rezervă
+                    {t('listingPage.reserve')}
                   </Button>
                 )}
                 <Button variant="secondary" onClick={toggleFavorite} loading={busy === 'favorite'}>
-                  {favorite ? '♥ Salvat la favorite' : '♡ Salvează'}
+                  {favorite ? t('listingPage.saved') : t('listingPage.save')}
                 </Button>
               </div>
 
               {canWrite && (
                 <form className="listing-page__message" onSubmit={sendMessage}>
                   <label className="field__label" htmlFor="message">
-                    Scrie-i vânzătorului
+                    {t('listingPage.writeToSeller')}
                   </label>
                   <textarea
                     id="message"
                     className="listing-page__textarea"
-                    placeholder="Bună! Mai e disponibil?"
+                    placeholder={t('listingPage.messagePlaceholder')}
                     maxLength={1000}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                   />
                   <Button type="submit" variant="secondary" loading={busy === 'message'} disabled={message.trim() === ''}>
-                    Trimite mesajul
+                    {t('listingPage.sendMessage')}
                   </Button>
                 </form>
               )}
 
               {canWrite && !reportOpen && (
                 <button type="button" className="listing-page__report-link" onClick={() => setReportOpen(true)}>
-                  Raportează anunțul
+                  {t('listingPage.report')}
                 </button>
               )}
               {reportOpen && (
                 <form className="listing-page__message" onSubmit={report}>
                   <label className="field__label" htmlFor="reason">
-                    De ce raportezi anunțul?
+                    {t('listingPage.reportWhy')}
                   </label>
                   <textarea id="reason" className="listing-page__textarea" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
                   <div className="listing-page__buttons">
                     <Button type="submit" variant="danger" size="sm" loading={busy === 'report'} disabled={reason.trim() === ''}>
-                      Trimite raportarea
+                      {t('listingPage.sendReport')}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setReportOpen(false)}>
-                      Renunță
+                      {t('listingPage.cancelReport')}
                     </Button>
                   </div>
                 </form>
@@ -293,14 +295,14 @@ function ListingView({ id }: { id: string }) {
 
       {listing.description && (
         <section className="listing-page__section">
-          <h2 className="listing-page__section-title">Descriere</h2>
+          <h2 className="listing-page__section-title">{t('listingPage.description')}</h2>
           <p className="listing-page__description">{listing.description}</p>
         </section>
       )}
 
       {similar.length > 0 && (
         <section className="listing-page__section">
-          <h2 className="listing-page__section-title">Anunțuri asemănătoare</h2>
+          <h2 className="listing-page__section-title">{t('listingPage.similar')}</h2>
           <ListingGrid listings={similar} />
         </section>
       )}

@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import { ApiError } from '../../api/errors'
 import { useAuth } from '../../app/auth/AuthContext'
 import { Alert, Badge, Button, ButtonLink, EmptyState, Loading, PageHeader, Pagination } from '../../app/ui'
+import { formatRon } from '../../i18n/format'
 import { placeListingError } from './errors'
 import { useCategories } from './categories'
 import { ListingStats } from './ListingStats'
@@ -13,6 +14,8 @@ import {
   type ListingSummary,
 } from './types'
 import './listings.css'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 
 const PAGE_SIZE = 10
 
@@ -27,9 +30,9 @@ const DAY_MS = 24 * 60 * 60 * 1000
 // "Expiră în X zile" for an active listing; the last day reads "Expiră azi".
 function expiryText(expiresAt: string): string {
   const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / DAY_MS)
-  if (days <= 0) return 'Expiră azi'
-  if (days === 1) return 'Expiră mâine'
-  return `Expiră în ${days} ${days < 20 ? 'zile' : 'de zile'}`
+  if (days <= 0) return translate('myListings.expiresToday')
+  if (days === 1) return translate('myListings.expiresTomorrow')
+  return translate(days < 20 ? 'myListings.expiresIn' : 'myListings.expiresInDe', { days })
 }
 
 function statusTone(status: ListingStatus): 'neutral' | 'success' | 'warning' | 'danger' | 'accent' {
@@ -49,6 +52,7 @@ function statusTone(status: ListingStatus): 'neutral' | 'success' | 'warning' | 
 }
 
 export function MyListingsPage() {
+  const t = useT()
   const { labelOf } = useCategories()
   const { user } = useAuth()
   const [items, setItems] = useState<MyListingItem[] | null>(null)
@@ -72,9 +76,9 @@ export function MyListingsPage() {
       .catch((err: unknown) => {
         if (err instanceof DOMException && err.name === 'AbortError') return
         if (err instanceof ApiError) {
-          setLoadError(err.code === 'Network.Unreachable' ? 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' : err.message)
+          setLoadError(err.code === 'Network.Unreachable' ? translate('common.networkUnreachable') : err.message)
         } else {
-          setLoadError('A apărut o eroare neașteptată.')
+          setLoadError(translate('common.unexpectedError'))
         }
       })
     return () => controller.abort()
@@ -87,15 +91,15 @@ export function MyListingsPage() {
       setItems(data.items)
     } catch (err) {
       if (err instanceof ApiError) {
-        setFormError(err.code === 'Network.Unreachable' ? 'Serverul nu răspunde. Verifică dacă API-ul este pornit.' : err.message)
+        setFormError(err.code === 'Network.Unreachable' ? translate('common.networkUnreachable') : err.message)
       } else {
-        setFormError('A apărut o eroare neașteptată.')
+        setFormError(translate('common.unexpectedError'))
       }
     }
   }
 
   async function handleDelete(listing: ListingSummary) {
-    if (!window.confirm(`Ștergi anunțul „${listing.title}"?`)) return
+    if (!window.confirm(t('myListings.confirmDelete', { title: listing.title }))) return
     setDeletingId(listing.id)
     setRowError((prev) => ({ ...prev, [listing.id]: null }))
     setFormError(null)
@@ -107,7 +111,7 @@ export function MyListingsPage() {
         const message = placeListingError(err).form ?? err.message
         setRowError((prev) => ({ ...prev, [listing.id]: message }))
       } else {
-        setFormError('A apărut o eroare neașteptată.')
+        setFormError(translate('common.unexpectedError'))
       }
     } finally {
       setDeletingId(null)
@@ -125,11 +129,11 @@ export function MyListingsPage() {
       if (err instanceof ApiError) {
         const message =
           err.code === 'Listing.CategoryInactive'
-            ? 'Categoria acestui anunț nu mai este activă, așa că nu poate fi publicat. Apasă „Editează” și alege altă categorie.'
+            ? t('myListings.categoryInactivePublish')
             : (placeListingError(err).form ?? err.message)
         setRowError((prev) => ({ ...prev, [listing.id]: message }))
       } else {
-        setFormError('A apărut o eroare neașteptată.')
+        setFormError(translate('common.unexpectedError'))
       }
     } finally {
       setPublishingId(null)
@@ -147,23 +151,23 @@ export function MyListingsPage() {
       if (err instanceof ApiError) {
         const message =
           err.code === 'Listing.CategoryInactive'
-            ? 'Categoria acestui anunț nu mai este activă, așa că nu poate fi reînnoit. Apasă „Editează” și alege altă categorie.'
+            ? t('myListings.categoryInactiveRenew')
             : (placeListingError(err).form ?? err.message)
         setRowError((prev) => ({ ...prev, [listing.id]: message }))
       } else {
-        setFormError('A apărut o eroare neașteptată.')
+        setFormError(translate('common.unexpectedError'))
       }
     } finally {
       setRenewingId(null)
     }
   }
 
-  if (items === null && loadError === null) return <Loading text="Se încarcă anunțurile tale…" />
+  if (items === null && loadError === null) return <Loading text={t('myListings.loading')} />
 
   if (loadError) {
     return (
       <div className="listings-page">
-        <PageHeader eyebrow="Contul meu" title="Anunțurile mele" />
+        <PageHeader eyebrow={t('myListings.eyebrow')} title={t('myListings.title')} />
         <Alert tone="error">{loadError}</Alert>
       </div>
     )
@@ -177,20 +181,20 @@ export function MyListingsPage() {
   return (
     <div className="listings-page">
       <PageHeader
-        eyebrow="Contul meu"
-        title="Anunțurile mele"
-        lead="Toate anunțurile tale, inclusiv ciornele, cele rezervate, cele vândute și cele expirate."
-        actions={<ButtonLink to="/listings/new">Publică anunț</ButtonLink>}
+        eyebrow={t('myListings.eyebrow')}
+        title={t('myListings.title')}
+        lead={t('myListings.lead')}
+        actions={<ButtonLink to="/listings/new">{t('myListings.publishNew')}</ButtonLink>}
       />
 
       {formError && <Alert tone="error">{formError}</Alert>}
 
       {all.length === 0 ? (
         <EmptyState
-          title="Nu ai încă niciun anunț."
-          action={<ButtonLink to="/listings/new">Publică primul anunț</ButtonLink>}
+          title={t('myListings.emptyTitle')}
+          action={<ButtonLink to="/listings/new">{t('myListings.emptyAction')}</ButtonLink>}
         >
-          Anunțurile tale vor apărea aici.
+          {t('myListings.emptyText')}
         </EmptyState>
       ) : (
         <div className="listings-list">
@@ -204,11 +208,11 @@ export function MyListingsPage() {
                   <span>·</span>
                   <span>{CONDITION_LABELS[listing.condition]}</span>
                   <span>·</span>
-                  <span className="listing-row__price">{listing.price} RON</span>
+                  <span className="listing-row__price">{formatRon(listing.price)}</span>
                   {listing.status === 'Reserved' && listing.reservedPrice !== null && listing.reservedPrice !== listing.price && (
                     <>
                       <span>·</span>
-                      <span>Rezervat la {listing.reservedPrice} RON</span>
+                      <span>{t('myListings.reservedAt', { price: formatRon(listing.reservedPrice) })}</span>
                     </>
                   )}
                   {listing.status === 'Active' && listing.expiresAt && (
@@ -229,7 +233,7 @@ export function MyListingsPage() {
                       void handlePublish(listing)
                     }}
                   >
-                    {publishingId === listing.id ? 'Se publică…' : 'Publică'}
+                    {publishingId === listing.id ? t('myListings.publishing') : t('myListings.publish')}
                   </Button>
                 )}
                 {listing.status === 'Expired' && (
@@ -241,7 +245,7 @@ export function MyListingsPage() {
                       void handleRenew(listing)
                     }}
                   >
-                    {renewingId === listing.id ? 'Se reînnoiește…' : 'Reînnoiește'}
+                    {renewingId === listing.id ? t('myListings.renewing') : t('myListings.renew')}
                   </Button>
                 )}
                 <Button
@@ -250,10 +254,10 @@ export function MyListingsPage() {
                   aria-expanded={statsId === listing.id}
                   onClick={() => setStatsId(statsId === listing.id ? null : listing.id)}
                 >
-                  Statistici
+                  {t('myListings.stats')}
                 </Button>
                 <ButtonLink to={`/my/listings/${listing.id}/edit`} variant="secondary" size="sm">
-                  Editează
+                  {t('myListings.edit')}
                 </ButtonLink>
                 <Button
                   variant="danger"
@@ -264,7 +268,7 @@ export function MyListingsPage() {
                     void handleDelete(listing)
                   }}
                 >
-                  {deletingId === listing.id ? 'Se șterge…' : 'Șterge'}
+                  {deletingId === listing.id ? t('myListings.deleting') : t('myListings.delete')}
                 </Button>
               </div>
               {statsId === listing.id && (

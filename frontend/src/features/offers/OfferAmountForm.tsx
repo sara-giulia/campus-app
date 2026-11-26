@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Button, TextField } from '../../app/ui'
+import { useT } from '../../i18n/LanguageContext'
 
 interface Props {
   label: string
@@ -11,6 +12,7 @@ interface Props {
 
 // The small form behind "Fă o ofertă" and "Contraofertă": one amount in lei.
 export function OfferAmountForm({ label, submitText, onSubmit, onCancel }: Props) {
+  const t = useT()
   const [value, setValue] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -36,10 +38,10 @@ export function OfferAmountForm({ label, submitText, onSubmit, onCancel }: Props
         label={label}
         type="text"
         inputMode="decimal"
-        placeholder="ex. 50"
+        placeholder={t('offers.form.placeholder')}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        hint="Suma în lei"
+        hint={t('offers.form.hint')}
         autoFocus
       />
       <div className="offer-form__actions">
@@ -47,7 +49,7 @@ export function OfferAmountForm({ label, submitText, onSubmit, onCancel }: Props
           {submitText}
         </Button>
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={sending}>
-          Renunță
+          {t('offers.form.cancel')}
         </Button>
       </div>
     </form>

@@ -101,3 +101,15 @@ The top bar has Acasă, Anunțuri, Publică anunț, Mesaje and Notificări; the 
 - `const { user, login, logout } = useAuth()` from `src/app/auth/AuthContext.ts`. `user` is `{ id, email, role }` from the access token, or `null`.
 - `<RequireAuth>` for pages that need login, `<RequireAuth role="Admin">` for Admin pages. After login the user goes back to the page they wanted.
 - The tokens are kept in `localStorage` (`campusmarket.tokens`), so a page refresh keeps the user logged in; logging out in one tab logs out the others too.
+
+## Translations
+
+The app speaks Romanian (default) and English, with no extra library. The code is in `src/i18n/`:
+
+- `ro.ts` and `en.ts`: the dictionaries, one flat object each, keys grouped by feature (`listings.title`, `offers.card.accept`, `error.Listing.NotFound`, ...). `en.ts` must have exactly the keys of `ro.ts`: the build fails if one is missing.
+- `useT()` (from `i18n/LanguageContext`): `const t = useT()` in a component, then `t('home.title')` or `t('listings.browse.countMany', { count: 3 })` (`{count}` in the text is replaced).
+- `translate(key, params)` (from `i18n/store`): the same for plain functions, like the error-code mappings (`app/errorMessage.ts`, `features/*/errors.ts`). It uses the current language when it is called.
+- `LanguageProvider` (in `main.tsx`) keeps the language in `localStorage` (`campusmarket.language`) and in `<html lang>`; the "RO | EN" switch in the header is `LanguageSwitch`.
+- `i18n/format.ts`: dates and numbers in the current locale (`ro-RO` / `en-GB`). Do not call `toLocaleString` or `Intl` with a fixed locale.
+
+To add a text: add the key and the Romanian text in `ro.ts`, the English text in `en.ts`, and use `t('your.key')`. To translate a new API error code, add `error.<Code>` (shared, `errorMessage` finds it by itself) or a key in your feature's group and use it in the feature's errors file. A list of labels that depends on the language (like `CONDITION_LABELS`) is written with getters that call `translate`, so it always gives the current language.

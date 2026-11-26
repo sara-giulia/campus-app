@@ -1,11 +1,14 @@
+import { useT } from '../../i18n/LanguageContext'
+
 // Page numbers for the paged API answers (page starts at 1).
 // <Pagination page={page} totalPages={data.totalPages} onChange={setPage} />
 export function Pagination({ page, totalPages, onChange }: { page: number; totalPages: number; onChange: (page: number) => void }) {
+  const t = useT()
   if (totalPages <= 1) return null
 
   return (
-    <nav className="pagination" aria-label="Paginare">
-      <button type="button" className="pagination__page" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label="Pagina anterioară">
+    <nav className="pagination" aria-label={t('pagination.label')}>
+      <button type="button" className="pagination__page" disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('pagination.previous')}>
         ‹
       </button>
       {pagesToShow(page, totalPages).map((p, i) =>
@@ -19,7 +22,7 @@ export function Pagination({ page, totalPages, onChange }: { page: number; total
           </button>
         ),
       )}
-      <button type="button" className="pagination__page" disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label="Pagina următoare">
+      <button type="button" className="pagination__page" disabled={page >= totalPages} onClick={() => onChange(page + 1)} aria-label={t('pagination.next')}>
         ›
       </button>
     </nav>

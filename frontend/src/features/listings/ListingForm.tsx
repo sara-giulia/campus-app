@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { ApiError } from '../../api/errors'
 import { api } from '../../api/client'
+import { formatRon } from '../../i18n/format'
+import type { TKey } from '../../i18n/ro'
 import { Alert, Button, ButtonLink, TextField } from '../../app/ui'
 import { useCategories } from './categories'
 import type { PhotoEntry } from './photoEntries'
@@ -14,6 +16,8 @@ import {
   type SuggestCategoryResponse,
   type SuggestPriceResponse,
 } from './types'
+import { useT } from '../../i18n/LanguageContext'
+import { translate } from '../../i18n/store'
 
 export interface ListingFormValues {
   title: string
@@ -28,8 +32,8 @@ export type ListingFormIntent = 'save' | 'publish'
 
 export interface ListingFormAction {
   intent: ListingFormIntent
-  label: string
-  submittingLabel: string
+  label: TKey
+  submittingLabel: TKey
 }
 
 export type ListingFormSubmitResult =
@@ -87,6 +91,7 @@ export function ListingForm({
   cancelTo,
   cancelLabel,
 }: ListingFormProps): ReactNode {
+  const t = useT()
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [description, setDescription] = useState(initialValues?.description ?? '')
   // null until the user picks one: both are required.
@@ -156,7 +161,7 @@ export function ListingForm({
       if (err instanceof ApiError) {
         setPriceSuggestionError(placeListingError(err).form ?? err.message)
       } else {
-        setPriceSuggestionError('Sugestia de preț nu a putut fi calculată.')
+        setPriceSuggestionError(translate('listingForm.priceSuggestionFailed'))
       }
     } finally {
       if (priceRequestRef.current === controller) {
@@ -193,7 +198,7 @@ export function ListingForm({
       if (err instanceof ApiError) {
         setCategorySuggestionError(placeListingError(err).form ?? err.message)
       } else {
-        setCategorySuggestionError('Sugestia de categorie nu a putut fi calculată.')
+        setCategorySuggestionError(translate('listingForm.categorySuggestionFailed'))
       }
     } finally {
       setSuggestingCategory(false)
@@ -205,10 +210,10 @@ export function ListingForm({
     setFormError(null)
 
     const errors: FieldErrors = {}
-    if (category === null) errors.category = 'Alege categoria.'
-    if (condition === null) errors.condition = 'Alege starea.'
+    if (category === null) errors.category = t('listings.error.CategoryRequired')
+    if (condition === null) errors.condition = t('listings.error.ConditionRequired')
     const priceValue = parsePrice(price)
-    if (priceValue === null) errors.price = 'Introdu un preț valid (număr pozitiv, maxim 2 zecimale).'
+    if (priceValue === null) errors.price = t('listings.error.Money')
     if (category === null || condition === null || priceValue === null) {
       setFieldErrors(errors)
       return
@@ -242,7 +247,7 @@ export function ListingForm({
   return (
     <form onSubmit={(e: FormEvent<HTMLFormElement>) => { e.preventDefault() }} className="listings-form" noValidate>
       <TextField
-        label="Titlu"
+        label={t('listingForm.title')}
         value={title}
         onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
         error={fieldErrors.title}
@@ -252,7 +257,7 @@ export function ListingForm({
       />
 
       <div className={fieldErrors.description ? 'field field--error' : 'field'}>
-        <label className="field__label" htmlFor={descriptionId}>Descriere</label>
+        <label className="field__label" htmlFor={descriptionId}>{t('listingForm.description')}</label>
         <textarea
           id={descriptionId}
           className="listings-form__textarea"
@@ -262,7 +267,7 @@ export function ListingForm({
           aria-invalid={fieldErrors.description ? true : undefined}
           aria-describedby={fieldErrors.description ? `${descriptionId}-error` : undefined}
         />
-        {!fieldErrors.description && <span className="field__hint">Opțional. Maxim 1000 de caractere.</span>}
+        {!fieldErrors.description && <span className="field__hint">{t('listingForm.descriptionHint')}</span>}
         {fieldErrors.description && (
           <span id={`${descriptionId}-error`} className="field__error">
             {fieldErrors.description}
@@ -272,7 +277,7 @@ export function ListingForm({
 
       <div className="listings-form__row">
         <div className={fieldErrors.category ? 'field field--error' : 'field'}>
-          <label className="field__label" htmlFor={categoryId}>Categorie</label>
+          <label className="field__label" htmlFor={categoryId}>{t('listingForm.category')}</label>
           <select
             id={categoryId}
             className="listings-form__select"
@@ -285,11 +290,11 @@ export function ListingForm({
             required
           >
             <option value="" disabled>
-              Alege categoria
+              {t('listingForm.chooseCategory')}
             </option>
             {categoryOptions.map((c) => (
               <option key={c.key} value={c.key}>
-                {c.isActive ? c.displayName : `${c.displayName} (inactivă)`}
+                {c.isActive ? c.displayName : t('listingForm.inactive', { name: c.displayName })}
               </option>
             ))}
           </select>
@@ -297,7 +302,7 @@ export function ListingForm({
         </div>
 
         <div className={fieldErrors.condition ? 'field field--error' : 'field'}>
-          <label className="field__label" htmlFor={conditionId}>Stare</label>
+          <label className="field__label" htmlFor={conditionId}>{t('listingForm.condition')}</label>
           <select
             id={conditionId}
             className="listings-form__select"
@@ -310,7 +315,7 @@ export function ListingForm({
             required
           >
             <option value="" disabled>
-              Alege starea
+              {t('listingForm.chooseCondition')}
             </option>
             {CONDITIONS.map((c) => (
               <option key={c} value={c}>
@@ -323,7 +328,7 @@ export function ListingForm({
       </div>
 
       <TextField
-        label="Preț (RON)"
+        label={t('listingForm.price')}
         type="number"
         inputMode="decimal"
         step="0.01"
@@ -341,10 +346,10 @@ export function ListingForm({
           <div className="listings-form__suggestion">
             <span>
               {suggestionRange !== null && suggestedPrice !== null
-                ? `Preț orientativ: ${suggestionRange.low} – ${suggestionRange.high} RON`
+                ? t('listingForm.priceRange', { low: formatRon(suggestionRange.low), high: formatRon(suggestionRange.high) })
                 : priceSuggestionError
                   ? priceSuggestionError
-                  : 'Nicio sugestie încă.'}
+                  : t('listingForm.noSuggestion')}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
               {suggestedPrice !== null && (
@@ -356,7 +361,7 @@ export function ListingForm({
                     setPrice(String(suggestedPrice))
                   }}
                 >
-                  Folosește {suggestedPrice} RON
+                  {t('listingForm.usePrice', { price: formatRon(suggestedPrice) })}
                 </Button>
               )}
               <Button
@@ -369,20 +374,20 @@ export function ListingForm({
                   if (category !== null && condition !== null) void runPriceSuggestion(category, condition)
                 }}
               >
-                Sugerează preț
+                {t('listingForm.suggestPrice')}
               </Button>
             </div>
           </div>
-          <span className="field__hint">Estimare automată; prețul îl alegi tu.</span>
+          <span className="field__hint">{t('listingForm.estimateHint')}</span>
 
           <div className="listings-form__suggestion">
-            <span className="listings-form__suggestion-label">Sugestie categorie:</span>
+            <span className="listings-form__suggestion-label">{t('listingForm.categorySuggestion')}</span>
             <span>
               {suggestedCategory
                 ? suggestedCategory.category
-                  ? `${labelOf(suggestedCategory.category)}${canUseCategory(suggestedCategory.category) ? '' : ' (inactivă)'} (încredere ${(suggestedCategory.confidence * 100).toFixed(0)}%)`
-                  : `Nicio categorie sigură (încredere ${(suggestedCategory.confidence * 100).toFixed(0)}%)`
-                : categorySuggestionError ?? 'Nicio sugestie încă.'}
+                  ? t('listingForm.categoryConfidence', { name: canUseCategory(suggestedCategory.category) ? labelOf(suggestedCategory.category) : t('listingForm.inactive', { name: labelOf(suggestedCategory.category) }), percent: (suggestedCategory.confidence * 100).toFixed(0) })
+                  : t('listingForm.noSureCategory', { percent: (suggestedCategory.confidence * 100).toFixed(0) })
+                : categorySuggestionError ?? t('listingForm.noSuggestion')}
             </span>
             <div style={{ display: 'flex', gap: 8 }}>
               {suggestedCategory?.category && canUseCategory(suggestedCategory.category) && (
@@ -397,7 +402,7 @@ export function ListingForm({
                     }
                   }}
                 >
-                  Folosește „{labelOf(suggestedCategory.category)}"
+                  {t('listingForm.useCategory', { name: labelOf(suggestedCategory.category) })}
                 </Button>
               )}
               <Button
@@ -410,7 +415,7 @@ export function ListingForm({
                   void handleSuggestCategory()
                 }}
               >
-                Sugerează categorie
+                {t('listingForm.suggestCategory')}
               </Button>
             </div>
           </div>
@@ -422,7 +427,7 @@ export function ListingForm({
       <div className="listings-form__actions">
         {cancelTo && (
           <ButtonLink to={cancelTo} variant="secondary">
-            {cancelLabel ?? 'Anulează'}
+            {cancelLabel ?? t('listingForm.cancel')}
           </ButtonLink>
         )}
         {actions.map((action, index) => (
@@ -435,7 +440,7 @@ export function ListingForm({
               void submit(action.intent)
             }}
           >
-            {submitting === action.intent ? action.submittingLabel : action.label}
+            {submitting === action.intent ? t(action.submittingLabel) : t(action.label)}
           </Button>
         ))}
       </div>

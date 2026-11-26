@@ -1,4 +1,5 @@
 import { useId, useState, type InputHTMLAttributes } from 'react'
+import { useT } from '../../i18n/LanguageContext'
 import { EyeIcon, EyeOffIcon } from './Icons'
 
 type TextFieldProps = InputHTMLAttributes<HTMLInputElement> & {
@@ -10,6 +11,7 @@ type TextFieldProps = InputHTMLAttributes<HTMLInputElement> & {
 // A labelled input with an optional hint and error. type="password" gets a show/hide button.
 // <TextField label="Email" type="email" value={email} onChange={...} error={errors.email} />
 export function TextField({ label, hint, error, type = 'text', id, className, ...props }: TextFieldProps) {
+  const t = useT()
   const autoId = useId()
   const inputId = id ?? autoId
   const [showPassword, setShowPassword] = useState(false)
@@ -36,8 +38,8 @@ export function TextField({ label, hint, error, type = 'text', id, className, ..
             type="button"
             className="field__action"
             onClick={() => setShowPassword((v) => !v)}
-            aria-label={showPassword ? 'Ascunde parola' : 'Arată parola'}
-            title={showPassword ? 'Ascunde parola' : 'Arată parola'}
+            aria-label={showPassword ? t('ui.hidePassword') : t('ui.showPassword')}
+            title={showPassword ? t('ui.hidePassword') : t('ui.showPassword')}
           >
             {showPassword ? <EyeOffIcon /> : <EyeIcon />}
           </button>

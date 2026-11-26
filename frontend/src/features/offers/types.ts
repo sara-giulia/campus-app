@@ -1,3 +1,4 @@
+import { translate } from '../../i18n/store'
 // Shapes of the price offers (src/CampusMarket.Api/Features/Offers). They come with the conversation
 // (GET /conversations/{id} → offers) and from the offer endpoints.
 
@@ -18,10 +19,21 @@ export interface Offer {
   respondedAt: string | null
 }
 
+// A getter per status, so the label follows the current language.
 export const OFFER_STATUS_LABELS: Record<OfferStatus, string> = {
-  Pending: 'În așteptare',
-  Accepted: 'Acceptată',
-  Rejected: 'Refuzată',
-  Countered: 'Contraofertă trimisă',
-  Withdrawn: 'Retrasă',
+  get Pending() {
+    return translate('offers.status.Pending')
+  },
+  get Accepted() {
+    return translate('offers.status.Accepted')
+  },
+  get Rejected() {
+    return translate('offers.status.Rejected')
+  },
+  get Countered() {
+    return translate('offers.status.Countered')
+  },
+  get Withdrawn() {
+    return translate('offers.status.Withdrawn')
+  },
 }

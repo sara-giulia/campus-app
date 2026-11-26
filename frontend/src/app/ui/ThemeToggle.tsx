@@ -1,12 +1,14 @@
 import { useState } from 'react'
+import { useT } from '../../i18n/LanguageContext'
 import { MoonIcon, SunIcon } from './Icons'
 import { currentTheme, setTheme, type Theme } from './theme'
 
 // The sun/moon button in the top bar.
 export function ThemeToggle() {
+  const t = useT()
   const [theme, setThemeState] = useState<Theme>(currentTheme)
   const next: Theme = theme === 'dark' ? 'light' : 'dark'
-  const label = next === 'dark' ? 'Temă întunecată' : 'Temă luminoasă'
+  const label = next === 'dark' ? t('theme.dark') : t('theme.light')
 
   return (
     <button
