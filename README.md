@@ -263,6 +263,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Report | `ReportListing` | `POST /api/v1/listings/{id}/reports` | anyone logged in; the reporter is the user in the token | 201, 400, 401, 404, 409 `Report.AlreadyExists` |
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
+| Moderation | `DismissReports` | `POST /api/v1/moderation/listings/{id}/dismiss-reports` | Admins only | 204, 400 `Report.NoPendingReports`, 401, 403, 404 |
 | Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
 | Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, 401, 404 |
@@ -302,6 +303,7 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Favorite | `GetMyFavorites` | `GET /api/v1/members/me/favorites?page=&pageSize=` | anyone logged in; only their own favorites | 200, 400, 401 |
 | Admin | `GetPriceAccuracy` | `GET /api/v1/admin/ml/price-accuracy` | Admins only | 200 `{ count, mae, mape, perCategory, lastRecords }` (`mae`/`mape` null when `count` is 0), 401, 403 |
 | Admin | `GetPriceFeedback` | `GET /api/v1/admin/ml/price-feedback` | Admins only | 200 `text/csv` file `feedback.csv` (header `Title,Description,Category,Condition,Price,IsSpam,TemplateId`, one row per `SaleRecord` whose listing still exists; header only when there are none), 401, 403 |
+| Admin | `GetTrainingExamples` | `GET /api/v1/admin/ml/training-examples` | Admins only | 200 `{ count, perLabel: [{ kind, label, count }], latest }` (the 20 newest examples; `count` 0 and empty lists when there are none), 401, 403 |
 | Admin | `GetAdminMetrics` | `GET /api/v1/admin/metrics` | Admins only | 200 `{ endpoints: [{ route, requests, errors, averageMs, p95Ms, statusCodes }], mlPredictions: [{ model, count, averageMs }] }`, 401, 403 |
 | Category | `GetCategories` | `GET /api/v1/categories` | everyone | 200 `{ items: [{ key, displayName, description, isActive }], count }` (all 5 base categories, active or not) |
 | Category | `UpdateCategory` | `PUT /api/v1/categories/{category}` (`{ displayName, description, isActive }`) | Admins only | 204, 400 `Category.IsActiveRequired` / `Category.DisplayNameEmpty` / `Category.DisplayNameTooLong` / `Category.DescriptionTooLong`, 401, 403, 404 `Category.NotFound`, 409 `Category.LastActive` |
@@ -311,6 +313,8 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Health | health check | `GET /health` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the API can reach the database, 503 `Unhealthy` when it cannot |
 | Health | live check | `GET /health/live` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) as long as the app runs; it runs no checks |
 | Health | ready check | `GET /health/ready` (outside `/api/v1`) | everyone | 200 `Healthy` (plain text) when the database is reachable and the 4 ML models (`price-regression.zip`, `category-classification.zip`, `spam-detection.zip`, `similar-listings.zip`) are present, 503 `Unhealthy` otherwise |
+
+`POST /api/v1/listings` and `PUT /api/v1/listings/{id}` also take an optional `suggestedCategory` (text): the category that `POST /api/v1/listings/category-suggestion` showed to the seller, not the one they chose. The frontend sends it only when a suggestion was shown. A missing or unknown value never fails the request; it only feeds the [training labels](#training-labels).
 
 GET endpoints are public (including `GET /api/v1/members/{id}/reviews`), except `GET /api/v1/members/me`, `GET /api/v1/members/me/reservations`, `GET /api/v1/members/me/listings`, `GET /api/v1/members/me/events`, `GET /api/v1/members/me/favorites`, `GET /api/v1/members/me/blocked`, `GET /api/v1/moderation/listings` and `GET /api/v1/admin/ml/price-accuracy` (the last two Admins only). POST, PUT and DELETE need the token from `POST /api/v1/auth/login` in the `Authorization: Bearer <token>` header: without it the API answers 401. A logged-in user who is not the owner gets 403; an Admin passes every ownership check except `POST /api/v1/listings/{id}/renew`, which only the seller can call.
 
@@ -456,6 +460,7 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Report.ListingNotAvailable` | 400 | the listing is a draft, sold or hidden |
 | `Report.ReasonEmpty`, `Report.ReasonTooLong` | 400 | the reason is empty or longer than 500 characters |
 | `Report.AlreadyExists` | 409 | you have already reported this listing |
+| `Report.NoPendingReports` | 400 | an Admin dismisses the reports of a listing that has no pending report |
 | `Listing.AlreadyHidden` | 400 | an Admin hides a listing that is already hidden |
 | `Listing.CannotHide` | 400 | an Admin hides a draft or a sold listing |
 | `Moderation.InvalidPage`, `Moderation.InvalidPageSize` | 400 | wrong paging parameters for `GET /api/v1/moderation/listings` |
@@ -604,8 +609,13 @@ Members report listings, the spam model reports suspicious ones on its own, and 
 ```
 
 - `POST /api/v1/moderation/listings/{id}/hide` (Admins only): 204. The listing becomes `Hidden`: it leaves the search, the moderation list and the favorites lists, and it cannot be reserved, reported or saved. A reserved listing loses its active reservation. Only `Active` and `Reserved` listings can be hidden.
+- `POST /api/v1/moderation/listings/{id}/dismiss-reports` (Admins only): 204. The pending reports of the listing are dismissed and it leaves the moderation list; the listing itself does not change. 400 `Report.NoPendingReports` when it has none, 404 for an unknown listing.
 
 Reports are stored in their own table (`Reports`, migration `InitialPostgres`), with a unique index on listing + reporter and foreign keys to `Listings` and `Members` (cascade delete).
+
+### Training labels
+
+The decisions of the sellers and the Admins are kept as labelled examples (`TrainingExamples` table, migration `AddTrainingExamples`), so the category and spam models can later be retrained on real data. Hiding a listing that has pending reports records a **spam** example; dismissing its reports records a **not spam** example (one spam example per listing, a later decision relabels it). When the seller saves a listing with a `suggestedCategory` different from the category they chose, a **category** example is recorded with the chosen category (one per listing, a later edit relabels it; an edit by an Admin does not count). An example keeps only the listing id, its title and description, the label, the source and the member id of who decided: no names, emails or other personal data. `GET /api/v1/admin/ml/training-examples` (Admins only) shows the counts per label and the latest examples.
 
 ### Seller reviews
 
