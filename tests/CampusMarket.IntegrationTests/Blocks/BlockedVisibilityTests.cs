@@ -29,7 +29,7 @@ public sealed class BlockedVisibilityTests : IntegrationTestBase
         _buyersListing = ActiveListing(_buyer.Id, "Culegere de algebra liniara");
     }
 
-    private Task<GetListingsResponse?> SearchAsync(HttpClient client, string search) =>
+    private static Task<GetListingsResponse?> SearchAsync(HttpClient client, string search) =>
         client.GetFromJsonAsync<GetListingsResponse>($"/api/v1/listings?search={Uri.EscapeDataString(search)}&pageSize=100", Json);
 
     [Fact]

@@ -14,7 +14,7 @@ public sealed class UnblockMemberTests : IntegrationTestBase
     private readonly Member _buyer = NewMember("Ana Popescu", "ana@student.ro");
     private readonly Member _third = NewMember("Maria Ionescu", "maria@student.ro");
 
-    private string BlockUrl(Guid id) => $"/api/v1/members/{id}/block";
+    private static string BlockUrl(Guid id) => $"/api/v1/members/{id}/block";
 
     [Fact]
     public async Task Given_Block_When_Unblocking_Then_Returns204AndRemovesOnlyThatBlock()

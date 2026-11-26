@@ -15,7 +15,7 @@ public sealed class BlockMemberTests : IntegrationTestBase
     private readonly Member _seller = NewMember("Ion Ionescu", "ion@student.ro");
     private readonly Member _buyer = NewMember("Ana Popescu", "ana@student.ro");
 
-    private string BlockUrl(Guid id) => $"/api/v1/members/{id}/block";
+    private static string BlockUrl(Guid id) => $"/api/v1/members/{id}/block";
 
     [Fact]
     public async Task Given_TwoMembers_When_SellerBlocksBuyer_Then_Returns204AndSavesOneBlock()
