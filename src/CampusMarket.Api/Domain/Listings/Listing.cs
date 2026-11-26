@@ -95,7 +95,8 @@ public sealed class Listing
     // job (Features/Listings/ExpireListings). Returns false when nothing changed.
     public bool Expire(DateTimeOffset currentTime)
     {
-        if (Status != ListingStatus.Active || ExpiresAt is null || ExpiresAt > currentTime)
+        // A lifted comparison: with no ExpiresAt (null) it is false too, so such a listing never expires.
+        if (Status != ListingStatus.Active || !(ExpiresAt <= currentTime))
             return false;
 
         Status = ListingStatus.Expired;
