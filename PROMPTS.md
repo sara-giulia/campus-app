@@ -1214,6 +1214,14 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 28d2802; skill section 1c83bc0; tests generated in 4e479ce
 
+### Run 47, skill v49 (Sonar fixes on PR #148)
+
+- **Why:** SonarCloud flagged two `Be(typeof(...))` in `SearchServiceCollectionExtensionsTests.cs` (prefer the generic `Be<T>()`).
+- **Prompt:** `Using the unit-testing skill, fix the two Sonar issues in SearchServiceCollectionExtensionsTests.cs (Be(typeof(X)) -> Be<X>()) and any other Be(typeof( in the search tests. Only those test files, no src/, no git. Build and run the unit tests.`
+- **Skill version:** v49, unchanged
+- **Result:** the two lines changed, no other `Be(typeof(` in `tests/`; 973 unit tests pass, build 0 warnings.
+- **Commits:** 1d3cae1
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
