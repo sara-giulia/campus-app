@@ -30,6 +30,7 @@ interface ReviewFormProps {
 // was already reviewed, the parent hides the "Lasă o recenzie" button.
 export function ReviewForm({ listingId, listingTitle, onReviewed, onCancel }: ReviewFormProps) {
   const commentId = useId()
+  const ratingName = useId()
   const [rating, setRating] = useState(0)
   const [hover, setHover] = useState(0)
   const [comment, setComment] = useState('')
@@ -63,23 +64,28 @@ export function ReviewForm({ listingId, listingTitle, onReviewed, onCancel }: Re
   return (
     <form className="review-form" onSubmit={(e) => void handleSubmit(e)}>
       <p className="review-form__title">Cum a fost vânzătorul pentru „{listingTitle}”?</p>
-      <div className="review-form__stars" role="radiogroup" aria-label="Nota" onMouseLeave={() => setHover(0)}>
+      <fieldset className="review-form__stars" onMouseLeave={() => setHover(0)}>
+        <legend className="review-form__legend">Nota</legend>
         {[1, 2, 3, 4, 5].map((value) => (
-          <button
+          <label
             key={value}
-            type="button"
-            role="radio"
-            aria-checked={rating === value}
-            aria-label={`${value} din 5 stele`}
             className={value <= shown ? 'review-form__star review-form__star--on' : 'review-form__star'}
             onMouseEnter={() => setHover(value)}
-            onClick={() => setRating(value)}
           >
-            ★
-          </button>
+            <input
+              type="radio"
+              name={ratingName}
+              value={value}
+              checked={rating === value}
+              onChange={() => setRating(value)}
+              className="review-form__star-input"
+              aria-label={`${value} din 5 stele`}
+            />
+            <span aria-hidden="true">★</span>
+          </label>
         ))}
         <span className="review-form__rating-label">{RATING_LABELS[shown]}</span>
-      </div>
+      </fieldset>
       <label htmlFor={commentId} className="review-form__label">
         Comentariu (opțional)
       </label>
