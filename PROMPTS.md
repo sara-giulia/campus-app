@@ -1308,6 +1308,23 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 1078eea; skill section 18b1fad; tests generated in f39e8b4
 
+### Run 53, skill v55 (Feature: Spam in messages)
+
+- **Why a new version:** branch `feature/message-spam`. Every chat message is now checked by a spam model of its own: the send handlers take an `IMessageSpamDetector`, a shared `MessageSpamGuard` blocks or marks the message, `Message` keeps the probability and a flag, the answers have `isSuspicious`, and `MessageSpamRules` is new. The skill had no section for any of it.
+
+#### Change to SKILL.md (v54 → v55) and why
+
+| # | v54 (before) | v55 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the spam in messages. | New section *"Feature: Spam in messages (Anca)"*: the guard and its three verdicts, the new constructors of the two handlers, what is not committed when a message is blocked, the order of the errors (the detector is not called before the domain rules), the true and false examples of `MessageSpamRules`, a `FakeMessageSpamDetector`, the files allowed to change and the files that must reach 100%. | Without the fake a unit test would need the real model; without the list of earlier errors the tests would not prove that a blocked text never hides `Message.Empty` or `Member.Blocked`. |
+
+- **Prompt:** `Run the unit-testing skill and generate the unit tests for the section "Feature: Spam in messages (Anca)". Only tests/CampusMarket.UnitTests may change, no git commands that change state; fix the existing handler tests only as the section says and keep every assertion. If a test fails because the code behaves differently from the section, stop and report it. Run the whole project 3 times, then the coverage. At the end: files, tests before/after, pass/fail, coverage of each listed file, mismatches.`
+- **Skill version:** v55 (the last unit-testing version was v54, Run 52)
+- **Result:** 91 new unit tests, 1315 in total (1224 before); the four existing handler test files only got the new fake in the constructor, and the `GetConversation`/`GetMyConversations` handler tests one new test each. 3 of 3 runs pass. The listed files at 100% lines and branches, except the private EF constructor of `Message` (old, only EF calls it; covered by the integration tests).
+- **Problems seen:** none in the code. The coverage filter of the skill does not include `MessageSpamRules.cs`, `MessageResponse.cs` and `GetConversationResponse.cs`; they were checked separately (100%).
+- **Change to SKILL.md after the run:** none.
+- **Commits:** 1f524d4 (skill section in 4e08b87)
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2485,6 +2502,24 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** code 1078eea; skill section 18b1fad; tests generated in f39e8b4
 
+### Run 64, skill v63 (Feature: Spam in messages)
+
+- **Why a new version:** branch `feature/message-spam`. The two send endpoints now check every message with the real message spam model (`message-spam.zip`): a suspicious one is sent with `isSuspicious`, a blocked one gives 400 `Message.Spam` and is not saved; new settings `Ml:MessageSpam:*` validated at start, a fifth model in the health check, and the migration `AddMessageSpamCheck`.
+
+#### Change to SKILL.md (v62 → v63) and why
+
+| # | v62 (before) | v63 (after) | Why |
+|---|---|---|---|
+| 1 | No section for the spam in messages. | New section *"Feature: Spam in messages (Anca)"*: the three outcomes on both endpoints, texts measured with the committed model (normal, suspicious by a rule, suspicious by the model, blocked) with their probabilities, the read side, the settings and their validation, the health check, the migration, the files allowed to change and the rule to report an existing test whose text is now flagged. | With texts measured once on the real model the tests do not guess; an existing message that became "spam" would be a real problem to report, not to hide. |
+| 2 | Section as first written. | Added `GetConversationTests.cs` and `GetMyConversationsTests.cs` to the files allowed to change (the expected records get the new field `false`), and the exact text of the validation message. | The new record fields broke their build (6 errors CS7036); the validation is one combined message. |
+
+- **Prompt:** `Run the integration-testing skill and generate the integration tests for the section "Feature: Spam in messages (Anca)". Only tests/CampusMarket.IntegrationTests may change, no git commands that change state, use the real message spam model. If an existing test now fails because its text is flagged or blocked, or a test fails because the API behaves differently from the section, stop and report it. Run the whole project 3 times and the coverage merged with the unit tests. At the end: files, tests before/after, pass/fail, coverage, mismatches.`
+- **Skill version:** v63 (the last integration-testing version was v62, Run 63)
+- **Result:** 40 new integration tests, 746 in total (706 before): `Conversations/MessageSpamTests.cs` (34), `Persistence/AddMessageSpamCheckMigrationTests.cs` (3), 5 new cases in `MlThresholdsTests.cs`, `message-spam.zip` in `HealthTests.cs`. None of the 706 existing tests has a message that is now flagged or blocked. 3 of 3 full runs pass; with the unit tests merged every new or changed production file is at 100% lines and branches (`MessageSpamDetector`, `MessageSpamRules`, `MessageSpamOptions`, `MlServiceCollectionExtensions`, `MlModelsHealthCheck`, `Message`, `MessageSpamGuard`, the two send handlers, the read side, the migration).
+- **Problems seen:** `GetConversationTests.cs` and `GetMyConversationsTests.cs` did not compile because of the new record fields; the subagent added `false` in the 6 expected values and reported it (now in the section, change 2). It also found an accidental edit in `MessageConfiguration.cs` (two statements joined on one line), fixed in `src/`, the file is back to what it was on main.
+- **Change to SKILL.md after the run:** change 2 above.
+- **Commits:** 1f524d4 (skill section in 4e08b87)
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -3597,3 +3632,21 @@ Weeks 9–10, Anca's task "Căutare după sens": a pretrained multilingual embed
 - **Problems seen:** `ml/scripts/download-search-model.sh`: `curl -L` could follow a redirect to plain HTTP (the security issue behind the C), and `[` instead of `[[`.
 - **Fix:** `curl --proto "=https" --proto-redir "=https"` and `[[ -f ... ]]`. A fresh download into an empty folder still works and every SHA-256 matches.
 - **Commits:** bb45165
+
+## message-spam
+
+Weeks 9–10, Anca's task "Spam în mesaje": the spam model applied to the chat messages too, a suspicious message marked or blocked. Written by Ancuța Ilenei with Claude Code. The tests were generated with the unit-testing (Run 53) and integration-testing (Run 64) skills; the quality tests of the model in `CampusMarket.ML.Tests` are written by hand, like the other ML tests.
+
+### Run 1
+
+- **Prompt:** `Let's do the spam in messages task. Do it well please.`
+- **Decisions:**
+    - Measured first: the spam model of the listings on 40 chat messages written by hand, then on the new data. It does not fit chat (precision 0.20 on the test part, 11 of 45 normal hand-written messages flagged): it learned from a title, a description and a price, and its rules mark a phone number or WhatsApp, which is normal between two students who meet. So the messages got a model of their own, with the same technique (ML.NET, `FeaturizeText` + SDCA logistic regression), trained on messages.
+    - Data: `ml/data/messages.csv`, generated (5000 messages, 15% spam, 47 kinds of normal messages and 29 spam patterns, with the noise of real chat), with its own `Random`, so `listings.csv` is byte for byte the same. Normal messages with the words of the scams on purpose (card, code, courier, advance, transfer). `ml/data/messages-external.csv`: 70 messages written by hand, only for evaluation.
+    - Split by template (85/15) so test only has kinds of messages the model never saw; the two thresholds chosen by 5-fold grouped cross-validation on the 85%, not on test: warning 0.60 (best F0.5, precision counts twice: a warning on a normal message hurts the chat) and block 0.95 (the first threshold with no normal message blocked). The first version, with one small validation part, chose 0.55 for both and blocked 13 normal test messages; the cross-validation fixed that.
+    - Three outcomes: normal; suspicious (model ≥ 0.60 or a rule: link, card data / CVV, SMS or bank code, money in advance, easy money, crypto, loans, gift cards; no rule for a phone, WhatsApp or e-mail) sent with `isSuspicious` and shown with a warning; blocked (model ≥ 0.95) not saved, 400 `Message.Spam`. Rules only warn, never block.
+    - The check runs after the domain rules (empty, too long, not participant, blocked member keep their errors), in one `MessageSpamGuard` used by both send handlers; a blocked message is never committed and a new conversation is not added.
+    - The model is trained at the end of the training program on its own `MLContext` (the four listing models do not change); `-- --messages` trains only it. The CI also checks that `messages.csv` is regenerated byte for byte.
+- **Checks:** build 0 warnings; `dotnet ef migrations has-pending-model-changes`: none; 10 architecture, 1315 unit, 90 ML and 746 integration tests pass (2 old `PriceSuggesterTests` fail only with the Romanian number format of this Windows and pass with the invariant culture, as on the CI); the model on test: precision 0.975, recall 0.814 at 0.60, with the rules 0.978 / 0.938, no normal message blocked at 0.95; on the hand-written messages 1.000 / 0.880 for the model alone, no normal message blocked; the new code at 100% lines and branches (unit and integration merged); on the running API: the normal, suspicious and blocked texts behave as expected and a blocked message leaves no row; the Postman collection with newman on a fresh database: 282 requests, 538 assertions, 3 failures, all in the `Blocks` folder (three "no token" requests without `noauth` inherit the collection token; not part of this task); frontend build and lint clean.
+- **Result:** new `ml/CampusMarket.ML.DatasetGenerator/MessageGenerator.cs`, `MessageTemplates.cs`, `ml/CampusMarket.ML.Training/MessageSpam.cs`, `ml/data/messages.csv`, `ml/data/messages-external.csv`, `ml/models/message-spam.zip` and `.json`, `docs/ml/message-spam.md`, `Common/Moderation/IMessageSpamDetector.cs`, `MessageSpamOptions.cs`, `Infrastructure/ML/MessageSpamDetector.cs`, `MessageSpamInput.cs`, `MessageSpamRules.cs`, `Features/Conversations/MessageSpamGuard.cs`, migration `AddMessageSpamCheck`, `tests/CampusMarket.ML.Tests/MessageSpamModelQualityTests.cs`; changed `Message`, the two send handlers, the conversation responses, `MlServiceCollectionExtensions`, `MlModelsHealthCheck`, `SpamRules` (`Normalize` shared), `appsettings.json`, `ModelMetadata` (the split text), the training and generator programs, `Dockerfile`, `ml.yml`, the frontend chat (warning on a suspicious message, `Message.Spam` in RO/EN), README, ML.md, the ML READMEs, Postman.
+- **Commits:** code 24ae023; skill sections 4e08b87; tests generated in 1f524d4 (see Run 53 of unit-testing and Run 64 of integration-testing)
