@@ -1,17 +1,15 @@
 import { useT } from '../../i18n/LanguageContext'
-import { ButtonLink } from '../ui'
-import './not-found.css'
+import { LostIllustration, StatusPage } from './StatusPage'
 
 export function NotFoundPage() {
   const t = useT()
   return (
-    <div className="not-found">
-      <p className="not-found__code">404</p>
-      <h1>{t('notFound.title')}</h1>
-      <p className="muted">{t('notFound.text')}</p>
-      <ButtonLink to="/" variant="secondary">
-        {t('notFound.back')}
-      </ButtonLink>
-    </div>
+    <StatusPage
+      code="404"
+      title={t('notFound.title')}
+      text={t('notFound.text')}
+      illustration={<LostIllustration />}
+      backLabel={t('notFound.back')}
+    />
   )
 }

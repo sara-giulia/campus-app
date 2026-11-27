@@ -562,5 +562,10 @@ export const en: Record<TKey, string> = {
   'ui.loading': 'Loading…',
   'ui.hidePassword': 'Hide the password',
   'ui.showPassword': 'Show the password',
+  // --- error page (app/pages/ErrorPage.tsx) ---
+  'errorPage.code': 'Error',
+  'errorPage.title': 'Something went wrong',
+  'errorPage.text': 'An unexpected error occurred. Please try again in a few moments.',
+  'errorPage.back': 'Back to the home page',
   // [end]
 }

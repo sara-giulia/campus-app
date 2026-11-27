@@ -561,6 +561,11 @@ export const ro = {
   'ui.loading': 'Se încarcă…',
   'ui.hidePassword': 'Ascunde parola',
   'ui.showPassword': 'Arată parola',
+  // --- error page (app/pages/ErrorPage.tsx) ---
+  'errorPage.code': 'Eroare',
+  'errorPage.title': 'Ceva nu a mers bine',
+  'errorPage.text': 'A apărut o eroare neașteptată. Încearcă din nou în câteva momente.',
+  'errorPage.back': 'Înapoi la pagina principală',
   // [end]
 }
 

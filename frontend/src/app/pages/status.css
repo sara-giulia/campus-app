@@ -1,0 +1,42 @@
+/* The 404 and error pages: one centered block with an illustration, a code, a short message and a button. */
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 64px 0 32px;
+}
+
+.status__art {
+  margin-bottom: 8px;
+}
+
+.status__art svg {
+  display: block;
+  width: 160px;
+  height: auto;
+}
+
+.status__code {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.status .btn {
+  margin-top: 12px;
+}
+
+/* Illustration colors: theme variables, so they follow light and dark mode. */
+.ill-blue { fill: var(--tile-blue); }
+.ill-yellow { fill: var(--tile-yellow); }
+.ill-paper { fill: var(--surface); }
+.ill-paper-line { fill: none; stroke: var(--line-strong); stroke-width: 6; stroke-linecap: round; }
+.ill-ring { fill: none; stroke: var(--accent); stroke-width: 6; }
+.ill-handle { fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round; }
+.ill-triangle { fill: var(--surface); stroke: var(--accent); stroke-width: 6; stroke-linejoin: round; }
+.ill-mark { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; }
+.ill-mark-dot { fill: var(--accent); }

@@ -13,6 +13,7 @@ import { Layout } from './Layout'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ErrorPage } from './pages/ErrorPage'
 
 // Every feature keeps its pages in frontend/src/features/<feature>/ and exports
 // its routes from a routes.tsx file, for example:
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <Layout />,
+    errorElement: <ErrorPage />,
     children: [
       { index: true, element: <HomePage /> },
       { path: 'login', element: <LoginPage /> },

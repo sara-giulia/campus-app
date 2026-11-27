@@ -9,6 +9,7 @@ import { LiveEventsProvider } from '../features/live/LiveEventsProvider'
 import { useUnreadMessages } from '../features/messages/UnreadMessagesContext'
 import { UnreadMessagesProvider } from '../features/messages/UnreadMessagesProvider'
 import { useAuth } from './auth/AuthContext'
+import { ErrorBoundary } from './ErrorBoundary'
 import { menuItems, type MenuItem } from './menu'
 import { ButtonLink, CloseIcon, Logo, LogoutIcon, MenuIcon, ThemeToggle } from './ui'
 import './layout.css'
@@ -168,7 +169,9 @@ function LayoutShell() {
       </header>
 
       <main className="page">
-        <Outlet />
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       <footer className="footer">
