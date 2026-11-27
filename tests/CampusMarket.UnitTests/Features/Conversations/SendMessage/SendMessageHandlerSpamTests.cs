@@ -28,7 +28,7 @@ public class SendMessageHandlerSpamTests
         listing.Publish(Now.AddDays(30));
         _conversation = Conversation.Start(BuyerId, listing, "Mai e disponibil?", Now.AddMinutes(-10)).Value;
         _conversations.Items.Add(_conversation);
-        _handler = new SendMessageHandler(_conversations, _blocks, _detector, _unitOfWork, new FixedTimeProvider(Now));
+        _handler = new SendMessageHandler(_conversations, _blocks, new FakeMemberRepository(), _detector, _unitOfWork, new FixedTimeProvider(Now));
     }
 
     [Fact]

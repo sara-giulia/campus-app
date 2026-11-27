@@ -28,7 +28,7 @@ public class GetMyFavoritesHandlerBlockedTests
         listings.Items[_otherListing.Id] = _otherListing;
         _favorites.Items.Add(Favorite.Create(MemberId, _blockedListing, Now).Value);
         _favorites.Items.Add(Favorite.Create(MemberId, _otherListing, Now.AddMinutes(1)).Value);
-        _handler = new GetMyFavoritesHandler(_favorites, listings, _blocks);
+        _handler = new GetMyFavoritesHandler(_favorites, listings, _blocks, new FakeMemberRepository(), new FixedTimeProvider(Now));
     }
 
     private static Listing Active(Guid sellerId, string title)

@@ -20,7 +20,7 @@ public class RecordViewHandlerTests
 
     public RecordViewHandlerTests()
     {
-        _handler = new RecordViewHandler(_listings, _views, _clock);
+        _handler = new RecordViewHandler(_listings, _views, new FakeMemberRepository(), _clock);
     }
 
     private Listing Seed(ListingStatus status)

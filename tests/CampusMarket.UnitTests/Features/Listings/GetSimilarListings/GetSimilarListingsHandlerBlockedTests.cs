@@ -30,7 +30,7 @@ public class GetSimilarListingsHandlerBlockedTests
         // The blocked seller's listing is the closest one.
         _finder.SimilarityByTitle["Algebra workbook"] = 0.9;
         _finder.SimilarityByTitle["Calculus book"] = 0.4;
-        _handler = new GetSimilarListingsHandler(_repository, _finder, _blocks);
+        _handler = new GetSimilarListingsHandler(_repository, _finder, _blocks, new FakeMemberRepository(), new FixedTimeProvider(Now));
     }
 
     private static Listing Active(Guid sellerId, string title)

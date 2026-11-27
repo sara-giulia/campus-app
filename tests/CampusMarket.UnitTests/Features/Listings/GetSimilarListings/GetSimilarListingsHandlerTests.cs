@@ -63,7 +63,7 @@ public class GetSimilarListingsHandlerTests
     {
         var repository = new FakeListingRepository();
         var finder = new FakeSimilarListingsFinder();
-        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository());
+        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var id = Guid.NewGuid();
 
         var result = await handler.HandleAsync(new GetSimilarListingsQuery(id), CancellationToken.None);
@@ -92,7 +92,7 @@ public class GetSimilarListingsHandlerTests
         repository.Items[hidden.Id] = hidden;
         var before = repository.Items.Values.ToList();
         var finder = new FakeSimilarListingsFinder();
-        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository());
+        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetSimilarListingsQuery(target.Id), CancellationToken.None);
 
@@ -121,7 +121,7 @@ public class GetSimilarListingsHandlerTests
         repository.Items[reserved.Id] = reserved;
         var before = repository.Items.Values.ToList();
         var finder = new FakeSimilarListingsFinder();
-        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository());
+        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetSimilarListingsQuery(target.Id), CancellationToken.None);
 
@@ -168,7 +168,7 @@ public class GetSimilarListingsHandlerTests
         finder.SimilarityByTitle["Candidate 5"] = 0.5;
         finder.SimilarityByTitle["Candidate 6"] = 0.2;
         finder.SimilarityByTitle["Candidate 7"] = 0.8;
-        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository());
+        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetSimilarListingsQuery(target.Id), CancellationToken.None);
 
@@ -194,7 +194,7 @@ public class GetSimilarListingsHandlerTests
         var finder = new FakeSimilarListingsFinder();
         finder.SimilarityByTitle["Older book"] = 0.5;
         finder.SimilarityByTitle["Newer book"] = 0.5;
-        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository());
+        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetSimilarListingsQuery(target.Id), CancellationToken.None);
 
@@ -218,7 +218,7 @@ public class GetSimilarListingsHandlerTests
         var finder = new FakeSimilarListingsFinder();
         finder.SimilarityByTitle["First book"] = 0.5;
         finder.SimilarityByTitle["Second book"] = 0.5;
-        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository());
+        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetSimilarListingsQuery(target.Id), CancellationToken.None);
 
@@ -243,7 +243,7 @@ public class GetSimilarListingsHandlerTests
         var finder = new FakeSimilarListingsFinder();
         finder.SimilarityByTitle["Casio calculator"] = 0.456;
         finder.SimilarityByTitle["Physics notes"] = 0.125;
-        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository());
+        var handler = new GetSimilarListingsHandler(repository, finder, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetSimilarListingsQuery(target.Id), CancellationToken.None);
 

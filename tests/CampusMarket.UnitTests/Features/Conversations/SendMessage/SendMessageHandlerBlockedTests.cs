@@ -26,7 +26,7 @@ public class SendMessageHandlerBlockedTests
         _conversation = Conversation.Start(BuyerId, listing, "Mai e disponibil?", Now.AddMinutes(-10)).Value;
         var conversations = new FakeConversationRepository();
         conversations.Items.Add(_conversation);
-        _handler = new SendMessageHandler(conversations, _blocks, new FakeMessageSpamDetector(), _unitOfWork, new FixedTimeProvider(Now));
+        _handler = new SendMessageHandler(conversations, _blocks, new FakeMemberRepository(), new FakeMessageSpamDetector(), _unitOfWork, new FixedTimeProvider(Now));
     }
 
     private void Block(Guid blocker, Guid blocked) =>
