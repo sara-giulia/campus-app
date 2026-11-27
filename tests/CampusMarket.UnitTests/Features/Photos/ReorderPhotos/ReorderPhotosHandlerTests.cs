@@ -14,6 +14,7 @@ public class ReorderPhotosHandlerTests
     private static readonly Guid AdminId = new("33333333-3333-3333-3333-333333333333");
 
     private static readonly byte[] PngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0, 0, 0, 0, 0];
+    private static readonly byte[] ThumbnailBytes = [9, 9];
 
     private sealed record Scenario(
         ReorderPhotosHandler Handler,
@@ -33,7 +34,7 @@ public class ReorderPhotosHandlerTests
         var photos = new FakePhotoRepository();
         var seeded = new List<Photo>();
         for (var i = 0; i < photoCount; i++)
-            seeded.Add(Photo.Create(SellerId, listing, i, PngBytes, Now.AddMinutes(i), i).Value);
+            seeded.Add(Photo.Create(listing, new ProcessedPhoto(PngBytes, ThumbnailBytes), Now.AddMinutes(i), i));
         photos.Items.AddRange(seeded);
         var unitOfWork = new FakeUnitOfWork();
         return new Scenario(new ReorderPhotosHandler(listings, photos, unitOfWork), photos, unitOfWork, listing, seeded);

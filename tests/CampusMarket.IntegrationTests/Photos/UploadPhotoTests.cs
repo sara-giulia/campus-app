@@ -19,13 +19,12 @@ namespace CampusMarket.IntegrationTests.Photos;
 public sealed class UploadPhotoTests : IntegrationTestBase
 {
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
-    private const long MaxSizeBytes = 2_097_152;
+    private const long MaxSizeBytes = 10_485_760;
 
-    // Test images: the signature of the format followed by zeros.
-    private static readonly byte[] PngImage = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    private static readonly byte[] JpegImage = [0xFF, 0xD8, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    // "RIFF", 4 bytes of size, "WEBP".
-    private static readonly byte[] WebPImage = [0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x00, 0x00, 0x00, 0x00];
+    // Real test images (SkiaSharp), so the processor can decode them.
+    private static readonly byte[] PngImage = TestImages.Png(40, 30);
+    private static readonly byte[] JpegImage = TestImages.Jpeg(40, 30);
+    private static readonly byte[] WebPImage = TestImages.WebP(40, 30);
     // "GIF89a": a real image, but not an accepted format.
     private static readonly byte[] GifImage = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 
@@ -46,22 +45,26 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         var body = await response.Content.ReadFromJsonAsync<PhotoResponse>(Json);
         body!.Id.Should().NotBeEmpty();
         body.ListingId.Should().Be(listing.Id);
-        body.ContentType.Should().Be("image/png");
-        body.SizeBytes.Should().Be(PngImage.Length);
+        body.ContentType.Should().Be("image/webp");
         body.Url.Should().Be($"/api/v1/photos/{body.Id}");
+        body.ThumbnailUrl.Should().Be($"/api/v1/photos/{body.Id}/thumbnail");
         body.CreatedAt.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1));
         response.Headers.Location!.ToString().Should().EndWith($"/api/v1/photos/{body.Id}");
 
         var photo = await QueryDbAsync(db => db.Set<Photo>().AsNoTracking().SingleAsync());
         photo.Id.Should().Be(body.Id);
         photo.ListingId.Should().Be(listing.Id);
-        photo.FileName.Should().Be($"{body.Id}.png");
-        photo.ContentType.Should().Be("image/png");
-        photo.SizeBytes.Should().Be(PngImage.Length);
+        photo.FileName.Should().Be($"{body.Id}.webp");
+        photo.ThumbnailFileName.Should().Be($"{body.Id}.thumb.webp");
+        photo.ContentType.Should().Be("image/webp");
 
         var path = Path.Combine(Factory.PhotosPath, listing.Id.ToString(), photo.FileName);
         File.Exists(path).Should().BeTrue();
-        (await File.ReadAllBytesAsync(path)).Should().Equal(PngImage);
+        var saved = await File.ReadAllBytesAsync(path);
+        saved.Should().NotEqual(PngImage);
+        TestImages.IsWebP(saved).Should().BeTrue();
+        body.SizeBytes.Should().Be(saved.Length);
+        photo.SizeBytes.Should().Be(saved.Length);
     }
 
     public static TheoryData<byte[], string, string> OtherFormats => new()
@@ -85,17 +88,20 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
+        // Whatever was sent, the saved photo is WebP.
         var body = await response.Content.ReadFromJsonAsync<PhotoResponse>(Json);
-        body!.ContentType.Should().Be(contentType);
-        body.SizeBytes.Should().Be(content.Length);
+        body!.ContentType.Should().Be("image/webp");
 
         var photo = await QueryDbAsync(db => db.Set<Photo>().AsNoTracking().SingleAsync());
         photo.Id.Should().Be(body.Id);
-        photo.FileName.Should().Be($"{body.Id}{extension}");
-        photo.ContentType.Should().Be(contentType);
+        photo.FileName.Should().Be($"{body.Id}.webp");
+        photo.ContentType.Should().Be("image/webp");
 
         var path = Path.Combine(Factory.PhotosPath, listing.Id.ToString(), photo.FileName);
-        (await File.ReadAllBytesAsync(path)).Should().Equal(content);
+        var saved = await File.ReadAllBytesAsync(path);
+        saved.Should().NotEqual(content);
+        TestImages.IsWebP(saved).Should().BeTrue();
+        body.SizeBytes.Should().Be(saved.Length);
     }
 
     [Fact]
@@ -177,12 +183,13 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
+        // The size is the one of the saved image, much smaller than the upload.
         var body = await response.Content.ReadFromJsonAsync<PhotoResponse>(Json);
-        body!.SizeBytes.Should().Be(MaxSizeBytes);
-
         var photo = await QueryDbAsync(db => db.Set<Photo>().AsNoTracking().SingleAsync());
-        photo.SizeBytes.Should().Be(MaxSizeBytes);
-        new FileInfo(Path.Combine(Factory.PhotosPath, listing.Id.ToString(), photo.FileName)).Length.Should().Be(MaxSizeBytes);
+        var savedLength = new FileInfo(Path.Combine(Factory.PhotosPath, listing.Id.ToString(), photo.FileName)).Length;
+        body!.SizeBytes.Should().Be(savedLength);
+        photo.SizeBytes.Should().Be(savedLength);
+        savedLength.Should().BeLessThan(MaxSizeBytes);
     }
 
     [Fact]
@@ -214,7 +221,7 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
         listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var existing = Enumerable.Range(0, 5)
-            .Select(i => (object)Photo.Create(seller.Id, listing, i, PngImage, CreatedAt.AddMinutes(i)).Value)
+            .Select(i => (object)Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt.AddMinutes(i)))
             .ToArray();
         await SeedAsync([seller, listing, .. existing]);
         AuthenticateAs(seller.Id);
@@ -344,13 +351,8 @@ public sealed class UploadPhotoTests : IntegrationTestBase
         return new MultipartFormDataContent { { file, fieldName, fileName } };
     }
 
-    // A PNG signature followed by zeros, of the given total size.
-    private static byte[] PngOfSize(long size)
-    {
-        var content = new byte[size];
-        PngImage.AsSpan(0, 8).CopyTo(content);
-        return content;
-    }
+    // A real PNG followed by zeros, of the given total size.
+    private static byte[] PngOfSize(long size) => TestImages.PaddedPng(size);
 
     private string[] FilesOnDisk() =>
         Directory.Exists(Factory.PhotosPath)

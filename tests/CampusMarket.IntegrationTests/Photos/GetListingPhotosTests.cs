@@ -17,11 +17,10 @@ public sealed class GetListingPhotosTests : IntegrationTestBase
 {
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
 
-    // Test images: the signature of the format followed by zeros.
-    private static readonly byte[] PngImage = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    private static readonly byte[] JpegImage = [0xFF, 0xD8, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    // "RIFF", 4 bytes of size, "WEBP".
-    private static readonly byte[] WebPImage = [0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x00, 0x00, 0x00, 0x00];
+    // Real test images (SkiaSharp), so the processor can decode them.
+    private static readonly byte[] PngImage = TestImages.Png(40, 30);
+    private static readonly byte[] JpegImage = TestImages.Jpeg(40, 30);
+    private static readonly byte[] WebPImage = TestImages.WebP(40, 30);
 
     [Fact]
     public async Task Given_ThreeUploadedPhotos_When_GettingListingPhotosWithoutToken_Then_Returns200InUploadOrder()
@@ -48,7 +47,7 @@ public sealed class GetListingPhotosTests : IntegrationTestBase
             .WithStrictOrdering()
             .Using<DateTimeOffset>(ctx => ctx.Subject.Should().Be(ctx.Expectation.ToMicroseconds()))
             .WhenTypeIs<DateTimeOffset>());
-        body.Items.Select(p => p.ContentType).Should().Equal("image/png", "image/jpeg", "image/webp");
+        body.Items.Select(p => p.ContentType).Should().Equal("image/webp", "image/webp", "image/webp");
         body.Items.Should().OnlyContain(p => p.ListingId == listing.Id && p.Url == $"/api/v1/photos/{p.Id}");
 
         var count = await QueryDbAsync(db => db.Set<Photo>().CountAsync());
@@ -155,7 +154,7 @@ public sealed class GetListingPhotosTests : IntegrationTestBase
     {
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = Listing.Create(seller.Id, "Manual POO", Category.Textbook, Condition.Good, 50m, CreatedAt).Value;
-        var photo = Photo.Create(seller.Id, listing, 0, PngImage, CreatedAt).Value;
+        var photo = Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt);
         await SeedAsync(seller, listing, photo);
         return (listing, photo);
     }
@@ -166,10 +165,10 @@ public sealed class GetListingPhotosTests : IntegrationTestBase
         // Arrange
         var seller = Member.Create("Ion Ionescu", "ion@student.ro", CreatedAt).Value;
         var listing = PublishedListing(seller, "Manual POO");
-        var last = Photo.Create(seller.Id, listing, 0, PngImage, CreatedAt, position: 2).Value;
-        var tieNewer = Photo.Create(seller.Id, listing, 1, PngImage, CreatedAt.AddHours(2), position: 1).Value;
-        var tieOlder = Photo.Create(seller.Id, listing, 2, PngImage, CreatedAt.AddHours(1), position: 1).Value;
-        var cover = Photo.Create(seller.Id, listing, 3, PngImage, CreatedAt.AddHours(3), position: 0).Value;
+        var last = Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt, position: 2);
+        var tieNewer = Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt.AddHours(2), position: 1);
+        var tieOlder = Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt.AddHours(1), position: 1);
+        var cover = Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt.AddHours(3), position: 0);
         await SeedAsync(seller, listing, last, tieNewer, tieOlder, cover);
 
         // Act
