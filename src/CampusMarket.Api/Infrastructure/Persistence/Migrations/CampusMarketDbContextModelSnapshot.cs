@@ -17,7 +17,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261126192341_AddConversationReadState";
+    public override string LastMigrationId => "20261127095831_AddMemberReportsAndSuspension";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -342,6 +342,19 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("character varying(20)")
                     .HasDefaultValue("Student");
 
+                b.Property<DateTimeOffset?>("SuspendedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid?>("SuspendedById")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset?>("SuspendedUntil")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("SuspensionReason")
+                    .HasMaxLength(500)
+                    .HasColumnType("character varying(500)");
+
                 b.HasKey("Id");
 
                 b.HasIndex("Email")
@@ -530,6 +543,54 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("ListingId");
 
                 b.ToTable("Photos");
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Reports.MemberReport", b =>
+            {
+                b.Property<Guid>("Id")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid?>("ConversationId")
+                    .HasColumnType("uuid");
+
+                b.Property<DateTimeOffset>("CreatedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("Reason")
+                    .IsRequired()
+                    .HasMaxLength(500)
+                    .HasColumnType("character varying(500)");
+
+                b.Property<Guid>("ReportedMemberId")
+                    .HasColumnType("uuid");
+
+                b.Property<Guid>("ReporterId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("Resolution")
+                    .IsRequired()
+                    .ValueGeneratedOnAdd()
+                    .HasMaxLength(20)
+                    .HasColumnType("character varying(20)")
+                    .HasDefaultValue("Pending");
+
+                b.Property<DateTimeOffset?>("ResolvedAt")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<Guid?>("ResolvedById")
+                    .HasColumnType("uuid");
+
+                b.HasKey("Id");
+
+                b.HasIndex("ConversationId");
+
+                b.HasIndex("ReportedMemberId", "Resolution");
+
+                b.HasIndex("ReporterId", "ReportedMemberId")
+                    .IsUnique()
+                    .HasFilter("\"Resolution\" = 'Pending'");
+
+                b.ToTable("MemberReports");
             });
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Reports.Report", b =>
@@ -822,6 +883,26 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
                 b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
                     .WithMany()
                     .HasForeignKey("ListingId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
+        modelBuilder.Entity("CampusMarket.Api.Domain.Reports.MemberReport", b =>
+            {
+                b.HasOne("CampusMarket.Api.Domain.Conversations.Conversation", null)
+                    .WithMany()
+                    .HasForeignKey("ConversationId")
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("ReportedMemberId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
+                    .WithMany()
+                    .HasForeignKey("ReporterId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });
