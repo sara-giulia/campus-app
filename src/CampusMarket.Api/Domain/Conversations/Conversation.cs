@@ -78,6 +78,7 @@ public sealed class Conversation
                 Error.Forbidden("Conversation.NotParticipant", "Only the buyer and the seller can read this conversation."));
 
         var unread = UnreadCountFor(memberId);
+        // Stryker disable once Equality : when nothing is unread, the member's read mark is already at the last message, so setting it again changes nothing
         if (unread > 0)
             SetLastReadNumber(memberId, _messages.Max(m => m.Number));
         return unread;
