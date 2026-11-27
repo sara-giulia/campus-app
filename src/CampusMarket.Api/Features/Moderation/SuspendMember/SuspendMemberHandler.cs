@@ -66,7 +66,8 @@ public sealed partial class SuspendMemberHandler(
 
         suspensionCheck.Invalidate();
         liveEvents.Disconnect(member.Id);
-        await SendEmailAsync(member, ct);
+        // Suspend refused a null or blank reason, so it is set; the email shows it trimmed, as stored.
+        await SendEmailAsync(member, command.Reason!.Trim(), ct);
 
         return member.Id;
     }
@@ -116,12 +117,12 @@ public sealed partial class SuspendMemberHandler(
         }
     }
 
-    private async Task SendEmailAsync(Member member, CancellationToken ct)
+    private async Task SendEmailAsync(Member member, string reason, CancellationToken ct)
     {
         try
         {
             await emailSender.SendAsync(
-                member.Email.Value, SuspensionEmails.SuspendedSubject, SuspensionEmails.SuspendedBody(member), ct);
+                member.Email.Value, SuspensionEmails.SuspendedSubject, SuspensionEmails.SuspendedBody(member, reason), ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

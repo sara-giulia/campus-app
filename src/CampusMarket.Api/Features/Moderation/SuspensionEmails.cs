@@ -16,16 +16,23 @@ internal static class SuspensionEmails
 
     private const string Separator = "----------";
 
-    // Called right after Member.Suspend, so SuspendedUntil and SuspensionReason are set.
-    public static string SuspendedBody(Member member)
+    // The members are in Romania. Null when the server has no time zone data (a minimal container):
+    // TryFindSystemTimeZoneById leaves the out value null when the zone is missing.
+    internal static readonly TimeZoneInfo? RomaniaZone = FindRomaniaZone();
+
+    // Called right after Member.Suspend succeeded, with the trimmed reason it stored.
+    public static string SuspendedBody(Member member, string reason) =>
+        SuspendedBody(member, reason, RomaniaZone);
+
+    // zone null: the UTC time is shown, marked as such, rather than failing the email.
+    internal static string SuspendedBody(Member member, string reason, TimeZoneInfo? zone)
     {
         var nl = Environment.NewLine;
-        var reason = member.SuspensionReason ?? string.Empty;
 
         string ro, en;
         if (member.SuspendedUntil is { } until)
         {
-            var when = RomaniaTime(until);
+            var when = LocalTime(until, zone);
             ro =
                 $"Salut {member.Name},{nl}{nl}" +
                 $"Contul tău CampusMarket a fost suspendat până la {when} (ora României).{nl}" +
@@ -78,11 +85,15 @@ internal static class SuspensionEmails
         return $"{ro}{nl}{nl}{Separator}{nl}{nl}{en}{nl}";
     }
 
-    // The members are in Romania. When the server has no time zone data (a minimal container) the
-    // UTC time is shown, marked as such, rather than failing the email.
-    private static string RomaniaTime(DateTimeOffset moment)
+    private static TimeZoneInfo? FindRomaniaZone()
     {
-        if (TimeZoneInfo.TryFindSystemTimeZoneById("Europe/Bucharest", out var zone))
+        TimeZoneInfo.TryFindSystemTimeZoneById("Europe/Bucharest", out var zone);
+        return zone;
+    }
+
+    private static string LocalTime(DateTimeOffset moment, TimeZoneInfo? zone)
+    {
+        if (zone is not null)
             return TimeZoneInfo.ConvertTime(moment, zone).ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
 
         return moment.UtcDateTime.ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture) + " UTC";

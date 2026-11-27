@@ -33,11 +33,11 @@ public sealed class InMemoryLiveEvents(IOptions<LiveEventsOptions> options, Time
         if (!_connections.TryGetValue(memberId, out var channels))
             return;
 
+        // Dispose of the timer and TryComplete of the channel do nothing the second time, so a connection
+        // that its browser (or another Disconnect) removes at the same moment can be stopped again safely.
         foreach (var (connectionId, connection) in channels)
         {
-            if (!channels.TryRemove(connectionId, out _))
-                continue;
-
+            channels.TryRemove(connectionId, out _);
             connection.Heartbeat.Dispose();
             connection.Channel.Writer.TryComplete();
         }
