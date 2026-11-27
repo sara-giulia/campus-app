@@ -36,10 +36,17 @@
 }
 
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--accent);
   font-weight: 800;
   font-size: 1.45rem;
   letter-spacing: -0.04em;
+}
+
+.logo svg {
+  flex: none;
 }
 
 .nav {
