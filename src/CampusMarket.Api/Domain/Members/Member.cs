@@ -29,7 +29,7 @@ public sealed class Member
     public Guid? SuspendedById { get; private set; }
 
     public bool IsSuspended(DateTimeOffset now) =>
-        SuspendedAt is not null && (SuspendedUntil is null || now < SuspendedUntil);
+        SuspendedAt is not null && (SuspendedUntil is null || now < SuspendedUntil.Value);
 
     private Member() { }
 
@@ -148,10 +148,10 @@ public sealed class Member
             return Result<Member>.Failure(
                 Error.Validation("Suspension.ReasonTooLong", $"Reason must have at most {MaxSuspensionReasonLength} characters."));
 
-        if (until is not null && until <= now)
+        if (until is not null && until.Value <= now)
             return Result<Member>.Failure(
                 Error.Validation("Suspension.UntilInPast", "The end of the suspension must be in the future."));
-        if (until is not null && until > now.Add(MaxSuspensionLength))
+        if (until is not null && until.Value > now.Add(MaxSuspensionLength))
             return Result<Member>.Failure(
                 Error.Validation("Suspension.TooLong",
                     $"A temporary suspension lasts at most {MaxSuspensionLength.TotalDays:0} days; leave the end empty for a permanent one."));
