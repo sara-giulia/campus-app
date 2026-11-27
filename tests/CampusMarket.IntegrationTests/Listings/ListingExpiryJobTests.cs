@@ -132,6 +132,8 @@ public sealed class ListingExpiryJobTests : IntegrationTestBase
         {
             withJob.CreateClient();
             finalStatus = await WaitForStatusAsync(stale.Id, ListingStatus.Expired, TimeSpan.FromSeconds(5));
+            // The status is committed before the email is tried; stopping the host now would cancel the send.
+            await WaitForAsync(() => emailSender.Attempts > 0, TimeSpan.FromSeconds(5));
         }
 
         // Assert
