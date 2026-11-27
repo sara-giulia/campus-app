@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useSyncExternalStore, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { ApiError } from '../../api/errors'
+import { ACCOUNT_SUSPENDED, clearAccountSuspended, isAccountSuspended, onAccountSuspendedChange } from '../../api/suspension'
+import { formatDate } from '../../i18n/format'
 import { useT } from '../../i18n/LanguageContext'
 import { translate } from '../../i18n/store'
 import { useAuth } from '../auth/AuthContext'
@@ -13,6 +15,8 @@ function loginErrorMessage(error: unknown): string {
   switch (error.code) {
     case 'Auth.InvalidCredentials':
       return translate('login.error.InvalidCredentials')
+    case ACCOUNT_SUSPENDED:
+      return suspendedMessage(error.message)
     case 'Request.TooManyRequests':
       return translate('login.error.TooManyRequests')
     case 'Network.Unreachable':
@@ -20,6 +24,19 @@ function loginErrorMessage(error: unknown): string {
     default:
       return error.message
   }
+}
+
+// The 403 of login says "...suspended until 2026-12-31 21:59 UTC." or "...suspended permanently.";
+// the date is shown in the user's time and language. The reason is only in the email the member got.
+function suspendedMessage(apiMessage: string): string {
+  const until = /until (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}) UTC/.exec(apiMessage)
+  if (until) {
+    const date = new Date(`${until[1]}T${until[2]}:00Z`)
+    if (!Number.isNaN(date.getTime()))
+      return translate('login.suspendedUntil', { date: formatDate(date, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) })
+  }
+  if (/permanently/.test(apiMessage)) return translate('login.suspendedPermanent')
+  return translate('login.suspended')
 }
 
 export function LoginPage() {
@@ -34,6 +51,8 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // Set when the client logged the user out because the account was suspended (see api/suspension.ts).
+  const suspended = useSyncExternalStore(onAccountSuspendedChange, isAccountSuspended)
 
   if (user) return <Navigate to={from} replace />
 
@@ -43,6 +62,7 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       await login(email.trim(), password)
+      clearAccountSuspended()
       navigate(from, { replace: true })
     } catch (err) {
       setError(loginErrorMessage(err))
@@ -56,6 +76,7 @@ export function LoginPage() {
       <div className="login__form-side">
         <h1 className="login__title">{t('login.title')}</h1>
         <p className="login__subtitle">{t('login.subtitle')}</p>
+        {suspended && !error && <Alert tone="error">{t('login.suspended')}</Alert>}
 
         <form onSubmit={handleSubmit} className="login__form">
           <TextField label={t('login.email')} type="email" autoComplete="email" placeholder={t('login.emailPlaceholder')} value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />

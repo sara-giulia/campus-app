@@ -9,6 +9,7 @@ import { profileRoutes } from '../features/profile/routes'
 import { reviewsRoutes } from '../features/reviews/routes'
 import { adminCategoriesRoutes } from '../features/admin-categories/routes'
 import { adminMlRoutes } from '../features/admin-ml/routes'
+import { adminMembersRoutes } from '../features/admin-members/routes'
 import { Layout } from './Layout'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -31,6 +32,7 @@ const featureRoutes: RouteObject[] = [
   ...adminCategoriesRoutes,
   ...adminMlRoutes,
   ...notificationsRoutes,
+  ...adminMembersRoutes,
 ]
 
 export const router = createBrowserRouter([

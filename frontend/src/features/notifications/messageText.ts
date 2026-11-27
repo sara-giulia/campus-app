@@ -3,7 +3,7 @@ import type { NotificationItem } from './types'
 
 // The API writes the notification texts in English, always in the same shapes (see
 // ReserveListingHandler, ConfirmSaleHandler, ExpireReservationsHandler, ExpireListingsHandler, AddReviewHandler,
-// and Features/Offers/OfferNotifications.cs). The page shows them in the current language (the texts are in
+// SuspendMemberHandler and Features/Offers/OfferNotifications.cs). The page shows them in the current language (the texts are in
 // the dictionaries, "notifications.msg.*"); an unexpected text is shown as it came.
 const PATTERNS: { type: NotificationItem['type']; match: RegExp; text: (m: RegExpMatchArray) => string }[] = [
   { type: 'ReservationCreated', match: /^(.+) reserved (.+)$/, text: (m) => translate('notifications.msg.reservationCreated', { name: m[1], title: m[2] }) },
@@ -16,6 +16,10 @@ const PATTERNS: { type: NotificationItem['type']; match: RegExp; text: (m: RegEx
   { type: 'OfferAccepted', match: /^You accepted the offer of ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerAcceptedByYou', { amount: m[1], title: m[2] }) },
   { type: 'OfferAccepted', match: /^(.+?) accepted your offer of ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerAcceptedByOther', { name: m[1], amount: m[2], title: m[3] }) },
   { type: 'OfferRejected', match: /^The offer of ([\d.]+) lei for (.+) was closed: the listing was reserved by another buyer$/, text: (m) => translate('notifications.msg.offerClosed', { amount: m[1], title: m[2] }) },
+  // The other member was suspended; the texts only say they are no longer available.
+  { type: 'OfferRejected', match: /^The offer of ([\d.]+) lei for (.*) was closed: the other member is no longer available$/, text: (m) => translate('notifications.msg.offerClosedUnavailable', { amount: m[1], title: m[2] }) },
+  { type: 'ReservationCancelled', match: /^Your reservation for (.+) was cancelled: the seller is no longer available$/, text: (m) => translate('notifications.msg.reservationCancelledSeller', { title: m[1] }) },
+  { type: 'ReservationCancelled', match: /^The reservation of (.+) was cancelled: the buyer is no longer available$/, text: (m) => translate('notifications.msg.reservationCancelledBuyer', { title: m[1] }) },
   { type: 'OfferRejected', match: /^(.+?) rejected your offer of ([\d.]+) lei for (.+)$/, text: (m) => translate('notifications.msg.offerRejected', { name: m[1], amount: m[2], title: m[3] }) },
 ]
 

@@ -4,6 +4,7 @@ import { api } from '../../api/client'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Card, EmptyState, Loading, Pagination } from '../../app/ui'
 import { BlockButton } from '../blocks/BlockButton'
+import { ReportMemberButton } from '../member-reports/ReportMemberButton'
 import { formatDate, formatPrice, type PublicProfile } from '../listings/publicTypes'
 import './reviews.css'
 import { useT } from '../../i18n/LanguageContext'
@@ -81,6 +82,7 @@ function SellerProfile({ id }: { id: string }) {
         </div>
         <div className="seller__actions">
           <BlockButton memberId={id} name={profile.name} />
+          <ReportMemberButton memberId={id} name={profile.name} />
         </div>
       </header>
 

@@ -5,6 +5,7 @@ import { useAuth } from '../../app/auth/AuthContext'
 import { errorMessage, isAbort } from '../../app/errorMessage'
 import { Alert, Button, Loading } from '../../app/ui'
 import { BlockButton } from '../blocks/BlockButton'
+import { ReportMemberButton } from '../member-reports/ReportMemberButton'
 import { useLiveEvents } from '../live/LiveEventsContext'
 import { formatDateTime } from '../listings/publicTypes'
 import { OffersPanel } from '../offers/OffersPanel'
@@ -121,6 +122,7 @@ export function ConversationPage() {
         </div>
         <div className="chat__actions">
           <BlockButton memberId={otherId} name={other} />
+          <ReportMemberButton memberId={otherId} name={other} conversationId={conversation.id} />
         </div>
       </div>
 

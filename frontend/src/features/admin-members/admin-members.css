@@ -1,0 +1,98 @@
+.admin-members {
+  max-width: 900px;
+}
+
+.admin-members__body {
+  min-width: 0;
+}
+
+.admin-members__email {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-members__reports {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.admin-members__reports li + li {
+  margin-top: 6px;
+}
+
+.admin-members__report-meta {
+  display: block;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.admin-members__reason {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* The suspend form takes the whole width of the row, under the details and the buttons. */
+.admin-members__suspend {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.admin-members__suspend-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.admin-members__textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.field--error .admin-members__textarea {
+  border-color: var(--danger);
+}
+
+.admin-members__duration {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.admin-members__duration legend {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.admin-members__choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.admin-members__choice input {
+  accent-color: var(--accent);
+}
+
+.admin-members__buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
