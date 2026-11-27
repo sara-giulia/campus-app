@@ -16,17 +16,17 @@ public class SuspensionEmailsTests
         return member;
     }
 
-    private static string TemporaryBody(string when) =>
+    private static string TemporaryBody(string when, string reason = "Scam attempts") =>
         $"Salut Ana Pop,{Nl}{Nl}" +
         $"Contul tău CampusMarket a fost suspendat până la {when} (ora României).{Nl}" +
-        $"Motiv: Scam attempts{Nl}{Nl}" +
+        $"Motiv: {reason}{Nl}{Nl}" +
         "Până atunci nu te poți autentifica, iar anunțurile tale nu sunt vizibile. " +
         $"Rezervările și ofertele în curs au fost anulate. După această dată contul și anunțurile revin automat.{Nl}" +
         "Dacă crezi că este o greșeală, contactează un administrator CampusMarket." +
         $"{Nl}{Nl}----------{Nl}{Nl}" +
         $"Hello Ana Pop,{Nl}{Nl}" +
         $"Your CampusMarket account was suspended until {when} (Romania time).{Nl}" +
-        $"Reason: Scam attempts{Nl}{Nl}" +
+        $"Reason: {reason}{Nl}{Nl}" +
         "Until then you cannot sign in and your listings are not visible. " +
         $"Your ongoing reservations and offers were cancelled. After this date your account and your listings come back automatically.{Nl}" +
         $"If you think this is a mistake, contact a CampusMarket administrator.{Nl}";
@@ -36,7 +36,7 @@ public class SuspensionEmailsTests
     {
         var member = Suspended(new DateTimeOffset(2026, 1, 15, 8, 30, 0, TimeSpan.Zero));
 
-        var body = SuspensionEmails.SuspendedBody(member);
+        var body = SuspensionEmails.SuspendedBody(member, "Scam attempts");
 
         body.Should().Be(TemporaryBody("15.01.2026 10:30"));
     }
@@ -46,7 +46,7 @@ public class SuspensionEmailsTests
     {
         var member = Suspended(new DateTimeOffset(2026, 7, 15, 21, 30, 0, TimeSpan.Zero));
 
-        var body = SuspensionEmails.SuspendedBody(member);
+        var body = SuspensionEmails.SuspendedBody(member, "Scam attempts");
 
         body.Should().Be(TemporaryBody("16.07.2026 00:30"));
     }
@@ -56,7 +56,7 @@ public class SuspensionEmailsTests
     {
         var member = Suspended(null);
 
-        var body = SuspensionEmails.SuspendedBody(member);
+        var body = SuspensionEmails.SuspendedBody(member, "Scam attempts");
 
         body.Should().Be(
             $"Salut Ana Pop,{Nl}{Nl}" +
@@ -79,7 +79,7 @@ public class SuspensionEmailsTests
     {
         var member = Suspended(null);
 
-        var parts = SuspensionEmails.SuspendedBody(member).Split("----------");
+        var parts = SuspensionEmails.SuspendedBody(member, "Scam attempts").Split("----------");
 
         parts.Should().HaveCount(2);
         parts[0].Should().StartWith("Salut Ana Pop,");
@@ -91,7 +91,7 @@ public class SuspensionEmailsTests
     {
         var member = Suspended(Now.AddDays(3));
 
-        var body = SuspensionEmails.SuspendedBody(member);
+        var body = SuspensionEmails.SuspendedBody(member, "Scam attempts");
 
         body.Should().NotContain("http");
         body.Should().NotContain("token");
@@ -124,5 +124,46 @@ public class SuspensionEmailsTests
             $"Hello Ana Pop,{Nl}{Nl}" +
             "The suspension of your CampusMarket account was lifted. You can sign in again " +
             $"and your listings are visible again:{Nl}https://campus.example/my/listings{Nl}");
+    }
+
+    [Fact]
+    public void Given_NoTimeZone_When_BuildingSuspendedBody_Then_ShowsUtcTimeMarkedUtc()
+    {
+        var member = Suspended(new DateTimeOffset(2026, 1, 15, 8, 30, 0, TimeSpan.Zero));
+
+        var body = SuspensionEmails.SuspendedBody(member, "Scam attempts", null);
+
+        body.Should().Be(TemporaryBody("15.01.2026 08:30 UTC"));
+    }
+
+    [Fact]
+    public void Given_NoTimeZoneAndEndWithOffset_When_BuildingSuspendedBody_Then_ConvertsTheEndToUtc()
+    {
+        var member = Suspended(new DateTimeOffset(2026, 7, 16, 0, 30, 0, TimeSpan.FromHours(3)));
+
+        var body = SuspensionEmails.SuspendedBody(member, "Scam attempts", null);
+
+        body.Should().Be(TemporaryBody("15.07.2026 21:30 UTC"));
+    }
+
+    [Fact]
+    public void Given_GivenTimeZone_When_BuildingSuspendedBody_Then_ShowsTheTimeInThatZone()
+    {
+        var member = Suspended(new DateTimeOffset(2026, 1, 15, 8, 30, 0, TimeSpan.Zero));
+        var zone = TimeZoneInfo.CreateCustomTimeZone("Test+05", TimeSpan.FromHours(5), "Test+05", "Test+05");
+
+        var body = SuspensionEmails.SuspendedBody(member, "Scam attempts", zone);
+
+        body.Should().Be(TemporaryBody("15.01.2026 13:30"));
+    }
+
+    [Fact]
+    public void Given_ReasonPassedIn_When_BuildingSuspendedBody_Then_UsesThatReasonInBothLanguages()
+    {
+        var member = Suspended(new DateTimeOffset(2026, 1, 15, 8, 30, 0, TimeSpan.Zero));
+
+        var body = SuspensionEmails.SuspendedBody(member, "Fake listings", null);
+
+        body.Should().Be(TemporaryBody("15.01.2026 08:30 UTC", "Fake listings"));
     }
 }
