@@ -189,7 +189,7 @@ function ListingView({ id }: { id: string }) {
             <div className="gallery__thumbs">
               {photos.map((p, i) => (
                 <button key={p.id} type="button" className={i === shown ? 'gallery__thumb is-current' : 'gallery__thumb'} onClick={() => setCurrent(i)} aria-label={t('listingPage.photoNumber', { number: i + 1 })}>
-                  <img src={photoSrc(p.url)} alt="" />
+                  <img src={photoSrc(p.thumbnailUrl)} alt="" loading="lazy" />
                 </button>
               ))}
             </div>

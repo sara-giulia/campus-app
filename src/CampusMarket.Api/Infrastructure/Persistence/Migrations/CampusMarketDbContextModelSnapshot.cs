@@ -17,7 +17,7 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261126192341_AddConversationReadState";
+    public override string LastMigrationId => "20261127134622_AddPhotoThumbnails";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -524,6 +524,10 @@ partial class CampusMarketDbContextModelSnapshot : ModelSnapshot
 
                 b.Property<long>("SizeBytes")
                     .HasColumnType("bigint");
+
+                b.Property<string>("ThumbnailFileName")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)");
 
                 b.HasKey("Id");
 

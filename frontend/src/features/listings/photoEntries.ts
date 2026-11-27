@@ -6,7 +6,8 @@ import { translate } from '../../i18n/store'
 // The photos of the listing form: the ones the server already has and the ones the user picked
 // and that are not uploaded yet (shown from a local object URL).
 export const MAX_PHOTOS = 5
-export const MAX_PHOTO_BYTES = 2 * 1024 * 1024
+// The server makes every photo smaller (WebP, at most 1600 px) and removes its EXIF data.
+export const MAX_PHOTO_BYTES = 10 * 1024 * 1024
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 export type PhotoEntry = {
@@ -17,7 +18,7 @@ export type PhotoEntry = {
 } & ({ kind: 'server'; id: string } | { kind: 'local'; file: File })
 
 export function serverEntry(photo: PhotoItem): PhotoEntry {
-  return { key: photo.id, kind: 'server', id: photo.id, previewUrl: photoSrc(photo.url) }
+  return { key: photo.id, kind: 'server', id: photo.id, previewUrl: photoSrc(photo.thumbnailUrl) }
 }
 
 export function localEntry(file: File): PhotoEntry {

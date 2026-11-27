@@ -27,8 +27,9 @@ public sealed class DeleteListingHandler(
         repository.Delete(listing);
         await unitOfWork.CommitAsync(ct);
 
-        // The photo rows went with the listing (cascade); their files are removed here.
-        photoStorage.DeleteListing(listing.Id);
+        // The photo rows went with the listing (cascade); their files are removed here, even if the request
+        // is cancelled now, because the listing is already gone.
+        await photoStorage.DeleteListingAsync(listing.Id, CancellationToken.None);
 
         return listing.Id;
     }

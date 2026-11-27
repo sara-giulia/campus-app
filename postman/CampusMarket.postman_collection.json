@@ -11496,9 +11496,10 @@
                 "exec": [
                   "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
                   "const body = pm.response.json();",
-                  "pm.test(\"PNG photo with its url\", () => {",
-                  "  pm.expect(body.contentType).to.eql(\"image/png\");",
+                  "pm.test(\"PNG saved as WebP, with its url and thumbnail\", () => {",
+                  "  pm.expect(body.contentType).to.eql(\"image/webp\");",
                   "  pm.expect(body.url).to.eql(\"/api/v1/photos/\" + body.id);",
+                  "  pm.expect(body.thumbnailUrl).to.eql(\"/api/v1/photos/\" + body.id + \"/thumbnail\");",
                   "});",
                   "pm.test(\"Location points to the image\", () => pm.expect(pm.response.headers.get(\"Location\")).to.include(\"/api/v1/photos/\" + body.id));",
                   "pm.collectionVariables.set(\"photoId\", body.id);"
@@ -11702,7 +11703,7 @@
           ]
         },
         {
-          "name": "Photo file - public (200, image/png)",
+          "name": "Photo file - public (200, image/webp)",
           "request": {
             "method": "GET",
             "header": [],
@@ -11729,7 +11730,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"It is the PNG\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/png\"));",
+                  "pm.test(\"Saved as WebP\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/webp\"));",
                   "pm.test(\"Cached for a day\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"max-age=86400\"));"
                 ]
               }
@@ -11765,6 +11766,129 @@
                 "exec": [
                   "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
                   "pm.test(\"Error code is Photo.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Photo.NotFound\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Photo thumbnail - public (200, image/webp)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/photos/{{photoId}}/thumbnail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "photos",
+                "{{photoId}}",
+                "thumbnail"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The thumbnail is WebP\", () => pm.expect(pm.response.headers.get(\"Content-Type\")).to.eql(\"image/webp\"));",
+                  "pm.test(\"Cached for a day\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"max-age=86400\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Photo thumbnail - random id (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/photos/00000000-0000-0000-0000-000000000001/thumbnail",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "photos",
+                "00000000-0000-0000-0000-000000000001",
+                "thumbnail"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Error code is Photo.NotFound\", () => pm.expect(pm.response.json().code).to.eql(\"Photo.NotFound\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload photo - broken JPEG (400 Photo.InvalidFormat)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/listings/{{photoListingId}}/photos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "listings",
+                "{{photoListingId}}",
+                "photos"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "postman/files/broken-photo.jpg"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Error code is Photo.InvalidFormat\", () => pm.expect(pm.response.json().code).to.eql(\"Photo.InvalidFormat\"));"
                 ]
               }
             }
