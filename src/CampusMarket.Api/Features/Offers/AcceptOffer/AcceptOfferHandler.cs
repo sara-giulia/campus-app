@@ -36,6 +36,12 @@ public sealed class AcceptOfferHandler(
         var listing = (await listings.GetByIdAsync(offer.ListingId, ct))!;
         var member = (await members.GetByIdAsync(command.MemberId, ct))!;
 
+        // Suspending a member closes their offers; this covers an offer answered in the same moment.
+        var now = timeProvider.GetUtcNow();
+        if (await members.IsSuspendedAsync(listing.SellerId, now, ct))
+            return Result<AcceptOfferResponse>.Failure(
+                Error.NotFound("Listing.NotFound", $"Listing '{listing.Id}' was not found."));
+
         var allListings = await listings.GetAllAsync(ct);
         var activeReservations = allListings
             .SelectMany(l => l.Reservations)
@@ -45,7 +51,6 @@ public sealed class AcceptOfferHandler(
                 Error.Validation("Offer.BuyerReservationLimit",
                     $"The buyer already holds {ReserveListingHandler.MaxActiveReservations} active reservations."));
 
-        var now = timeProvider.GetUtcNow();
         var accepted = offer.Accept(command.MemberId, listing, now);
         if (accepted.IsFailure)
             return Result<AcceptOfferResponse>.Failure(accepted.Error);

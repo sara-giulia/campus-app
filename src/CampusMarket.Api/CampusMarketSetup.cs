@@ -84,6 +84,7 @@ public static class CampusMarketSetup
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IFavoriteRepository, EfFavoriteRepository>();
         services.AddScoped<IReportRepository, EfReportRepository>();
+        services.AddScoped<IMemberReportRepository, EfMemberReportRepository>();
         services.AddScoped<IReviewRepository, EfReviewRepository>();
         services.AddScoped<ISaleRecordRepository, EfSaleRecordRepository>();
         services.AddScoped<ITrainingExampleRepository, EfTrainingExampleRepository>();
@@ -107,6 +108,10 @@ public static class CampusMarketSetup
         services.AddOptions<JwtOptions>().BindConfiguration("Jwt");
         services.AddSingleton<ITokenService, JwtTokenService>();
 
+        // Suspension check on every authenticated request (SuspensionJwtEvents), cached for 30 seconds.
+        services.AddMemoryCache();
+        services.AddScoped<ISuspensionCheck, CachedSuspensionCheck>();
+
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
             .Configure<IOptions<JwtOptions>>((options, jwtOptions) =>
@@ -121,6 +126,8 @@ public static class CampusMarketSetup
                     NameClaimType = "sub",
                     RoleClaimType = "role"
                 };
+                // A token issued before a suspension stops working at once (not after 15 minutes).
+                options.Events = SuspensionJwtEvents.Create();
             });
 
         services.AddAuthorizationBuilder()

@@ -20,8 +20,11 @@ public static class LoginEndpoint
     {
         var result = await handler.HandleAsync(new LoginCommand(request.Email, request.Password), ct);
 
+        // A suspended account (right password) is 403 Auth.AccountSuspended; everything else is 401.
         if (result.IsFailure)
-            return TypedResults.Json(result.Error, statusCode: StatusCodes.Status401Unauthorized);
+            return TypedResults.Json(result.Error, statusCode: result.Error.Type == ErrorType.Forbidden
+                ? StatusCodes.Status403Forbidden
+                : StatusCodes.Status401Unauthorized);
 
         return TypedResults.Ok(result.Value);
     }

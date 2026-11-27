@@ -19,7 +19,8 @@ public sealed class ReportListingHandler(
     {
         var listing = await listings.GetByIdAsync(command.ListingId, ct);
 
-        if (listing is null)
+        // The listing of a suspended seller is not public while the suspension lasts.
+        if (listing is null || await members.IsSuspendedAsync(listing.SellerId, timeProvider.GetUtcNow(), ct))
             return Result<ReportListingResponse>.Failure(
                 Error.NotFound("Listing.NotFound", $"Listing '{command.ListingId}' was not found."));
 

@@ -54,8 +54,10 @@ public sealed partial class ExpireListingsHandler(
 
         // The emails go out only after the listings are saved, so a seller is never told about an
         // expiry that is not in the database. A failed email does not undo the expiry or stop the others.
+        // A suspended seller gets no email (they cannot log in to renew); the notification is there when they come back.
         var link = $"{frontendOptions.Value.BaseUrl.TrimEnd('/')}/my/listings";
-        foreach (var listing in expired)
+        var suspendedIds = await members.GetSuspendedIdsAsync(now, ct);
+        foreach (var listing in expired.Where(l => !suspendedIds.Contains(l.SellerId)))
             await SendEmailAsync(listing, link, ct);
 
         return expired.Count;

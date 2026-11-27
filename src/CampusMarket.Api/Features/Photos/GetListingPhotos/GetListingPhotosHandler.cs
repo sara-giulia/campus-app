@@ -1,18 +1,22 @@
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Domain.Photos;
 
 namespace CampusMarket.Api.Features.Photos.GetListingPhotos;
 
-// Like GET /listings/{id}: anyone who can open the listing sees its photos (a draft only its seller or an Admin).
-public sealed class GetListingPhotosHandler(IListingRepository listings, IPhotoRepository photos)
+// Like GET /listings/{id}: anyone who can open the listing sees its photos (a draft only its seller or an Admin,
+// the listing of a suspended member only an Admin).
+public sealed class GetListingPhotosHandler(
+    IListingRepository listings, IPhotoRepository photos, IMemberRepository members, TimeProvider timeProvider)
     : IQueryHandler<GetListingPhotosQuery, GetListingPhotosResponse>
 {
     public async Task<Result<GetListingPhotosResponse>> HandleAsync(GetListingPhotosQuery query, CancellationToken ct)
     {
         var listing = await listings.GetByIdAsync(query.ListingId, ct);
-        if (listing is null || !listing.IsVisibleTo(query.RequesterId, query.IsAdmin))
+        if (listing is null || !listing.IsVisibleTo(query.RequesterId, query.IsAdmin)
+            || (!query.IsAdmin && await members.IsSuspendedAsync(listing.SellerId, timeProvider.GetUtcNow(), ct)))
             return Result<GetListingPhotosResponse>.Failure(
                 Error.NotFound("Listing.NotFound", $"Listing '{query.ListingId}' was not found."));
 

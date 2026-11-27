@@ -26,7 +26,8 @@ public sealed class MakeOfferHandler(
     public async Task<Result<MakeOfferResponse>> HandleAsync(MakeOfferCommand command, CancellationToken ct)
     {
         var listing = await listings.GetByIdAsync(command.ListingId, ct);
-        if (listing is null)
+        // The listing of a suspended seller is not public while the suspension lasts.
+        if (listing is null || await members.IsSuspendedAsync(listing.SellerId, timeProvider.GetUtcNow(), ct))
             return Result<MakeOfferResponse>.Failure(
                 Error.NotFound("Listing.NotFound", $"Listing '{command.ListingId}' was not found."));
 

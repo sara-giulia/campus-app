@@ -3,14 +3,17 @@ using CampusMarket.Api.Common.Moderation;
 using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Conversations;
+using CampusMarket.Api.Domain.Members;
 
 namespace CampusMarket.Api.Features.Conversations.SendMessage;
 
 // The buyer or the seller answers in a conversation they are part of. The spam model checks every
 // message: a suspicious one is sent with a warning, a blocked one is not sent (MessageSpamGuard).
+// The conversation stays readable when the other member is suspended, but nothing new can be sent to them (409).
 public sealed class SendMessageHandler(
     IConversationRepository conversations,
     IMemberBlockRepository blocks,
+    IMemberRepository members,
     IMessageSpamDetector spamDetector,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
@@ -28,7 +31,13 @@ public sealed class SendMessageHandler(
             && await blocks.IsBlockedAsync(conversation.OtherParticipant(command.SenderId), command.SenderId, ct))
             return Result<MessageResponse>.Failure(MemberBlock.BlockedError());
 
-        var sent = conversation.Send(command.SenderId, command.Text, timeProvider.GetUtcNow());
+        var now = timeProvider.GetUtcNow();
+        if (conversation.IsParticipant(command.SenderId)
+            && await members.IsSuspendedAsync(conversation.OtherParticipant(command.SenderId), now, ct))
+            return Result<MessageResponse>.Failure(
+                Error.Conflict("Conversation.MemberSuspended", "This member is not available at the moment."));
+
+        var sent = conversation.Send(command.SenderId, command.Text, now);
         if (sent.IsFailure)
             return Result<MessageResponse>.Failure(sent.Error);
 
