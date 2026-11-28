@@ -263,6 +263,176 @@ public class GetReportedMembersHandlerTests
         result.Value.TotalCount.Should().Be(2);
     }
 
+    private Member SeedSuspended(string name, string email, DateTimeOffset suspendedAt, DateTimeOffset? until = null)
+    {
+        var member = SeedMember(name, email);
+        member.Suspend(AdminId, "Scam", until, suspendedAt);
+        return member;
+    }
+
+    [Fact]
+    public async Task Given_SuspendedMemberWithoutPendingReports_When_Handling_Then_IsListedWithNoReports()
+    {
+        var member = SeedSuspended("Ion Ionescu", "Ion@Campus.ro", Now.AddHours(-1), Now.AddDays(3));
+        SeedListing(member.Id, hidden: true);
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        var item = result.Value.Items.Should().ContainSingle().Subject;
+        item.MemberId.Should().Be(member.Id);
+        item.Name.Should().Be("Ion Ionescu");
+        item.Email.Should().Be("ion@campus.ro");
+        item.ReportCount.Should().Be(0);
+        item.Reports.Should().BeEmpty();
+        item.LastReportedAt.Should().BeNull();
+        item.HiddenListingsCount.Should().Be(1);
+        item.IsSuspended.Should().BeTrue();
+        item.SuspendedUntil.Should().Be(Now.AddDays(3));
+        result.Value.Count.Should().Be(1);
+        result.Value.TotalCount.Should().Be(1);
+        _members.UpdateCount.Should().Be(0);
+        _reports.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_PermanentlySuspendedMemberWithoutReports_When_Handling_Then_IsListedWithoutEnd()
+    {
+        var member = SeedSuspended("Ion Ionescu", "ion@campus.ro", Now.AddHours(-1));
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        var item = result.Value.Items.Should().ContainSingle().Subject;
+        item.MemberId.Should().Be(member.Id);
+        item.IsSuspended.Should().BeTrue();
+        item.SuspendedUntil.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_SuspendedMemberWithOnlyResolvedReports_When_Handling_Then_IsListedWithNoReports()
+    {
+        var member = SeedSuspended("Ion Ionescu", "ion@campus.ro", Now.AddHours(-1));
+        var report = SeedReport(ReporterId, member.Id, "Rude", Now.AddHours(-2));
+        report.Confirm(AdminId, Now.AddHours(-1));
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        var item = result.Value.Items.Should().ContainSingle().Subject;
+        item.MemberId.Should().Be(member.Id);
+        item.ReportCount.Should().Be(0);
+        item.Reports.Should().BeEmpty();
+        item.LastReportedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Given_EndedTemporarySuspensionAndNoReports_When_Handling_Then_IsNotListed()
+    {
+        SeedSuspended("Ion Ionescu", "ion@campus.ro", Now.AddDays(-1), Now);
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().BeEmpty();
+        result.Value.Count.Should().Be(0);
+        result.Value.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_MemberNeitherSuspendedNorReported_When_Handling_Then_IsNotListed()
+    {
+        SeedMember("Ion Ionescu", "ion@campus.ro");
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        result.Value.Items.Should().BeEmpty();
+        result.Value.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_SuspendedMemberWithPendingReports_When_Handling_Then_AppearsOnceInFirstGroup()
+    {
+        var reported = SeedMember("Reported Once", "reported@campus.ro");
+        var suspended = SeedSuspended("Suspended Reported", "suspended@campus.ro", Now.AddHours(-1));
+        SeedReport(ReporterId, reported.Id, "Rude", Now.AddHours(-3));
+        SeedReport(ReporterId, suspended.Id, "Rude", Now.AddHours(-5));
+        SeedReport(OtherReporterId, suspended.Id, "Scam", Now.AddHours(-4));
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        result.Value.Items.Select(i => i.MemberId).Should().Equal(suspended.Id, reported.Id);
+        result.Value.Items[0].ReportCount.Should().Be(2);
+        result.Value.Items[0].IsSuspended.Should().BeTrue();
+        result.Value.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_ReportedAndSuspendedOnlyMembers_When_Handling_Then_ReportedComeFirst()
+    {
+        var reported = SeedMember("Reported Member", "reported@campus.ro");
+        SeedReport(ReporterId, reported.Id, "Rude", Now.AddDays(-5));
+        var suspended = SeedSuspended("Suspended Member", "suspended@campus.ro", Now.AddMinutes(-1));
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        result.Value.Items.Select(i => i.MemberId).Should().Equal(reported.Id, suspended.Id);
+    }
+
+    [Fact]
+    public async Task Given_TwoSuspendedOnlyMembers_When_Handling_Then_MostRecentlySuspendedFirst()
+    {
+        var older = SeedSuspended("Older Suspension", "older@campus.ro", Now.AddHours(-3));
+        var newer = SeedSuspended("Newer Suspension", "newer@campus.ro", Now.AddHours(-1));
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        result.Value.Items.Select(i => i.MemberId).Should().Equal(newer.Id, older.Id);
+    }
+
+    [Fact]
+    public async Task Given_TwoSuspendedOnlyMembersAtSameTime_When_Handling_Then_OrderedByMemberId()
+    {
+        var first = SeedSuspended("First Member", "first@campus.ro", Now.AddHours(-1));
+        var second = SeedSuspended("Second Member", "second@campus.ro", Now.AddHours(-1));
+        var expected = new[] { first.Id, second.Id }.Order().ToList();
+
+        var result = await QueryAsync(new GetReportedMembersQuery());
+
+        result.Value.Items.Select(i => i.MemberId).Should().Equal(expected);
+    }
+
+    [Fact]
+    public async Task Given_OneReportedAndTwoSuspendedOnly_When_RequestingFirstPageOfTwo_Then_PageCrossesBothGroups()
+    {
+        var reported = SeedMember("Reported Member", "reported@campus.ro");
+        SeedReport(ReporterId, reported.Id, "Rude", Now.AddHours(-1));
+        var newer = SeedSuspended("Newer Suspension", "newer@campus.ro", Now.AddHours(-1));
+        SeedSuspended("Older Suspension", "older@campus.ro", Now.AddHours(-3));
+
+        var result = await QueryAsync(new GetReportedMembersQuery(1, 2));
+
+        result.Value.Items.Select(i => i.MemberId).Should().Equal(reported.Id, newer.Id);
+        result.Value.Count.Should().Be(2);
+        result.Value.TotalCount.Should().Be(3);
+        result.Value.Page.Should().Be(1);
+        result.Value.PageSize.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_OneReportedAndTwoSuspendedOnly_When_RequestingSecondPageOfTwo_Then_ReturnsOldestSuspension()
+    {
+        var reported = SeedMember("Reported Member", "reported@campus.ro");
+        SeedReport(ReporterId, reported.Id, "Rude", Now.AddHours(-1));
+        SeedSuspended("Newer Suspension", "newer@campus.ro", Now.AddHours(-1));
+        var older = SeedSuspended("Older Suspension", "older@campus.ro", Now.AddHours(-3));
+
+        var result = await QueryAsync(new GetReportedMembersQuery(2, 2));
+
+        result.Value.Items.Select(i => i.MemberId).Should().Equal(older.Id);
+        result.Value.Count.Should().Be(1);
+        result.Value.TotalCount.Should().Be(3);
+        result.Value.Page.Should().Be(2);
+    }
+
     [Fact]
     public async Task Given_PageSizeAtMax_When_Handling_Then_Succeeds()
     {
