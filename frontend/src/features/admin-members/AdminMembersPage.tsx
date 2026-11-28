@@ -16,9 +16,10 @@ const PAGE_SIZE = 20
 
 type Action = 'dismiss' | 'lift'
 
-// Admin: members reported by other members (only those with pending reports), the most reported first.
-// The Admin dismisses the reports, suspends the member (permanently or until a date) or lifts a suspension.
-// A suspension confirms the pending reports, so the member leaves this list.
+// Admin: members reported by other members (only those with pending reports), the most reported first,
+// then the members suspended now without pending reports (a suspension confirms the reports, so they stay
+// here only to have their suspension lifted). The Admin dismisses the reports, suspends the member
+// (permanently or until a date) or lifts a suspension.
 export function AdminMembersPage() {
   const t = useT()
   const [page, setPage] = useState(1)
@@ -86,6 +87,11 @@ export function AdminMembersPage() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.totalCount / PAGE_SIZE)) : 1
   const isBusy = (member: ReportedMemberItem, action: Action) => busy?.memberId === member.memberId && busy.action === action
+  const reportCountText = (count: number) => {
+    if (count === 0) return t('adminMembers.reportNone')
+    if (count === 1) return t('adminMembers.reportOne')
+    return t('adminMembers.reportMany', { count })
+  }
 
   return (
     <div className="listings-page admin-members">
@@ -114,8 +120,8 @@ export function AdminMembersPage() {
                     ) : (
                       <Badge tone="success">{t('adminMembers.active')}</Badge>
                     )}
-                    <span>{member.reportCount === 1 ? t('adminMembers.reportOne') : t('adminMembers.reportMany', { count: member.reportCount })}</span>
-                    <span>{t('adminMembers.last', { date: formatDateTime(member.lastReportedAt) })}</span>
+                    <span>{reportCountText(member.reportCount)}</span>
+                    {member.lastReportedAt && <span>{t('adminMembers.last', { date: formatDateTime(member.lastReportedAt) })}</span>}
                     {member.hiddenListingsCount > 0 && (
                       <Badge tone="warning">
                         {member.hiddenListingsCount === 1
@@ -124,28 +130,32 @@ export function AdminMembersPage() {
                       </Badge>
                     )}
                   </div>
-                  <ul className="admin-members__reports">
-                    {member.reports.map((report) => (
-                      <li key={report.id}>
-                        <span className="admin-members__report-meta">
-                          {formatDateTime(report.createdAt)}
-                          {report.conversationId && ` · ${t('adminMembers.fromConversation')}`}
-                        </span>
-                        <span className="admin-members__reason">{report.reason}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {member.reports.length > 0 && (
+                    <ul className="admin-members__reports">
+                      {member.reports.map((report) => (
+                        <li key={report.id}>
+                          <span className="admin-members__report-meta">
+                            {formatDateTime(report.createdAt)}
+                            {report.conversationId && ` · ${t('adminMembers.fromConversation')}`}
+                          </span>
+                          <span className="admin-members__reason">{report.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 <div className="listing-row__actions">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => run(member, 'dismiss')}
-                    loading={isBusy(member, 'dismiss')}
-                    disabled={busy !== null}
-                  >
-                    {t('adminMembers.dismiss')}
-                  </Button>
+                  {member.reportCount > 0 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => run(member, 'dismiss')}
+                      loading={isBusy(member, 'dismiss')}
+                      disabled={busy !== null}
+                    >
+                      {t('adminMembers.dismiss')}
+                    </Button>
+                  )}
                   {member.isSuspended ? (
                     <Button variant="secondary" size="sm" onClick={() => run(member, 'lift')} loading={isBusy(member, 'lift')} disabled={busy !== null}>
                       {t('adminMembers.lift')}

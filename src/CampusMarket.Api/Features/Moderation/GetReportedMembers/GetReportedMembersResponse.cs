@@ -7,20 +7,21 @@ namespace CampusMarket.Api.Features.Moderation.GetReportedMembers;
 public sealed record GetReportedMembersResponse(
     IReadOnlyList<ReportedMemberItem> Items, int Count, int TotalCount, int Page, int PageSize);
 
-// One row per reported member. HiddenListingsCount: their listings an Admin already hid (a hint for the
-// decision). Reports: the pending reports, newest first. Only Admins see this, so the email is included.
+// One row per reported or suspended member. HiddenListingsCount: their listings an Admin already hid (a hint for the
+// decision). Reports: the pending reports, newest first; empty (ReportCount 0, LastReportedAt null) for a
+// member who is only suspended. Only Admins see this, so the email is included.
 public sealed record ReportedMemberItem(
     Guid MemberId,
     string Name,
     string Email,
     int ReportCount,
-    DateTimeOffset LastReportedAt,
+    DateTimeOffset? LastReportedAt,
     int HiddenListingsCount,
     bool IsSuspended,
     DateTimeOffset? SuspendedUntil,
     IReadOnlyList<ReportedMemberReport> Reports)
 {
-    // reports is never empty: an item exists only for a member who has pending reports.
+    // reports is empty for a suspended member with no pending report.
     public static ReportedMemberItem From(
         Member member, IReadOnlyList<MemberReport> reports, IEnumerable<Listing> memberListings, DateTimeOffset now)
     {
@@ -35,7 +36,7 @@ public sealed record ReportedMemberItem(
             member.Name,
             member.Email.Value,
             reports.Count,
-            newestFirst[0].CreatedAt,
+            newestFirst.Count > 0 ? newestFirst[0].CreatedAt : null,
             memberListings.Count(l => l.Status == ListingStatus.Hidden),
             suspended,
             suspended ? member.SuspendedUntil : null,

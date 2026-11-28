@@ -14,9 +14,10 @@ export interface ReportedMemberItem {
   memberId: string
   name: string
   email: string
-  // Only the pending reports; a member is in the list only while they have some.
+  // Only the pending reports. 0 (and lastReportedAt null, reports empty) for a member who is in the
+  // list only because they are suspended now.
   reportCount: number
-  lastReportedAt: string
+  lastReportedAt: string | null
   // Their listings an Admin already hid.
   hiddenListingsCount: number
   isSuspended: boolean

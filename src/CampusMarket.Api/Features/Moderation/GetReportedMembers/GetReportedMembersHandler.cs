@@ -7,7 +7,9 @@ using CampusMarket.Api.Domain.Reports;
 namespace CampusMarket.Api.Features.Moderation.GetReportedMembers;
 
 // The Admins' queue of reported members: only Pending reports (a confirmed or dismissed one was already
-// handled), grouped per member, the most reported first, then the most recently reported.
+// handled), grouped per member, the most reported first, then the most recently reported. After them come
+// the members suspended now who have no pending report (a suspension confirms the reports), the most
+// recently suspended first, so that an Admin can still lift the suspension.
 public sealed class GetReportedMembersHandler(
     IMemberReportRepository reports,
     IMemberRepository members,
@@ -32,14 +34,22 @@ public sealed class GetReportedMembersHandler(
         var now = timeProvider.GetUtcNow();
 
         // Deleting a member deletes the reports on them (cascade), so every report has its member.
-        var ordered = pending
+        var reported = pending
             .GroupBy(r => r.ReportedMemberId)
             .Where(g => membersById.ContainsKey(g.Key))
             .Select(g => ReportedMemberItem.From(membersById[g.Key], g.ToList(), listingsBySeller[g.Key], now))
             .OrderByDescending(i => i.ReportCount)
             .ThenByDescending(i => i.LastReportedAt)
-            .ThenBy(i => i.MemberId)
-            .ToList();
+            .ThenBy(i => i.MemberId);
+
+        var reportedIds = pending.Select(r => r.ReportedMemberId).ToHashSet();
+        var suspendedOnly = membersById.Values
+            .Where(m => m.IsSuspended(now) && !reportedIds.Contains(m.Id))
+            .OrderByDescending(m => m.SuspendedAt)
+            .ThenBy(m => m.Id)
+            .Select(m => ReportedMemberItem.From(m, [], listingsBySeller[m.Id], now));
+
+        var ordered = reported.Concat(suspendedOnly).ToList();
 
         var items = ordered
             .Skip((query.Page - 1) * query.PageSize)
