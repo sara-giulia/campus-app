@@ -294,6 +294,11 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Moderation | `GetReportedListings` | `GET /api/v1/moderation/listings?page=&pageSize=` | Admins only | 200, 400, 401, 403 |
 | Moderation | `HideListing` | `POST /api/v1/moderation/listings/{id}/hide` | Admins only | 204, 400 `Listing.AlreadyHidden` / `Listing.CannotHide`, 401, 403, 404 |
 | Moderation | `DismissReports` | `POST /api/v1/moderation/listings/{id}/dismiss-reports` | Admins only | 204, 400 `Report.NoPendingReports`, 401, 403, 404 |
+| Member report | `ReportMember` | `POST /api/v1/members/{id}/reports` (body `{ "reason": "...", "conversationId": null }`) | anyone logged in; the reporter is the user in the token | 201 `{ id, reportedMemberId, createdAt }`, 400 `MemberReport.Self` / `MemberReport.ReasonEmpty` / `MemberReport.ReasonTooLong` / `MemberReport.ConversationInvalid`, 401, 404 `Member.NotFound`, 409 `MemberReport.AlreadyExists` |
+| Moderation | `GetReportedMembers` | `GET /api/v1/moderation/members?page=&pageSize=` | Admins only | 200 `{ items, count, totalCount, page, pageSize }` (members with pending reports, and members suspended now even without one), 400 `Moderation.InvalidPage` / `Moderation.InvalidPageSize`, 401, 403 |
+| Moderation | `DismissMemberReports` | `POST /api/v1/moderation/members/{memberId}/dismiss-reports` | Admins only | 204, 400 `Report.NoPendingReports`, 401, 403, 404 `Member.NotFound` |
+| Moderation | `SuspendMember` | `POST /api/v1/moderation/members/{memberId}/suspend` (body `{ "reason": "...", "until": "2026-12-31T21:59:59Z" }`, `until` null or missing = permanent) | Admins only | 204, 400 `Suspension.ReasonEmpty` / `Suspension.ReasonTooLong` / `Suspension.UntilInPast` / `Suspension.TooLong`, 401, 403 `Suspension.Self` / `Member.CannotSuspendAdmin`, 404 `Member.NotFound`, 409 `Member.AlreadySuspended` |
+| Moderation | `LiftSuspension` | `POST /api/v1/moderation/members/{memberId}/lift-suspension` | Admins only | 204, 401, 403, 404 `Member.NotFound`, 409 `Member.NotSuspended` |
 | Review | `AddReview` | `POST /api/v1/listings/{id}/reviews` | the buyer of the sold listing | 201 + `Location`, 400, 401, 403 `Review.NotBuyer`, 404, 409 `Review.AlreadyExists` |
 | Review | `GetMemberReviews` | `GET /api/v1/members/{id}/reviews?page=&pageSize=` | everyone | 200, 400, 404 |
 | Conversation | `StartConversation` | `POST /api/v1/listings/{listingId}/conversations` | anyone logged in except the seller | 201 + `Location` (first message, or the next one if the conversation exists), 400 `Conversation.OwnListing`, `Conversation.ListingNotAvailable`, `Message.Empty`, `Message.TooLong`, `Message.Spam`, 401, 404 |
@@ -529,6 +534,20 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `View.ViewerMissing` | 400 | a view is sent without a token and without a valid `X-Visitor-Id` |
 | `Stats.InvalidDays` | 400 | `days` is not between 1 and 365 |
 | `Member.Blocked` | 403 | you make an offer or a counter-offer, start or continue a conversation, or reserve a listing, and the other member has blocked you |
+| `MemberReport.ReporterEmpty` | 400 | a member report without a reporter (never from the endpoint, the reporter is the user in the token) |
+| `MemberReport.Self` | 400 | you report yourself |
+| `MemberReport.ReasonEmpty`, `MemberReport.ReasonTooLong` | 400 | the reason of a member report is empty or longer than 500 characters |
+| `MemberReport.ConversationInvalid` | 400 | the `conversationId` of a member report does not exist or is not between you and the reported member |
+| `MemberReport.AlreadyExists` | 409 | you already have a pending report about this member |
+| `Suspension.Self` | 403 | an Admin suspends themselves |
+| `Suspension.ReasonEmpty`, `Suspension.ReasonTooLong` | 400 | the reason of a suspension is empty or longer than 500 characters |
+| `Suspension.UntilInPast` | 400 | `until` is not in the future |
+| `Suspension.TooLong` | 400 | `until` is more than 365 days away (leave it empty for a permanent suspension) |
+| `Member.CannotSuspendAdmin` | 403 | an Admin suspends another Admin |
+| `Member.AlreadySuspended` | 409 | the member is already suspended; lift the suspension first |
+| `Member.NotSuspended` | 409 | you lift the suspension of a member who is not suspended (also when a temporary suspension already ended) |
+| `Auth.AccountSuspended` | 403 / 401 | the account is suspended: 403 at login (only with the right password), 401 at refresh and on every request with an old access token |
+| `Conversation.MemberSuspended` | 409 | you write in a conversation with a suspended member |
 
 Validation errors of the data itself (empty title, price 0, invalid email, short name) are 400 with codes such as `Listing.TitleEmpty`, `Listing.DescriptionTooLong` (more than 1000 characters) or `Member.InvalidName`.
 
@@ -729,6 +748,18 @@ Stored in `Offers` (foreign keys to `Listings` and to `Members` for the buyer an
 - The blocker no longer sees the blocked member's listings in `GET /api/v1/listings` (the search results are output-cached for anonymous requests only; a request with a token is never cached, so the blocker always gets a fresh, filtered answer, and the cache is evicted on block and unblock so anonymous visitors see the change too), in `GET /api/v1/listings/{id}/similar` and in `GET /api/v1/members/me/favorites` (the favorites stay saved and come back after unblocking). The listing page `GET /api/v1/listings/{id}` and the public profile stay open.
 - When the block is created, every `Pending` offer between the two members (on any listing, whoever is the buyer) becomes `Rejected`, without a notification so the block stays private. Existing messages and reservations stay.
 - Stored in `MemberBlocks` (`BlockerId`, `BlockedId`, `CreatedAt`; unique index on the pair, foreign keys to `Members` with cascade delete); migration `AddMemberBlocks`, on top of `AddOffers`. In the frontend (`frontend/src/features/blocks/`) the button "Blochează" / "Deblochează" is on the public profile and in the conversation, and the profile page has the list "Utilizatori blocați" with "Deblochează".
+
+### Member reports and suspension
+
+Members report other members (`POST /api/v1/members/{id}/reports`, optionally with the conversation it is about); Admins see them in `GET /api/v1/moderation/members`, the most reported first, with the pending reports of each member, and either dismiss them or suspend the member. A member suspended now stays in that list (`isSuspended: true`, `suspendedUntil`) even without pending reports, so the suspension can be lifted from there.
+
+- A suspension is temporary (`until`, at most 365 days away) or permanent (`until` empty), always with a reason (1–500 characters). Admins cannot be suspended (403 `Member.CannotSuspendAdmin`), and an Admin cannot suspend themselves (403 `Suspension.Self`).
+- A suspended member cannot log in (403 `Auth.AccountSuspended`, only with the right password), refresh (401, every refresh token is revoked) or call any endpoint that needs a token (401 `Auth.AccountSuspended`, also for access tokens issued before the suspension); open live-event connections are closed.
+- Their listings are not changed, but every public query leaves them out by the owner (search, similar listings, listing page, photos, public profile and favorites answer as if they did not exist; Admins still see them). They come back by themselves when the suspension ends or is lifted.
+- In the same commit their active reservations (as seller or buyer) are cancelled and their `Pending` offers are rejected; the other side is notified that the member is no longer available. These stay cancelled after the suspension. The pending reports about the member are confirmed.
+- The member gets a bilingual email (Romanian, then English) with the reason and the end date in Romania time, or "permanent"; lifting the suspension sends a "reactivated" email.
+- Which members are suspended is cached for 30 seconds (one entry for the whole app, cleared on every suspend and lift), so a temporary suspension that ends by itself is noticed within 30 seconds.
+- Stored on `Members` (`SuspendedAt`, `SuspendedUntil`, `SuspensionReason`, `SuspendedById`) and in `MemberReports`; migration `AddMemberReportsAndSuspension`.
 
 ### Listing statistics
 
