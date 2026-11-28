@@ -1,13 +1,19 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
 using CampusMarket.Api.Domain.Members;
 using CampusMarket.Api.Domain.Reports;
 using CampusMarket.Api.Features.Moderation.GetReportedMembers;
+using CampusMarket.Api.Features.Moderation.SuspendMember;
 using CampusMarket.IntegrationTests.Infrastructure;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CampusMarket.IntegrationTests.Moderation;
 
@@ -261,4 +267,215 @@ public sealed class GetReportedMembersTests : IntegrationTestBase
         problem!.Code.Should().Be("Auth.Unauthorized");
         (await PendingCountAsync()).Should().Be(0);
     }
+
+    [Fact]
+    public async Task Given_ReportedMemberSuspendedThroughTheApi_When_AdminGetsReportedMembers_Then_ListedAsSuspendedWithoutReports()
+    {
+        // Arrange
+        var ana = NewMember("Ana Popescu", "ana@student.ro");
+        var ion = NewMember("Ion Ionescu", "ion@student.ro");
+        await SeedAsync(ana, ion, NewReport(ana, ion, "Cere bani in avans", 1));
+        AuthenticateAs(AdminId, "Admin");
+        var until = DateTimeOffset.UtcNow.AddDays(7);
+        (await SuspendAsync(Client, ion.Id, until)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Act
+        var response = await Client.GetAsync(Url);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetReportedMembersResponse>(Json);
+        var item = body!.Items.Should().ContainSingle().Subject;
+        item.MemberId.Should().Be(ion.Id);
+        item.Name.Should().Be("Ion Ionescu");
+        item.Email.Should().Be("ion@student.ro");
+        item.IsSuspended.Should().BeTrue();
+        item.SuspendedUntil.Should().Be(until.ToMicroseconds());
+        item.ReportCount.Should().Be(0);
+        item.Reports.Should().BeEmpty();
+        item.LastReportedAt.Should().BeNull();
+        item.HiddenListingsCount.Should().Be(0);
+        body.Count.Should().Be(1);
+        body.TotalCount.Should().Be(1);
+
+        (await PendingCountAsync()).Should().Be(0);
+        var report = await QueryDbAsync(db => db.Set<MemberReport>().AsNoTracking().SingleAsync());
+        report.Resolution.Should().Be(ReportResolution.Confirmed);
+        var saved = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync(m => m.Id == ion.Id));
+        saved.SuspendedAt.Should().NotBeNull();
+        saved.SuspendedUntil.Should().Be(until.ToMicroseconds());
+    }
+
+    [Fact]
+    public async Task Given_SuspendedMemberInTheList_When_AdminLiftsTheSuspensionWithTheIdFromTheList_Then_Returns204AndTheMemberLeavesTheList()
+    {
+        // Arrange
+        var ana = NewMember("Ana Popescu", "ana@student.ro");
+        var ion = NewMember("Ion Ionescu", "ion@student.ro");
+        await SeedAsync(ana, ion, NewReport(ana, ion, "Cere bani in avans", 1));
+        AuthenticateAs(AdminId, "Admin");
+        (await SuspendAsync(Client, ion.Id, null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var list = await Client.GetAsync(Url);
+        list.StatusCode.Should().Be(HttpStatusCode.OK);
+        var listed = (await list.Content.ReadFromJsonAsync<GetReportedMembersResponse>(Json))!
+            .Items.Should().ContainSingle().Subject;
+        listed.IsSuspended.Should().BeTrue();
+        listed.SuspendedUntil.Should().BeNull();
+
+        // Act
+        var response = await Client.PostAsync(LiftUrl(listed.MemberId), content: null);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await response.Content.ReadAsStringAsync()).Should().BeEmpty();
+
+        var after = await Client.GetAsync(Url);
+        after.StatusCode.Should().Be(HttpStatusCode.OK);
+        var afterBody = await after.Content.ReadFromJsonAsync<GetReportedMembersResponse>(Json);
+        afterBody!.Items.Should().BeEmpty();
+        afterBody.TotalCount.Should().Be(0);
+
+        var saved = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync(m => m.Id == ion.Id));
+        saved.SuspendedAt.Should().BeNull();
+        saved.SuspendedUntil.Should().BeNull();
+        saved.SuspensionReason.Should().BeNull();
+        saved.SuspendedById.Should().BeNull();
+        (await PendingCountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_TemporarySuspensionWithoutReportsThatEnded_When_AdminGetsReportedMembers_Then_NotListed()
+    {
+        // Arrange
+        var ana = NewMember("Ana Popescu", "ana@student.ro");
+        var ion = NewMember("Ion Ionescu", "ion@student.ro");
+        await SeedAsync(ana, ion, NewReport(ana, ion, "Cere bani in avans", 1));
+        var clock = new AdjustableTimeProvider();
+        await using var host = WithClock(clock);
+        using var client = host.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestTokens.Create(AdminId, "Admin"));
+        (await SuspendAsync(client, ion.Id, clock.GetUtcNow().AddMinutes(2))).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        clock.Advance(TimeSpan.FromMinutes(3));
+
+        // Act
+        var response = await client.GetAsync(Url);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetReportedMembersResponse>(Json);
+        body!.Items.Should().BeEmpty();
+        body.TotalCount.Should().Be(0);
+
+        var saved = await QueryDbAsync(db => db.Set<Member>().AsNoTracking().SingleAsync(m => m.Id == ion.Id));
+        saved.SuspendedAt.Should().NotBeNull("an ended suspension keeps its columns until the next one");
+        saved.SuspendedUntil.Should().NotBeNull();
+        (await PendingCountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Given_ReportedAndSuspendedOnlyMembers_When_AdminGetsReportedMembers_Then_ReportedFirstThenMostRecentlySuspendedThenMemberId()
+    {
+        // Arrange
+        var ana = NewMember("Ana Popescu", "ana@student.ro");
+        var ion = NewMember("Ion Ionescu", "ion@student.ro");
+        var dan = NewMember("Dan Pop", "dan@student.ro");
+        var elena = NewMember("Elena Rusu", "elena@student.ro");
+        var mihai = NewMember("Mihai Popa", "mihai@student.ro");
+        var vlad = NewMember("Vlad Marin", "vlad@student.ro");
+        var radu = NewMember("Radu Stan", "radu@student.ro");
+        // Suspended in the domain before the first authenticated request, so the suspension cache sees them.
+        dan.Suspend(AdminId, "Inselatorie", null, CreatedAt.AddHours(9));
+        elena.Suspend(AdminId, "Inselatorie", null, CreatedAt.AddHours(5));
+        mihai.Suspend(AdminId, "Inselatorie", null, CreatedAt.AddHours(3));
+        vlad.Suspend(AdminId, "Inselatorie", null, CreatedAt.AddHours(1));
+        radu.Suspend(AdminId, "Inselatorie", null, CreatedAt.AddHours(1));
+        await SeedAsync(ana, ion, dan, elena, mihai, vlad, radu,
+            NewReport(ana, ion, "Anunt fals", 1), NewReport(elena, ion, "Anunt fals", 2), NewReport(ana, dan, "Anunt fals", 3));
+        AuthenticateAs(AdminId, "Admin");
+        var tie = new[] { vlad.Id, radu.Id }.Order().ToList();
+
+        // Act
+        var response = await Client.GetAsync(Url);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetReportedMembersResponse>(Json);
+        body!.Items.Select(i => i.MemberId).Should().Equal(ion.Id, dan.Id, elena.Id, mihai.Id, tie[0], tie[1]);
+        body.Count.Should().Be(6);
+        body.TotalCount.Should().Be(6);
+        body.Items[1].ReportCount.Should().Be(1, "a suspended member with a pending report stays in the first group, once");
+        body.Items[1].IsSuspended.Should().BeTrue();
+        body.Items.Skip(2).Should().OnlyContain(i =>
+            i.IsSuspended && i.ReportCount == 0 && i.LastReportedAt == null && i.Reports.Count == 0);
+        (await PendingCountAsync()).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_ReportedAndSuspendedOnlyMembers_When_AdminGetsPage1OfSize2_Then_ThePageCrossesBothGroups()
+    {
+        // Arrange
+        var (ion, elena, _) = await SeedTwoGroupsAsync();
+        AuthenticateAs(AdminId, "Admin");
+
+        // Act
+        var response = await Client.GetAsync($"{Url}?page=1&pageSize=2");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetReportedMembersResponse>(Json);
+        body!.Items.Select(i => i.MemberId).Should().Equal(ion.Id, elena.Id);
+        body.Count.Should().Be(2);
+        body.TotalCount.Should().Be(3);
+        body.Page.Should().Be(1);
+        body.PageSize.Should().Be(2);
+        (await PendingCountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_ReportedAndSuspendedOnlyMembers_When_AdminGetsPage2OfSize2_Then_ReturnsTheLastSuspendedMember()
+    {
+        // Arrange
+        var (_, _, mihai) = await SeedTwoGroupsAsync();
+        AuthenticateAs(AdminId, "Admin");
+
+        // Act
+        var response = await Client.GetAsync($"{Url}?page=2&pageSize=2");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadFromJsonAsync<GetReportedMembersResponse>(Json);
+        body!.Items.Should().ContainSingle().Which.MemberId.Should().Be(mihai.Id);
+        body.Count.Should().Be(1);
+        body.TotalCount.Should().Be(3);
+        body.Page.Should().Be(2);
+        body.PageSize.Should().Be(2);
+        (await PendingCountAsync()).Should().Be(1);
+    }
+
+    // One reported member (Ion) and two suspended without reports: Elena (suspended later), then Mihai.
+    private async Task<(Member Ion, Member Elena, Member Mihai)> SeedTwoGroupsAsync()
+    {
+        var ana = NewMember("Ana Popescu", "ana@student.ro");
+        var ion = NewMember("Ion Ionescu", "ion@student.ro");
+        var elena = NewMember("Elena Rusu", "elena@student.ro");
+        var mihai = NewMember("Mihai Popa", "mihai@student.ro");
+        elena.Suspend(AdminId, "Inselatorie", null, CreatedAt.AddHours(5));
+        mihai.Suspend(AdminId, "Inselatorie", null, CreatedAt.AddHours(3));
+        await SeedAsync(ana, ion, elena, mihai, NewReport(ana, ion, "Anunt fals", 1));
+        return (ion, elena, mihai);
+    }
+
+    private static string LiftUrl(Guid memberId) => $"/api/v1/moderation/members/{memberId}/lift-suspension";
+
+    private static Task<HttpResponseMessage> SuspendAsync(HttpClient client, Guid memberId, DateTimeOffset? until) =>
+        client.PostAsJsonAsync(
+            $"/api/v1/moderation/members/{memberId}/suspend", new SuspendMemberRequest("Inselatorie", until), Json);
+
+    // A copy of the API with a clock the test moves forward.
+    private WebApplicationFactory<Program> WithClock(AdjustableTimeProvider clock) =>
+        Factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(clock);
+        }));
 }
