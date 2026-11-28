@@ -34,7 +34,7 @@ public class GetListingPhotosHandlerTests
         var photos = new FakePhotoRepository();
         photos.Items.AddRange([newest, oldest, middle]);
         var before = photos.Items.ToList();
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
@@ -61,7 +61,7 @@ public class GetListingPhotosHandlerTests
         photos.Items.Add(BuildPhoto(listing, PngBytes, Now));
         photos.Items.Add(BuildPhoto(listing, PngBytes, Now));
         var before = photos.Items.ToList();
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
@@ -84,7 +84,7 @@ public class GetListingPhotosHandlerTests
         photos.Items.Add(own);
         photos.Items.Add(BuildPhoto(otherListing, PngBytes, Now));
         var before = photos.Items.ToList();
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
@@ -101,7 +101,7 @@ public class GetListingPhotosHandlerTests
         var listings = new FakeListingRepository();
         listings.Items[listing.Id] = listing;
         var photos = new FakePhotoRepository();
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
@@ -118,7 +118,7 @@ public class GetListingPhotosHandlerTests
         var listingId = Guid.NewGuid();
         var listings = new FakeListingRepository();
         var photos = new FakePhotoRepository();
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listingId), CancellationToken.None);
 
@@ -158,7 +158,7 @@ public class GetListingPhotosHandlerTests
         var cover = BuildPhoto(listing, PngBytes, Now.AddHours(3), position: 0);
         var photos = new FakePhotoRepository();
         photos.Items.AddRange([last, tieNewer, cover, tieOlder]);
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
@@ -171,7 +171,7 @@ public class GetListingPhotosHandlerTests
     public async Task Given_Draft_When_SellerAsks_Then_ReturnsItsPhotos()
     {
         var (listings, photos, listing, photo) = SeedWithPhoto(publish: false);
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, SellerId), CancellationToken.None);
 
@@ -183,7 +183,7 @@ public class GetListingPhotosHandlerTests
     public async Task Given_Draft_When_AdminAsks_Then_ReturnsItsPhotos()
     {
         var (listings, photos, listing, photo) = SeedWithPhoto(publish: false);
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, AdminId, true), CancellationToken.None);
 
@@ -195,7 +195,7 @@ public class GetListingPhotosHandlerTests
     public async Task Given_Draft_When_OtherMemberAsks_Then_ReturnsNotFound()
     {
         var (listings, photos, listing, _) = SeedWithPhoto(publish: false);
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id, OtherMemberId), CancellationToken.None);
 
@@ -210,7 +210,7 @@ public class GetListingPhotosHandlerTests
     public async Task Given_Draft_When_AnonymousAsks_Then_ReturnsNotFound()
     {
         var (listings, photos, listing, _) = SeedWithPhoto(publish: false);
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
 
@@ -225,7 +225,7 @@ public class GetListingPhotosHandlerTests
     public async Task Given_ActiveListing_When_AnonymousAsks_Then_ReturnsItsPhotos()
     {
         var (listings, photos, listing, photo) = SeedWithPhoto(publish: true);
-        var handler = new GetListingPhotosHandler(listings, photos);
+        var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingPhotosQuery(listing.Id), CancellationToken.None);
 

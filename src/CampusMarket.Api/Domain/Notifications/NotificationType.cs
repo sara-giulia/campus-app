@@ -16,5 +16,7 @@ public enum NotificationType
     // an accepted offer (the listing is reserved at that price), sent to both sides;
     OfferAccepted,
     // a rejected offer, sent to the side that proposed it (or to the buyer when another offer was accepted).
-    OfferRejected
+    OfferRejected,
+    // An active reservation was cancelled because the other side (buyer or seller) was suspended by an Admin.
+    ReservationCancelled
 }

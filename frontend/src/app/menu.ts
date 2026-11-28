@@ -26,4 +26,5 @@ export const menuItems: MenuItem[] = [
   { to: '/admin/moderation', label: 'menu.moderation', show: 'Admin', place: 'account' },
   { to: '/admin/categories', label: 'menu.categories', show: 'Admin', place: 'account' },
   { to: '/admin/price-accuracy', label: 'menu.priceAccuracy', show: 'Admin', place: 'account' },
+  { to: '/admin/members', label: 'menu.reportedMembers', show: 'Admin', place: 'account' },
 ]

@@ -26,5 +26,11 @@ public sealed class MemberConfiguration : IEntityTypeConfiguration<Member>
             .HasConversion<string>()
             .HasMaxLength(20)
             .HasDefaultValue(MemberRole.Student);
+
+        // Suspension (all NULL for a member who was never suspended).
+        builder.Property(m => m.SuspendedAt);
+        builder.Property(m => m.SuspendedUntil);
+        builder.Property(m => m.SuspensionReason).HasMaxLength(Member.MaxSuspensionReasonLength);
+        builder.Property(m => m.SuspendedById);
     }
 }

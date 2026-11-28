@@ -11,6 +11,7 @@ export type NotificationType =
   | 'OfferCountered'
   | 'OfferAccepted'
   | 'OfferRejected'
+  | 'ReservationCancelled'
 
 export interface NotificationItem {
   id: string

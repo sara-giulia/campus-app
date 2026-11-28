@@ -1,5 +1,6 @@
 import { API_PREFIX, API_URL } from './config'
 import { ApiError, networkError, toApiError } from './errors'
+import { accountSuspended, isSuspendedResponse } from './suspension'
 import { getTokens, setTokens, type Tokens } from './tokens'
 
 // The one place that talks to the API. Every page uses api.get/post/put/delete:
@@ -7,7 +8,9 @@ import { getTokens, setTokens, type Tokens } from './tokens'
 // - refreshes the access token a bit before it expires (it lives 15 minutes);
 // - if the API still answers 401, refreshes once and repeats the request;
 // - if the refresh fails too, logs the user out (the tokens are cleared, AuthProvider sees it);
-// - turns error answers into ApiError { status, code, message }.
+// - turns error answers into ApiError { status, code, message };
+// - a 401 Auth.AccountSuspended (here or on the refresh) logs the user out at once, without a refresh
+//   (see suspension.ts).
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
@@ -56,7 +59,8 @@ async function doRefresh(): Promise<boolean> {
   }
 
   if (!response.ok) {
-    setTokens(null)
+    if (await isSuspendedResponse(response)) accountSuspended()
+    else setTokens(null)
     return false
   }
 
@@ -102,7 +106,8 @@ export async function request<T>(method: Method, path: string, options: RequestO
   let response = await send(method, path, options)
 
   if (response.status === 401 && useAuth && getTokens()) {
-    if (await refreshTokens()) response = await send(method, path, options)
+    if (await isSuspendedResponse(response)) accountSuspended()
+    else if (await refreshTokens()) response = await send(method, path, options)
   }
 
   if (!response.ok) throw await toApiError(response)
@@ -121,7 +126,8 @@ export async function openStream(path: string, signal: AbortSignal): Promise<Res
   let response = await send('GET', path, { signal })
 
   if (response.status === 401 && getTokens()) {
-    if (await refreshTokens()) response = await send('GET', path, { signal })
+    if (await isSuspendedResponse(response)) accountSuspended()
+    else if (await refreshTokens()) response = await send('GET', path, { signal })
   }
 
   if (!response.ok) throw await toApiError(response)

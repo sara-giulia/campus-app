@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CampusMarket.Api.Common.Auth;
 using CampusMarket.Api.Common.CQRS;
 using CampusMarket.Api.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -14,10 +16,11 @@ public static class GetPublicProfileEndpoint
 
     private static async Task<Results<Ok<GetPublicProfileResponse>, NotFound<Error>>> Handle(
         Guid id,
+        ClaimsPrincipal user,
         IQueryHandler<GetPublicProfileQuery, GetPublicProfileResponse> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new GetPublicProfileQuery(id), ct);
+        var result = await handler.HandleAsync(new GetPublicProfileQuery(id, user.IsAdmin()), ct);
 
         return result.IsSuccess
             ? TypedResults.Ok(result.Value)

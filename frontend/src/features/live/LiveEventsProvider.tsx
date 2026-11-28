@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ApiError } from '../../api/errors'
+import { ACCOUNT_SUSPENDED } from '../../api/suspension'
 import { useAuth } from '../../app/auth/AuthContext'
 import { isAbort } from '../../app/errorMessage'
 import { LiveEventsContext, type LiveEventListener, type LiveEventsState } from './LiveEventsContext'
@@ -27,8 +29,11 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return
     const controller = new AbortController()
-    void keepOpen(controller.signal, setConnected, (event) => {
+    // keepOpen handles its own errors and ends when the signal aborts, so it is only started here.
+    keepOpen(controller.signal, setConnected, (event) => {
       listeners.current.forEach((listener) => listener(event))
+    }).catch(() => {
+      // Not reached: keepOpen does not throw.
     })
     return () => {
       controller.abort()
@@ -42,7 +47,7 @@ export function LiveEventsProvider({ children }: { children: ReactNode }) {
 }
 
 // Connects, reads until the stream closes, waits, connects again, until the signal aborts
-// (logout or the app closes).
+// (logout or the app closes), or the account is suspended (the client already logged the user out).
 async function keepOpen(
   signal: AbortSignal,
   setConnected: (connected: boolean) => void,
@@ -57,6 +62,10 @@ async function keepOpen(
       }, onEvent, signal)
     } catch (err) {
       if (isAbort(err)) return
+      if (err instanceof ApiError && err.code === ACCOUNT_SUSPENDED) {
+        setConnected(false)
+        return
+      }
       // API down or the token could not be refreshed: try again later.
     }
     setConnected(false)

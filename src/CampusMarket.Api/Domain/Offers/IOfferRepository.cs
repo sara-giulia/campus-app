@@ -32,4 +32,9 @@ public interface IOfferRepository
     /// Every Pending offer between the two members, on any listing, whichever of them is the buyer; tracked.
     /// </summary>
     Task<IReadOnlyList<Offer>> GetPendingBetweenAsync(Guid memberId, Guid otherId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Every Pending offer where the member is the buyer or the seller, on any listing; tracked.
+    /// </summary>
+    Task<IReadOnlyList<Offer>> GetPendingForMemberAsync(Guid memberId, CancellationToken ct = default);
 }

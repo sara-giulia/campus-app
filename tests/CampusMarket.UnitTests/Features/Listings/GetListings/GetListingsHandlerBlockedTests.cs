@@ -24,7 +24,7 @@ public class GetListingsHandlerBlockedTests
         _otherListing = Active(OtherSellerId, "Lab coat");
         _repository.Items[_blockedListing.Id] = _blockedListing;
         _repository.Items[_otherListing.Id] = _otherListing;
-        _handler = new GetListingsHandler(_repository, new FakeSemanticSearch(), _blocks);
+        _handler = new GetListingsHandler(_repository, new FakeSemanticSearch(), _blocks, new FakeMemberRepository(), new FixedTimeProvider(Now));
     }
 
     private static Listing Active(Guid sellerId, string title)

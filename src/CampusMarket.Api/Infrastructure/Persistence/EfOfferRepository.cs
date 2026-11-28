@@ -32,4 +32,9 @@ public sealed class EfOfferRepository(CampusMarketDbContext db) : IOfferReposito
                         && ((o.BuyerId == memberId && o.SellerId == otherId)
                             || (o.BuyerId == otherId && o.SellerId == memberId)))
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Offer>> GetPendingForMemberAsync(Guid memberId, CancellationToken ct = default) =>
+        await db.Offers
+            .Where(o => o.Status == OfferStatus.Pending && (o.BuyerId == memberId || o.SellerId == memberId))
+            .ToListAsync(ct);
 }

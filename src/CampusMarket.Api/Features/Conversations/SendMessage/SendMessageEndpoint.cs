@@ -15,7 +15,7 @@ public static class SendMessageEndpoint
             .RequireAuthorization();
     }
 
-    private static async Task<Results<CreatedAtRoute<MessageResponse>, NotFound<Error>, BadRequest<Error>, JsonHttpResult<Error>>> Handle(
+    private static async Task<Results<CreatedAtRoute<MessageResponse>, NotFound<Error>, BadRequest<Error>, Conflict<Error>, JsonHttpResult<Error>>> Handle(
         Guid id,
         SendMessageRequest request,
         ClaimsPrincipal user,
@@ -28,6 +28,7 @@ public static class SendMessageEndpoint
             return result.Error.Type switch
             {
                 ErrorType.NotFound => TypedResults.NotFound(result.Error),
+                ErrorType.Conflict => TypedResults.Conflict(result.Error),
                 ErrorType.Forbidden => TypedResults.Json(result.Error, statusCode: StatusCodes.Status403Forbidden),
                 _ => TypedResults.BadRequest(result.Error)
             };

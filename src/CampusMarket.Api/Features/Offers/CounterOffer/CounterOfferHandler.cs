@@ -30,12 +30,17 @@ public sealed class CounterOfferHandler(
         // The listing and both members exist: deleting one of them deletes the offer (cascade).
         var listing = (await listings.GetByIdAsync(offer.ListingId, ct))!;
 
+        // Suspending a member closes their offers; this covers an offer answered in the same moment.
+        var now = timeProvider.GetUtcNow();
+        if (await members.IsSuspendedAsync(listing.SellerId, now, ct))
+            return Result<OfferResponse>.Failure(
+                Error.NotFound("Listing.NotFound", $"Listing '{listing.Id}' was not found."));
+
         // The counter-offer goes to the member who proposed this offer: they may have blocked the one answering.
         if (offer.CheckCanAnswer(command.MemberId) is null
             && await blocks.IsBlockedAsync(offer.ProposedById, command.MemberId, ct))
             return Result<OfferResponse>.Failure(MemberBlock.BlockedError());
 
-        var now = timeProvider.GetUtcNow();
         var countered = offer.Counter(command.MemberId, listing, command.Amount, now);
         if (countered.IsFailure)
             return Result<OfferResponse>.Failure(countered.Error);

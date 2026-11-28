@@ -14,15 +14,33 @@ public sealed class InMemoryLiveEvents(IOptions<LiveEventsOptions> options, Time
     // Losing one is harmless: every event only tells the page to load again.
     private const int Capacity = 50;
 
-    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<Guid, Channel<LiveEvent>>> _connections = new();
+    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<Guid, Connection>> _connections = new();
+
+    // The channel of one open connection and its heartbeat timer, so Disconnect can stop both.
+    private sealed record Connection(Channel<LiveEvent> Channel, ITimer Heartbeat);
 
     public void Publish(Guid memberId, LiveEvent liveEvent)
     {
         if (!_connections.TryGetValue(memberId, out var channels))
             return;
 
-        foreach (var channel in channels.Values)
-            channel.Writer.TryWrite(liveEvent);
+        foreach (var connection in channels.Values)
+            connection.Channel.Writer.TryWrite(liveEvent);
+    }
+
+    public void Disconnect(Guid memberId)
+    {
+        if (!_connections.TryGetValue(memberId, out var channels))
+            return;
+
+        // Dispose of the timer and TryComplete of the channel do nothing the second time, so a connection
+        // that its browser (or another Disconnect) removes at the same moment can be stopped again safely.
+        foreach (var (connectionId, connection) in channels)
+        {
+            channels.TryRemove(connectionId, out _);
+            connection.Heartbeat.Dispose();
+            connection.Channel.Writer.TryComplete();
+        }
     }
 
     public IAsyncEnumerable<LiveEvent> SubscribeAsync(Guid memberId, CancellationToken ct)
@@ -33,19 +51,19 @@ public sealed class InMemoryLiveEvents(IOptions<LiveEventsOptions> options, Time
             SingleReader = true,
         });
         var connectionId = Guid.NewGuid();
-        var channels = _connections.GetOrAdd(memberId, _ => new ConcurrentDictionary<Guid, Channel<LiveEvent>>());
-        channels[connectionId] = channel;
+        var channels = _connections.GetOrAdd(memberId, _ => new ConcurrentDictionary<Guid, Connection>());
+
+        var heartbeat = TimeSpan.FromSeconds(options.Value.HeartbeatSeconds);
+        var timer = timeProvider.CreateTimer(
+            _ => channel.Writer.TryWrite(LiveEvent.Ping), null, heartbeat, heartbeat);
+        channels[connectionId] = new Connection(channel, timer);
 
         // A first ping right away: the browser (and a test) knows the stream is open and registered,
         // and the response headers go out at once instead of with the first real event.
         channel.Writer.TryWrite(LiveEvent.Ping);
 
-        var heartbeat = TimeSpan.FromSeconds(options.Value.HeartbeatSeconds);
-        var timer = timeProvider.CreateTimer(
-            _ => channel.Writer.TryWrite(LiveEvent.Ping), null, heartbeat, heartbeat);
-
-        // The connection only ends when the browser closes it (the request is aborted): then stop the
-        // pings and forget the channel, so Publish no longer writes to it.
+        // The connection ends when the browser closes it (the request is aborted) or on Disconnect: then
+        // stop the pings and forget the channel, so Publish no longer writes to it.
         ct.Register(() =>
         {
             timer.Dispose();

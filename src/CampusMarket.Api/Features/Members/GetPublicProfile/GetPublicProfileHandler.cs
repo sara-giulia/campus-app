@@ -9,13 +9,15 @@ namespace CampusMarket.Api.Features.Members.GetPublicProfile;
 public sealed class GetPublicProfileHandler(
     IMemberRepository members,
     IListingRepository listings,
-    IReviewRepository reviews)
+    IReviewRepository reviews,
+    TimeProvider timeProvider)
     : IQueryHandler<GetPublicProfileQuery, GetPublicProfileResponse>
 {
     public async Task<Result<GetPublicProfileResponse>> HandleAsync(GetPublicProfileQuery query, CancellationToken ct)
     {
         var member = await members.GetByIdAsync(query.MemberId, ct);
-        if (member is null)
+        // A suspended member's profile is "not found" for everyone but an Admin, while the suspension lasts.
+        if (member is null || (!query.IsAdmin && member.IsSuspended(timeProvider.GetUtcNow())))
             return Result<GetPublicProfileResponse>.Failure(
                 Error.NotFound("Member.NotFound", $"Member '{query.MemberId}' was not found."));
 

@@ -25,7 +25,7 @@ public class GetMyFavoritesHandlerTests
     {
         var favorites = new FakeFavoriteRepository();
         var listings = new FakeListingRepository();
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -51,7 +51,7 @@ public class GetMyFavoritesHandlerTests
         var favorites = new FakeFavoriteRepository();
         favorites.Items.Add(Favorite.Create(MemberId, book, Now.AddHours(-2)).Value);
         favorites.Items.Add(Favorite.Create(MemberId, coat, Now.AddHours(-1)).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -77,7 +77,7 @@ public class GetMyFavoritesHandlerTests
         var favorites = new FakeFavoriteRepository();
         favorites.Items.Add(Favorite.Create(MemberId, first, Now).Value);
         favorites.Items.Add(Favorite.Create(MemberId, second, Now).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -100,7 +100,7 @@ public class GetMyFavoritesHandlerTests
         var favorites = new FakeFavoriteRepository();
         favorites.Items.Add(Favorite.Create(MemberId, mine, Now).Value);
         favorites.Items.Add(Favorite.Create(OtherMemberId, theirs, Now).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -122,7 +122,7 @@ public class GetMyFavoritesHandlerTests
         var favorites = new FakeFavoriteRepository();
         favorites.Items.Add(Favorite.Create(MemberId, kept, Now.AddHours(-2)).Value);
         favorites.Items.Add(Favorite.Create(MemberId, missing, Now.AddHours(-1)).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -149,7 +149,7 @@ public class GetMyFavoritesHandlerTests
         favorites.Items.Add(Favorite.Create(MemberId, oldest, Now.AddHours(-3)).Value);
         favorites.Items.Add(Favorite.Create(MemberId, middle, Now.AddHours(-2)).Value);
         favorites.Items.Add(Favorite.Create(MemberId, newest, Now.AddHours(-1)).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId, 2, 2);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -178,7 +178,7 @@ public class GetMyFavoritesHandlerTests
         favorites.Items.Add(Favorite.Create(MemberId, oldest, Now.AddHours(-3)).Value);
         favorites.Items.Add(Favorite.Create(MemberId, middle, Now.AddHours(-2)).Value);
         favorites.Items.Add(Favorite.Create(MemberId, newest, Now.AddHours(-1)).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId, 1, 1);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -199,7 +199,7 @@ public class GetMyFavoritesHandlerTests
         listings.Items[listing.Id] = listing;
         var favorites = new FakeFavoriteRepository();
         favorites.Items.Add(Favorite.Create(MemberId, listing, Now).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId, 1, 100);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -219,7 +219,7 @@ public class GetMyFavoritesHandlerTests
         listings.Items[listing.Id] = listing;
         var favorites = new FakeFavoriteRepository();
         favorites.Items.Add(Favorite.Create(MemberId, listing, Now).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId, 0, 20);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -242,7 +242,7 @@ public class GetMyFavoritesHandlerTests
         listings.Items[listing.Id] = listing;
         var favorites = new FakeFavoriteRepository();
         favorites.Items.Add(Favorite.Create(MemberId, listing, Now).Value);
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId, 1, pageSize);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -260,7 +260,7 @@ public class GetMyFavoritesHandlerTests
     {
         var favorites = new FakeFavoriteRepository();
         var listings = new FakeListingRepository();
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -284,7 +284,7 @@ public class GetMyFavoritesHandlerTests
         favorites.Items.Add(Favorite.Create(MemberId, active, Now.AddHours(-2)).Value);
         favorites.Items.Add(Favorite.Create(MemberId, hidden, Now.AddHours(-1)).Value);
         hidden.Hide();
-        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository());
+        var handler = new GetMyFavoritesHandler(favorites, listings, new FakeMemberBlockRepository(), new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetMyFavoritesQuery(MemberId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);

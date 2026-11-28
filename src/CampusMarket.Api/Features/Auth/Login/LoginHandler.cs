@@ -30,11 +30,16 @@ public sealed class LoginHandler(
         if (member?.PasswordHash is null || !passwordHasher.Verify(member.PasswordHash, command.Password))
             return Result<LoginResponse>.Failure(InvalidCredentials);
 
+        // Checked only after the password, so the answer never tells a stranger that an email has an account.
+        var now = timeProvider.GetUtcNow();
+        if (member.IsSuspended(now))
+            return Result<LoginResponse>.Failure(member.AccountSuspendedError());
+
         var (token, expiresAt) = tokenService.CreateToken(member);
 
         // Only the hash is saved; the plain refresh token is returned once, here.
         var refreshToken = tokenService.CreateRefreshToken();
-        refreshTokens.Add(RefreshToken.Create(member.Id, refreshToken, timeProvider.GetUtcNow()));
+        refreshTokens.Add(RefreshToken.Create(member.Id, refreshToken, now));
         await unitOfWork.CommitAsync(ct);
 
         return new LoginResponse(token, expiresAt, refreshToken);

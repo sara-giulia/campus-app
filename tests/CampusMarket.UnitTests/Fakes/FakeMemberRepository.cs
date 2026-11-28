@@ -44,4 +44,14 @@ public sealed class FakeMemberRepository : IMemberRepository
     {
         Items.Remove(member.Id);
     }
+
+    // Like EfMemberRepository: the members suspended at this moment (Member.IsSuspended).
+    public Task<IReadOnlySet<Guid>> GetSuspendedIdsAsync(DateTimeOffset now, CancellationToken ct = default)
+    {
+        IReadOnlySet<Guid> ids = Items.Values
+            .Where(m => m.IsSuspended(now))
+            .Select(m => m.Id)
+            .ToHashSet();
+        return Task.FromResult(ids);
+    }
 }

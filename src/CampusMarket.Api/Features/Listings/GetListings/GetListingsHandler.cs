@@ -3,14 +3,16 @@ using CampusMarket.Api.Common.Search;
 using CampusMarket.Api.Domain.Blocks;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
+using CampusMarket.Api.Domain.Members;
 
 namespace CampusMarket.Api.Features.Listings.GetListings;
 
 // With a search, the listings found by words come first and then the ones found by meaning
 // (ListingSearch); "relevance" (the default when searching) keeps that order, the other sorts reorder
-// all of them. Without a search the default stays "newest".
+// all of them. Without a search the default stays "newest". The listings of a suspended member are left out.
 public sealed class GetListingsHandler(
-    IListingRepository repository, ISemanticSearch semanticSearch, IMemberBlockRepository blocks)
+    IListingRepository repository, ISemanticSearch semanticSearch, IMemberBlockRepository blocks,
+    IMemberRepository members, TimeProvider timeProvider)
     : IQueryHandler<GetListingsQuery, GetListingsResponse>
 {
     public async Task<Result<GetListingsResponse>> HandleAsync(
@@ -32,7 +34,8 @@ public sealed class GetListingsHandler(
                 Error.Validation("Listings.InvalidSort", "Sort must be relevance, newest, price_asc or price_desc."));
 
         var listings = await repository.GetAllAsync(ct);
-        IEnumerable<Listing> filtered = listings.Where(l => l.Status == ListingStatus.Active);
+        var suspendedIds = await members.GetSuspendedIdsAsync(timeProvider.GetUtcNow(), ct);
+        IEnumerable<Listing> filtered = listings.Where(l => l.Status == ListingStatus.Active && !suspendedIds.Contains(l.SellerId));
 
         if (query.ViewerId is { } viewerId)
         {

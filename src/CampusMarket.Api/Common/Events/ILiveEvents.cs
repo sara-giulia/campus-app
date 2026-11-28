@@ -10,4 +10,8 @@ public interface ILiveEvents
     // The events of one member, until the token is cancelled (the browser closed the connection).
     // A ping comes every LiveEventsOptions.HeartbeatSeconds.
     IAsyncEnumerable<LiveEvent> SubscribeAsync(Guid memberId, CancellationToken ct);
+
+    // Ends every open connection of the member (the stream completes, so the response ends).
+    // Used when an Admin suspends the member: a reconnect then gets 401.
+    void Disconnect(Guid memberId);
 }

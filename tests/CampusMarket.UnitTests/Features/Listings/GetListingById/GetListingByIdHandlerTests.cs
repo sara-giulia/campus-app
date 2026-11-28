@@ -15,7 +15,7 @@ public class GetListingByIdHandlerTests
         var listing = Listing.Create(Guid.NewGuid(), "Algebra book", Category.Textbook, Condition.Good, 25m, Now).Value;
         var repository = new FakeListingRepository();
         repository.Items[listing.Id] = listing;
-        var handler = new GetListingByIdHandler(repository);
+        var handler = new GetListingByIdHandler(repository, new FakeMemberRepository(), new FixedTimeProvider(Now));
         var query = new GetListingByIdQuery(listing.Id, listing.SellerId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -37,7 +37,7 @@ public class GetListingByIdHandlerTests
     public async Task Given_UnknownId_When_Handling_Then_ReturnsNotFound()
     {
         var repository = new FakeListingRepository();
-        var handler = new GetListingByIdHandler(repository);
+        var handler = new GetListingByIdHandler(repository, new FakeMemberRepository(), new FixedTimeProvider(Now));
         var unknownId = Guid.NewGuid();
         var query = new GetListingByIdQuery(unknownId);
 
@@ -67,7 +67,7 @@ public class GetListingByIdHandlerTests
     public async Task Given_Draft_When_SellerAsks_Then_ReturnsIt()
     {
         var (repository, listing) = SeedListing(publish: false);
-        var handler = new GetListingByIdHandler(repository);
+        var handler = new GetListingByIdHandler(repository, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingByIdQuery(listing.Id, SellerId), CancellationToken.None);
 
@@ -81,7 +81,7 @@ public class GetListingByIdHandlerTests
     public async Task Given_Draft_When_AdminAsks_Then_ReturnsIt()
     {
         var (repository, listing) = SeedListing(publish: false);
-        var handler = new GetListingByIdHandler(repository);
+        var handler = new GetListingByIdHandler(repository, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingByIdQuery(listing.Id, AdminId, true), CancellationToken.None);
 
@@ -94,7 +94,7 @@ public class GetListingByIdHandlerTests
     public async Task Given_Draft_When_OtherMemberAsks_Then_ReturnsNotFound()
     {
         var (repository, listing) = SeedListing(publish: false);
-        var handler = new GetListingByIdHandler(repository);
+        var handler = new GetListingByIdHandler(repository, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingByIdQuery(listing.Id, OtherMemberId), CancellationToken.None);
 
@@ -109,7 +109,7 @@ public class GetListingByIdHandlerTests
     public async Task Given_Draft_When_AnonymousAsks_Then_ReturnsNotFound()
     {
         var (repository, listing) = SeedListing(publish: false);
-        var handler = new GetListingByIdHandler(repository);
+        var handler = new GetListingByIdHandler(repository, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingByIdQuery(listing.Id), CancellationToken.None);
 
@@ -123,7 +123,7 @@ public class GetListingByIdHandlerTests
     public async Task Given_ActiveListing_When_AnonymousAsks_Then_ReturnsIt()
     {
         var (repository, listing) = SeedListing(publish: true);
-        var handler = new GetListingByIdHandler(repository);
+        var handler = new GetListingByIdHandler(repository, new FakeMemberRepository(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new GetListingByIdQuery(listing.Id), CancellationToken.None);
 

@@ -30,4 +30,10 @@ public interface IMemberRepository
     /// if it returns null, then call Delete with the loaded member.
     /// </summary>
     void Delete(Member member);
+
+    /// <summary>
+    /// The ids of the members suspended at this moment (Member.IsSuspended). Used like the blocks:
+    /// the listings of these members are left out of every public query.
+    /// </summary>
+    Task<IReadOnlySet<Guid>> GetSuspendedIdsAsync(DateTimeOffset now, CancellationToken ct = default);
 }

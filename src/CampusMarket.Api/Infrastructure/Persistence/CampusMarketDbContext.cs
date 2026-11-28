@@ -27,6 +27,7 @@ public sealed class CampusMarketDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<MemberReport> MemberReports => Set<MemberReport>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<SaleRecord> SaleRecords => Set<SaleRecord>();
     public DbSet<Conversation> Conversations => Set<Conversation>();

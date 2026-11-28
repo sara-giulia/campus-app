@@ -60,7 +60,7 @@ public class GetPublicProfileHandlerTests
         listings.Items[draft.Id] = draft;
         listings.Items[sold.Id] = sold;
         var reviews = new FakeReviewRepository();
-        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var handler = new GetPublicProfileHandler(members, listings, reviews, new FixedTimeProvider(Now));
         var query = new GetPublicProfileQuery(seller.Id);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -88,7 +88,7 @@ public class GetPublicProfileHandlerTests
         listings.Items[mine.Id] = mine;
         listings.Items[theirs.Id] = theirs;
         var reviews = new FakeReviewRepository();
-        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var handler = new GetPublicProfileHandler(members, listings, reviews, new FixedTimeProvider(Now));
         var query = new GetPublicProfileQuery(seller.Id);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -107,7 +107,7 @@ public class GetPublicProfileHandlerTests
         var members = BuildMembers(seller);
         var listings = new FakeListingRepository();
         var reviews = new FakeReviewRepository();
-        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var handler = new GetPublicProfileHandler(members, listings, reviews, new FixedTimeProvider(Now));
         var query = new GetPublicProfileQuery(seller.Id);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -130,7 +130,7 @@ public class GetPublicProfileHandlerTests
         var reviews = new FakeReviewRepository();
         reviews.Items.Add(BuildReview(seller.Id, 5, Now));
         reviews.Items.Add(BuildReview(seller.Id, 4, Now.AddHours(1)));
-        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var handler = new GetPublicProfileHandler(members, listings, reviews, new FixedTimeProvider(Now));
         var query = new GetPublicProfileQuery(seller.Id);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -153,7 +153,7 @@ public class GetPublicProfileHandlerTests
         reviews.Items.Add(BuildReview(seller.Id, 5, Now));
         reviews.Items.Add(BuildReview(seller.Id, 4, Now.AddHours(1)));
         reviews.Items.Add(BuildReview(seller.Id, 4, Now.AddHours(2)));
-        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var handler = new GetPublicProfileHandler(members, listings, reviews, new FixedTimeProvider(Now));
         var query = new GetPublicProfileQuery(seller.Id);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -175,7 +175,7 @@ public class GetPublicProfileHandlerTests
         var listings = new FakeListingRepository();
         listings.Items[listing.Id] = listing;
         var reviews = new FakeReviewRepository();
-        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var handler = new GetPublicProfileHandler(members, listings, reviews, new FixedTimeProvider(Now));
         var query = new GetPublicProfileQuery(UnknownId);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);
@@ -200,7 +200,7 @@ public class GetPublicProfileHandlerTests
         listings.Items[first.Id] = first;
         listings.Items[second.Id] = second;
         var reviews = new FakeReviewRepository();
-        var handler = new GetPublicProfileHandler(members, listings, reviews);
+        var handler = new GetPublicProfileHandler(members, listings, reviews, new FixedTimeProvider(Now));
         var query = new GetPublicProfileQuery(seller.Id);
 
         var result = await handler.HandleAsync(query, CancellationToken.None);

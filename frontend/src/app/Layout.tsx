@@ -8,6 +8,7 @@ import { NotificationsProvider } from '../features/notifications/NotificationsPr
 import { LiveEventsProvider } from '../features/live/LiveEventsProvider'
 import { useUnreadMessages } from '../features/messages/UnreadMessagesContext'
 import { UnreadMessagesProvider } from '../features/messages/UnreadMessagesProvider'
+import { AccountSuspendedRedirect } from './auth/AccountSuspendedRedirect'
 import { useAuth } from './auth/AuthContext'
 import { menuItems, type MenuItem } from './menu'
 import { ButtonLink, CloseIcon, Logo, LogoutIcon, MenuIcon, ThemeToggle } from './ui'
@@ -45,6 +46,7 @@ function countBadge(count: number | null, className: string, label: string) {
 export function Layout() {
   return (
     <LiveEventsProvider>
+      <AccountSuspendedRedirect />
       <NotificationsProvider>
         <UnreadMessagesProvider>
           <LayoutShell />

@@ -29,6 +29,16 @@ public sealed class RefreshHandler(
         if (member is null)
             return Result<RefreshResponse>.Failure(RefreshToken.Invalid);
 
+        // Suspending revokes every refresh token already; this covers a token created in between.
+        // The token is used up, and the answer (401) says why, so the frontend can show it.
+        if (member.IsSuspended(now))
+        {
+            stored.Revoke(now);
+            refreshTokens.Update(stored);
+            await unitOfWork.CommitAsync(ct);
+            return Result<RefreshResponse>.Failure(member.AccountSuspendedError());
+        }
+
         // Rotation: the old refresh token can never be used again.
         stored.Revoke(now);
         refreshTokens.Update(stored);
