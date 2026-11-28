@@ -34,159 +34,177 @@ public class PhotoTests
         return bytes;
     }
 
+    private static readonly ProcessedPhoto Processed = new([1, 2, 3, 4], [9, 9]);
+
     [Fact]
-    public void Given_SellerWithPngAndNoPhotos_When_Creating_Then_ReturnsPhotoWithEveryField()
+    public void Given_SellerWithPngAndNoPhotos_When_CheckingUpload_Then_ReturnsNull()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, 0, PngBytes, Now);
+        var error = Photo.CheckUpload(SellerId, listing, 0, PngBytes);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Id.Should().NotBeEmpty();
-        result.Value.ListingId.Should().Be(listing.Id);
-        result.Value.FileName.Should().Be($"{result.Value.Id}.png");
-        result.Value.ContentType.Should().Be("image/png");
-        result.Value.SizeBytes.Should().Be(PngBytes.Length);
-        result.Value.CreatedAt.Should().Be(Now);
+        error.Should().BeNull();
     }
 
     [Fact]
-    public void Given_Jpeg_When_Creating_Then_UsesJpgExtensionAndJpegContentType()
+    public void Given_Jpeg_When_CheckingUpload_Then_ReturnsNull()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, 0, JpegBytes, Now);
+        var error = Photo.CheckUpload(SellerId, listing, 0, JpegBytes);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.FileName.Should().Be($"{result.Value.Id}.jpg");
-        result.Value.ContentType.Should().Be("image/jpeg");
+        error.Should().BeNull();
     }
 
     [Fact]
-    public void Given_WebP_When_Creating_Then_UsesWebpExtensionAndWebpContentType()
+    public void Given_WebP_When_CheckingUpload_Then_ReturnsNull()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, 0, WebPBytes, Now);
+        var error = Photo.CheckUpload(SellerId, listing, 0, WebPBytes);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.FileName.Should().Be($"{result.Value.Id}.webp");
-        result.Value.ContentType.Should().Be("image/webp");
+        error.Should().BeNull();
     }
 
     [Fact]
-    public void Given_AnotherMember_When_Creating_Then_ReturnsForbiddenNotSeller()
+    public void Given_AnotherMember_When_CheckingUpload_Then_ReturnsForbiddenNotSeller()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(OtherMemberId, listing, 0, PngBytes, Now);
+        var error = Photo.CheckUpload(OtherMemberId, listing, 0, PngBytes);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Type.Should().Be(ErrorType.Forbidden);
-        result.Error.Code.Should().Be("Photo.NotSeller");
-        result.Error.Message.Should().Be("Only the seller can change the photos of this listing.");
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Forbidden);
+        error.Code.Should().Be("Photo.NotSeller");
+        error.Message.Should().Be("Only the seller can change the photos of this listing.");
     }
 
     [Fact]
-    public void Given_FourExistingPhotos_When_Creating_Then_Succeeds()
+    public void Given_FourExistingPhotos_When_CheckingUpload_Then_ReturnsNull()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, Photo.MaxPerListing - 1, PngBytes, Now);
+        var error = Photo.CheckUpload(SellerId, listing, Photo.MaxPerListing - 1, PngBytes);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.ListingId.Should().Be(listing.Id);
+        error.Should().BeNull();
     }
 
     [Fact]
-    public void Given_FiveExistingPhotos_When_Creating_Then_ReturnsLimitReached()
+    public void Given_FiveExistingPhotos_When_CheckingUpload_Then_ReturnsLimitReached()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, Photo.MaxPerListing, PngBytes, Now);
+        var error = Photo.CheckUpload(SellerId, listing, Photo.MaxPerListing, PngBytes);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Type.Should().Be(ErrorType.Validation);
-        result.Error.Code.Should().Be("Photo.LimitReached");
-        result.Error.Message.Should().Be($"A listing can have at most {Photo.MaxPerListing} photos.");
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Validation);
+        error.Code.Should().Be("Photo.LimitReached");
+        error.Message.Should().Be($"A listing can have at most {Photo.MaxPerListing} photos.");
     }
 
     [Fact]
-    public void Given_EmptyContent_When_Creating_Then_ReturnsEmptyNotInvalidFormat()
+    public void Given_EmptyContent_When_CheckingUpload_Then_ReturnsEmptyNotInvalidFormat()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, 0, Array.Empty<byte>(), Now);
+        var error = Photo.CheckUpload(SellerId, listing, 0, Array.Empty<byte>());
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Type.Should().Be(ErrorType.Validation);
-        result.Error.Code.Should().Be("Photo.Empty");
-        result.Error.Message.Should().Be("No file was sent.");
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Validation);
+        error.Code.Should().Be("Photo.Empty");
+        error.Message.Should().Be("No file was sent.");
     }
 
     [Fact]
-    public void Given_ContentOfExactlyMaxSize_When_Creating_Then_Succeeds()
+    public void Given_ContentOfExactlyMaxSize_When_CheckingUpload_Then_ReturnsNull()
     {
         var listing = BuildListing();
-        var content = BuildPng(Photo.MaxSizeBytes);
+        var content = BuildPng(10_485_760);
 
-        var result = Photo.Create(SellerId, listing, 0, content, Now);
+        var error = Photo.CheckUpload(SellerId, listing, 0, content);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.SizeBytes.Should().Be(Photo.MaxSizeBytes);
+        error.Should().BeNull();
     }
 
     [Fact]
-    public void Given_ContentOneByteOverMaxSize_When_Creating_Then_ReturnsTooLarge()
+    public void Given_ContentOneByteOverMaxSize_When_CheckingUpload_Then_ReturnsTooLarge()
     {
         var listing = BuildListing();
-        var content = BuildPng(Photo.MaxSizeBytes + 1);
+        var content = BuildPng(10_485_761);
 
-        var result = Photo.Create(SellerId, listing, 0, content, Now);
+        var error = Photo.CheckUpload(SellerId, listing, 0, content);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Type.Should().Be(ErrorType.Validation);
-        result.Error.Code.Should().Be("Photo.TooLarge");
-        result.Error.Message.Should().Be($"A photo must be at most {Photo.MaxSizeBytes / (1024 * 1024)} MB.");
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Validation);
+        error.Code.Should().Be("Photo.TooLarge");
+        error.Message.Should().Be("A photo must be at most 10 MB.");
     }
 
     [Fact]
-    public void Given_Gif_When_Creating_Then_ReturnsInvalidFormat()
+    public void Given_Gif_When_CheckingUpload_Then_ReturnsInvalidFormat()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, 0, GifBytes, Now);
+        var error = Photo.CheckUpload(SellerId, listing, 0, GifBytes);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Type.Should().Be(ErrorType.Validation);
-        result.Error.Code.Should().Be("Photo.InvalidFormat");
-        result.Error.Message.Should().Be("Only JPEG, PNG and WebP images are allowed.");
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Validation);
+        error.Code.Should().Be("Photo.InvalidFormat");
+        error.Message.Should().Be("Only JPEG, PNG and WebP images are allowed.");
     }
 
     [Fact]
-    public void Given_AnotherMemberWithFivePhotos_When_Creating_Then_ReturnsNotSellerFirst()
+    public void Given_AnotherMemberWithFivePhotos_When_CheckingUpload_Then_ReturnsNotSellerFirst()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(OtherMemberId, listing, Photo.MaxPerListing, PngBytes, Now);
+        var error = Photo.CheckUpload(OtherMemberId, listing, Photo.MaxPerListing, PngBytes);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Type.Should().Be(ErrorType.Forbidden);
-        result.Error.Code.Should().Be("Photo.NotSeller");
-        result.Error.Message.Should().Be("Only the seller can change the photos of this listing.");
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Forbidden);
+        error.Code.Should().Be("Photo.NotSeller");
+        error.Message.Should().Be("Only the seller can change the photos of this listing.");
     }
 
     [Fact]
-    public void Given_SellerWithFivePhotosAndEmptyContent_When_Creating_Then_ReturnsLimitReachedFirst()
+    public void Given_SellerWithFivePhotosAndEmptyContent_When_CheckingUpload_Then_ReturnsLimitReachedFirst()
     {
         var listing = BuildListing();
 
-        var result = Photo.Create(SellerId, listing, Photo.MaxPerListing, Array.Empty<byte>(), Now);
+        var error = Photo.CheckUpload(SellerId, listing, Photo.MaxPerListing, Array.Empty<byte>());
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Type.Should().Be(ErrorType.Validation);
-        result.Error.Code.Should().Be("Photo.LimitReached");
-        result.Error.Message.Should().Be($"A listing can have at most {Photo.MaxPerListing} photos.");
+        error.Should().NotBeNull();
+        error!.Type.Should().Be(ErrorType.Validation);
+        error.Code.Should().Be("Photo.LimitReached");
+        error.Message.Should().Be($"A listing can have at most {Photo.MaxPerListing} photos.");
+    }
+
+    [Fact]
+    public void Given_ProcessedPhoto_When_Creating_Then_ReturnsWebPPhotoWithEveryField()
+    {
+        var listing = BuildListing();
+
+        var photo = Photo.Create(listing, Processed, Now, 3);
+
+        photo.Id.Should().NotBeEmpty();
+        photo.ListingId.Should().Be(listing.Id);
+        photo.FileName.Should().Be($"{photo.Id}.webp");
+        photo.ThumbnailFileName.Should().Be($"{photo.Id}.thumb.webp");
+        photo.ContentType.Should().Be("image/webp");
+        photo.SizeBytes.Should().Be(4);
+        photo.CreatedAt.Should().Be(Now);
+        photo.IsGenerated.Should().BeFalse();
+        photo.Position.Should().Be(3);
+    }
+
+    [Fact]
+    public void Given_NoPosition_When_Creating_Then_PositionIsZero()
+    {
+        var listing = BuildListing();
+
+        var photo = Photo.Create(listing, Processed, Now);
+
+        photo.Position.Should().Be(0);
     }
 
     [Fact]
@@ -194,12 +212,10 @@ public class PhotoTests
     {
         var listing = BuildListing();
 
-        var first = Photo.Create(SellerId, listing, 0, PngBytes, Now);
-        var second = Photo.Create(SellerId, listing, 1, PngBytes, Now);
+        var first = Photo.Create(listing, Processed, Now);
+        var second = Photo.Create(listing, Processed, Now, 1);
 
-        first.IsSuccess.Should().BeTrue();
-        second.IsSuccess.Should().BeTrue();
-        first.Value.Id.Should().NotBe(second.Value.Id);
+        first.Id.Should().NotBe(second.Id);
     }
 
     [Fact]
@@ -253,6 +269,7 @@ public class PhotoTests
         result.Value.ContentType.Should().Be(PhotoFormat.Svg.ContentType);
         result.Value.SizeBytes.Should().Be(SvgBytes.Length);
         result.Value.CreatedAt.Should().Be(Now);
+        result.Value.ThumbnailFileName.Should().BeNull();
     }
 
     [Fact]

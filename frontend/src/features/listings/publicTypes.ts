@@ -9,6 +9,8 @@ export interface PhotoItem {
   id: string
   listingId: string
   url: string
+  // The small version for cards and thumbnails (the same as url for a photo that has none).
+  thumbnailUrl: string
   contentType: string
   sizeBytes: number
   createdAt: string

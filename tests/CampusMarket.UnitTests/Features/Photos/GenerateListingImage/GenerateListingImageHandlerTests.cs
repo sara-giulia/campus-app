@@ -13,6 +13,7 @@ public class GenerateListingImageHandlerTests
     private static readonly Guid SellerId = new("11111111-1111-1111-1111-111111111111");
 
     private static readonly byte[] PngBytes = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0, 0, 0, 0, 0];
+    private static readonly byte[] ThumbnailBytes = [9, 9];
 
     private static Listing BuildDraftListing() =>
         Listing.Create(SellerId, "Algebra book", Category.Textbook, Condition.Good, 25m, Now, "Second edition").Value;
@@ -86,7 +87,7 @@ public class GenerateListingImageHandlerTests
         var listings = new FakeListingRepository();
         listings.Items[listing.Id] = listing;
         var photos = new FakePhotoRepository();
-        var existing = Photo.Create(SellerId, listing, 0, PngBytes, Now).Value;
+        var existing = Photo.Create(listing, new ProcessedPhoto(PngBytes, ThumbnailBytes), Now);
         photos.Items.Add(existing);
         var generator = new FakeImageGenerator();
         var storage = new FakePhotoStorage();
@@ -128,10 +129,12 @@ public class GenerateListingImageHandlerTests
         photo.FileName.Should().Be($"{photo.Id}{PhotoFormat.Svg.Extension}");
         storage.Files.Should().ContainSingle();
         storage.Files[(listing.Id, photo.FileName)].Should().Equal(FakeImageGenerator.DefaultSvg);
+        storage.ContentTypes[(listing.Id, photo.FileName)].Should().Be(PhotoFormat.Svg.ContentType);
         unitOfWork.SaveCount.Should().Be(1);
         result.Value.Id.Should().Be(photo.Id);
         result.Value.ListingId.Should().Be(listing.Id);
         result.Value.Url.Should().Be($"/api/v1/photos/{photo.Id}");
+        result.Value.ThumbnailUrl.Should().Be($"/api/v1/photos/{photo.Id}");
         result.Value.ContentType.Should().Be(PhotoFormat.Svg.ContentType);
         result.Value.SizeBytes.Should().Be(FakeImageGenerator.DefaultSvg.Length);
         result.Value.CreatedAt.Should().Be(Now);

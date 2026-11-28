@@ -13,8 +13,12 @@ public sealed class GetPhotoFileHandler(IPhotoRepository photos, IPhotoStorage s
         var photo = await photos.GetByIdAsync(query.PhotoId, ct);
 
         // A row whose file is missing (for example a volume that was emptied) is also "not found".
-        if (photo is not null && storage.OpenRead(photo.ListingId, photo.FileName) is { } content)
-            return new PhotoFile(content, photo.ContentType);
+        if (photo is not null)
+        {
+            var fileName = query.Thumbnail ? photo.ThumbnailFileName ?? photo.FileName : photo.FileName;
+            if (await storage.OpenReadAsync(photo.ListingId, fileName, ct) is { } content)
+                return new PhotoFile(content, photo.ContentType);
+        }
 
         return Result<PhotoFile>.Failure(
             Error.NotFound("Photo.NotFound", $"Photo '{query.PhotoId}' was not found."));

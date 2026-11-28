@@ -9,17 +9,23 @@ public static class GetPhotoFileEndpoint
     public static void Map(RouteGroupBuilder group)
     {
         // Public, so an <img src> can load it without a token.
-        group.MapGet("/{id:guid}", Handle)
+        group.MapGet("/{id:guid}", (Guid id, HttpContext context, IQueryHandler<GetPhotoFileQuery, PhotoFile> handler, CancellationToken ct) =>
+                Handle(new GetPhotoFileQuery(id), context, handler, ct))
             .WithName("GetPhotoFile");
+
+        // The small version for the cards and lists (the image itself when the photo has no thumbnail).
+        group.MapGet("/{id:guid}/thumbnail", (Guid id, HttpContext context, IQueryHandler<GetPhotoFileQuery, PhotoFile> handler, CancellationToken ct) =>
+                Handle(new GetPhotoFileQuery(id, Thumbnail: true), context, handler, ct))
+            .WithName("GetPhotoThumbnail");
     }
 
     private static async Task<Results<FileStreamHttpResult, NotFound<Error>>> Handle(
-        Guid id,
+        GetPhotoFileQuery query,
         HttpContext context,
         IQueryHandler<GetPhotoFileQuery, PhotoFile> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new GetPhotoFileQuery(id), ct);
+        var result = await handler.HandleAsync(query, ct);
 
         if (result.IsFailure)
             return TypedResults.NotFound(result.Error);

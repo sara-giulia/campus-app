@@ -48,7 +48,7 @@ public sealed class GenerateListingImageHandler(
         var photo = created.Value;
 
         // The file first, as for an upload: a failed save leaves an unused file, never a row without its file.
-        await storage.SaveAsync(listing.Id, photo.FileName, image.Content, ct);
+        await storage.SaveAsync(listing.Id, photo.FileName, image.Content, photo.ContentType, ct);
         await photos.AddAsync(photo, ct);
         await unitOfWork.CommitAsync(ct);
 

@@ -1377,6 +1377,36 @@ The skill was improved three times before its run, by comparing it with the real
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 8763f47 (skill section in 80c7058)
 
+### Run 57, skill v59 (Feature: Photo processing)
+
+- **Why a new version:** branch `feature/photo-processing`.
+    - Every upload now goes through `IPhotoProcessor`: `SkiaPhotoProcessor` makes the image smaller, turns it upright, converts it to WebP, drops the EXIF and adds a thumbnail.
+    - `Photo.Create` is split into `CheckUpload` and a new `Create` from a `ProcessedPhoto`, and `Photo` has `ThumbnailFileName`.
+    - `IPhotoStorage` is async; `GetPhotoFileQuery` has `Thumbnail`; `PhotoResponse` has `ThumbnailUrl`.
+    - The old photo tests no longer compiled.
+
+#### Change to SKILL.md (v58 → v59) and why
+
+| # | v58 (before) | v59 (after) | Why |
+|---|---|---|---|
+| 1 | No section for photo processing. | New section *"Feature: Photo processing (Anca)"*. It gives the order of the checks in `CheckUpload` and every field of the new `Create`. It describes what the upload handler saves (the processed bytes, two files, `image/webp`) and what it does not call when an earlier check fails, plus the thumbnail fallback of `GetPhotoFile`. It lists the sizes, orientations and errors of `SkiaPhotoProcessor`, with the EXIF APP1 block written byte by byte for the test images. It also covers the new `FakePhotoProcessor`, the changes to `FakePhotoStorage`, and which old tests may change and how. | A test JPEG with a given EXIF orientation cannot be made with SkiaSharp alone. Without the exact bytes, each run would guess a different, possibly invalid, block. |
+| 2 | (after the run) "find a deterministic input, e.g. a valid JPEG header followed by corrupt scan data" | "a small PNG with the first two bytes of its IDAT data (the zlib header) flipped gives `ErrorInInput` every time; a JPEG with corrupt scan data does not work for this: libjpeg still returns `Success`" | The JPEG example in the section was wrong; the run found the PNG case. |
+
+- **Prompt:** `Run the unit-testing skill and generate the unit tests for its last section "Feature: Photo processing (Anca)". Only tests/CampusMarket.UnitTests may change, no git commands that change state; keep every existing test and assertion that is still true, the tests that no longer compile must be fixed as the section says. If a test fails because the code behaves differently from the section, stop and report it; do not change src/. Run the whole project 3 times and the coverage; the files named in the section at 100% lines and branches; also report SkiaPhotoProcessor.cs coverage. At the end: files, tests before/after, pass/fail, coverage, mismatches.` The first subagent stopped halfway (no progress for 10 minutes, after the fakes and the old tests had been fixed); the same subagent was resumed with `Continue from where you are … Keep each command short.`
+- **Skill version:** v59 (the last unit-testing version was v58, Run 56)
+- **Result:** 1502 unit tests (1454 once the project compiled again, before the new tests).
+    - New files: `Infrastructure/Images/SkiaPhotoProcessorTests.cs` (26: sizes, the 8 orientations with the red corner, no `Exif`/`Pixel 9 Pro` left, the three errors, `OriginMatrix`), `Features/Photos/PhotoResponseTests.cs` (2) and `Fakes/FakePhotoProcessor.cs`.
+    - `PhotoTests`: the 13 tests of the old `Create` became 15 for `CheckUpload` and the new `Create`.
+    - New tests in the existing handler tests: 13 in `UploadPhotoHandlerTests`, 5 in `GetPhotoFileHandlerTests`, 2 in `DeletePhotoHandlerTests`.
+    - Changed on purpose in the old tests: `image/png` and `image/jpeg` → `image/webp`, the size is the processed one, two files are saved.
+    - 3 of 3 runs pass. `Photo.cs`, the photo handlers, `DeleteListingHandler.cs` and `SkiaPhotoProcessor.cs` (73/73 lines, 26/26 branches) are at 100%.
+- **Problems seen:**
+    - The section's example for "pixels that cannot be decoded" (a JPEG with corrupt scan data) does not fail with SkiaSharp 3.119.4. The run used a PNG with a broken zlib header instead (row 2 above).
+    - The subagent wrote `coverage-report/` and then put it back to HEAD; it was regenerated after the integration run.
+    - `reportgenerator` is not on PATH; the copy from the NuGet cache was used.
+- **Change to SKILL.md after the run:** row 2.
+- **Commits:** cfaddba (skill section in 9f4ed64)
+
 ## integration-testing
 
 Skill written and run by Ilenei Ancuta-Bianca.
@@ -2606,6 +2636,34 @@ saved.Should().BeEquivalentTo(listing);
 - **Change to SKILL.md after the run:** none.
 - **Commits:** 8763f47 (skill section in 80c7058)
 
+### Run 67, skill v66 (Feature: Photo processing)
+
+- **Why a new version:** branch `feature/photo-processing`.
+    - Every upload is processed: WebP of at most 1600 px plus a 400 px thumbnail, upright, without EXIF.
+    - Limits: at most 10 MB and 40 megapixels; a file that cannot be decoded gets `Photo.InvalidFormat` and a huge one the new `Photo.TooManyPixels`.
+    - New endpoint `GET /api/v1/photos/{id}/thumbnail`, `thumbnailUrl` in the responses, migration `AddPhotoThumbnails`, async `IPhotoStorage`.
+    - The old photo tests uploaded fake images (signature + zeros), which are now refused.
+
+#### Change to SKILL.md (v65 → v66) and why
+
+| # | v65 (before) | v66 (after) | Why |
+|---|---|---|---|
+| 1 | No section for photo processing. | New section *"Feature: Photo processing (Anca)"*. It gives what is saved (files, row, sizes), the new limits and errors, and the thumbnail endpoint with its fallback for generated and old photos. It also covers the migration, the new `TestImages.cs` with the EXIF block written byte by byte, which old tests must switch to real images and what may change in them (`image/webp`, `.webp`, bytes), `ThrowingPhotoStorage`, the new tests, and that the real `SkiaPhotoProcessor` must run. | The fake images in the old tests would all fail now; without a list of what changes on purpose, a run could weaken assertions that are still true. |
+
+- **Prompt:** `Run the integration-testing skill and generate the integration tests for its last section "Feature: Photo processing (Anca)". Only tests/CampusMarket.IntegrationTests may change, no git commands that change state, do not touch coverage-report/. The existing photo tests upload fake images and now fail with Photo.InvalidFormat: switch them to real images as the section says, keep every assertion that is still true. ThrowingPhotoStorage.cs does not compile now: fix it for the async interface. If a test fails because the API behaves differently from the section, stop and report it; do not change src/. Keep each shell command short. Run the whole project 3 times and the coverage merged with the unit tests; the files named in the section at 100%. At the end: files, tests before/after, pass/fail, coverage, mismatches.`
+- **Skill version:** v66 (the last integration-testing version was v65, Run 66)
+- **Result:** 818 integration tests in total (803 before), 15 new.
+    - New files: `Infrastructure/TestImages.cs` (real SkiaSharp images and the JPEG EXIF block), `Photos/PhotoProcessingTests.cs` (8), `Persistence/AddPhotoThumbnailsMigrationTests.cs` (2).
+    - 5 thumbnail tests in `Photos/GetPhotoFileTests.cs`.
+    - The old photo tests (`Upload`, `GetPhotoFile`, `Delete`, `GetListingPhotos`, `Reorder`, `GeneratedImages`) now use real images and `ProcessedPhoto`. They expect `image/webp` and check that the saved file is WebP instead of comparing it with the upload, and the delete test checks both files. `ThrowingPhotoStorage` uses the async interface.
+    - 3 of 3 full runs pass. With the unit tests merged, `SkiaPhotoProcessor.cs`, `LocalPhotoStorage.cs`, `UploadPhotoHandler.cs`, `GetPhotoFileHandler.cs`, `GetPhotoFileEndpoint.cs`, `DeletePhotoHandler.cs` and `PhotoResponse.cs` are at 100% lines and branches.
+- **Problems seen:**
+    - None in the API. A real PNG padded with zeros to exactly 10 MB is accepted by the decoder.
+    - The section does not say where the thumbnail tests go; they were put in `GetPhotoFileTests.cs`.
+    - `reportgenerator` is not on PATH (the run merged the reports with a small script outside the repo). The two old `PriceSuggesterTests` fail locally only because of the Romanian number format, as before.
+- **Change to SKILL.md after the run:** none.
+- **Commits:** cfaddba (skill section in 9f4ed64)
+
 ## code-review
 
 Skill written and run by Sara Matasel. The skill is read-only: after every run `git status` was clean.
@@ -3754,3 +3812,34 @@ Weeks 9–10, Anca's task "Mesaje necitite": a separate red badge on "Mesaje" wi
 - **Checks:** build 0 warnings; `dotnet ef migrations has-pending-model-changes`: none; 10 architecture, 1452 unit and 803 integration tests pass (the 2 old `PriceSuggesterTests` fail only with the Romanian number format, as on main); the new code at 100% lines and branches (unit and integration merged); on the running API: counts for seller and buyer, `GET` does not mark, read → 0, read again 204, 403/404/401, the seller's stream gets `message`, `message`, `read` and no `read` for their own answer; the Postman collection with newman on a fresh database: 299 requests, 567 assertions, 0 failures; frontend `tsc`, build and lint clean.
 - **Result:** new `Features/Conversations/MarkConversationRead/`, `Features/Conversations/GetUnreadMessages/`, migration `AddConversationReadState`, `frontend/src/features/messages/UnreadMessagesContext.ts`, `UnreadMessagesProvider.tsx`; changed `Conversation`, `LiveEvent` (`read`), `EfUnitOfWork`, `ConversationsEndpoints`, the two read handlers and responses (`UnreadCount`), the comment of `StreamMyEventsEndpoint`, the frontend layout (badge), messages list and conversation page, the live event type, RO/EN, CSS, README, Postman (9 requests).
 - **Commits:** code 359680c; skill sections 80c7058; tests generated in 8763f47 (see Run 56 of unit-testing and Run 66 of integration-testing)
+
+## photo-processing
+
+Weeks 9–10, Anca's task "Prelucrarea pozelor la urcare": photos made smaller, thumbnails for the lists, conversion to WebP, the EXIF data removed (GPS location, phone model), with a .NET image library whose license was checked. Written by Ancuța Ilenei with Claude Code. The tests were generated with the unit-testing (Run 57) and integration-testing (Run 67) skills.
+
+### Run 1
+
+- **Prompt:** `Task: „Prelucrarea pozelor la urcare” din planul săptămânilor 9–10. Fă un branch nou din main actualizat. Alege o bibliotecă .NET pentru imagini cu licență gratuită și spune-mi de ce ai ales-o înainte să o adaugi. Gândește stocarea pozelor astfel încât să meargă și cu task-ul următor, „Pozele în cloud” (o nouă implementare de IPhotoStorage). Gata înseamnă: backend + frontend, teste unit și de integrare care trec. Nu face commit.`
+- **Decisions:**
+    - **Library:** SkiaSharp (MIT, Microsoft / .NET Foundation), plus `SkiaSharp.NativeAssets.Linux.NoDependencies` for the Debian runtime image, with no `apt-get`. The license was checked in the nuspec of both packages and the choice was approved before the package was added.
+        - Rejected: ImageSharp (the Six Labors Split License is free only for open source or companies under $1M revenue, and v4 checks a license key at build time), Magick.NET (Apache 2.0, but a large native ImageMagick), NetVips (LGPL libvips, more native setup).
+        - Pinned to **3.119.4**: SkiaSharp 4.158.0 crashed the whole process on Windows (`0xC0000005` in `sk_codec_new_from_data`) for a JPEG with a corrupt header, under every decode API. On Linux it returned null. 3.119.4 returns null on both, and 900 fuzzed JPEG/PNG/WebP files did not crash it on Windows.
+    - **Processing:** `IPhotoProcessor` (`Common/Images/`) and `SkiaPhotoProcessor` (`Infrastructure/Images/`).
+        - The image is turned upright by its EXIF orientation (the 8 values), at most 1600 px on its longer side, WebP quality 80. The thumbnail is at most 400 px, quality 75. Neither is ever enlarged.
+        - The Skia encoder writes only the pixels, so no EXIF is left (checked on a JPEG with a GPS IFD and a phone model).
+        - The pixel count is read from the header first: more than 40 MP → `Photo.TooManyPixels`, so a small file cannot claim a huge image.
+        - A JPEG is decoded at n/8 scale. The codec rounds the scale down (0.4 → 3/8 gave 1125×1500), so a larger scale is asked for until the picture is at least 1600 px.
+    - **Domain:** `Photo.CheckUpload` (seller, limit, size, signature) runs before the processing, so nothing is decoded for a stranger or a full listing. `Photo.Create(listing, ProcessedPhoto, …)` gives `<id>.webp` and `<id>.thumb.webp`, and `SizeBytes` is the size of the saved image. The upload limit went from 2 MB to 10 MB, because a phone photo is 3–6 MB and is made much smaller anyway.
+    - **Storage, ready for "Pozele în cloud":** `IPhotoStorage` is async (`SaveAsync` with the content type, `OpenReadAsync`, `DeleteAsync`, `DeleteListingAsync`). The keys stay `<listingId>/<fileName>`, which map directly to an S3/R2 prefix (and `DeleteListingAsync` to deleting that prefix). The cloud task only adds an `R2PhotoStorage` and registers it; no handler changes. The deletes after a commit are no longer cancelled by the request.
+    - **Thumbnails:** a nullable `Photos.ThumbnailFileName` column (migration `AddPhotoThumbnails`), so generated SVGs and older photos simply have none. `GET /api/v1/photos/{id}/thumbnail` falls back to the image, and `thumbnailUrl` equals `url` for those. Generated images are not processed: an SVG is already small, and Skia cannot read SVG.
+    - **Frontend:** the cards, the gallery strip and the edit form use `thumbnailUrl`; the main photo of the listing page uses `url`. The limit is 10 MB, with a text for `Photo.TooManyPixels`, and the hint says the photos are made smaller and their location data removed (RO/EN).
+- **Checks:**
+    - Build 0 warnings; `dotnet ef migrations has-pending-model-changes`: none.
+    - 10 architecture, 1502 unit and 818 integration tests pass. The 2 old `PriceSuggesterTests` fail only with the Romanian number format, as on main. Coverage report 100% lines and branches with all test projects merged.
+    - On the running API, on a separate database: a 4000×3000 JPEG with orientation 6, GPS and a phone model → 1200×1600 WebP, upright, plus a 300×400 thumbnail, with no EXIF in either. A 300×200 PNG is kept at 300×200. A corrupt JPEG → 400 `Photo.InvalidFormat`, and a 10000×5000 PNG → 400 `Photo.TooManyPixels`, without a crash. A delete removes both files, and a generated photo's `thumbnailUrl` is its `url`.
+    - The Postman collection with newman on a fresh database: 302 requests, 574 assertions, 0 failures.
+    - Frontend `tsc`, build and lint clean (one older warning in `ListingStats.tsx`).
+- **Result:**
+    - New: `Common/Images/IPhotoProcessor.cs`, `Domain/Photos/ProcessedPhoto.cs`, `Infrastructure/Images/SkiaPhotoProcessor.cs`, migration `AddPhotoThumbnails`, `postman/files/broken-photo.jpg`.
+    - Changed: `IPhotoStorage`, `LocalPhotoStorage`, `Photo`, `PhotoConfiguration`, `PhotoResponse` (`ThumbnailUrl`), the upload, delete, generate, get-file and delete-listing handlers, `GetPhotoFileEndpoint` (thumbnail route), `CampusMarketSetup` (registration), `CampusMarket.Api.csproj` (SkiaSharp), the frontend card, listing page, photo entries, types, RO/EN, README (new section *Photo processing*, endpoints, error codes), Postman (3 new requests, 2 changed).
+- **Commits:** code 4ea19e5; skill sections 9f4ed64; tests generated in cfaddba (see Run 57 of unit-testing and Run 67 of integration-testing)

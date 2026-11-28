@@ -264,10 +264,10 @@ flowchart LR
 | Withdraw an offer | `WithdrawOffer` | `POST /api/v1/offers/{id}/withdraw` | only the buyer, only their own `Pending` offer |
 | Block a member | `BlockMember`, `UnblockMember` | `POST` / `DELETE /api/v1/members/{id}/block` | not yourself; idempotent (204); the blocked member can no longer write to you, make offers or reserve your listings |
 | See blocked members | `GetMyBlocked` | `GET /api/v1/members/me/blocked` | only your own blocks |
-| Add a photo | `UploadPhoto` | `POST /api/v1/listings/{id}/photos` | only the seller; JPEG, PNG or WebP; at most 2 MB; at most 5 per listing |
+| Add a photo | `UploadPhoto` | `POST /api/v1/listings/{id}/photos` | only the seller; JPEG, PNG or WebP; at most 10 MB and 40 megapixels; at most 5 per listing; saved as WebP without EXIF, with a thumbnail |
 | Remove a photo | `DeletePhoto` | `DELETE /api/v1/listings/{id}/photos/{photoId}` | only the seller |
 | Reorder the photos | `ReorderPhotos` | `PUT /api/v1/listings/{id}/photos/order` | only the seller; the ids must be exactly the photos of the listing |
-| See the photos | `GetListingPhotos`, `GetPhotoFile` | `GET /api/v1/listings/{id}/photos`, `GET /api/v1/photos/{id}` | the photo list follows the listing's visibility (a draft: seller or Admin only); the image itself is public |
+| See the photos | `GetListingPhotos`, `GetPhotoFile` | `GET /api/v1/listings/{id}/photos`, `GET /api/v1/photos/{id}`, `GET /api/v1/photos/{id}/thumbnail` | the photo list follows the listing's visibility (a draft: seller or Admin only); the image itself is public |
 
 All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-decisions)).
 
@@ -312,9 +312,10 @@ All endpoints are versioned under `/api/v1/` (see [Design decisions](#design-dec
 | Block | `GetMyBlocked` | `GET /api/v1/members/me/blocked` | anyone logged in; only their own blocks | 200 `{ items: [{ memberId, name, blockedAt }] }`, the newest first, 401 |
 | Stats | `RecordView` | `POST /api/v1/listings/{id}/views` | public; the member from the token, otherwise the header `X-Visitor-Id` (a random GUID) | 204 (also when not counted), 400 `View.ViewerMissing`, 404 `Listing.NotFound` |
 | Stats | `GetListingStats` | `GET /api/v1/listings/{id}/stats?days=30` | the seller or an Admin | 200 `{ listingId, days, from, to, totals, daily }`, 400 `Stats.InvalidDays` (1-365), 401, 403 `Listing.NotOwner`, 404 `Listing.NotFound` |
-| Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form), 503 `Photo.StorageFailed` |
+| Photo | `UploadPhoto` | `POST /api/v1/listings/{listingId}/photos` (`multipart/form-data`, field `file`) | the seller | 201 + `Location`, 400 `Photo.LimitReached`, `Photo.Empty`, `Photo.TooLarge`, `Photo.InvalidFormat`, `Photo.TooManyPixels`, 401, 403 `Photo.NotSeller`, 404, 415 (not a form), 503 `Photo.StorageFailed` |
 | Photo | `GetListingPhotos` | `GET /api/v1/listings/{listingId}/photos` | everyone; the photos of a `Draft` only for its seller or an Admin | 200 (sorted by `position`), 404 (also a draft that is not yours) |
 | Photo | `GetPhotoFile` | `GET /api/v1/photos/{id}` | everyone | 200 (the image), 404 `Photo.NotFound` |
+| Photo | `GetPhotoFile` | `GET /api/v1/photos/{id}/thumbnail` | everyone | 200 (the thumbnail, or the image when the photo has none), 404 `Photo.NotFound` |
 | Photo | `DeletePhoto` | `DELETE /api/v1/listings/{listingId}/photos/{photoId}` | the seller | 204, 401, 403 `Photo.NotSeller`, 404 |
 | Photo | `ReorderPhotos` | `PUT /api/v1/listings/{listingId}/photos/order` (body `{ "photoIds": [...] }`) | the seller | 200 (the photos in the new order), 400 `Photo.OrderMismatch`, 401, 403 `Photo.NotSeller`, 404 |
 | Reservation | `ReserveListing` | `POST /api/v1/listings/{id}/reservations` | anyone logged in; the buyer is the user in the token | 201 + `Location`, 400, 401, 404 |
@@ -509,6 +510,7 @@ Transactional emails (password-reset link, "your password was changed" notice) g
 | `Category.DescriptionTooLong` | 400 | the description of a category is longer than 500 characters |
 | `Category.LastActive` | 409 | an Admin deactivates the last active category (at least one must stay active) |
 | `Listing.CategoryRequired`, `Listing.ConditionRequired` | 400 | `category` or `condition` is missing (null) on create, update or price suggestion; a draft needs them like a published listing |
+| `Photo.TooManyPixels` | 400 | the image has more than 40 megapixels (read from its header, before it is decoded) |
 | `Photo.StorageFailed` | 503 | the photo file could not be written to the storage; nothing was saved, try again |
 | `Photo.OrderMismatch` | 400 | the list of `PUT .../photos/order` is not exactly the photos of the listing (missing, unknown or repeated id) |
 | `Listing.CategoryInactive` | 400 | you create a listing in a deactivated category, move a listing into one, or publish a draft that is in one |
@@ -736,16 +738,28 @@ Stored in `Offers` (foreign keys to `Listings` and to `Members` for the buyer an
 
 ### Listing photos
 
-The seller adds up to 5 photos to a listing (any status, a draft too), each a JPEG, PNG or WebP of at most 2 MB.
+The seller adds up to 5 photos to a listing (any status, a draft too), each a JPEG, PNG or WebP of at most 10 MB.
 
-- `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, contentType, sizeBytes, createdAt, isGenerated }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 2 MB is ever read into memory.
+- `POST /api/v1/listings/{id}/photos`, `multipart/form-data` with the image in the `file` field: 201 with `{ id, listingId, url, thumbnailUrl, contentType, sizeBytes, createdAt, isGenerated, position }` and `Location` to the image. The format is read from the first bytes of the file, not from its name or the type the browser sends, so a renamed GIF is refused (400 `Photo.InvalidFormat`). Only one byte more than 10 MB is ever read into memory. A file that starts like an image but cannot be decoded is refused with `Photo.InvalidFormat` too.
 - `GET /api/v1/listings/{id}/photos`: the photos sorted by `position`; the first one (`position` 0) is the cover. `url` is what an `<img src>` uses. The photos of a `Draft` are returned only to its seller or an Admin; for anyone else the answer is 404, like `GET /api/v1/listings/{id}`.
 - A new photo goes at the end (`position` = last + 1). `PUT /api/v1/listings/{id}/photos/order` (the seller only) takes `{ "photoIds": [...] }` with every photo id of the listing exactly once, in the new order, and returns the photos in that order (400 `Photo.OrderMismatch` otherwise). Deleting a photo leaves a gap in the positions; the order stays correct.
+- Every upload is processed before it is saved (see *Photo processing* below), so `contentType` is always `image/webp` and `sizeBytes` is the size of the saved image.
 - If the file cannot be written to the storage, the upload answers 503 `Photo.StorageFailed` and saves nothing.
 - `GET /api/v1/photos/{id}` (public, also for the photos of a draft: the ids are random GUIDs that cannot be guessed, so the link is the secret; it is not checked against the listing's status): the image, with `Cache-Control: public, max-age=86400` (a photo never changes; a new one gets a new id), `Content-Security-Policy: default-src 'none'` and `X-Content-Type-Options: nosniff` (a generated image is an SVG, which must not run anything when opened directly).
-- `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo.
+- `GET /api/v1/photos/{id}/thumbnail` (public, the same headers): the thumbnail, used by the cards, the gallery strip and the edit form (`thumbnailUrl`). A generated image or a photo from before the thumbnails has none: the URL then sends the image itself and `thumbnailUrl` is the same as `url`.
+- `DELETE /api/v1/listings/{id}/photos/{photoId}` (the seller): 204, to make room for another photo; both files go.
 
-The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.<ext>` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, on the `campusmarket-data` volume, so the photos survive a restart. The database (`Photos` table, migrations `InitialPostgres` and `AddPhotoPosition`) keeps only the file name, type, size and position. Deleting a listing removes its photo rows (cascade) and its folder.
+The files are on disk, one folder per listing: `<Storage:PhotosPath>/<listingId>/<photoId>.webp` and `<photoId>.thumb.webp` (`IPhotoStorage` in `Common/Storage/`, `LocalPhotoStorage` in `Infrastructure/Storage/`). `Storage:PhotosPath` is `photos` (next to the API) by default and `/app/data/photos` in Docker, on the `campusmarket-data` volume, so the photos survive a restart. The database (`Photos` table, migrations `InitialPostgres`, `AddPhotoPosition` and `AddPhotoThumbnails`) keeps only the file names, type, size and position. Deleting a listing removes its photo rows (cascade) and its folder.
+
+### Photo processing
+
+`UploadPhotoHandler` passes every upload through `IPhotoProcessor` (`Common/Images/`) before anything is saved; `SkiaPhotoProcessor` (`Infrastructure/Images/`) does it with [SkiaSharp](https://github.com/mono/SkiaSharp) 3.119.4, MIT license, plus `SkiaSharp.NativeAssets.Linux.NoDependencies` for the Debian image (no extra `apt-get`).
+
+- The image is turned upright by its EXIF orientation (a phone photo taken in portrait is stored sideways with a flag), made at most 1600 px on its longer side and encoded as WebP (quality 80). The thumbnail for the lists is at most 400 px (quality 75). Neither is ever made larger.
+- The encoder writes only the pixels, so all the EXIF data of the upload (GPS location, phone model, date) is dropped and never stored.
+- The size in pixels is read from the header first: more than 40 megapixels → 400 `Photo.TooManyPixels`, so a small file that claims a huge image cannot use the server's memory. A JPEG is decoded straight at a smaller scale (n/8), which keeps the memory low for a phone photo.
+- Why SkiaSharp: MIT, maintained by Microsoft / the .NET Foundation, decodes JPEG/PNG/WebP and encodes WebP, reads the EXIF orientation. ImageSharp was not used because its Six Labors Split License is free only for open source or small companies and version 4 checks a license key; Magick.NET (Apache 2.0) is much heavier. SkiaSharp 4.x is not used yet: on Windows it crashes the process (`AccessViolation` in `sk_codec_new_from_data`) on a JPEG with a corrupt header, where 3.119.4 returns no codec on Windows and Linux.
+- `IPhotoStorage` is async and takes the content type, with keys `<listingId>/<fileName>`, so a bucket (S3/R2) can implement it without any change in the handlers.
 
 ### Generated images for listings without photos
 

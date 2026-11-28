@@ -16,9 +16,9 @@ public sealed class DeletePhotoTests : IntegrationTestBase
 {
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
 
-    // Test images: the signature of the format followed by zeros.
-    private static readonly byte[] PngImage = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-    private static readonly byte[] JpegImage = [0xFF, 0xD8, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+    // Real test images (SkiaSharp), so the processor can decode them.
+    private static readonly byte[] PngImage = TestImages.Png(40, 30);
+    private static readonly byte[] JpegImage = TestImages.Jpeg(40, 30);
 
     [Fact]
     public async Task Given_TwoPhotos_When_SellerDeletesOne_Then_Returns204AndOnlyThatOneIsGone()
@@ -38,8 +38,11 @@ public sealed class DeletePhotoTests : IntegrationTestBase
 
         var photos = await QueryDbAsync(db => db.Set<Photo>().AsNoTracking().ToListAsync());
         photos.Should().ContainSingle().Which.Id.Should().Be(kept.Id);
-        File.Exists(PhotoPath(listing.Id, $"{deleted.Id}.png")).Should().BeFalse();
-        File.Exists(PhotoPath(listing.Id, $"{kept.Id}.jpg")).Should().BeTrue();
+        // Both files of the deleted photo are gone, both files of the other one stay.
+        File.Exists(PhotoPath(listing.Id, $"{deleted.Id}.webp")).Should().BeFalse();
+        File.Exists(PhotoPath(listing.Id, $"{deleted.Id}.thumb.webp")).Should().BeFalse();
+        File.Exists(PhotoPath(listing.Id, $"{kept.Id}.webp")).Should().BeTrue();
+        File.Exists(PhotoPath(listing.Id, $"{kept.Id}.thumb.webp")).Should().BeTrue();
     }
 
     [Fact]
@@ -250,6 +253,7 @@ public sealed class DeletePhotoTests : IntegrationTestBase
         var photo = await QueryDbAsync(db => db.Set<Photo>().AsNoTracking().SingleAsync());
         photo.Id.Should().Be(photoId);
         photo.ListingId.Should().Be(listingId);
-        File.Exists(PhotoPath(listingId, $"{photoId}.png")).Should().BeTrue();
+        File.Exists(PhotoPath(listingId, $"{photoId}.webp")).Should().BeTrue();
+        File.Exists(PhotoPath(listingId, $"{photoId}.thumb.webp")).Should().BeTrue();
     }
 }

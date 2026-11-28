@@ -41,9 +41,6 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
     // A small real PNG (1x1), the same file the Postman collection uploads.
     private static readonly byte[] ListingPhoto = File.ReadAllBytes(FindRepoFile("postman", "files", "listing-photo.png"));
 
-    // The signature of a PNG followed by zeros, for photos seeded as rows.
-    private static readonly byte[] PngImage = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00];
-
     private static readonly byte[] SeededSvg = Encoding.UTF8.GetBytes("<svg xmlns='http://www.w3.org/2000/svg'/>");
 
     private readonly CapturingLoggerProvider _logs = new();
@@ -128,14 +125,14 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
         var generated = Photo.CreateGenerated(listing, 0, SeededSvg, PhotoFormat.Svg, CreatedAt).Value;
         await SeedAsync(generated);
         var storage = Factory.Services.GetRequiredService<IPhotoStorage>();
-        await storage.SaveAsync(listing.Id, generated.FileName, SeededSvg);
+        await storage.SaveAsync(listing.Id, generated.FileName, SeededSvg, generated.ContentType);
         return generated;
     }
 
     private async Task SeedRealPhotosAsync(Member seller, Listing listing, int count)
     {
         for (var i = 0; i < count; i++)
-            await SeedAsync(Photo.Create(seller.Id, listing, i, PngImage, CreatedAt.AddMinutes(i + 1)).Value);
+            await SeedAsync(Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt.AddMinutes(i + 1)));
     }
 
     // Publishes the listing with the copy's client and returns the SVG made for it.
@@ -263,7 +260,7 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
     {
         // Arrange
         var (seller, listing) = await SeedSellerAndListingAsync();
-        var real = Photo.Create(seller.Id, listing, 0, PngImage, CreatedAt).Value;
+        var real = Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt);
         await SeedAsync(real);
         await using var app = WithGeneration();
         using var client = LoggedInClient(app, seller.Id);
@@ -315,13 +312,15 @@ public sealed class GeneratedImagesTests : IntegrationTestBase
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await response.Content.ReadFromJsonAsync<PhotoResponse>(Json);
         body!.IsGenerated.Should().BeFalse();
-        body.ContentType.Should().Be("image/png");
+        body.ContentType.Should().Be("image/webp");
 
         var photo = (await PhotosOfAsync(listing.Id)).Single();
         photo.Id.Should().Be(body.Id);
         photo.IsGenerated.Should().BeFalse();
         File.Exists(PhotoPath(listing.Id, generated.FileName)).Should().BeFalse();
-        (await File.ReadAllBytesAsync(PhotoPath(listing.Id, photo.FileName))).Should().Equal(ListingPhoto);
+        var saved = await File.ReadAllBytesAsync(PhotoPath(listing.Id, photo.FileName));
+        saved.Should().NotEqual(ListingPhoto);
+        TestImages.IsWebP(saved).Should().BeTrue();
     }
 
     [Fact]
