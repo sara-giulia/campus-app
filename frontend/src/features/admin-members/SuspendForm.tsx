@@ -108,7 +108,6 @@ export function SuspendForm({ member, onDone, onCancel }: { member: ReportedMemb
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           aria-invalid={reasonError ? true : undefined}
-          autoFocus
         />
         <p className="field__hint">{t('adminMembers.suspend.reasonHint', { count: reason.length, max: SUSPENSION_REASON_MAX })}</p>
         {reasonError && <p className="field__error">{reasonError}</p>}

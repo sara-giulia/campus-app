@@ -74,7 +74,6 @@ export function ReportMemberButton({ memberId, name, conversationId }: { memberI
         maxLength={REPORT_REASON_MAX}
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        autoFocus
       />
       <p className="field__hint">
         {t('memberReports.hint', { count: reason.length, max: REPORT_REASON_MAX })}
