@@ -1399,6 +1399,61 @@ Rules for this feature:
 - Then run the tests with coverage as this skill says: `Conversation.cs`, `MarkConversationReadHandler.cs`, `GetUnreadMessagesHandler.cs`, `GetMyConversationsHandler.cs`, `GetConversationHandler.cs` are at 100% for lines and branches.
 - If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Photo processing (Anca)
+
+Production code (branch feature/photo-processing, not committed yet; read it before generating): `Domain/Photos/Photo.cs`, `Domain/Photos/ProcessedPhoto.cs`, `Common/Images/IPhotoProcessor.cs`, `Common/Storage/IPhotoStorage.cs`, `Infrastructure/Images/SkiaPhotoProcessor.cs`, `Infrastructure/Storage/LocalPhotoStorage.cs`, `Features/Photos/` (`UploadPhoto`, `DeletePhoto`, `GetPhotoFile`, `GenerateListingImage`, `PhotoResponse.cs`), `Features/Listings/DeleteListing/DeleteListingHandler.cs`.
+- `Photo.MaxSizeBytes` is now 10 MB (`10 * 1024 * 1024` = 10 485 760), for uploads and generated images; the `Photo.TooLarge` message is `"A photo must be at most 10 MB."`.
+- The old `Photo.Create(uploaderId, listing, existingCount, content, createdAt, position)` is gone. `Photo.CheckUpload(uploaderId, listing, existingCount, content)` returns `Error?` in this order: not the seller → `Forbidden` `Photo.NotSeller`; `existingCount >= 5` → `Photo.LimitReached`; empty → `Photo.Empty`; over 10 MB → `Photo.TooLarge`; not JPEG/PNG/WebP by the first bytes → `Photo.InvalidFormat`; otherwise null. `Photo.Create(listing, ProcessedPhoto processed, createdAt, position = 0)` cannot fail: new `Id`, `FileName` `<id>.webp`, `ThumbnailFileName` `<id>.thumb.webp`, `ContentType` `image/webp`, `SizeBytes` = `processed.Image.Length`, `IsGenerated` false. `CreateGenerated` is unchanged and leaves `ThumbnailFileName` null.
+- `IPhotoProcessor.Process(byte[]) : Result<ProcessedPhoto>`; `ProcessedPhoto(byte[] Image, byte[] Thumbnail)`.
+- `IPhotoStorage` is async now: `SaveAsync(listingId, fileName, content, contentType, ct)`, `Task<Stream?> OpenReadAsync(listingId, fileName, ct)`, `DeleteAsync(listingId, fileName, ct)`, `DeleteListingAsync(listingId, ct)`.
+- `UploadPhotoHandler` constructor `(IListingRepository, IPhotoRepository, IPhotoProcessor, IPhotoStorage, IUnitOfWork, TimeProvider)`. Order: listing missing → `Listing.NotFound`; `CheckUpload` error (the generated photos do not count in `existingCount`) → that error; `Process` failure → that error; then `Photo.Create` at the position after the highest position of the real photos (0 when none), then two saves: the image as `FileName` and the thumbnail as `ThumbnailFileName`, both with content type `image/webp` and the processed bytes (never the uploaded bytes); a save that throws (anything but `OperationCanceledException`) → `Validation` `Photo.StorageFailed` and no commit; then the generated photos are removed from the repository, the photo is added, one commit, and the generated files are deleted. The processor is not called when an earlier check fails; nothing is saved when the processor fails.
+- `DeletePhotoHandler`: after the commit deletes `FileName` and, when not null, `ThumbnailFileName`. `DeleteListingHandler`: `DeleteListingAsync` after the commit. `GenerateListingImageHandler`: `SaveAsync` with the photo's `ContentType`.
+- `GetPhotoFileQuery(PhotoId, Thumbnail = false)`. `GetPhotoFileHandler`: `Thumbnail` true → opens `ThumbnailFileName`, or `FileName` when it is null; false → `FileName`. A missing row or a missing file → `NotFound` `Photo.NotFound`. The content type is always the photo's `ContentType`.
+- `PhotoResponse` has a new field `ThumbnailUrl` right after `Url`: `/api/v1/photos/{id}/thumbnail` when `ThumbnailFileName` is set, otherwise the same as `Url`.
+- `SkiaPhotoProcessor` (SkiaSharp 3.119.4): `SKCodec.Create` null → `Photo.InvalidFormat` (message `"Only JPEG, PNG and WebP images are allowed."`); width × height above `MaxPixels` (40 000 000) → `Validation` `Photo.TooManyPixels` (`"A photo can have at most 40 megapixels."`), checked from the header before decoding; pixels that cannot be read → `Photo.InvalidFormat`. Otherwise the image is turned upright by its EXIF orientation and made at most `MaxImageSide` (1600) on its longer side, and the thumbnail at most `MaxThumbnailSide` (400). Neither is ever enlarged, each side is at least 1 pixel, and both are WebP (quality 80 and 75) with no EXIF. `internal static SKMatrix OriginMatrix(origin, w, h)` maps the stored pixels to the upright picture.
+
+Files: `Domain/Photos/PhotoTests.cs` (rewrite the tests of the old `Create` for `CheckUpload` and the new `Create`; keep the `CreateGenerated`, `CheckCanGenerate` and `MoveTo` tests), `Infrastructure/Images/SkiaPhotoProcessorTests.cs` (new), and the existing handler tests `UploadPhotoHandlerTests`, `DeletePhotoHandlerTests`, `GetPhotoFileHandlerTests`, `GetListingPhotosHandlerTests`, `ReorderPhotosHandlerTests`, `GenerateListingImageHandlerTests`, `DeleteListingHandlerTests`. In those, change only what no longer compiles (photos built with the new factory, the async storage, the new field). Keep every assertion that is still true; change only the ones the new behaviour changes on purpose (e.g. `image/png` → `image/webp`).
+
+Fakes:
+- `Fakes/FakePhotoStorage.cs`: the new async interface; keep `Files`, `DeletedListings` and `ThrowOnSave`; add `ContentTypes` (`Dictionary<(Guid ListingId, string FileName), string>`) filled by `SaveAsync`.
+- New `Fakes/FakePhotoProcessor.cs` implementing `IPhotoProcessor`: `Result` (default success with `Image` `[1, 2, 3, 4]` and `Thumbnail` `[9, 9]`), `CallCount`, `LastContent`.
+
+The test images for `SkiaPhotoProcessorTests` are made in the test with SkiaSharp (it comes with the API project): a bitmap filled with one colour, with a different colour in one corner, encoded as JPEG/PNG/WebP. To give a JPEG an EXIF block, insert an APP1 segment right after its first two bytes (`FF D8`), byte for byte:
+- `FF E1`, then the length `00 3A` (58, big-endian, counts itself), then `"Exif\0\0"`;
+- the TIFF header, little-endian: `"II"`, `2A 00`, `08 00 00 00`;
+- IFD0 with 2 entries (`02 00`): Model `10 01`, type ASCII `02 00`, count `0C 00 00 00`, offset `26 00 00 00`; Orientation `12 01`, type SHORT `03 00`, count `01 00 00 00`, value `NN 00 00 00`;
+- the next IFD `00 00 00 00`, then `"Pixel 9 Pro\0"` (12 bytes).
+
+Put this in one small helper in the test file.
+
+Tests to add:
+- `Photo`: every `CheckUpload` error (type, code, message) and their order (a stranger with 5 photos → `NotSeller`; the seller with 5 and an empty file → `LimitReached`), exactly 10 485 760 bytes → null, one more → `TooLarge`, a GIF start → `InvalidFormat`, JPEG/PNG/WebP starts → null. `Create`: every field above, the position passed and the default 0, two calls → different ids.
+- `PhotoResponse.From`: `ThumbnailUrl` for a processed photo and for a generated one (the same as `Url`).
+- `SkiaPhotoProcessor`, sizes and formats:
+  - a 4000×3000 JPEG → image 1600×1200, thumbnail 400×300, both decode as WebP (`SKCodec.EncodedFormat` `Webp`);
+  - a 3000×4000 PNG → 1200×1600 and 300×400;
+  - a 300×200 PNG → 300×200 for both (not enlarged);
+  - a 3000×2 PNG → thumbnail 400×1;
+  - a WebP input works too.
+- `SkiaPhotoProcessor`, orientation: a `[Theory]` over the 8 orientations, using the EXIF helper on a 40×20 JPEG with a red top-left corner. Orientations 1, 2, 3, 4 give 40×20; 5, 6, 7, 8 give 20×40. The red corner ends where that orientation puts it: 1 top-left, 2 top-right, 3 bottom-right, 4 bottom-left, 5 top-left, 6 top-right, 7 bottom-right, 8 bottom-left (check the pixel colour, with a tolerance). The output bytes contain neither `"Exif"` nor `"Pixel 9 Pro"`.
+- `SkiaPhotoProcessor`, errors:
+  - `FF D8 FF` + garbage → `Photo.InvalidFormat`;
+  - an 8000×5001 `Gray8` PNG → `Photo.TooManyPixels` (type, code, message);
+  - an image whose pixels cannot be decoded → `Photo.InvalidFormat`: a small PNG with the first two bytes of its IDAT data (the zlib header) flipped gives `ErrorInInput` every time. A JPEG with corrupt scan data does not work for this: libjpeg still returns `Success`.
+- `OriginMatrix`: for the 8 values, it maps the corner points as described (direct checks with `MapPoint`).
+- `UploadPhotoHandler`:
+  - Success: the processor got the uploaded bytes once; two files were saved with the processed bytes and `image/webp`; the row has `ThumbnailFileName` and `SizeBytes` 4; the response has `ThumbnailUrl`; one commit. With a generated photo present, it is removed (row and file) and the new photo is at position 0.
+  - Listing not found, and each `CheckUpload` error: processor `CallCount` 0, nothing saved, no commit.
+  - Processor failure (`Photo.InvalidFormat`, `Photo.TooManyPixels`) → that error, nothing saved, no commit.
+  - `ThrowOnSave` → `Photo.StorageFailed`, no row, no commit; `OperationCanceledException` is not caught.
+- `GetPhotoFileHandler`: thumbnail requested and the photo has one → its bytes; requested but the photo has none (generated) → the image; not requested → the image; thumbnail file missing → `Photo.NotFound`; unknown id → `Photo.NotFound`.
+- `DeletePhotoHandler`: a processed photo → both files gone; a generated one → its file gone and nothing else touched. `DeleteListingHandler`: `DeletedListings` has the id after a success, not after a failure.
+
+Rules for this feature:
+- Fixed ids and a fixed `DateTimeOffset`; never write files to disk in the unit tests.
+- Then run the tests with coverage as this skill says: `Photo.cs` and every photo handler at 100% for lines and branches. Also run coverlet once with `SkiaPhotoProcessor.cs` included and report its line and branch coverage (it is in Infrastructure, so it is not in the normal report).
+- If a test fails because the code behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Member reports and suspension (Carina)
 
 Production code (written by hand, read it before generating; commits 24cf533 and 6f8ea95):

@@ -29,7 +29,7 @@ public class GetListingPhotosHandlerSuspendedTests
         _listing.Publish(Now.AddDays(30));
         var listings = new FakeListingRepository();
         listings.Items[_listing.Id] = _listing;
-        _photo = Photo.Create(_seller.Id, _listing, 0, PngBytes, Now).Value;
+        _photo = Photo.Create(_listing, new ProcessedPhoto(PngBytes, [9, 9]), Now);
         _photos.Items.Add(_photo);
         _seller.Suspend(AdminId, "Scam", Now.AddDays(1), Now);
         _handler = new GetListingPhotosHandler(listings, _photos, members, _clock);

@@ -17,8 +17,10 @@ public class GetListingPhotosHandlerTests
     private static Listing BuildListing(string title) =>
         Listing.Create(SellerId, title, Category.Textbook, Condition.Good, 25m, Now).Value;
 
-    private static Photo BuildPhoto(Listing listing, byte[] content, DateTimeOffset createdAt) =>
-        Photo.Create(SellerId, listing, 0, content, createdAt).Value;
+    private static readonly byte[] ThumbnailBytes = [9, 9];
+
+    private static Photo BuildPhoto(Listing listing, byte[] content, DateTimeOffset createdAt, int position = 0) =>
+        Photo.Create(listing, new ProcessedPhoto(content, ThumbnailBytes), createdAt, position);
 
     [Fact]
     public async Task Given_PhotosSeededOutOfOrder_When_Handling_Then_ReturnsThemByCreatedAtWithEveryField()
@@ -41,7 +43,7 @@ public class GetListingPhotosHandlerTests
         result.Value.Items.Select(i => i.Id).Should().Equal(oldest.Id, middle.Id, newest.Id);
         result.Value.Items[0].ListingId.Should().Be(listing.Id);
         result.Value.Items[0].Url.Should().Be($"/api/v1/photos/{oldest.Id}");
-        result.Value.Items[0].ContentType.Should().Be("image/jpeg");
+        result.Value.Items[0].ContentType.Should().Be("image/webp");
         result.Value.Items[0].SizeBytes.Should().Be(JpegBytes.Length);
         result.Value.Items[0].CreatedAt.Should().Be(Now);
         photos.Items.Should().Equal(before);
@@ -150,10 +152,10 @@ public class GetListingPhotosHandlerTests
         var listing = BuildListing("Algebra book");
         var listings = new FakeListingRepository();
         listings.Items[listing.Id] = listing;
-        var last = Photo.Create(SellerId, listing, 0, PngBytes, Now, position: 2).Value;
-        var tieNewer = Photo.Create(SellerId, listing, 0, PngBytes, Now.AddHours(2), position: 1).Value;
-        var tieOlder = Photo.Create(SellerId, listing, 0, PngBytes, Now.AddHours(1), position: 1).Value;
-        var cover = Photo.Create(SellerId, listing, 0, PngBytes, Now.AddHours(3), position: 0).Value;
+        var last = BuildPhoto(listing, PngBytes, Now, position: 2);
+        var tieNewer = BuildPhoto(listing, PngBytes, Now.AddHours(2), position: 1);
+        var tieOlder = BuildPhoto(listing, PngBytes, Now.AddHours(1), position: 1);
+        var cover = BuildPhoto(listing, PngBytes, Now.AddHours(3), position: 0);
         var photos = new FakePhotoRepository();
         photos.Items.AddRange([last, tieNewer, cover, tieOlder]);
         var handler = new GetListingPhotosHandler(listings, photos, new FakeMemberRepository(), new FixedTimeProvider(Now));

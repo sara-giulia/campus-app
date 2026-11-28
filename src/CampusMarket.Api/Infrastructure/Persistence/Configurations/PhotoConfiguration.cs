@@ -15,6 +15,7 @@ public sealed class PhotoConfiguration : IEntityTypeConfiguration<Photo>
         builder.Property(p => p.Id).ValueGeneratedNever();
 
         builder.Property(p => p.FileName).HasMaxLength(64).IsRequired();
+        builder.Property(p => p.ThumbnailFileName).HasMaxLength(64);
         builder.Property(p => p.ContentType).HasMaxLength(32).IsRequired();
         builder.HasIndex(p => p.ListingId);
 

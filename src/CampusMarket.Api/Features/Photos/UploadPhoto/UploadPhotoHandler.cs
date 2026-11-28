@@ -1,4 +1,5 @@
 using CampusMarket.Api.Common.CQRS;
+using CampusMarket.Api.Common.Images;
 using CampusMarket.Api.Common.Storage;
 using CampusMarket.Api.Domain.Common;
 using CampusMarket.Api.Domain.Listings;
@@ -9,6 +10,7 @@ namespace CampusMarket.Api.Features.Photos.UploadPhoto;
 public sealed class UploadPhotoHandler(
     IListingRepository listings,
     IPhotoRepository photos,
+    IPhotoProcessor processor,
     IPhotoStorage storage,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider)
@@ -25,18 +27,25 @@ public sealed class UploadPhotoHandler(
         // the limit and it goes away with this upload.
         var current = await photos.GetByListingAsync(command.ListingId, ct);
         var generated = current.Where(p => p.IsGenerated).ToList();
-        var created = Photo.Create(
-            command.UploaderId, listing, current.Count - generated.Count, command.Content, timeProvider.GetUtcNow(),
+        var uploadError = Photo.CheckUpload(command.UploaderId, listing, current.Count - generated.Count, command.Content);
+        if (uploadError is not null)
+            return Result<PhotoResponse>.Failure(uploadError);
+
+        // Made smaller, turned upright and without EXIF before anything is saved, so the GPS location of
+        // the upload is never stored anywhere.
+        var processed = processor.Process(command.Content);
+        if (processed.IsFailure)
+            return Result<PhotoResponse>.Failure(processed.Error);
+
+        var photo = Photo.Create(
+            listing, processed.Value, timeProvider.GetUtcNow(),
             current.Where(p => !p.IsGenerated).Select(p => p.Position).DefaultIfEmpty(-1).Max() + 1);
-        if (created.IsFailure)
-            return Result<PhotoResponse>.Failure(created.Error);
 
-        var photo = created.Value;
-
-        // The file first: if saving the row fails, an unused file is left, never a row without its file.
+        // The files first: if saving the row fails, unused files are left, never a row without its files.
         try
         {
-            await storage.SaveAsync(listing.Id, photo.FileName, command.Content, ct);
+            await storage.SaveAsync(listing.Id, photo.FileName, processed.Value.Image, photo.ContentType, ct);
+            await storage.SaveAsync(listing.Id, photo.ThumbnailFileName!, processed.Value.Thumbnail, photo.ContentType, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -48,8 +57,10 @@ public sealed class UploadPhotoHandler(
         await photos.AddAsync(photo, ct);
         await unitOfWork.CommitAsync(ct);
 
-        // The generated files only after the save, so a failed save never leaves a row without its file.
-        generated.ForEach(old => storage.Delete(listing.Id, old.FileName));
+        // The generated files only after the save, so a failed save never leaves a row without its file. Not
+        // cancelled any more: the photo is already saved.
+        foreach (var old in generated)
+            await storage.DeleteAsync(listing.Id, old.FileName, CancellationToken.None);
 
         return PhotoResponse.From(photo);
     }

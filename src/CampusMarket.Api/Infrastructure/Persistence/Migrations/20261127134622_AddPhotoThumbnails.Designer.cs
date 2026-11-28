@@ -13,8 +13,8 @@ using Pgvector;
 namespace CampusMarket.Api.Infrastructure.Persistence.Migrations;
 
 [DbContext(typeof(CampusMarketDbContext))]
-[Migration("20261127095831_AddMemberReportsAndSuspension")]
-partial class _20261127095831_AddMemberReportsAndSuspension
+[Migration("20261127134622_AddPhotoThumbnails")]
+partial class _20261127134622_AddPhotoThumbnails
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -340,19 +340,6 @@ partial class _20261127095831_AddMemberReportsAndSuspension
                     .HasColumnType("character varying(20)")
                     .HasDefaultValue("Student");
 
-                b.Property<DateTimeOffset?>("SuspendedAt")
-                    .HasColumnType("timestamp with time zone");
-
-                b.Property<Guid?>("SuspendedById")
-                    .HasColumnType("uuid");
-
-                b.Property<DateTimeOffset?>("SuspendedUntil")
-                    .HasColumnType("timestamp with time zone");
-
-                b.Property<string>("SuspensionReason")
-                    .HasMaxLength(500)
-                    .HasColumnType("character varying(500)");
-
                 b.HasKey("Id");
 
                 b.HasIndex("Email")
@@ -536,59 +523,15 @@ partial class _20261127095831_AddMemberReportsAndSuspension
                 b.Property<long>("SizeBytes")
                     .HasColumnType("bigint");
 
+                b.Property<string>("ThumbnailFileName")
+                    .HasMaxLength(64)
+                    .HasColumnType("character varying(64)");
+
                 b.HasKey("Id");
 
                 b.HasIndex("ListingId");
 
                 b.ToTable("Photos");
-            });
-
-        modelBuilder.Entity("CampusMarket.Api.Domain.Reports.MemberReport", b =>
-            {
-                b.Property<Guid>("Id")
-                    .HasColumnType("uuid");
-
-                b.Property<Guid?>("ConversationId")
-                    .HasColumnType("uuid");
-
-                b.Property<DateTimeOffset>("CreatedAt")
-                    .HasColumnType("timestamp with time zone");
-
-                b.Property<string>("Reason")
-                    .IsRequired()
-                    .HasMaxLength(500)
-                    .HasColumnType("character varying(500)");
-
-                b.Property<Guid>("ReportedMemberId")
-                    .HasColumnType("uuid");
-
-                b.Property<Guid>("ReporterId")
-                    .HasColumnType("uuid");
-
-                b.Property<string>("Resolution")
-                    .IsRequired()
-                    .ValueGeneratedOnAdd()
-                    .HasMaxLength(20)
-                    .HasColumnType("character varying(20)")
-                    .HasDefaultValue("Pending");
-
-                b.Property<DateTimeOffset?>("ResolvedAt")
-                    .HasColumnType("timestamp with time zone");
-
-                b.Property<Guid?>("ResolvedById")
-                    .HasColumnType("uuid");
-
-                b.HasKey("Id");
-
-                b.HasIndex("ConversationId");
-
-                b.HasIndex("ReportedMemberId", "Resolution");
-
-                b.HasIndex("ReporterId", "ReportedMemberId")
-                    .IsUnique()
-                    .HasFilter("\"Resolution\" = 'Pending'");
-
-                b.ToTable("MemberReports");
             });
 
         modelBuilder.Entity("CampusMarket.Api.Domain.Reports.Report", b =>
@@ -881,26 +824,6 @@ partial class _20261127095831_AddMemberReportsAndSuspension
                 b.HasOne("CampusMarket.Api.Domain.Listings.Listing", null)
                     .WithMany()
                     .HasForeignKey("ListingId")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
-            });
-
-        modelBuilder.Entity("CampusMarket.Api.Domain.Reports.MemberReport", b =>
-            {
-                b.HasOne("CampusMarket.Api.Domain.Conversations.Conversation", null)
-                    .WithMany()
-                    .HasForeignKey("ConversationId")
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
-                    .WithMany()
-                    .HasForeignKey("ReportedMemberId")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
-
-                b.HasOne("CampusMarket.Api.Domain.Members.Member", null)
-                    .WithMany()
-                    .HasForeignKey("ReporterId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
             });

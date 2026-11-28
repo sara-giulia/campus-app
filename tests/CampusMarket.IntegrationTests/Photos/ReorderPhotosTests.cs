@@ -17,9 +17,6 @@ public sealed class ReorderPhotosTests : IntegrationTestBase
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
     private static readonly Guid OtherMemberId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-    // The signature of a PNG followed by zeros.
-    private static readonly byte[] PngImage = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-
     [Fact]
     public async Task Given_ThreePhotos_When_SellerReversesThem_Then_Returns200AndSavesNewPositions()
     {
@@ -204,7 +201,7 @@ public sealed class ReorderPhotosTests : IntegrationTestBase
         if (published)
             listing.Publish(DateTimeOffset.UtcNow.AddDays(30).ToMicroseconds());
         var photos = Enumerable.Range(0, 3)
-            .Select(i => Photo.Create(seller.Id, listing, i, PngImage, CreatedAt.AddMinutes(i), i).Value)
+            .Select(i => Photo.Create(listing, new ProcessedPhoto([1], [1]), CreatedAt.AddMinutes(i), i))
             .ToList();
 
         await SeedAsync(seller, listing);

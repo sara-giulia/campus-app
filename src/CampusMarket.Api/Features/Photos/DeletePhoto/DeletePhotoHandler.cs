@@ -34,8 +34,11 @@ public sealed class DeletePhotoHandler(
         photos.Delete(photo);
         await unitOfWork.CommitAsync(ct);
 
-        // The row first: if removing the file fails, an unused file is left, never a row without its file.
-        storage.Delete(listing.Id, photo.FileName);
+        // The row first: if removing the files fails, unused files are left, never a row without its file.
+        // Not cancelled any more: the row is already gone.
+        await storage.DeleteAsync(listing.Id, photo.FileName, CancellationToken.None);
+        if (photo.ThumbnailFileName is not null)
+            await storage.DeleteAsync(listing.Id, photo.ThumbnailFileName, CancellationToken.None);
 
         return photo.Id;
     }

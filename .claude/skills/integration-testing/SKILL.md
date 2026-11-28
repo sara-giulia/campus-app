@@ -1783,6 +1783,43 @@ Rules for this feature:
 - Then run all the tests with coverage as the CI does: `Conversation.cs`, `MarkConversationReadEndpoint.cs`, `GetUnreadMessagesEndpoint.cs`, their handlers, `EfUnitOfWork.cs` and `LiveEvent.cs` are at 100% for lines and branches (all test projects merged).
 - If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
 
+## Feature: Photo processing (Anca)
+
+Code (branch feature/photo-processing, not committed yet; read `Domain/Photos/`, `Common/Images/IPhotoProcessor.cs`, `Common/Storage/IPhotoStorage.cs`, `Infrastructure/Images/SkiaPhotoProcessor.cs`, `Infrastructure/Storage/LocalPhotoStorage.cs`, `Features/Photos/` and the migration `AddPhotoThumbnails` first). Errors are `Error` bodies; 401 is a ProblemDetails `Auth.Unauthorized`.
+- Every upload is processed before it is saved: decoded, turned upright by its EXIF orientation, at most 1600 px on its longer side, plus a thumbnail of at most 400 px. Both are WebP without any EXIF, and neither is ever enlarged. On disk: `<PhotosPath>/<listingId>/<id>.webp` and `<id>.thumb.webp`. The row: `FileName` `<id>.webp`, `ThumbnailFileName` `<id>.thumb.webp`, `ContentType` `image/webp`, `SizeBytes` = the size of the saved image (not of the upload).
+- `POST /api/v1/listings/{listingId}/photos`: the limit is now 10 MB (10 485 760 bytes; one more → 400 `Photo.TooLarge`). New 400s: a file with a JPEG/PNG/WebP start that cannot be decoded → `Photo.InvalidFormat`; more than 40 000 000 pixels → `Photo.TooManyPixels`. The response has a new field `thumbnailUrl` right after `url` (`/api/v1/photos/{id}/thumbnail`), and `contentType` is `image/webp` whatever was sent.
+- New `GET /api/v1/photos/{id}/thumbnail` (public, with the same headers as `GET /api/v1/photos/{id}`: `Cache-Control: public, max-age=86400`, `Content-Security-Policy: default-src 'none'`, `X-Content-Type-Options: nosniff`) → the thumbnail. A photo without one (generated, or a row from before this migration) → its image with its own type; for those photos `thumbnailUrl` is the same as `url`. Unknown id or missing file → 404 `Photo.NotFound`.
+- `DELETE /api/v1/listings/{listingId}/photos/{photoId}` removes both files. `DELETE /api/v1/listings/{id}` still removes the folder.
+- Migration `AddPhotoThumbnails` (on top of `AddConversationReadState`): adds `Photos.ThumbnailFileName` (`character varying(64)`, nullable); old rows get null. `Down` drops it.
+
+The old tests upload byte arrays that have only the signature followed by zeros. Those cannot be decoded any more, so they now get 400 `Photo.InvalidFormat`. Change them as follows:
+- Add `Infrastructure/TestImages.cs` with real images made with SkiaSharp (it comes with the API project): `Png(width, height)`, `Jpeg(width, height, orientation = null)` and `WebP(width, height)`. Each is one colour, with a different colour in the top-left corner.
+- The JPEG EXIF helper: after `FF D8`, insert an APP1 segment `FF E1`, length `00 3A`, `"Exif\0\0"`; then the little-endian TIFF `"II"`, `2A 00`, `08 00 00 00`; then 2 entries `02 00`: Model `10 01` `02 00` `0C 00 00 00` `26 00 00 00`, Orientation `12 01` `03 00` `01 00 00 00` `NN 00 00 00`; then the next IFD `00 00 00 00` and `"Pixel 9 Pro\0"`.
+- Replace the fake images in every photo test: `Photos/UploadPhotoTests.cs`, `GetListingPhotosTests.cs`, `GetPhotoFileTests.cs`, `DeletePhotoTests.cs`, `ReorderPhotosTests.cs`, `GeneratedImagesTests.cs`, and any other test that uploads a photo (search for `/photos"` and the signature arrays).
+- Keep every assertion that is still true. Change only what changes on purpose: the type is `image/webp`, `FileName` ends in `.webp`, the saved bytes are not the uploaded bytes (check that they decode as WebP instead), and the size limit is 10 MB. The "GIF sent as image/png" and "no file" tests stay as they are.
+- Fix `Infrastructure/ThrowingPhotoStorage.cs` for the async interface: save throws the same exception; the other methods do nothing or return null.
+- Rows seeded directly for the "already 5" case use `Photo.Create(listing, new ProcessedPhoto([1], [1]), …)`.
+
+Tests to add (status, body, then the database through `db.Set<Photo>()` and the files under `Factory.PhotosPath`):
+- New `Photos/PhotoProcessingTests.cs`:
+  - A 4000×3000 JPEG with orientation 6 and the EXIF block → 201. The saved image is 1200×1600 and the thumbnail 300×400, both WebP, and the red corner of the stored picture is at the top-right of the saved image. Neither file contains `"Exif"` or `"Pixel 9 Pro"`. `sizeBytes` = the image file's length, and the row has its `ThumbnailFileName`.
+  - A 300×200 PNG → both files 300×200. A WebP, and a PNG with transparency → 201.
+  - `FF D8 FF` + garbage → 400 `Photo.InvalidFormat`, no row, no file. An 8000×5001 `Gray8` PNG → 400 `Photo.TooManyPixels`.
+  - A real PNG padded with zeros after its end to exactly 10 485 760 bytes → 201 (if the decoder refuses the padding, report it); 10 485 761 bytes → 400 `Photo.TooLarge`.
+- `GET /api/v1/photos/{id}/thumbnail`:
+  - a processed photo → the bytes of the thumbnail file, `image/webp`, the three headers;
+  - a generated photo (made the way `GeneratedImagesTests` makes one) → the SVG with `image/svg+xml`, and its `thumbnailUrl` equals `url`;
+  - a row whose `ThumbnailFileName` was set to null with SQL (an old photo) → its image, and `thumbnailUrl` equals `url` in `GET /listings/{id}/photos`;
+  - thumbnail file deleted by the test → 404; unknown id → 404.
+- Delete: both files gone for a processed photo, and the other photo's two files stay.
+- Migration (separate PostgreSQL database, never the shared one): migrate to `AddConversationReadState`, insert a member, a listing and a photo row with raw SQL, then migrate to `AddPhotoThumbnails`: the column exists (`character varying`, length 64, nullable) and the old row has null. Migrating back to `AddConversationReadState` drops the column and keeps the row.
+
+Rules for this feature:
+- Never replace the `DbContext` or `IPhotoProcessor` in the test host: the real `SkiaPhotoProcessor` runs.
+- Make the big test images once (`static readonly` / `Lazy`), not in every test.
+- Then run all the tests with coverage as the CI does: `SkiaPhotoProcessor.cs`, `LocalPhotoStorage.cs`, `UploadPhotoHandler.cs`, `GetPhotoFileHandler.cs`, `GetPhotoFileEndpoint.cs`, `DeletePhotoHandler.cs`, `PhotoResponse.cs` at 100% for lines and branches (all test projects merged).
+- If a test fails because the API behaves differently from this list, stop and report it; do not change `src/`.
+
 ## Feature: Member reports and suspension (Carina)
 
 Production code (written by hand, read it before generating; commits 24cf533, 6f8ea95, be10ef7): `Domain/Members/Member.cs` (`Suspend`, `LiftSuspension`, `IsSuspended`, `AccountSuspendedError`), `Domain/Reports/MemberReport.cs`, `Features/Moderation/ReportMember/`, `GetReportedMembers/`, `DismissMemberReports/`, `SuspendMember/`, `LiftSuspension/`, `SuspensionEmails.cs`, `Infrastructure/Auth/CachedSuspensionCheck.cs`, `Infrastructure/Auth/SuspensionJwtEvents.cs`, `Infrastructure/Events/InMemoryLiveEvents.cs` (`Disconnect`), `EfMemberReportRepository.cs`, `Configurations/MemberReportConfiguration.cs`, `EfMemberRepository.GetSuspendedIdsAsync`, `EfOfferRepository.GetPendingForMemberAsync`, the login, refresh and send-message handlers, migration `20261127095831_AddMemberReportsAndSuspension` (on top of `20261126192341_AddConversationReadState`).
@@ -1816,7 +1853,7 @@ Tests to add (status, body, then the database through `db.Set<MemberReport>()`, 
 - Report: 201 with the trimmed reason, with and without a conversation between the two; every 400 (`""`, `"   "`, 501 characters, self, unknown conversation, a conversation of other members), 404 (unknown member), 409 (a `Pending` one exists) and, after it was dismissed, a new report → 201; 401. No row in any failure.
 - List, dismiss, suspend, lift: every success and every error of the table; 401 and 403 (a student) on each of the four admin routes; the list ordering (count, then last report, then id), paging (`?page=2&pageSize=1`), only `Pending` reports, `isSuspended`/`suspendedUntil`, `hiddenListingsCount`.
 - Effects, end to end: the list above (login, refresh, old token, listings, profile, favorites, reserve/offer/favorite/conversation → 404, message → 409, reservations and offers closed with their notifications, refresh tokens revoked, reports confirmed, the two emails), the live stream closed, everything back after lift (listings visible, login 200; the cancelled reservations and offers stay cancelled), a temporary suspension that ended (clock), the cache rule above, a token without a `sub` Guid and a badly signed token keep their old behaviour.
-- Migration (separate database, never the shared one, like `AddConversationReadStateMigrationTests`): migrate to `20261126192341_AddConversationReadState`, insert members with raw SQL, migrate to `20261127095831_AddMemberReportsAndSuspension`: the four `Members` columns exist and are `NULL` for the old members, `SuspensionReason` is `character varying(500)`; the partial unique index `IX_MemberReports_ReporterId_ReportedMemberId` (`WHERE "Resolution" = 'Pending'`): a second `Pending` row of the same pair fails with a unique violation, a new `Pending` row after the first was set to `Dismissed` is accepted; deleting the conversation sets `ConversationId` to `NULL`; migrating down drops the table and the columns and keeps the members.
+- Migration (separate database, never the shared one, like `AddConversationReadStateMigrationTests`): migrate to `20261127134622_AddPhotoThumbnails`, insert members with raw SQL, migrate to `20261128150241_AddMemberReportsAndSuspension`: the four `Members` columns exist and are `NULL` for the old members, `SuspensionReason` is `character varying(500)`; the partial unique index `IX_MemberReports_ReporterId_ReportedMemberId` (`WHERE "Resolution" = 'Pending'`): a second `Pending` row of the same pair fails with a unique violation, a new `Pending` row after the first was set to `Dismissed` is accepted; deleting the conversation sets `ConversationId` to `NULL`; migrating down drops the table and the columns and keeps the members.
 
 Rules for this feature:
 - Compare times read from PostgreSQL with `ToMicroseconds()`; for the times the API writes from its clock check only that they are set (or close to now), never an exact value, except with `AdjustableTimeProvider`.

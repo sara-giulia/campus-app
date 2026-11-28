@@ -35,7 +35,7 @@ export function ListingCard({ listing }: { listing: CardListing }) {
   return (
     <Link to={`/listings/${listing.id}`} className="lcard">
       <div className={`lcard__image lcard__image--${listing.category.toLowerCase()}`}>
-        {cover ? <img src={photoSrc(cover.url)} alt="" loading="lazy" /> : <span>{labelOf(listing.category)}</span>}
+        {cover ? <img src={photoSrc(cover.thumbnailUrl)} alt="" loading="lazy" /> : <span>{labelOf(listing.category)}</span>}
         {cover?.isGenerated && <span className="generated-badge">{t('listings.card.generated')}</span>}
       </div>
       <div className="lcard__body">

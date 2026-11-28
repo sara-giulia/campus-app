@@ -12,8 +12,8 @@ namespace CampusMarket.IntegrationTests.Persistence;
 // inserted between the migration before AddMemberReportsAndSuspension and AddMemberReportsAndSuspension itself.
 public sealed class AddMemberReportsAndSuspensionMigrationTests : IAsyncLifetime
 {
-    private const string PreviousMigration = "20261126192341_AddConversationReadState";
-    private const string AddMemberReportsAndSuspension = "20261127095831_AddMemberReportsAndSuspension";
+    private const string PreviousMigration = "20261127134622_AddPhotoThumbnails";
+    private const string AddMemberReportsAndSuspension = "20261128150241_AddMemberReportsAndSuspension";
     private const string UniqueViolation = "23505";
 
     private static readonly DateTimeOffset T0 = new(2026, 10, 1, 9, 0, 0, TimeSpan.Zero);
@@ -158,7 +158,7 @@ public sealed class AddMemberReportsAndSuspensionMigrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Given_MigratedDatabase_When_MigratingDownToAddConversationReadState_Then_TableAndColumnsAreGoneAndMembersRemain()
+    public async Task Given_MigratedDatabase_When_MigratingDownToAddPhotoThumbnails_Then_TableAndColumnsAreGoneAndMembersRemain()
     {
         // Arrange
         await MigrateAsync(PreviousMigration);

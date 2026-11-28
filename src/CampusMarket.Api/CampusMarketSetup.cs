@@ -96,6 +96,7 @@ public static class CampusMarketSetup
         services.AddScoped<IPhotoRepository, EfPhotoRepository>();
         services.AddOptions<PhotoStorageOptions>().Bind(configuration.GetSection(PhotoStorageOptions.SectionName));
         services.AddSingleton<IPhotoStorage, LocalPhotoStorage>();
+        services.AddSingleton<IPhotoProcessor, SkiaPhotoProcessor>();
         services.AddScoped<INotificationRepository, EfNotificationRepository>();
         services.AddOptions<LiveEventsOptions>()
             .Bind(configuration.GetSection(LiveEventsOptions.SectionName))

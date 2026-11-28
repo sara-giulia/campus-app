@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CampusMarket.Api.Infrastructure.Persistence.Migrations;
 
 /// <inheritdoc />
-public partial class _20261127095831_AddMemberReportsAndSuspension : Migration
+public partial class _20261128150241_AddMemberReportsAndSuspension : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
